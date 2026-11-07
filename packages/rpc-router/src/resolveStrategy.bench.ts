@@ -93,11 +93,12 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
   mutable.response = {
     statusCode: StatusCodes.OK,
     hasErrors: false,
+    stopped: false,
     fatalError: undefined,
     headers: respHeaders,
     body: {},
   };
-  mutable.shared = getRouterOptions().contextDataFactory?.() ?? {};
+  mutable.shared = getRouterOptions().sharedDataFactory?.() ?? {};
   return ctx;
 }
 
@@ -116,6 +117,7 @@ function buildContextFromChain(
     response: {
       statusCode: StatusCodes.OK,
       hasErrors: false,
+      stopped: false,
       fatalError: undefined,
       headers: respHeaders,
       body: {},
@@ -123,7 +125,7 @@ function buildContextFromChain(
     executionChain: chain,
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
-    shared: getRouterOptions().contextDataFactory?.() ?? {},
+    shared: getRouterOptions().sharedDataFactory?.() ?? {},
     urlQuery,
     batchId: chain.batchId,
     batchRouteIds: chain.batchRouteIds,

@@ -24,8 +24,8 @@ type DataPoint = {
 type MySharedData = ReturnType<typeof getSharedData>;
 type Context = CallContext<MySharedData>;
 
-const getSharedData = () => ({auth: {me: null as any}});
-const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
@@ -81,6 +81,54 @@ describe('vercel dev server: content-length bounds the body', () => {
     });
     expect(first.slice(0, 400)).toContain('HTTP/1.1 200');
     expect(first).toContain('"date":"2022-04-10T02:13:00.000Z"');
+  });
+});
+
+describe('vercel dev server: the body limit holds with no content-length', () => {
+  const port = 8764;
+  let server: any;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts();
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    server = await startVercelDevServer({port});
+  });
+
+  afterAll(async () => {
+    await closeServer(server);
+  });
+
+  it('refuses a chunked body past the 128 KB default with a 413', async () => {
+    const {request} = await import('node:http');
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = request({host: '127.0.0.1', port, method: 'POST', path: '/api/changeUserName'}, (res) => {
+        res.resume();
+        resolve(res.statusCode ?? 0);
+      });
+      req.on('error', reject);
+      req.setHeader('content-type', 'application/json');
+      // no content-length: node sends it chunked, so only the streamed read can stop it
+      for (let i = 0; i < 200; i++) req.write('x'.repeat(1024));
+      req.end();
+    });
+    expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+  });
+
+  it('builds the URL from the path alone, so a malformed Host header still gets an answer', async () => {
+    const {createConnection} = await import('node:net');
+    const json = JSON.stringify({getDate: []});
+    const head = `POST /api/getDate HTTP/1.1\r\nHost: a b\r\nContent-Length: ${json.length}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`;
+    const answer = await new Promise<string>((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + json));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve(data));
+      setTimeout(() => socket.destroy(), 2000);
+    });
+    expect(answer.slice(0, 20)).toContain('HTTP/1.1 200');
   });
 });
 
@@ -157,7 +205,7 @@ describe('vercel dev server (node) - default encoder', () => {
   beforeAll(async () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName, getDate});
     server = await startVercelDevServer({port});
   });

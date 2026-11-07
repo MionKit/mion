@@ -194,7 +194,7 @@ describe('@mionjs/run-types publishes the artifact its built-in pure fns are ser
     expect(index.package).toBe('@mionjs/run-types');
     expect(index.pureFns.length).toBeGreaterThan(0);
     for (const row of index.pureFns) {
-      const [owner, hash] = row.id.split('#pf_');
+      const [owner, hash] = row.id.split(':');
       expect(existsSync(join(packageDir, 'dist', 'mion-pure-fns', ...owner.split('/'), `${hash}.js`))).toBe(true);
     }
   });
@@ -229,7 +229,7 @@ describe('published packages ship a README', () => {
       // A separator row is what makes a markdown table a table.
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
       expect(readme).not.toMatch(/\bMION_[A-Z0-9_]+\b|process\.env/);
-      expect(readme).toContain('https://mion.pages.dev/runtypes');
+      expect(readme).toContain('https://mion.io/runtypes');
     });
   }
 });
@@ -467,17 +467,29 @@ describe('every tracked JavaScript file parses', () => {
   });
 });
 
+// Edge runtimes forbid `new Function`, and an app's emitMode never reaches a package's prebuilt modules.
+describe('published packages ship live generated functions', () => {
+  it('every public package that runs the mion vite plugin builds with emitMode both', () => {
+    const offenders = globSync('packages/*/vite.config.ts', {cwd: REPO_ROOT}).filter((file) => {
+      const config = readFileSync(join(REPO_ROOT, file), 'utf8');
+      const isPublic = !JSON.parse(readFileSync(join(REPO_ROOT, dirname(file), 'package.json'), 'utf8')).private;
+      return isPublic && config.includes('mionVitePlugin(') && !/emitMode:\s*'both'/.test(config);
+    });
+    expect(offenders).toEqual([]);
+  });
+});
+
 // No CI lane runs the compile-time bench, so these pin the two things that broke it unseen.
 describe('the compile-time bench loads what its lanes install', () => {
   const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
 
   it('imports the vite plugin from the subpath the mion lane uses, which the devtools export', () => {
-    const subpath = /importExport\([^)]*'@mionjs\/devtools'\), '([^']+)'\)/.exec(
+    const subpath = /import \w+ from '@mionjs\/devtools(\/[^']+)'/.exec(
       read('container/benchmarks/compiletime/compiletime.mjs')
     )?.[1];
     expect(subpath).toBeDefined();
-    expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath!.slice(1)}'`);
-    expect(JSON.parse(read('packages/devtools/package.json')).exports[subpath!]).toBeDefined();
+    expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath}'`);
+    expect(JSON.parse(read('packages/devtools/package.json')).exports[`.${subpath}`]).toBeDefined();
   });
 
   it('skips a TypeScript with no parser API, such as the TypeScript 7 the typia lane installs', () => {
@@ -627,30 +639,30 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
+const importedModules = (file: string): string[] => {
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+  const found: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      found.push(node.moduleSpecifier.text);
+    }
+    const isImportCall =
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
+    if (isImportCall && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+};
+
 // devtools does not depend on run-types (the reverse does); fixture sources inside strings may still name it.
 describe('devtools code never imports @mionjs/run-types', () => {
-  const importedModules = (file: string): string[] => {
-    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-    const found: string[] = [];
-    const visit = (node: ts.Node): void => {
-      if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
-      ) {
-        found.push(node.moduleSpecifier.text);
-      }
-      const isImportCall =
-        ts.isCallExpression(node) &&
-        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
-      if (isImportCall && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
-    return found;
-  };
-
   // Parallel tests write scratch fixtures that import run-types on purpose; scanning them failed at random.
   const isScratchDir = (name: string): boolean => name === 'node_modules' || /^\.?tmp($|[-_.])/.test(name);
   const runTypesImports = (root: string): string[] =>
@@ -816,27 +828,14 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     for (const name of mountedPackageNames()) expect(name).toMatch(/^@mionjs\//);
   });
 
-  // The mount ROOT is not written in the list: twoslash.post.ts reads each package's
-  // own package.json and mounts the directory holding its `.` types entry. The dists
-  // are not laid out alike (core emits `.dist/esm/index.d.ts`, the drizzle packages
-  // `.dist/esm/src/index.d.ts`, run-types `dist/`, uws a committed `lib/`), and the
-  // hand-written `distPath` this replaced mounted `.dist/esm` for the drizzle
-  // packages: a root holding only `src/`, so `import ... from
-  // '@mionjs/drizzle-orm-pg-core'` resolved nothing and the home page's drizzle card
-  // rendered a compiler error. Reading the manifest removes that drift; what is left
-  // to pin is that every manifest names an entry, that a built dist really holds it
-  // where the manifest says, and that the subpaths the examples import sit where
-  // classic node resolution looks under that root.
-  const TYPES_SPELLINGS = 'exports["."].types, exports["."].import.types or a top-level types';
+  // twoslash.post.ts mounts the dir holding each `.` types entry: dists differ in layout, a wrong root renders an error.
+  // Pinned: every manifest names an entry, the built dist holds it, example subpaths sit where classic resolution looks.
+  const TYPES_SPELLINGS = 'exports["."].types or a top-level types';
 
-  // Mirrors typesEntry() in twoslash.post.ts: the `.` types entry relative to the
-  // package dir, in the three spellings the workspace uses.
+  // Mirrors typesEntry() in twoslash.post.ts, but relative to the package dir.
   function declaredTypes(manifest: Record<string, any>, subpath: string): string | undefined {
     const entry = manifest.exports?.[subpath];
-    const declared =
-      typeof entry === 'string'
-        ? entry
-        : (entry?.types ?? entry?.import?.types ?? (subpath === '.' ? manifest.types : undefined));
+    const declared = typeof entry === 'string' ? entry : (entry?.types ?? (subpath === '.' ? manifest.types : undefined));
     return typeof declared === 'string' && declared.endsWith('.d.ts') ? posix.normalize(declared) : undefined;
   }
 
@@ -1679,15 +1678,14 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
-    // BenchTable's "Overall" row and HomeBenchTable's headline number for the same
-    // dataset must agree, so neither carries its own copy of the math.
-    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.ts');
+    // BenchTable's "Overall" row and HomeBenchTable's headline for the same dataset must agree.
+    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.js');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {
       const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
       expect(component, `${name} imports the shared helpers`).toContain("from '~/utils/benchAggregate'");
       expect(component, `${name} carries its own geomean`).not.toMatch(
-        /function (geomean|geomeanOver|commonBasis|caseSupported|aggregateRows)\(/
+        /function (geomean|rowMeans|meanWithWorstFill|caseSupported|aggregateRows)\(/
       );
     }
   });
@@ -1998,6 +1996,27 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     expect(lockfile).toMatch(/^  '@img\/sharp-linux-x64@/m);
   });
 
+  // The subsite homes are served at /<id> by a frontmatter `path:`; a gate that derived their route from the file
+  // name asked for a page the build no longer has and refused the deploy (2026-10).
+  it('check-static looks every page up at the route the site serves it at', async () => {
+    // @ts-expect-error — a plain .mjs script, no types
+    const {pageRoute} = (await import('../../../scripts/website/check-static.mjs')) as {
+      pageRoute: (source: string, markdown: string) => string;
+    };
+    const content = join(REPO_ROOT, 'container/website/content');
+    for (const [id, file] of [
+      ['rpc', '01.rpc/01.introduction/01.about-mion-rpc.md'],
+      ['runtypes', '02.runtypes/01.introduction/01.about-mion-runtypes.md'],
+      ['benchmarks', '03.benchmarks/01.introduction/01.mion-benchmarks.md'],
+    ]) {
+      expect(pageRoute(file, readFileSync(join(content, file), 'utf8')), file).toBe(`/${id}`);
+    }
+    const guide = '02.runtypes/02.guide/03.validation.md';
+    expect(pageRoute(guide, readFileSync(join(content, guide), 'utf8'))).toBe('/runtypes/guide/validation');
+    // a `path:` inside an MDC block in the body is not the page's route
+    expect(pageRoute('01.rpc/x.md', '---\ntitle: X\n---\n\n::code-card\n---\npath: a/b.ts\n---\n::\n')).toBe('/rpc/x');
+  });
+
   it('check-static extracts every same-origin picture a page references, and nothing else', async () => {
     // @ts-expect-error — a plain .mjs script, no types
     const {imageSources} = (await import('../../../scripts/website/check-static.mjs')) as {
@@ -2072,6 +2091,20 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
 // It is a heavy dependency to re-acquire by accident (a second module runner in every consumer
 // install), so pin that neither manifest declares it.
 
+describe('every published package declares the Node >= 24 floor', () => {
+  // The packages ship ESM only; a CommonJS consumer loads them through require(esm), safe from Node 24.
+  it('engines.node starts at 24 (platform-bun runs on Bun only)', () => {
+    const offenders = readdirSync(join(REPO_ROOT, 'packages'))
+      .map((dir) => join(REPO_ROOT, 'packages', dir, 'package.json'))
+      .filter((file) => existsSync(file))
+      .map((file) => JSON.parse(readFileSync(file, 'utf8')))
+      .filter((manifest) => !manifest.private && manifest.name !== '@mionjs/platform-bun')
+      .filter((manifest) => !/^>=24\b/.test(manifest.engines?.node ?? ''))
+      .map((manifest) => manifest.name);
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('no manifest declares vite-node', () => {
   it('neither the root nor the devtools package pulls it in', () => {
     for (const manifest of ['package.json', 'packages/devtools/package.json']) {
@@ -2080,6 +2113,38 @@ describe('no manifest declares vite-node', () => {
         expect(Object.keys(pkg[field] ?? {}), `${manifest} ${field}`).not.toContain('vite-node');
       }
     }
+  });
+});
+
+// Loading TypeScript's JS API would tie the Vite plugin to one TypeScript major.
+describe('devtools never loads TypeScript', () => {
+  it('no src file imports typescript', () => {
+    const devtools = join(REPO_ROOT, 'packages/devtools');
+    const importers = globSync('src/**/*.ts', {cwd: devtools}).filter((file) =>
+      importedModules(join(devtools, file)).some((specifier) => specifier === 'typescript' || specifier.startsWith('typescript/'))
+    );
+    expect(importers).toEqual([]);
+  });
+
+  it('and declares no typescript peer, so any TypeScript version installs beside it', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/devtools/package.json'), 'utf8'));
+    expect(Object.keys(pkg.peerDependencies ?? {})).not.toContain('typescript');
+  });
+});
+
+// platform-bun's loader is not published, so the compiler would only add 25 MB to production installs.
+describe('platform-bun installs without the compiler', () => {
+  it('depends on core and router only', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/platform-bun/package.json'), 'utf8'));
+    expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual(['@mionjs/core', '@mionjs/router']);
+  });
+});
+
+// src/ is not published, so a map that only points at it warns in every consumer's dev server.
+describe('tsc-built packages embed their sources in the published maps', () => {
+  it.each(['packages/run-types/tsconfig.build.json', 'packages/devtools/tsconfig.build.json'])('%s', (config) => {
+    const parsed = ts.parseConfigFileTextToJson(config, readFileSync(join(REPO_ROOT, config), 'utf8'));
+    expect(parsed.config?.compilerOptions?.inlineSources).toBe(true);
   });
 });
 
@@ -2175,12 +2240,19 @@ describe('bun test files never build the router at evaluation time', () => {
   // Bun evaluates all describe bodies before any hook in one process, so a router built there hits a sibling's once-guard.
   // The throw skips that whole file and the summary still reads `0 fail`.
   // Indentation is the nesting test: 0 is module level, 2 a describe body, deeper runs after the reset.
-  const evaluationTimeCalls = (source: string): string[] =>
-    source
-      .split('\n')
-      .map((line, index) => ({line, number: index + 1}))
-      .filter(({line}) => /createMionRouter\s*\(/.test(line) && /^ {0,2}\S/.test(line) && !/^\s*(\/\/|\*)/.test(line))
-      .map(({line, number}) => `${number}: ${line.trim()}`);
+  // Calling `createMionRouter` or the factory `withTypes<T>()` returns builds; `withTypes<T>()` alone does not.
+  // Inline or via a const, matched on the whole source: a `<{...}>` type argument may span lines.
+  const evaluationTimeCalls = (source: string): string[] => {
+    const factory = 'createMionRouter';
+    const typed = `${factory}\\s*\\.\\s*withTypes\\s*(?:<[^]*?>)?\\s*\\(\\s*\\)`;
+    const held = [...source.matchAll(new RegExp(`(\\w+)\\s*=\\s*${typed}\\s*;`, 'g'))].map((match) => match[1]);
+    const builds = new RegExp(`\\b(?:${[factory, ...held].join('|')})\\s*\\(|\\b${typed}\\s*\\(`, 'g');
+    const lines = source.split('\n');
+    return [...source.matchAll(builds)]
+      .map((match) => source.slice(0, match.index).split('\n').length)
+      .filter((number) => /^ {0,2}\S/.test(lines[number - 1]) && !/^\s*(\/\/|\*)/.test(lines[number - 1]))
+      .map((number) => `${number}: ${lines[number - 1].trim()}`);
+  };
 
   const bunTestFiles = globSync('**/*.{test,spec}.ts', {cwd: BUN_PACKAGE, exclude: (name) => name === 'node_modules'});
 
@@ -2195,6 +2267,20 @@ describe('bun test files never build the router at evaluation time', () => {
   it('spots a router built in a describe body', () => {
     const offending = "describe('x', () => {\n  const mion = createMionRouter();\n});";
     expect(evaluationTimeCalls(offending)).toEqual(['2: const mion = createMionRouter();']);
+  });
+
+  it('spots a router built in every form', () => {
+    const inline = "describe('x', () => {\n  const mion = createMionRouter({sharedDataFactory: f});\n});";
+    expect(evaluationTimeCalls(inline)).toEqual(['2: const mion = createMionRouter({sharedDataFactory: f});']);
+    const multiLine =
+      "describe('x', () => {\n  const mion = createMionRouter.withTypes<{\n    handler: Map<string, number>;\n  }>()({});\n});";
+    expect(evaluationTimeCalls(multiLine)).toEqual(['2: const mion = createMionRouter.withTypes<{']);
+    const held = "const createApp = createMionRouter.withTypes<T>();\ndescribe('x', () => {\n  const mion = createApp({});\n});";
+    expect(evaluationTimeCalls(held)).toEqual(['3: const mion = createApp({});']);
+  });
+
+  it('lets a module-level createMionRouter.withTypes<T>() alone through: it builds no router', () => {
+    expect(evaluationTimeCalls('const createApp = createMionRouter.withTypes<{handler: H}>();\n')).toEqual([]);
   });
 });
 
@@ -2308,7 +2394,7 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
     expect(scripts['check:tsgo']).toBe('node scripts/miondevx.mjs core tsgo-check');
   });
 
-  it('every tsc-only project is still named by a script, and skipped', () => {
+  it('checks every project a script names', () => {
     const root = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts;
     const named = coverage
       .readPackages(REPO_ROOT)
@@ -2317,10 +2403,7 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
       );
     const listed = tsgoCheck.projects(REPO_ROOT).map(({dir, config}: {dir: string; config: string}) => `${dir}/${config}`);
     expect(listed).toContain('rpc-router/tsconfig.json');
-    for (const project of Object.keys(tsgoCheck.TSC_ONLY)) {
-      expect(named, project).toContain(project);
-      expect(listed).not.toContain(project);
-    }
+    expect(listed.sort()).toEqual(named.sort());
   });
 
   it('fails on a TypeScript error or a crash, not on RunType diagnostics alone', () => {

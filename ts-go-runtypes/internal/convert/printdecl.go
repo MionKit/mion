@@ -363,24 +363,17 @@ func enumValueText(value any) (string, bool) {
 	return "", false
 }
 
-// wellKnownSymbols are the `Symbol.*` keys; any other symbol key is a declared unique symbol.
-var wellKnownSymbols = map[string]bool{
-	"asyncDispose": true, "asyncIterator": true, "dispose": true, "hasInstance": true, "isConcatSpreadable": true,
-	"iterator": true, "match": true, "matchAll": true, "metadata": true, "replace": true, "search": true,
-	"species": true, "split": true, "toPrimitive": true, "toStringTag": true, "unscopables": true,
-}
-
-// uniqueSymbolKey spells a symbol member key; the id keeps only the symbol's declared name.
+// uniqueSymbolKey spells a symbol member key: the platform's own reads `Symbol.<name>` (typeid.StableMemberName).
 func (printer *DeclPrinter) uniqueSymbolKey(memberName string) (string, bool) {
 	name := strings.TrimPrefix(memberName, "@@")
 	if len(memberName) >= 2 && memberName[0] == 0xFE && memberName[1] == '@' {
 		name = memberName[2:]
 	}
+	if platform, ok := strings.CutPrefix(name, "Symbol."); ok && scanner.IsValidIdentifier(platform) {
+		return name, true
+	}
 	if !scanner.IsValidIdentifier(name) {
 		return "", false
-	}
-	if wellKnownSymbols[name] {
-		return "Symbol." + name, true
 	}
 	key := "s:" + name
 	if _, done := printer.decls[key]; !done {

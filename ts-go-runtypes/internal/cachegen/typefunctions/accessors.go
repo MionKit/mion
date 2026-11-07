@@ -17,6 +17,40 @@ func propertyAccessor(parent, name string, safe bool) string {
 	return parent + "[" + quoteJS(name) + "]"
 }
 
+// isHiddenAccessor reports a class `get` / `set` prop: `JSON.stringify` and a spread miss it, a write calls the setter.
+// Shared so mutate copy and noop predicates cannot drift; a stripped member is off the wire, a read only runs its getter.
+func isHiddenAccessor(rt *reflection.RunType, ctx *EmitContext) bool {
+	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessor) && !rt.IsStatic &&
+		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name) &&
+		!isStrippedUnionMember(ctx.ResolveRef(rt.Child), ctx)
+}
+
+// hasNoSetter reports an accessor no function may write (typeid.HasNoUsableSetter).
+func hasNoSetter(rt *reflection.RunType) bool {
+	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessorNoSetter)
+}
+
+func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
+	var members []*reflection.RunType
+	for _, child := range objectMembers(rt) {
+		if resolved := ctx.ResolveRef(child); isHiddenAccessor(resolved, ctx) {
+			members = append(members, resolved)
+		}
+	}
+	return members
+}
+
+// emitAccessorCopy emits `v = {...v, id: v.id}`: a mutate encode writes a copy listing the accessors, never the instance.
+// Undeclared keys stay, as mutate promises.
+func emitAccessorCopy(members []*reflection.RunType, v string) string {
+	entries := make([]string, 0, len(members)+1)
+	entries = append(entries, "..."+v)
+	for _, member := range members {
+		entries = append(entries, jsonObjectKeyLiteral(member.Name, member.IsSafeName)+":"+propertyAccessor(v, member.Name, member.IsSafeName))
+	}
+	return v + " = {" + strings.Join(entries, ",") + "}"
+}
+
 // isEnumerabilityGuarded reports whether a property member's presence test and by-name write need a runtime
 // own-enumerability check; the one source of truth for BOTH the serializer emitters and the noop predicates
 // (the noop-soundness anti-drift rule). rt.NonEnumerable covers a lib-global-inherited member (Error's

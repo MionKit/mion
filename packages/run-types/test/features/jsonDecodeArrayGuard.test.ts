@@ -37,36 +37,23 @@ describe('JSON decoders never loop over a non-array length', () => {
   const compact = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'compact'});
   const validate = createValidateFn<WithArrays>();
 
+  // A restore loop over the bomb would hang or fill the heap.
   for (const field of ['nums', 'dates', 'rest', 'lookup', 'bag'] as const) {
-    it(`{"length": 1e9} at '${field}' returns or throws within milliseconds, and never validates`, () => {
+    it(`{"length": 1e9} at '${field}' is left as it is, and never validates`, () => {
       const text = bombAt(field);
       for (const decode of [clone, mutate]) {
-        const started = performance.now();
-        let value: unknown;
-        let threw = false;
-        try {
-          value = decode(text);
-        } catch {
-          threw = true;
-        }
-        expect(performance.now() - started).toBeLessThan(200);
-        if (!threw) expect(validate(value)).toBe(false);
+        const value = decode(text) as Record<string, unknown>;
+        expect(value[field]).toStrictEqual({length: 1e9});
+        expect(validate(value)).toBe(false);
       }
     });
   }
 
   it('the compact decoder is guarded too', () => {
     // The compact wire is positional; the bomb lands where the array slot is.
-    const started = performance.now();
-    let threw = false;
-    let value: unknown;
-    try {
-      value = compact(`[${BOMB},[],["a"],[],[]]`);
-    } catch {
-      threw = true;
-    }
-    expect(performance.now() - started).toBeLessThan(200);
-    if (!threw) expect(validate(value)).toBe(false);
+    const value = compact(`[${BOMB},[],["a"],[],[]]`) as Record<string, unknown>;
+    expect(value.nums).toStrictEqual({length: 1e9});
+    expect(validate(value)).toBe(false);
   });
 
   it('real arrays still decode', () => {

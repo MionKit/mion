@@ -16,6 +16,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   hashLength: true,
   patternSampleCount: true,
   patternSampleRetries: true,
+  maxUnknownKeys: true,
   jsonMaxBytes: true,
   markers: true,
   moduleMode: true,

@@ -66,6 +66,25 @@ describe('serialization / optional-union JSON encoding (regression)', () => {
     expect(clone({t: ['a']})).toBe('{"t":["a"]}');
   });
 
+  it('a short tuple stays short, at the root and beside an optional prop', () => {
+    const root = createJsonEncoderFn<[string, boolean?]>();
+    expect(root(['a'])).toBe('["a"]');
+    expect(root(['a', true])).toBe('["a",true]');
+    const nested = createJsonEncoderFn<{t: [string, string?, ...number[]]; o?: number}>();
+    expect(nested({t: ['a']})).toBe('{"t":["a"]}');
+    expect(nested({t: ['a', undefined, 1]})).toBe('{"t":["a",null,1]}');
+  });
+
+  it('a full tuple keeps every slot and each short tuple of a list trims on its own', () => {
+    const list = createJsonEncoderFn<[string, bigint?, boolean?][]>();
+    expect(list([['a', 1n, true], ['b'], ['c', 2n]])).toBe('[["a","1",true],["b"],["c","2"]]');
+    expect(list([['a', undefined, true]])).toBe('[["a",null,true]]');
+    const inner = createJsonEncoderFn<[string, [number, bigint?]?]>();
+    expect(inner(['a'])).toBe('["a"]');
+    expect(inner(['a', [1]])).toBe('["a",[1]]');
+    expect(inner(['a', [1, 2n]])).toBe('["a",[1,"2"]]');
+  });
+
   it('all shapes still round-trip through the decoder', () => {
     const encBool = createJsonEncoderFn<{active?: boolean}>();
     const decBool = createJsonDecoderFn<{active?: boolean}>();

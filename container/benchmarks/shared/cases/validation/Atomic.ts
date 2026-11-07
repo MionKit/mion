@@ -61,13 +61,13 @@ export const ATOMIC = {
     getSamples: () => ({valid: [1n], invalid: [2n, 1, '1n', 0n, null]}),
   },
   literal_symbol: {
-    title: 'Symbol literal type (matched by description)',
-    description: 'symbol identity via description match (reference semantics)',
+    title: 'Symbol literal',
+    description: "A symbol literal (`typeof sym`) is still a symbol, which is not data, so mion's factory throws on first call.",
+    factoryThrows: true,
     getSamples: () => {
       const sym = Symbol('hello');
       return {
-        // identity by description per the reference semantics:
-        // emit is `typeof === 'symbol' && v.description === 'hello'`
+        // identity by description: a symbol whose description is 'hello'
         valid: [sym, Symbol('hello')],
         invalid: [Symbol('nice'), 'hello', null, undefined],
       };
@@ -105,7 +105,9 @@ export const ATOMIC = {
     }),
   },
   regexp: {
-    title: 'RegExp instance',
+    title: 'RegExp',
+    description: "A `RegExp` is not data, so mion's factory throws on first call.",
+    factoryThrows: true,
     getSamples: () => ({
       valid: [/abc/, new RegExp('abc')],
       invalid: [undefined, 42, 'hello', null, '/abc/', {}],

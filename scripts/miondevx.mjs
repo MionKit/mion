@@ -58,12 +58,14 @@ const die = (msg, code = 1) => {
 // those before any job runs) plus ci.yml's quick-tier wiring are pinned back to
 // this table by packages/devtools/test/fuzz-lane-contracts.test.ts.
 // Entries stay ONE PER LINE — that test parses them line-wise.
+// Soak lanes are also required checks on the `prod` ruleset (`gate / fuzz soak · <lane>`):
+// add, rename or remove one there too, or the next release PR waits on a check that never runs.
 //
 // Budget tiers. Every lane always runs at one of three:
 //   default  what `pnpm test` / `vitest run test/fuzz` executes: a handful of
 //            iterations — a floor proving the harness runs, not real coverage.
 //   quick    `--quick`: the per-PR tier (ci.yml). Roughly 2x the default work,
-//            sized so the two heavy CI jobs stay balanced (~+2-3 min total).
+//            sized to stay under the JS suite's wall clock (~+2-3 min total).
 //   soak     `--soak`: the release tier (release-gate.yml / fuzz-soak.yml),
 //            one lane per runner under a 45-minute cap. Giving a lane a `soak`
 //            block IS the opt-in — it is a wall-clock commitment, and the
@@ -309,6 +311,7 @@ function runCore(args) {
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
   if (sub === 'test-bun') return proxy('node', ['scripts/core/test-bun.mjs', ...rest]);
+  if (sub === 'go-shard') return proxy('node', ['scripts/ci/go-shard.mjs', ...rest]);
   // --list is a pure git + file read: the registry row keeps it build-free.
   if (sub === 'test-pr') return proxy('node', ['scripts/core/test-pr.mjs', ...rest]);
   if (sub === 'test-skip') return proxy('node', ['scripts/core/test-skip.mjs', ...rest]);

@@ -22,7 +22,6 @@ import (
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
@@ -139,12 +138,12 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 	b.WriteString("// emitters depend on it.\n")
 	b.WriteString("package purefnids\n\n")
 	b.WriteString("import \"sort\"\n\n")
-	b.WriteString("// IDPrefix is what every id below starts with: the package that owns these\n")
+	b.WriteString("// IDPrefix is what every id below starts with: the short spelling of the package that owns these\n")
 	b.WriteString("// pure fns. A build tells a reference to one of them apart from a reference to\n")
 	b.WriteString("// a consumer's own pure fn by this prefix, which is also how it knows a\n")
 	b.WriteString("// reference the table does not carry means a STALE table rather than a user\n")
 	b.WriteString("// pure fn it should leave alone.\n")
-	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(markerPackageName+constants.PureFnHashPrefix))
+	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(purefunctions.IDPrefix(markerPackageName)))
 	b.WriteString("const (\n")
 	byConst := map[string]string{}
 	for _, entry := range entries {
@@ -214,9 +213,9 @@ func renderTsIDs(entries []purefunctions.Entry) []byte {
 	b.WriteString("// This package builds with plain tsc, which injects nothing, so its own\n")
 	b.WriteString("// registrations pass their id from here. The literal types are also how a\n")
 	b.WriteString("// consumer reading only this package's .d.ts still resolves an id.\n\n")
-	b.WriteString("/** What every id of this package's own pure fns starts with: the package, then the hash prefix. A\n")
+	b.WriteString("/** What every id of this package's own pure fns starts with: the package's short spelling, then the separator. A\n")
 	b.WriteString(" *  built-in is told apart from a consumer's pure fn by this prefix, never by a list. */\n")
-	fmt.Fprintf(&b, "export const RUN_TYPES_PURE_FN_ID_PREFIX = %s;\n\n", jsquote.Single(markerPackageName+constants.PureFnHashPrefix))
+	fmt.Fprintf(&b, "export const RUN_TYPES_PURE_FN_ID_PREFIX = %s;\n\n", jsquote.Single(purefunctions.IDPrefix(markerPackageName)))
 	for _, entry := range entries {
 		name, err := nameOf(entry)
 		if err != nil {

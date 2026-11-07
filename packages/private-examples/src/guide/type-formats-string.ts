@@ -44,6 +44,7 @@ isIPv4('127.0.0.1'); // true
 isIPv4('localhost'); // false
 isLocalIPv4('localhost'); // true
 isHostPort('10.0.0.1:8080'); // true
+isHostPort('10.0.0.1'); // false, no port
 // end-ip
 
 // start-pattern

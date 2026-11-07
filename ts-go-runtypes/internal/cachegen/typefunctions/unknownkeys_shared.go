@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,25 @@ func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKey
 		rtChildrenNames:  rtChildrenNames,
 		allChildrenNames: allChildrenNames,
 	}
+}
+
+// addWritableKeysToContext is for a class rebuild: strict knows a no-setter member, a rebuild must not write it.
+func addWritableKeysToContext(rt *reflection.RunType, ctx *EmitContext) string {
+	keys := addObjectPropsToContext(rt, ctx)
+	writable := slices.Clone(keys.rtChildrenNames)
+	for _, child := range objectMembers(rt) {
+		if member := ctx.ResolveRef(child); hasNoSetter(member) {
+			writable = slices.DeleteFunc(writable, func(name string) bool { return name == member.Name })
+		}
+	}
+	if len(writable) == len(keys.rtChildrenNames) {
+		return keys.keysName
+	}
+	keysName := "kw_" + rt.ID
+	if !ctx.HasContextItem(keysName) {
+		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(writable))
+	}
+	return keysName
 }
 
 // collectObjectChildNames returns the RT-included property names and the FULL set, which keeps the children RT drops.
@@ -142,15 +162,14 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 	}
 	if returnKeys {
 		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
-		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ", " + strconv.Itoa(ctx.MaxUnknownKeys()) + ")"
 	}
 	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
 	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 }
 
-// countFastPathN returns N and whether the fused validators' `countEnumKeys(v) === N` fast path is sound here: every RT
-// child REQUIRED (validation proved all N present), no index-signature child, and RT children equal ALL children
-// (non-RT props are never validated). It registers nothing in the closure prologue.
+// countFastPathN returns N and whether `countEnumKeys(v) === N` is sound; it registers nothing in the closure prologue.
+// Validation must prove all N present, and non-RT props are never validated.
 func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
@@ -175,6 +194,10 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
+		// An array's `length` passes the property check but is not enumerable, so the count would miss it.
+		if resolved.Name == "length" {
+			return 0, false
+		}
 		if resolved.Optional {
 			return 0, false
 		}
@@ -182,11 +205,23 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits `cntEK(v) === N`; countEnumKeys picks its counter per engine, both pinned to answer identically
-// (packages/run-types/src/runtypes/pure-fns-utils.ts).
+// emitCountKeys emits `cntEK(v) === N && <plain object>`; false sends the caller to the key names.
+// countEnumKeys picks its counter per engine, both pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
-	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
-	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
+	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
+}
+
+// emitStrictKeyCount lets a plain object answer from the count alone, as key names cost far more. A class prop can hide
+// from the count, so anything else reads the names in `scan`.
+func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
+	return "(" + emitPlainObject(v) + " ? " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(keyCount) +
+		" : " + scan + ")"
+}
+
+// emitPlainObject makes a key count exact: a class prop can hide from it on the prototype.
+// `Object.getPrototypeOf` halves strict validate; every class answers its own, so only a hand-built plain prototype passes.
+func emitPlainObject(v string) string {
+	return v + ".constructor === Object"
 }
 
 // joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
@@ -205,10 +240,6 @@ func joinSemicolons(parts ...string) string {
 // shape is validationErrors' job.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
-}
-
-func guardStatement(guard, body string) string {
-	return "if (" + guard + ") {" + body + "}"
 }
 
 // siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.

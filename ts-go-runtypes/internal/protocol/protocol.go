@@ -161,6 +161,8 @@ type Response struct {
 	// included) rewrite with zero configuration. Emitted via the hand-rolled MarshalJSON below (the struct tag
 	// alone doesn't put it on the wire).
 	SiteFiles []string `json:"siteFiles,omitempty"`
+	// ProgramHash (generate only) hashes program sources, compiler options and tsconfig text, for a host's transform cache.
+	ProgramHash string `json:"programHash,omitempty"`
 	// EnrichFiles is OpEnrich's computed mirror files; the daemon never writes, the caller writes them under its
 	// own HMR-suppression window. Emitted via the hand-rolled MarshalJSON below (the struct tag alone doesn't).
 	EnrichFiles []EnrichFile `json:"enrichFiles,omitempty"`
@@ -273,8 +275,7 @@ type PureFnSite struct {
 	File  string `json:"file"`
 	Start int    `json:"start"`
 	End   int    `json:"end"`
-	// Key is the id the entry is interned under: the owning package plus a hash of the body that ships
-	// (`@acme/text#pf_9Zt1bRm4cVaPqL`).
+	// Key is the interned id: owning package plus a hash of the shipped body (`@acme/text:9Zt1bRm4cV`).
 	Key string `json:"key"`
 	// BindingName is the identifier the registration was assigned to, empty for one written straight into a call.
 	// Not part of the id (a hash is); it rides along because a report of hashes names nothing a reader can search.
@@ -358,10 +359,12 @@ type Replacement struct {
 type TransformResult struct {
 	Code string     `json:"code,omitempty"`
 	Map  *SourceMap `json:"map,omitempty"`
-	// ImportBlock is the deduped import block the rewrite prepends at offset 0, a single physical line already
-	// relativized to <outDir>/types when files-mode is in effect; empty when the file needs no injected imports.
-	// 'edits' mode only; the host prepends it verbatim.
+	// ImportBlock is the deduped import block for ImportAt, one physical line, relativized to <outDir>/types in files-mode.
+	// Empty when no imports are injected. 'edits' mode only; the host inserts it verbatim.
 	ImportBlock string `json:"importBlock,omitempty"`
+	// ImportAt is ImportBlock's offset in UTF-16 CODE UNITS, past `#!` and the directive prologue (both stay first).
+	// 0 = file start. 'edits' mode only; the host inserts the block there before any other edit.
+	ImportAt int `json:"importAt,omitempty"`
 	// Edits is the flat point/span edit list, ImportBlock excluded, in UTF-16 CODE-UNIT offsets against the
 	// ORIGINAL source: the applier indexes JS strings natively, so Go converts every byte offset through
 	// makeByteToChar first. 'edits' mode only.
@@ -471,6 +474,9 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if len(response.SiteFiles) > 0 {
 		out["siteFiles"] = response.SiteFiles
+	}
+	if response.ProgramHash != "" {
+		out["programHash"] = response.ProgramHash
 	}
 	if len(response.EnrichFiles) > 0 {
 		out["enrichFiles"] = response.EnrichFiles

@@ -32,7 +32,7 @@ async function assertModeParity(client: ResolverClient, file: string, source: st
   // Happy path: no drift, so no re-sync would fire in the plugin.
   expect(edFile.sourceHash).toBe(sourceHash(source));
 
-  const applied = applyEdits(file, source, edFile.importBlock ?? '', edFile.edits ?? []);
+  const applied = applyEdits(file, source, edFile.importBlock ?? '', edFile.importAt ?? 0, edFile.edits ?? []);
 
   expect(applied.code).toBe(goFile.code);
   const goMap = goFile.map as SourceMap;
@@ -379,7 +379,7 @@ getRunTypeId<Guard>();
         const second = ed2.transformed['guard.ts'];
         expect(second.sourceHash).toBe(sourceHash(drifted));
 
-        const applied = applyEdits('guard.ts', drifted, second.importBlock ?? '', second.edits ?? []);
+        const applied = applyEdits('guard.ts', drifted, second.importBlock ?? '', second.importAt ?? 0, second.edits ?? []);
         expect(applied.code).toContain('// injected by an upstream pre-plugin');
         expect(applied.code).toMatch(/getRunTypeId<Guard>\(undefined, __rt_[A-Za-z0-9]+\);/);
       });

@@ -1,6 +1,6 @@
 # Docs website (one site, three subsites)
 
-One Nuxt 4 + Docus v5 install that builds ONE static site, [mion.pages.dev](https://mion.pages.dev/),
+One Nuxt 4 + Docus v5 install that builds ONE static site, [mion.io](https://mion.io/),
 with a subsite per feature: `/rpc` (the framework), `/runtypes` and `/benchmarks`. Each
 subsite has its own sidebar and colour scheme; the header switches between them.
 It runs only inside its podman container, so drive it from the repo root:

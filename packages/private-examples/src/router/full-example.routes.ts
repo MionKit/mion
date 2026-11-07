@@ -5,12 +5,12 @@ import {User} from './full-example.app.ts';
 
 // start-create-router
 const mion = createMionRouter({
-  contextDataFactory: getSharedData,
+  sharedDataFactory: getSharedData,
   basePath: 'api/v1',
 });
 // end-create-router
 
-// ctx.shared is typed from the contextDataFactory given to createMionRouter
+// ctx.shared is typed from the return type of sharedDataFactory
 const getUser = mion.route(
   (ctx, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);

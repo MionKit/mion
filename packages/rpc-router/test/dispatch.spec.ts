@@ -14,12 +14,11 @@ import {Routes} from '../src/types/general.ts';
 import type {HeadersMethod} from '../src/types/remoteMethods.ts';
 import {HeadersSubset, RpcError, TypedError, MION_ROUTES, StatusCodes, toBase64Url, trustedHeadersSubset} from '@mionjs/core';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import {decodeQueryBody} from '../src/lib/queryBody.ts';
 import {findMionQueryParam} from '../src/lib/urlQuery.ts';
 
 const shared = {auth: {me: null as any}};
 const getSharedData = (): typeof shared => shared;
-const mion = createMionRouter({contextDataFactory: getSharedData});
+const mion = createMionRouter({sharedDataFactory: getSharedData});
 
 type RawRequest = {
   headers: MionHeaders;
@@ -297,7 +296,7 @@ describe('Dispatch routes', () => {
         ...getDefaultRequest(routeId, []),
       };
       const options = {
-        contextDataFactory: getSharedData,
+        sharedDataFactory: getSharedData,
         pathTransform: (req, path: string): string => {
           const rPath = path.replace(`${options.basePath}/`, `${options.basePath}/${req.method.toLowerCase()}`);
           return rPath;
@@ -313,7 +312,10 @@ describe('Dispatch routes', () => {
     });
 
     it('dispatch routes with prefix', async () => {
-      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
+      createMionRouter({
+        sharedDataFactory: getSharedData,
+        basePath: 'api/v1',
+      }).initRoutes({changeUserName});
 
       const id = 'changeUserName';
       const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
@@ -330,7 +332,10 @@ describe('Dispatch routes', () => {
     });
 
     it('return not-found for route without prefix when prefix is configured', async () => {
-      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
+      createMionRouter({
+        sharedDataFactory: getSharedData,
+        basePath: 'api/v1',
+      }).initRoutes({changeUserName});
 
       const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -367,7 +372,9 @@ describe('Dispatch routes', () => {
 
   describe('fail path should', () => {
     it('return an error if no route is found', async () => {
-      createMionRouter({contextDataFactory: getSharedData}).initRoutes({changeUserName});
+      createMionRouter({sharedDataFactory: getSharedData}).initRoutes({
+        changeUserName,
+      });
 
       const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
@@ -632,19 +639,16 @@ describe('Query body decoding (data in URL query)', () => {
     surname: string;
   };
 
-  /** Simulates what platform adapters do: decode query body before dispatch */
-  function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
-    const queryBody = decodeQueryBody(urlQuery, rawBody);
-    const finalBody = queryBody ? queryBody.rawBody : rawBody;
-    const finalBodyType = queryBody ? queryBody.bodyType : undefined;
+  /** Adapter-style: body and query go in as they came; the router decodes `?data=` */
+  function dispatchWithQuery(path: string, rawBody: any, urlQuery: string | undefined) {
     return dispatchRoute(
       path,
-      finalBody,
+      rawBody,
       headersFromRecord({}),
       headersFromRecord({}),
       {headers: headersFromRecord({})},
       {},
-      finalBodyType,
+      undefined,
       urlQuery
     );
   }
@@ -658,7 +662,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
@@ -672,7 +676,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({updateUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/updateUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/updateUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['updateUser']).toEqual({name: 'LEO', surname: 'Tungsten'});
   });
@@ -685,9 +689,20 @@ describe('Query body decoding (data in URL query)', () => {
     const bodyFromQuery = JSON.stringify({getUser: [{name: 'FromQuery', surname: 'Get'}]});
     const encoded = toBase64Url(bodyFromQuery);
 
-    const response = await decodeAndDispatch('/getUser', bodyFromPost, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', bodyFromPost, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('FromBody Post');
+  });
+
+  it('answers a malformed ?data= from the deserializer, and never decodes it for an unknown path', async () => {
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    mion.initRoutes({getUser});
+
+    const bad = await dispatchWithQuery('/getUser', undefined, 'data=!');
+    expect(bad.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest']?.type).toBe('invalid-query-body');
+    const unknown = await dispatchWithQuery('/nope', undefined, 'data=!');
+    expect(unknown.statusCode).toBe(StatusCodes.NOT_FOUND);
+    expect(unknown.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound]?.type).toBe('route-not-found');
   });
 
   it('should handle ?data= with other query params', async () => {
@@ -697,7 +712,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
+    const response = await dispatchWithQuery('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
@@ -709,7 +724,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
@@ -750,6 +765,19 @@ describe('undeclared params keys, per parser strategy', () => {
       type: 'validation-error',
       publicMessage: `Invalid params in 'rejectsExtras', validation failed.`,
     });
+  });
+
+  it('mutateStrict answers a body with too many unknown keys with a validation error, never a crash', async () => {
+    mion.initRoutes({rejectsExtras});
+
+    const extras = Object.fromEntries(Array.from({length: 50}, (_, i) => [`extra${i}`, i]));
+    const request = getDefaultRequest('rejectsExtras', [{name: 'Leo', surname: 'Tungsten', ...extras}]);
+    const response = await dispatchRoute('/rejectsExtras', request.body, request.headers, headersFromRecord({}), request, {});
+    const thrown = response.body[MION_ROUTES.thrownErrors]?.rejectsExtras;
+    expect(thrown).toMatchObject({type: 'validation-error'});
+    const typeErrors = thrown?.errorData?.typeErrors;
+    expect(typeErrors).toHaveLength(11);
+    expect(typeErrors?.at(-1)).toEqual({path: [0], expected: 'tooManyUnknownKeys'});
   });
 
   it('mutate keeps the key and hands it to the handler', async () => {

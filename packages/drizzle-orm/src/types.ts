@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
+import type {ColModName, rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
 import type {RtColumnRecorder, rtColumnKey, rtTableBrand, rtViewBrand} from './recorder.ts';
 
 // ── Column types ─────────────────────────────────────────────────────────────
@@ -263,6 +263,11 @@ export type BuildTableFn = (
   columnBuilders: Record<string, unknown>,
   extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ) => unknown;
+
+/** Props drizzle lacks (pg uuid `version`), replayed as modifier calls; gets the other props keys to refuse a clash. */
+export type ColumnShortcuts = Readonly<
+  Record<string, (value: unknown, propKeys: readonly string[]) => readonly [method: ColModName, args: readonly unknown[]]>
+>;
 
 /** A view's type: the table meta minus extras, since a view has none. */
 export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {

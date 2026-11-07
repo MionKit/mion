@@ -6,9 +6,9 @@
 // family tag for type-fn entries), slot 1 a lazy deps thunk, slot 2 the runtype footer ini, slot 3 the cache
 // key; Go trims trailing-undefined slots, which the derived tuple types model as optional tails.
 
-import {getRTUtils} from './rtUtils.ts';
+import {getRTFnCaches, getRTUtils} from './rtUtils.ts';
 import type {RTUtils} from './rtUtils.ts';
-import type {AnyFn, CompiledFnArgs, CompiledFnData, CompiledPureFunction, CompiledTypeFn, RunType} from './types.ts';
+import type {AnyFn, CompiledFnArgs, CompiledFnData, CompiledPureFunction, CompiledTypeFn, Mutable, RunType} from './types.ts';
 
 // Numeric slot-0 kinds (Go: constants.TupleKind*); type-fn entries carry their family tag string instead.
 // Kind 0 is the standalone per-node module form, emitted only under `moduleMode: 'allModules'`.
@@ -454,11 +454,37 @@ function collectClosure(tuple: unknown, utils: RTUtils, fresh: EntryTuple[], vis
   const key = entryTupleKey(tuple);
   if (visiting.has(key)) return;
   visiting.add(key);
-  if (processedKeys.has(key) && isStillRegistered(utils, tuple)) return;
-  processedKeys.add(key);
   const deps = tuple[SLOT_DEPS] as EntryDepsThunk | undefined;
+  if (processedKeys.has(key) && isStillRegistered(utils, tuple)) {
+    // a filled entry's deps may be code-only copies too, so walk them only then: the prune stays for everything else
+    if (fillLiveFactory(utils, tuple, key) && deps) for (const dep of deps()) collectClosure(dep, utils, fresh, visiting);
+    return;
+  }
+  processedKeys.add(key);
   if (deps) for (const dep of deps()) collectClosure(dep, utils, fresh, visiting);
   if (registerTuple(utils, tuple)) fresh.push(tuple);
+  else fillLiveFactory(utils, tuple, key);
+}
+
+const CREATE_RT_FN_SLOT = FN_TYPE_TUPLE_KEYS.indexOf('createRTFn');
+const CREATE_PURE_FN_SLOT = PURE_FN_TUPLE_KEYS.indexOf('createPureFn');
+
+// First registration wins: a later live factory fills a code-only copy, for hosts without `new Function`.
+function fillLiveFactory(utils: RTUtils, tuple: EntryTuple, key: string): boolean {
+  const slot0 = tuple[SLOT_KIND];
+  if (typeof slot0 === 'string') {
+    const createRTFn = tuple[CREATE_RT_FN_SLOT] as CompiledTypeFn['createRTFn'];
+    const existing = getRTFnCaches().rtFnsCache[key] as Mutable<CompiledTypeFn> | undefined;
+    if (!createRTFn || !existing || existing.fn || existing.createRTFn) return false;
+    existing.createRTFn = createRTFn;
+    return true;
+  }
+  if (slot0 !== KIND_PURE_FN) return false;
+  const createPureFn = tuple[CREATE_PURE_FN_SLOT] as CompiledPureFunction['createPureFn'];
+  const existing = utils.getCompiledPureFnByKey(key);
+  if (!createPureFn || !existing || existing.fn || existing.createPureFn) return false;
+  existing.createPureFn = createPureFn;
+  return true;
 }
 
 // isStillRegistered keeps the cross-call prune from hiding an entry a removal dropped. A facade and a missing

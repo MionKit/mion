@@ -5,13 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-/** Stores singleton state on globalThis so it survives dual module loading (CJS + ESM copies).
- *  Defense in depth: noExternal is the primary mechanism, this marks the binding as process-wide. */
-export function getOrCreateGlobal<T>(key: string, factory: () => T): T {
-  const sym = Symbol.for(key);
-  return ((globalThis as any)[sym] ??= factory()) as T;
-}
-
 /** Random UUID V7 (RFC 9562). Randomness comes from crypto.randomUUID(), a native binding that
  *  batches entropy, so it may beat allocating typed arrays through crypto.getRandomValues. */
 export function randomUUID_V7(): string {
@@ -47,12 +40,4 @@ export function isUnsafePropertyName(name: string): boolean {
 /** Decodes a URL-safe base64 string (RFC 4648 §5) back to a string */
 export function fromBase64Url(encoded: string): string {
   return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
-}
-
-let isTest: boolean | undefined = undefined;
-
-export function isTestEnv() {
-  if (isTest !== undefined) return isTest;
-  isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
-  return isTest;
 }

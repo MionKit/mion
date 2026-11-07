@@ -19,7 +19,7 @@ import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHt
 
 let contextsBuilt = 0;
 const mion = createMionRouter({
-  contextDataFactory: () => {
+  sharedDataFactory: (): {user: null} => {
     contextsBuilt++;
     return {user: null};
   },

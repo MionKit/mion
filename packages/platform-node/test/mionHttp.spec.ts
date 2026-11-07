@@ -27,8 +27,8 @@ describe('node http router', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -173,7 +173,7 @@ describe('node http router', () => {
       resetRouter();
       setNodeHttpOpts(httpOpts);
       createMionRouter({
-        contextDataFactory: getSharedData,
+        sharedDataFactory: getSharedData,
         basePath: 'api/',
         responseHeaders: {'x-app-name': 'MyApp'},
       }).initRoutes({
@@ -222,7 +222,7 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       setNodeHttpOpts({port});
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

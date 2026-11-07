@@ -212,6 +212,50 @@ describe('the command a plan runs', () => {
   it('runs nothing when no project is affected', () => {
     expect(suiteCommand({full: false, projects: []}, {skipPassed: true})).toBeNull();
   });
+
+  // CI splits the one-worker projects into their own job: `--project` must never add a project the plan left out.
+  it('narrows a partial plan with --project and --skip-project, never widening it', () => {
+    const only = suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'b-tests', '--project=c-tests']});
+    expect(only).toEqual(['node', ['scripts/core/test-skip.mjs', '--project', 'b-tests']]);
+    const skipped = suiteCommand(partial, {skipPassed: true, passThrough: ['--skip-project', 'a-tests', '--exclude', 'x']});
+    expect(skipped).toEqual([
+      'node',
+      ['scripts/core/test-skip.mjs', '--project', 'b-tests', '--skip-project', 'a-tests', '--exclude', 'x'],
+    ]);
+    expect(suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'c-tests']})).toBeNull();
+  });
+
+  it('hands --project and --skip-project to test-skip as given on the full suite', () => {
+    const full = {full: true, projects: []};
+    expect(suiteCommand(full, {skipPassed: true, passThrough: ['--project', 'a-tests']})).toEqual([
+      'node',
+      ['scripts/core/test-skip.mjs', '--project', 'a-tests'],
+    ]);
+    expect(suiteCommand(full, {skipPassed: true, passThrough: ['--skip-project', 'a-tests']})).toEqual([
+      'node',
+      ['scripts/core/test-skip.mjs', '--skip-project', 'a-tests'],
+    ]);
+  });
+
+  it('refuses --project and --skip-project without --skip-passed, and a flag with no name', () => {
+    expect(() => suiteCommand(partial, {passThrough: ['--project', 'a-tests']})).toThrow(/need --skip-passed/);
+    expect(() => suiteCommand(partial, {passThrough: ['--skip-project', 'a-tests']})).toThrow(/need --skip-passed/);
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project']})).toThrow(/needs a project name/);
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project', '--exclude', 'x']})).toThrow(
+      /needs a project name/
+    );
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project=']})).toThrow(/needs a project name/);
+  });
+
+  // A typo would otherwise empty a partial plan, print "nothing to test" and pass green.
+  it('refuses a project name no vitest project has', () => {
+    const known = ['a-tests', 'b-tests', 'c-tests'];
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'clinet'], known})).toThrow(
+      /no vitest project is named clinet/
+    );
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--skip-project', 'nope'], known})).toThrow(/named nope/);
+    expect(suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'c-tests'], known})).toBeNull();
+  });
 });
 
 describe('the real workspace', () => {

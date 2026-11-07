@@ -2,40 +2,45 @@
   "dialect": "pg",
   "results": [
     {
+      "name": "inferred database context",
+      "client": 14418,
+      "registeredClient": 14474
+    },
+    {
       "name": "empty context",
-      "client": 1916,
-      "registeredClient": 1966
+      "client": 1990,
+      "registeredClient": 2038
     },
     {
       "name": "small context",
-      "client": 1974,
-      "registeredClient": 2032
+      "client": 2069,
+      "registeredClient": 2125
     },
     {
       "name": "database context",
-      "client": 14324,
-      "registeredClient": 14382
+      "client": 14418,
+      "registeredClient": 14474
     },
     {
       "name": "unused database context",
-      "client": 14324,
-      "registeredClient": 14382
+      "client": 14418,
+      "registeredClient": 14474
     },
     {
       "name": "light handler context",
-      "client": 14316,
-      "registeredClient": 14374
+      "client": 14411,
+      "registeredClient": 14467
     },
     {
       "name": "opaque database context",
-      "client": 1956,
-      "registeredClient": 2014
+      "client": 2069,
+      "registeredClient": 2125
     },
     {
       "name": "written database context",
-      "client": 14316,
-      "registeredClient": 14374
+      "client": 14411,
+      "registeredClient": 14467
     }
   ],
-  "inferredResultClient": 14334
+  "inferredResultClient": 14459
 }

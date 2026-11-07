@@ -14,11 +14,12 @@ import type {Server} from 'http';
 import {createServer as createHttp2Server, connect as connectHttp2} from 'http2';
 import type {IncomingMessage, ServerResponse} from 'http';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset, MION_ROUTES, StatusCodes, toBase64Url, type PublicRpcError} from '@mionjs/core';
 import {httpRequestHandler, resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 
@@ -35,11 +36,12 @@ const listHeaders = mion.route((ctx: CallContext): string[] => {
 // a per-route limit BELOW the adapter's cap: the read must stop at the route's own number
 const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySize: 40});
 
-/** One raw HTTP exchange: returns the status line and the body text, or 'closed' when the server
- *  hung up before answering. */
+/** One raw HTTP exchange; `status` is 0 when the server hung up before answering. */
 function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): Promise<{status: number; body: string}> {
   return new Promise((resolve, reject) => {
     const socket = createConnection({host: '127.0.0.1', port: rawPort ?? port}, () => {
+      // One write: a body landing after a Connection: close answer resets the socket.
+      if (!delayMs) return socket.write(head + body);
       socket.write(head);
       setTimeout(() => socket.write(body), delayMs);
     });
@@ -77,7 +79,7 @@ describe('node adapter hardening', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
     const body = (await response.json()) as RpcBody;
-    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
@@ -94,13 +96,11 @@ describe('node adapter hardening', () => {
   });
 
   it('a declared content-length past the limit is refused before a body byte is read', async () => {
-    const started = performance.now();
+    // No body byte is sent, so only a refusal from the headers can answer.
     const {status, body} = await rawRequest(
       `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: 100000\r\nContent-Type: application/json\r\n\r\n`,
-      '{"echo":',
-      50
+      ''
     );
-    expect(performance.now() - started).toBeLessThan(1500);
     expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
   });
@@ -433,6 +433,86 @@ describe('node adapter: a request with no body headers', () => {
     } finally {
       client.close();
       await new Promise((resolve) => h2Server.close(resolve));
+    }
+  });
+});
+
+describe('node adapter: requests another site can make a browser send, behind mionSecurity', () => {
+  const csrfPort = 8286;
+  let server: Server;
+  let deleted = 0;
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    const deleteAll = mion.mutation((): number => ++deleted);
+    mion.initRoutes({mionSecurity: mionSecurity(), deleteAll});
+    setNodeHttpOpts({port: csrfPort, maxBodySize: MAX_BODY});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const url = `http://127.0.0.1:${csrfPort}/api/deleteAll`;
+  const body = '{"deleteAll":[]}';
+
+  async function runsMutation(init: RequestInit, target = url): Promise<boolean> {
+    const before = deleted;
+    await (await fetch(target, init)).text();
+    return deleted > before;
+  }
+
+  it('a GET (an <img src> or a link) never runs a mutation', async () => {
+    expect(await runsMutation({method: 'GET'}, `${url}?data=${toBase64Url(body)}`)).toBe(false);
+  });
+
+  it('an OPTIONS never runs a mutation', async () => {
+    expect(await runsMutation({method: 'OPTIONS'})).toBe(false);
+  });
+
+  it('a form POST with a text/plain body never runs a mutation', async () => {
+    expect(await runsMutation({method: 'POST', headers: {'content-type': 'text/plain'}, body})).toBe(false);
+  });
+
+  it('a urlencoded or multipart form POST never runs a mutation', async () => {
+    expect(await runsMutation({method: 'POST', headers: {'content-type': 'application/x-www-form-urlencoded'}, body})).toBe(
+      false
+    );
+    expect(await runsMutation({method: 'POST', body: new FormData()})).toBe(false);
+  });
+
+  it('a POST with no content type and no body (a no-cors fetch) never runs a mutation', async () => {
+    expect(await runsMutation({method: 'POST'})).toBe(false);
+  });
+
+  it('a JSON POST another site sent never runs a mutation', async () => {
+    const crossSite = {'content-type': 'application/json', 'sec-fetch-site': 'cross-site', origin: 'https://evil.example'};
+    expect(await runsMutation({method: 'POST', headers: crossSite, body})).toBe(false);
+  });
+
+  it('a JSON POST runs it', async () => {
+    expect(await runsMutation({method: 'POST', headers: {'content-type': 'application/json'}, body})).toBe(true);
+  });
+});
+
+describe('node adapter: the HTTP method', () => {
+  const methodsPort = 8288;
+  let server: Server;
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    setNodeHttpOpts({port: methodsPort, maxBodySize: MAX_BODY});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  it('puts it on the request', async () => {
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await fetch(`http://127.0.0.1:${methodsPort}/api/readMethod`, {method});
+      expect(await response.json()).toEqual({readMethod: method});
     }
   });
 });

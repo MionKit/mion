@@ -3,11 +3,10 @@ import module from 'node:module';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-// uWebSockets.js binaries are raw V8 addons (not node-api), one per platform-arch-ABI triple, named
-// as upstream commits them. The tables below mirror what the pinned `uwsTag` ships, so bumping it
-// means re-checking BOTH (upstream drops and adds Node majors) plus regenerating uws-checksums.json.
+// Raw V8 addons (not node-api): one binary per platform-arch-ABI, named as upstream commits them.
+// Bumping `uwsTag` means re-checking BOTH tables (Node >= 24 only) and regenerating uws-checksums.json.
 const SUPPORTED_PLATFORMS = ['linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'];
-const ABI_TO_NODE_MAJOR = {127: '22', 137: '24', 147: '26'};
+const ABI_TO_NODE_MAJOR = {137: '24', 147: '26'};
 
 // Points the loader at a DIRECTORY holding the .node binary, overriding both lookups below; the
 // file must be named uws_<platform>_<arch>_<abi>.node to match the host. Checked BEFORE the
@@ -42,7 +41,7 @@ function overrideDir(env) {
   return dir;
 }
 
-// import.meta.resolve is sync on Node >= 20.6; createRequire is the fallback.
+// Fallback for a runtime or loader without import.meta.resolve.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {
     return fileURLToPath(import.meta.resolve(specifier));

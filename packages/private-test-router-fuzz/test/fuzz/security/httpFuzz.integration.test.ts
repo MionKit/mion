@@ -11,6 +11,8 @@ import {
   renderHttpViolations,
   rawSocketRequest,
   checkSocketAnswer,
+  runGateFuzz,
+  checkGate,
 } from './httpFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../../../../run-types/test/fuzz/core/soakBudget.ts';
 import {entrySeed} from '../../../../run-types/test/fuzz/core/fuzzPolicy.ts';
@@ -72,6 +74,33 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
       for (const socket of sockets) socket.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  it('behind mionSecurity, a route runs only for its intent, a same-origin or trusted caller and no form content type', async () => {
+    const report = await runGateFuzz(entrySeed('sechttp'), 400);
+    if (report.violations.length > 0)
+      throw new Error(`${report.violations.length} SH-GATE violation(s):\n${renderHttpViolations(report.violations)}`);
+    // both sides of the rule were exercised, or a clean run would prove nothing
+    expect(report.outcomes.ran).toBeGreaterThan(20);
+    expect(report.outcomes.refused).toBeGreaterThan(20);
+  }, 120_000);
+
+  it('SH-GATE fires on a forged observation, both ways', () => {
+    const plain = {contentType: 'application/json', secFetchSite: undefined, origin: undefined, carrier: 'body'} as const;
+    expect(checkGate({...plain, route: 'save', method: 'GET'}, true)).toBe('the route ran although the gate must refuse it');
+    const formPost = {...plain, route: 'read', method: 'POST', contentType: 'Text/Plain; charset=utf-8'} as const;
+    expect(checkGate(formPost, true)).toBe('the route ran although the gate must refuse it');
+    const crossSite = {
+      ...plain,
+      route: 'ping',
+      method: 'POST',
+      secFetchSite: 'cross-site',
+      origin: 'https://evil.example',
+    } as const;
+    expect(checkGate(crossSite, true)).toBe('the route ran although the gate must refuse it');
+    const headOnRead = {...plain, route: 'read', method: 'HEAD', contentType: undefined} as const;
+    expect(checkGate(headOnRead, false)).toBe('the route was refused although its methods and content type allow it');
+    expect(checkGate({...plain, route: 'save', method: 'POST', origin: 'https://app.example.com'}, true)).toBeNull();
   });
 
   const soakMs = Number(process.env.MION_FUZZ_SECHTTP_SOAK_MS ?? 0);

@@ -247,8 +247,8 @@ function mockIpV6(params: Partial<IPParams>, random: MockRandom): string {
   // The loopback ADDRESS needs no opt-in (allowLocalHost covers the hostname spelling only).
   if (random.float() > 0.8) {
     const loopback = random.float() > 0.5 ? '0:0:0:0:0:0:0:1' : '::1';
-    // The allowPort v6 parser requires the bracketed `[addr]` form; a bare address fails to match.
-    return params.allowPort ? `[${loopback}]` : loopback;
+    // The allowPort v6 parser requires the bracketed `[addr]:port` form.
+    return params.allowPort ? `[${loopback}]:${randomPort(random)}` : loopback;
   }
   // `Math.floor(x * 0xffff)` (0..0xfffe) kept via float(): `int(0, 0xffff)` would widen the range and change output.
   const address = Array.from({length: 8}, () => Math.floor(random.float() * 0xffff).toString(16)).join(':');

@@ -42,6 +42,7 @@ function primitiveBound(val: TypeFormatError['val']): string | number | bigint |
 // the sub-constraint, and a bound that merely echoes the constraint name is dropped too.
 function defaultMessage(err: RTValidationError): string {
   if (err.expected === 'circular') return 'Circular reference';
+  if (err.expected === 'tooManyUnknownKeys') return 'Too many unknown keys';
   if (!err.format) return `Expected ${err.expected}`;
   const constraint = constraintName(err.format);
   const bound = primitiveBound(err.format.val);

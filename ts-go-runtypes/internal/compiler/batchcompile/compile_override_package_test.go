@@ -101,7 +101,7 @@ func TestCompile_PackageOverrideReachesItsConsumer(t *testing.T) {
 		t.Fatalf("both call shapes must get the library's id %s, got %v", libraryID, bindings)
 	}
 	generated := strings.Join(generatedFiles(t, filepath.Join(consumer, ".mion")), "\n")
-	if !strings.Contains(generated, "usePureFn(") || !strings.Contains(generated, "@acme/money#") {
+	if !strings.Contains(generated, "usePureFn(") || !strings.Contains(generated, "@acme/money:") {
 		t.Errorf("the consumer's validator must redirect to the library's override:\n%s", generated)
 	}
 }

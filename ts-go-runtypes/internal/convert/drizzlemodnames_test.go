@@ -7,10 +7,10 @@ package convert
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 type manifestEntry struct {
@@ -24,14 +24,9 @@ type manifestFile struct {
 }
 
 func TestDrizzleModNamesMatchManifests(t *testing.T) {
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed to locate the package directory")
-	}
-	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
 	recorded := map[string]bool{}
 	for _, dialect := range []string{"pg", "mysql", "sqlite"} {
-		path := filepath.Join(repoRoot, "packages", "drizzle-orm-"+dialect+"-core", "manifests", dialect+".manifest.json")
+		path := testfixtures.Repo("packages/drizzle-orm-" + dialect + "-core/manifests/" + dialect + ".manifest.json")
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)

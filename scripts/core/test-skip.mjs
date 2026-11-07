@@ -7,6 +7,7 @@ import {dirname, join, relative} from 'node:path';
 import {parseArgs} from 'node:util';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {goBinCacheKey} from './build.mjs';
+import {readProjectNames} from './test-batches.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 
 // Importing one of these makes a result depend on something no key can see.
@@ -55,6 +56,8 @@ export const DECLARED = {
   'packages/run-types/test/types/substituteSelfHarness.ts': RUN_TYPES_PROGRAM,
   // Writes its report and reads nothing.
   'packages/run-types/test/types/builderCostReport.ts': [],
+  // Reads the playground component as text, to check every tour step's target exists.
+  'packages/run-types/test/playground/tour.test.ts': ['container/website/app/components/playground/PlaygroundStage.client.vue'],
   'packages/run-types/test/types/dataonlyTemporalPosture.test.ts': ['packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
   // TypeScript programs over the mion packages; the files read only their own package.json and write reports.
   'packages/private-type-budget/test/': [...MION_PROGRAM, 'packages/private-type-budget/package.json'],
@@ -227,7 +230,10 @@ export function recordPass(store, id, key) {
 
 export const isProven = (store, id, {key, reason}) => !reason && (store[id] ?? []).includes(key);
 
-async function openVitest({filters = [], projects = [], excludes = [], reporters = []} = {}) {
+// Exported for the unit tests: CI runs the `maxWorkers: 1` projects in a job of their own, the rest without them.
+export const withoutProjects = (specs, names) => specs.filter((spec) => !names.includes(spec.project.name));
+
+async function openVitest({filters = [], projects = [], skipProjects = [], excludes = [], reporters = []} = {}) {
   const {createVitest} = await import('vitest/node');
   const options = {watch: false, run: true, passWithNoTests: true, cliExclude: excludes};
   if (projects.length > 0) options.project = projects;
@@ -235,7 +241,7 @@ async function openVitest({filters = [], projects = [], excludes = [], reporters
   const vitest = await createVitest('test', options);
   // Sets the reporters up; a run started without it crashes the default reporter at the end.
   if (reporters.length > 0) await vitest.standalone();
-  const specs = await vitest.globTestSpecifications(filters);
+  const specs = withoutProjects(await vitest.globTestSpecifications(filters), skipProjects);
   return {vitest, specs};
 }
 
@@ -312,6 +318,7 @@ export function parseCli(argv) {
         store: {type: 'string'},
         audit: {type: 'boolean'},
         project: {type: 'string', multiple: true},
+        'skip-project': {type: 'string', multiple: true},
         exclude: {type: 'string', multiple: true},
       },
     });
@@ -319,11 +326,14 @@ export function parseCli(argv) {
     die(`core test-skip: ${err.message}`, 2);
   }
   const {values, positionals} = parsed;
+  // Checked against the whole project list: a --project filter narrows vitest's own list.
+  const unknown = (values['skip-project'] ?? []).filter((name) => !readProjectNames().includes(name));
+  if (unknown.length > 0) die(`core test-skip: --skip-project names no vitest project: ${unknown.join(', ')}`, 2);
   return {
     keys: values.keys,
     store: values.store ?? DEFAULT_STORE,
     audit: values.audit ?? false,
-    scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []},
+    scope: {filters: positionals, projects: values.project ?? [], skipProjects: values['skip-project'] ?? [], excludes: values.exclude ?? []},
   };
 }
 

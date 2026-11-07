@@ -31,13 +31,17 @@ describe('bun router should', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
 
   // Called from beforeAll, not the describe body: bun evaluates every body before any hook, in one process.
   // A router built in the body sets the once-guard the other test file then hits, skipping that whole file.
   const buildApp = () => {
     resetBunHttpOpts();
-    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', alwaysAwait: false});
+    const mion = createMionRouter({
+      sharedDataFactory: getSharedData,
+      basePath: 'api/',
+      alwaysAwait: false,
+    });
 
     const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
       return myApp.db.changeUserName(user);
@@ -231,7 +235,7 @@ describe('bun router should', () => {
 
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
@@ -262,7 +266,7 @@ describe('bun router should', () => {
 
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
@@ -387,5 +391,19 @@ describe('bun: a router with the default alwaysAwait', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors.failing).toBeDefined();
+  });
+});
+
+describe('bun adapter: the HTTP method', () => {
+  // built in the test, never in the describe body: bun runs every test file of the package in one process
+  test('puts it on the request', async () => {
+    resetBunHttpOpts();
+    resetRouter();
+    const mion = createMionRouter({basePath: 'api/'});
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await bunRequestHandler(new Request('http://127.0.0.1/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
+    }
   });
 });

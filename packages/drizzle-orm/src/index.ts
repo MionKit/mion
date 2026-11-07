@@ -23,6 +23,7 @@ export type {
   ColRef,
   ColSpecOf,
   Column,
+  ColumnShortcuts,
   DbNameOf,
   DrizzleContext,
   EntryColRefs,

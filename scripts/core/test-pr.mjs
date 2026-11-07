@@ -52,11 +52,34 @@ const takeBase = (argv) => {
   return {base: argv[at + 1], rest: argv.toSpliced(at, 2)};
 };
 
-// Pure, for the tests.
-export function suiteCommand(plan, {skipPassed = false, passThrough = []} = {}) {
-  if (!plan.full && plan.projects.length === 0) return null;
-  const projectFlags = plan.full ? [] : plan.projects.flatMap((project) => ['--project', project]);
-  if (skipPassed) return ['node', [TEST_SKIP, ...projectFlags, ...passThrough]];
+function takeProjectFlags(args) {
+  const only = [];
+  const skip = [];
+  const rest = [];
+  for (let at = 0; at < args.length; at++) {
+    const [flag, inline] = args[at].split(/=(.*)/s);
+    const into = flag === '--project' ? only : flag === '--skip-project' ? skip : undefined;
+    if (!into) {
+      rest.push(args[at]);
+      continue;
+    }
+    const name = inline ?? args[++at];
+    if (!name || name.startsWith('--')) die(`core test-pr: ${flag} needs a project name`, 2);
+    into.push(name);
+  }
+  return {only, skip, rest};
+}
+
+// Pure, for the tests. `known` (every project name) turns a typo into an error, not an empty plan that passes green.
+export function suiteCommand(plan, {skipPassed = false, passThrough = [], known} = {}) {
+  const {only, skip, rest} = takeProjectFlags(passThrough);
+  if ((only.length > 0 || skip.length > 0) && !skipPassed) die('core test-pr: --project and --skip-project need --skip-passed', 2);
+  const unknown = known ? [...only, ...skip].filter((name) => !known.includes(name)) : [];
+  if (unknown.length > 0) die(`core test-pr: no vitest project is named ${unknown.join(', ')}`, 2);
+  const projects = plan.full ? only : plan.projects.filter((project) => (only.length === 0 || only.includes(project)) && !skip.includes(project));
+  if (!plan.full && projects.length === 0) return null;
+  const projectFlags = projects.flatMap((project) => ['--project', project]);
+  if (skipPassed) return ['node', [TEST_SKIP, ...projectFlags, ...skip.flatMap((project) => ['--skip-project', project]), ...rest]];
   // An --exclude can empty a selected project (test-router-fuzz is all test/fuzz/).
   return ['pnpm', ['exec', 'vitest', 'run', ...projectFlags, ...(plan.full ? [] : ['--passWithNoTests']), ...passThrough]];
 }
@@ -67,10 +90,11 @@ export function main(argv = []) {
   const skipPassed = rest.includes('--skip-passed');
   const passThrough = rest.filter((arg) => arg !== '--list' && arg !== '--skip-passed');
   const diff = changedFiles(base);
-  const plan = buildPlan({files: diff.files, packages: readWorkspaceGraph(REPO_ROOT), projects: readProjects(REPO_ROOT)});
+  const projects = readProjects(REPO_ROOT);
+  const plan = buildPlan({files: diff.files, packages: readWorkspaceGraph(REPO_ROOT), projects});
   report(plan, {base, ...diff});
   if (list) return;
-  const command = suiteCommand(plan, {skipPassed, passThrough});
+  const command = suiteCommand(plan, {skipPassed, passThrough, known: projects.map((project) => project.name)});
   if (!command) return note('test-pr: nothing to test');
   runOrThrow(...command, {failMessage: plan.full ? 'core test-pr: the full suite failed' : 'core test-pr: the affected projects failed'});
 }

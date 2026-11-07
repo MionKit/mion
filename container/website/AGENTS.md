@@ -3,10 +3,9 @@
 Nuxt 4 + Docus v5 docs site: Tailwind CSS 4 + Nuxt UI v4, Nuxt Content v3 (MDC), Shiki + Twoslash.
 Deps live ONLY in the podman image, never in the monorepo lockfile.
 
-- ONE Nuxt install builds ONE static site, mion.pages.dev. Subsite `<id>`: tree `content/NN.<id>/`, theme
-  `sites/<id>/theme.css`, `/<id>` redirects to its home:
-  - `rpc` (framework): `/rpc/introduction/about-mion-rpc`. `runtypes`: `/runtypes/introduction/about-mion-runtypes`.
-  - `benchmarks`: `/benchmarks/introduction/mion-benchmarks`.
+- ONE Nuxt install builds ONE static site, mion.io. Subsite `<id>`: tree `content/NN.<id>/`, theme
+  `sites/<id>/theme.css`, home page served at `/<id>` (`/rpc`, `/runtypes`, `/benchmarks`): its about page, the
+  first page of its introduction section, with `path: /<id>` in its frontmatter.
 - Build output: `.output/public`.
 - Prose voice + what a style pass may touch: [website-writing.md](../../.agents/docs/website-writing.md).
 - Subsite wiring + styling: [app/AGENTS.md](app/AGENTS.md). Read before editing `app/`, `sites/`, `content.config.ts`.

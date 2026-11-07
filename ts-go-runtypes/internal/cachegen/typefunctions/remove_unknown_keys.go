@@ -268,7 +268,7 @@ func (emitter RemoveUnknownKeysEmitter) emitObject(rt *reflection.RunType, ctx *
 			expr:       expr,
 		}
 		if isEnumerabilityGuarded(resolved) {
-			prop.presenceGuard = propertyIsEnumerableGuard(v, resolved.Name)
+			prop.ownGuard = propertyIsEnumerableGuard(v, resolved.Name)
 		}
 		props = append(props, prop)
 	}

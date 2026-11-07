@@ -8,6 +8,7 @@
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import type {Plugin} from 'vite';
+import type {VitestCacheContext} from '../core/types.ts';
 
 // ############# Vue SFC support #############
 // The core only transforms plain TS/JS ids, and it cannot transform a module that exists nowhere on disk,
@@ -120,10 +121,18 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     return typeof code === 'string' ? foldImportBlock(source, code) : undefined;
   }
 
-  const injector: Plugin = {
+  const injector: Plugin & {configureVitest: (context: VitestCacheContext) => void} = {
     name: 'mion-sfc',
     // before @vitejs/plugin-vue: it is the last point where the script still carries its types
     enforce: 'pre',
+
+    // Its output follows the program like the core transform's, so it takes the core's Vitest cache digest.
+    configureVitest(context: VitestCacheContext) {
+      const digest = (rt as {rtCacheDigest?: () => string | false} | undefined)?.rtCacheDigest;
+      const define = context.defineCacheKeyGenerator ?? context.experimental_defineCacheKeyGenerator;
+      if (typeof digest !== 'function') return;
+      define?.(({id, sourceCode}) => (id.split('?')[0].endsWith('.vue') && MARKER_PROBE.test(sourceCode) ? digest() : undefined));
+    },
 
     configResolved(config) {
       root = config.root;
@@ -206,14 +215,15 @@ function bareVueFile(id: string): string | undefined {
   return file;
 }
 
-/** Keeps the injected code on the SAME number of lines as the source it replaces: the prepended import block
- *  would otherwise shift every line below the script and break plugin-vue's source map. */
-function foldImportBlock(source: string, transformed: string): string {
-  const extra = transformed.split('\n').length - source.split('\n').length;
-  if (extra <= 0) return transformed;
+/** Keeps the SAME line count, or plugin-vue's source map breaks; the block may sit below a directive prologue. */
+export function foldImportBlock(source: string, transformed: string): string {
+  const sourceLines = source.split('\n');
   const lines = transformed.split('\n');
-  const importBlock = lines.slice(0, extra).join(' ');
-  const rest = lines.slice(extra);
-  rest[0] = `${importBlock} ${rest[0]}`;
-  return rest.join('\n');
+  const extra = lines.length - sourceLines.length;
+  if (extra <= 0) return transformed;
+  let first = 0;
+  while (first < sourceLines.length - 1 && lines[first] === sourceLines[first]) first++;
+  const importBlock = lines.slice(first, first + extra).join(' ');
+  lines.splice(first, extra + 1, `${importBlock} ${lines[first + extra]}`);
+  return lines.join('\n');
 }

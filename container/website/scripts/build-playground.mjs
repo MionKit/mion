@@ -98,14 +98,12 @@ function buildWasmIfStale() {
   note('wasm inputs changed - building reference (GOOS=js GOARCH=wasm) ...');
   const tmp = join(CACHE_DIR, `.wasm-ref-${process.pid}`);
   try {
-    // No version ldflags: the asset is dev-only, and matching flags is what lets the
-    // staleness compare cache (see core/build.mjs checkGo). Keep it flagless.
-    const built = run('go', ['build', '-o', tmp, WASM_PKG], {cwd: GO_ROOT, env: {GOOS: 'js', GOARCH: 'wasm'}});
+    // No version ldflags: dev-only asset, and matching flags let the compare cache (core/build.mjs checkStampedGoBin).
+    // No git stamps: a main-checkout commit would change the build ID of a worktree's wasm.
+    const built = run('go', ['build', '-buildvcs=false', '-o', tmp, WASM_PKG], {cwd: GO_ROOT, env: {GOOS: 'js', GOARCH: 'wasm'}});
     if (built !== 0) die('==> ERROR: wasm build failed.');
     if (existsSync(RAW_WASM) && sameAsDisk(tmp, RAW_WASM)) {
-      // Inputs changed but the compiler produced the same bytes (comments, tests,
-      // testdata). Record the new digest so tier 1 is quiet next time; skip the
-      // expensive gzip + wasm_exec copy.
+      // Inputs changed, build ID did not (comments, tests, testdata): new digest quiets tier 1, no costly gzip.
       stampWasm();
       note('wasm unchanged - skipped gzip');
       return false;

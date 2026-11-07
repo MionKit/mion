@@ -18,7 +18,7 @@ const testPackageName = "@acme/app"
 
 // idPrefix is what every id in an overlay fixture starts with: the package,
 // then the separator. The hash half is the body's, so a test never spells it.
-const idPrefix = testPackageName + "#"
+const idPrefix = testPackageName + ":"
 
 // entryNamed returns the entry the registration bound to `name` produced. An id
 // is a hash of the body that ships, so a test names a registration the way the
@@ -260,7 +260,7 @@ export const fn = registerPureFnFactory(function ({a, b}) {
 	if !hasCode(diags, CodeDestructuredParam) {
 		t.Fatalf("expected %s diagnostic, got %+v", CodeDestructuredParam, diags)
 	}
-	// Never the id-shaped `<package>#pf_fn`.
+	// Never the id-shaped `<package>:fn`.
 	if args := diags[0].Args; len(args) != 1 || args[0] != "fn" {
 		t.Errorf("expected the binding name as the only arg, got %v", args)
 	}

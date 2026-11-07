@@ -13,4 +13,6 @@ export default defineConfig({
       },
     }),
   ],
+  // `vite preview` serves the client files only: start the built API from dist-server, then proxy to its port (80 by default)
+  preview: {proxy: {'/api': 'http://localhost'}},
 });

@@ -123,7 +123,7 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
   const errorsStrict = createGetValidationErrorsFn<Person>(undefined, {checkUnknowns: true});
   const typeErrors = createGetValidationErrorsFn<Person>();
 
-  // Admitted by the object guard; an array, Map or Date is a shape error only, its indexes never undeclared keys.
+  // Admitted by the object guard. A Map or Date has no enumerable keys; an array's indexes are undeclared keys.
   const objectCorpus: unknown[] = [
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}},
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}, tags: ['x']},
@@ -135,6 +135,8 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
     {},
     [],
     [{name: 'Ada'}],
+    Object.assign([], {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}}),
+    Object.assign([1], {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}}),
     new Map(),
     new Date(),
   ];
@@ -410,5 +412,125 @@ describe('checkUnknowns — a dropped non-data member', () => {
     const isStrict = createValidateFn(withPromise, {checkUnknowns: true});
     const isWithFn = createValidateFn(withFn, {checkUnknowns: true});
     for (const value of [{b: 1}, {b: 1, x: 1}, {b: 1, p: 1}]) expect(isStrict(value)).toBe(isWithFn(value));
+  });
+});
+
+// A class prop that JS does not list is still declared. A plain object answers from its count, and both agree.
+describe('checkUnknowns — declared props that are not own enumerable keys', () => {
+  interface G {
+    id: number;
+    name: string;
+  }
+  class WithGetter {
+    get id() {
+      return 1;
+    }
+    name = 'a';
+  }
+  class WithGetterExtra extends WithGetter {
+    extra = 1;
+  }
+  const hidden = (extra: boolean) => {
+    const value: Record<string, unknown> = {name: 'a'};
+    Object.defineProperty(value, 'id', {value: 1, enumerable: false});
+    if (extra) value.extra = 1;
+    return value;
+  };
+  const inherited = (extra: boolean) => {
+    const value = Object.create(extra ? {id: 1, extra: 1} : {id: 1});
+    value.name = 'a';
+    return value;
+  };
+  const samples = () => [new WithGetter(), new WithGetterExtra(), hidden(false), hidden(true), inherited(false), inherited(true)];
+  const extraError = [{path: ['extra'], expected: 'never'}];
+  const shapeError = [{path: [], expected: 'objectLiteral'}];
+
+  function expectAgreement(isStrict: (value: unknown) => boolean, errorsStrict: (value: unknown) => unknown[]) {
+    for (const value of samples()) expect(errorsStrict(value).length === 0).toBe(isStrict(value));
+  }
+
+  it('validate and errors agree on an all-required shape (static shape)', () => {
+    const isStrict = createValidateFn<G>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<G>(undefined, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
+    expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
+    // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
+    expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
+    expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);
+    expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
+  });
+
+  it('validate and errors agree on an all-required shape (value shape)', () => {
+    const sample: G = {id: 1, name: 'a'};
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
+    expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
+    // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
+    expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
+    expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);
+    expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
+  });
+
+  it('caps unknown keys without a shape error (static shape)', () => {
+    interface Wide {
+      a: number;
+      b: number;
+      c: number;
+    }
+    const errorsStrict = createGetValidationErrorsFn<Wide>(undefined, {checkUnknowns: true});
+    const many: Record<string, number> = {a: 1, b: 1, c: 1};
+    for (let i = 0; i < 20; i++) many[`x${i}`] = 1;
+    const report = errorsStrict(many);
+    expect(report.at(-1)).toEqual({path: [], expected: 'tooManyUnknownKeys'});
+    expect(report.some((error) => error.expected === 'objectLiteral')).toBe(false);
+  });
+
+  it('validate and errors agree with an optional prop (static shape)', () => {
+    const isStrict = createValidateFn<G & {note?: string}>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<G & {note?: string}>(undefined, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+  });
+
+  it('validate and errors agree with an optional prop (value shape)', () => {
+    const sample: G & {note?: string} = {id: 1, name: 'a'};
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+  });
+});
+
+describe('checkUnknowns — an all-required class with a hidden field', () => {
+  class Point {
+    x = 1;
+    y = 2;
+  }
+  const hiddenX = () => {
+    const point = new Point();
+    Object.defineProperty(point, 'x', {value: 1, enumerable: false});
+    return point;
+  };
+
+  it('both accept the hidden field (static shape)', () => {
+    const isStrict = createValidateFn<Point>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<Point>(undefined, {checkUnknowns: true});
+    expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([true, []]);
+  });
+
+  it('both accept the hidden field (value shape)', () => {
+    const sample = new Point();
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([true, []]);
   });
 });

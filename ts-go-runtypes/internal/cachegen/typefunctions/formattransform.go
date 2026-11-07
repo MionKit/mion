@@ -108,15 +108,20 @@ func nodeFormatTransform(rt *reflection.RunType, v string) string {
 }
 
 // emitObjectFormat joins the transform statements of each non-function, non-static child property.
-func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode {
+func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	var parts []string
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.IsStatic || isMethodMember(resolved.Kind) {
+		if resolved == nil || resolved.IsStatic || isMethodMember(resolved.Kind) || skipsFormat(rt, resolved) {
 			continue
 		}
 		childRT := ctx.CompileChild(child, CodeS)
-		if childRT.Code != "" {
+		switch {
+		case childRT.Code == "":
+		case hasNoSetter(resolved):
+			// A copy of a no-setter member: a plain value owns the key, a class value still answers through its accessor.
+			parts = append(parts, "if ("+propertyIsEnumerableGuard(v, resolved.Name)+") {"+childRT.Code+"}")
+		default:
 			parts = append(parts, childRT.Code)
 		}
 	}
@@ -124,6 +129,11 @@ func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode
 		return RTCode{Code: "", Type: CodeS}
 	}
 	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
+}
+
+// skipsFormat reports a member of a class no format may write. Shared with the noop predicate.
+func skipsFormat(rt, member *reflection.RunType) bool {
+	return rt.Kind == reflection.KindClass && hasNoSetter(member)
 }
 
 // emitPropertyFormat sets the property accessor, recurses, and guards an optional property on undefined.

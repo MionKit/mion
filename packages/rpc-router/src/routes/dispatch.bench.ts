@@ -17,7 +17,6 @@ import {bench, describe} from 'vitest';
 import {createMionRouter, resetRouter, setPlatformConfig} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
 import {headersFromRecord} from '../lib/headers.ts';
-import {decodeQueryBody} from '../lib/queryBody.ts';
 import {registerBatches} from '../batches.ts';
 import {Routes} from '../types/general.ts';
 import {FatalError, RpcError, MION_BATCH_PATH, toBase64Url} from '@mionjs/core';
@@ -102,20 +101,9 @@ function dispatch(path: string, body: string, urlQuery?: string) {
   return dispatchRoute(path, body, reqHeaders, headersFromRecord({}), rawRequest, rawResponse, undefined, urlQuery);
 }
 
-/** A GET query route, the way an adapter serves one: the body rides in `?data=` and the adapter
- *  decodes it before dispatch, so the query string is walked twice per request. */
+/** A GET query route as an adapter serves it: no body, the deserializer decodes `?data=` */
 function dispatchQueryBody(path: string, urlQuery: string) {
-  const queryBody = decodeQueryBody(urlQuery, undefined);
-  return dispatchRoute(
-    path,
-    queryBody!.rawBody,
-    reqHeaders,
-    headersFromRecord({}),
-    rawRequest,
-    rawResponse,
-    queryBody!.bodyType,
-    urlQuery
-  );
+  return dispatchRoute(path, '', reqHeaders, headersFromRecord({}), rawRequest, rawResponse, undefined, urlQuery);
 }
 
 describe('dispatch chain', () => {

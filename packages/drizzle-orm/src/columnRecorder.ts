@@ -8,20 +8,27 @@
 // Splits a single-call builder's props into drizzle's config argument and modifier calls, replayed in key order.
 
 import {RtColumnRecorder} from './recorder.ts';
-import type {AnyTableRef, DrizzleContext} from './types.ts';
+import type {AnyTableRef, ColumnShortcuts, DrizzleContext} from './types.ts';
 import {isColModName} from './columns.ts';
 import {refColumn} from './table.ts';
 
 /** Record a builder call `(name?, props?)`: `init` builds from the config half, the modifiers replay on it. */
-export function recordColumn(args: unknown[], init: (context: DrizzleContext, callArgs: unknown[]) => unknown): RtColumnRecorder {
+export function recordColumn(
+  args: unknown[],
+  init: (context: DrizzleContext, callArgs: unknown[]) => unknown,
+  shortcuts?: ColumnShortcuts
+): RtColumnRecorder {
   const [name, props] = (typeof args[0] === 'string' ? args : [undefined, args[0]]) as [
     string | undefined,
     Record<string, unknown> | undefined,
   ];
   const config: Record<string, unknown> = {};
   const mods: Array<[string, unknown]> = [];
+  const propKeys = Object.keys(props ?? {});
   for (const [key, value] of Object.entries(props ?? {})) {
-    if (isColModName(key)) mods.push([key, value]);
+    const shortcut = shortcuts?.[key];
+    if (shortcut) mods.push([...shortcut(value, propKeys)]);
+    else if (isColModName(key)) mods.push([key, value]);
     else config[key] = value;
   }
   const callArgs: unknown[] = [];
@@ -42,6 +49,6 @@ export function recordColumn(args: unknown[], init: (context: DrizzleContext, ca
 }
 
 /** Record a builder that replays as the dialect namespace function of the same name. */
-export function recordNsColumn(fnName: string, args: unknown[]): never {
-  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[]))) as never;
+export function recordNsColumn(fnName: string, args: unknown[], shortcuts?: ColumnShortcuts): never {
+  return recordColumn(args, (context, callArgs) => context.ns[fnName](...(callArgs as never[])), shortcuts) as never;
 }

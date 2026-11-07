@@ -16,6 +16,9 @@ the tsconfig then writes nothing.
 --no-emit runs the type check, the scan and the RunType-family diagnostics
 only and writes nothing (tsc --noEmit-style).
 
+--list-files-only prints the tsconfig's root files, one absolute path per line,
+and builds nothing (tsc --listFilesOnly-style, roots only).
+
 --emit-mode ts writes TypeScript instead: every source under the project root,
 call sites rewritten, to the outDir, importing typed .ts cache modules, for a
 TypeScript-to-native compiler to build.
@@ -37,10 +40,14 @@ Flags:
     	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --json-max-bytes
     	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
+  --list-files-only
+    	print the tsconfig's root files, one absolute path per line, and build nothing
   --log-style string
     	how diagnostics print: "grouped" (default) groups them by name, "lines" prints one line each (also the tsconfig "logStyle" plugin key, flag overrides it)
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
+  --max-unknown-keys int
+    	unknown-key errors a strict errors fn lists per object before one tooManyUnknownKeys entry (internal; default 10)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-emit
@@ -162,6 +169,8 @@ Flags:
     	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
+  --max-unknown-keys int
+    	unknown-key errors a strict errors fn lists per object before one tooManyUnknownKeys entry (internal; default 10)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-marker-package-check

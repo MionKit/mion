@@ -1177,6 +1177,15 @@
       "example": null
     },
     {
+      "code": "rpc-handler-shared-factory-untyped",
+      "subsystem": "mion-routes",
+      "level": "warning",
+      "headline": "`sharedDataFactory` has no written return type, so every client computes it from the body; write it, `ctx.shared` is typed from it.",
+      "summary": "`ctx.shared` is typed from what `sharedDataFactory` returns. A client types the router by inferring its whole options object, so a factory with no written return type makes every client compute that return from the body, a whole database type included, even when every route is slim. Write the return type; a database the client never needs can be declared `unknown` and cast on the server.",
+      "fix": "createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});",
+      "example": null
+    },
+    {
       "code": "rpc-handler-throws",
       "subsystem": "mion-routes",
       "level": "runtimeError",
@@ -1207,8 +1216,8 @@
       "code": "rpc-batch-element-unreadable",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
-      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
+      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.",
+      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
       "fix": "const user = routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
       "example": null
     },

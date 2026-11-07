@@ -49,7 +49,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 }
 `;
 
-// The route map plus the one client every case file imports its routes from.
+// The route map plus the clients the case files import their routes from.
 const API = `import {initClient} from '@mionjs/client';
 export type Api = {
   users: {
@@ -64,6 +64,7 @@ export type Api = {
   reports: {summary: (orderIds: string[]) => string};
 };
 export const {routes} = initClient<Api>();
+export const client = initClient<Api>();
 `;
 
 // Every case file starts with the client import; the route map comes from api.ts.
@@ -226,7 +227,7 @@ const mapping = (fromId: string, toId: string, paramIndex: number, mapperKey: st
   }) as BatchMapping;
 // A mapper's id is the package that owns it (empty for these fixtures, which
 // declare no package name) plus a hash of the body that ships.
-const INLINE_KEY = /^[A-Za-z0-9_.-]*#pf_[A-Za-z0-9_-]{14}$/;
+const INLINE_KEY = /^[A-Za-z0-9_.-]*:[A-Za-z0-9_-]{10}$/;
 
 describe('request-batch diagnostics and readable shapes', () => {
   const register = hasBinary() ? it : it.skip;
@@ -273,6 +274,14 @@ describe('request-batch diagnostics and readable shapes', () => {
       },
       'element access with a string literal': {
         body: `export const b = batch([routes['users'].getById(1), routes.orders['list'](1)]);\n`,
+        routeIds: ['users/getById', 'orders/list'],
+      },
+      'routes destructured from a same-file client': {
+        body: `const local = initClient<Api>();\nconst {routes: api} = local;\nexport const b = batch([api.users.getById(1)]);\n`,
+        routeIds: ['users/getById'],
+      },
+      'routes destructured from a client imported from api.ts': {
+        body: `import {client} from './api';\nconst {routes: api} = client;\nexport const b = batch([api.users.getById(1), api.orders.list(1)]);\n`,
         routeIds: ['users/getById', 'orders/list'],
       },
       'nested destructuring of the routes proxy': {
@@ -463,8 +472,7 @@ describe('request-batch diagnostics and readable shapes', () => {
   });
 
   describe('rpc-batch-element-unreadable: element not readable', () => {
-    // Every entry: the case body, the substring that starts the offending
-    // element (its line is asserted), and the reason the headline must render.
+    // `needle` starts the offending element, whose line is asserted; `reason` must render in the headline.
     const rejected: Record<string, {body: string; needle: string; reason?: string | RegExp}> = {
       'spread element': {
         body: `const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);\n`,
@@ -530,6 +538,11 @@ describe('request-batch diagnostics and readable shapes', () => {
         body: `const fake = {routes: {users: {getById: (id: number): RouteSubRequest<any> => ({id: String(id)})}}};\nexport const b = batch([fake.routes.users.getById(1)]);\n`,
         needle: 'fake.routes.users.getById(1)',
         reason: 'not the client routes proxy',
+      },
+      'routes destructured from a client a function returns (inject(), a composable)': {
+        body: `declare function inject<T>(key: string): T;\nconst {routes: api} = inject<ReturnType<typeof initClient<Api>>>('api');\nexport const b = batch([api.users.getById(1)]);\n`,
+        needle: 'api.users.getById(1)',
+        reason: 'function call the build cannot follow',
       },
       'var binding': {
         body: `var user = routes.users.getById(1);\nexport const b = batch([user]);\n`,

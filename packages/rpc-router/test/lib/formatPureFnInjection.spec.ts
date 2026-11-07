@@ -21,7 +21,7 @@ import type {UUIDv4} from '@mionjs/run-types/formats';
 const mion = createMionRouter();
 
 type UuidRoutes = {
-  echoUuid: ReturnType<typeof mion.route<(ctx: CallContext, id: UUIDv4) => string>>;
+  echoUuid: ReturnType<typeof mion.route<(ctx: CallContext<never>, id: UUIDv4) => string>>;
 } & Routes;
 
 const VALID_UUID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';

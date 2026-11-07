@@ -65,7 +65,8 @@ Removed/renamed option, setting key, config key, lint rule, export, alias, CLI f
 - `pnpm test` needs a bootstrapped host (Go resolver, submodules + patches, `@mionjs/devtools` dist).
   Never report "tests pass" or "tests skipped" from an unbuilt host!
 - Never `pnpm run build` during development, only for publishing.
-  ONE exception: rebuild `@mionjs/devtools` after every src edit ([why](packages/devtools/AGENTS.md)).
+  Exceptions: rebuild `@mionjs/devtools` after every src edit ([why](packages/devtools/AGENTS.md)).
+  Refresh the client size: `pnpm --filter @mionjs/core --filter @mionjs/client run build`.
 - Marker API tests (Go or JS plugin) must cover both `getRunTypeId` call shapes, as paired tests. Follow the
   [Marker test coverage rule](ts-go-runtypes/AGENTS.md#marker-test-coverage-rule).
 

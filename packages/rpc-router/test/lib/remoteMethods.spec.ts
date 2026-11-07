@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
+import {describe, it, expect, expectTypeOf, beforeEach, vi} from 'vitest';
 import {getPublicApi, serializeMethodDeps} from '../../src/lib/remoteMethods.ts';
 import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {CallContext} from '../../src/types/context.ts';
@@ -19,7 +19,10 @@ import type {InitializedTypeFn} from '@mionjs/run-types';
 
 const shared = {auth: {me: null as any}};
 const getSharedData = (): typeof shared => shared;
-const mion = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+const mion = createMionRouter({
+  sharedDataFactory: getSharedData,
+  getPublicRoutesData: true,
+});
 
 describe('Public Methods should', () => {
   const privateMiddleware = mion.middleware((ctx): void => undefined);
@@ -50,11 +53,22 @@ describe('Public Methods should', () => {
   beforeEach(() => resetRouter());
 
   it('not generate public data when  generateSpec = false', async () => {
-    const publicExecutables = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: false}).initRoutes(
-      routes
-    );
+    const publicExecutables = createMionRouter({
+      sharedDataFactory: getSharedData,
+      getPublicRoutesData: false,
+    }).initRoutes(routes);
 
     expect(publicExecutables).toEqual({});
+  });
+
+  it('generate public data when GENERATE_ROUTER_SPEC=true, even with getPublicRoutesData off', async () => {
+    vi.stubEnv('GENERATE_ROUTER_SPEC', 'true');
+    try {
+      const publicExecutables = createMionRouter({sharedDataFactory: getSharedData}).initRoutes(routes);
+      expect(Object.keys(publicExecutables).length).toBeGreaterThan(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('generate all the required public fields for middleware and route', async () => {
@@ -219,7 +233,7 @@ describe('Public Methods should', () => {
       route1,
     };
     const api = createMionRouter({
-      contextDataFactory: getSharedData,
+      sharedDataFactory: getSharedData,
       getPublicRoutesData: true,
       basePath: 'v1',
       suffix: '.json',

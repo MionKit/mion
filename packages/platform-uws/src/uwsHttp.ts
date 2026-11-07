@@ -13,12 +13,12 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultHeaders,
   releaseHeaders,
   requestPayloadTooLarge,
   hostOwnsSocket,
+  HttpMethod,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
 import {loadUws} from '@mionjs/bin-uws';
@@ -90,6 +90,8 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
       httpOptions,
     });
 
+  // uWS reads it once, when its binary loads
+  process.env.UWS_HTTP_MAX_HEADERS_SIZE ??= String(httpOptions.maxHeaderSize);
   const uws = loadUws();
   const app = httpOptions.ssl ? uws.SSLApp(httpOptions.ssl) : uws.App();
   app.any('/*', uwsRequestHandler);
@@ -126,6 +128,24 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
+// uWS hands the method over lowercased
+// null prototype: a `constructor` method off the wire must not read Object.prototype
+const LOWER_CASE_METHODS: Readonly<Record<string, HttpMethod>> = Object.assign(Object.create(null), {
+  get: 'GET',
+  head: 'HEAD',
+  post: 'POST',
+  put: 'PUT',
+  delete: 'DELETE',
+  connect: 'CONNECT',
+  options: 'OPTIONS',
+  trace: 'TRACE',
+  patch: 'PATCH',
+  query: 'QUERY',
+});
+function upperCaseMethod(method: string): HttpMethod {
+  return LOWER_CASE_METHODS[method] ?? 'OTHER';
+}
+
 // uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs it only when a reader is registered.
 // Without one, a request answered before its body finished arriving is closed mid-upload, so drop every chunk instead.
 function drainRequestBody(res: HttpResponse) {
@@ -135,12 +155,12 @@ function drainRequestBody(res: HttpResponse) {
 // exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see startUwsServer).
 // uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
-  const state = {replied: false, aborted: false};
-  // Everything read from `req` happens HERE, synchronously.
   const path = req.getUrl();
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
+  const method = upperCaseMethod(req.getMethod());
   const reqHeaders = headersFromUwsRequest(req);
+  const state: ReplyState = {replied: false, aborted: false, head: method === 'HEAD'};
 
   const respHeaders = getDefaultHeaders();
 
@@ -149,7 +169,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
-  // route resolved BEFORE the body, synchronously: the native read stops at the chain's limit, and a late context stays GC-cheap.
+  // route resolved BEFORE the body: the native read stops at the chain's limit, and a late context stays GC-cheap.
   // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
   let chain: MethodsExecutionChain;
@@ -162,23 +182,10 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     return;
   }
 
-  const dispatchBody = (rawBody: string, readQueryBody: boolean) => {
-    let reqRawBody: any = rawBody;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-    // a throw here runs inside uWS' native callback (or a microtask): it must become a response
-    try {
-      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
-      if (queryBody) {
-        reqRawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
-    } catch (err) {
-      state.replied = true;
-      fatalFail(res, state, respHeaders, err as RpcError<string>);
-      return;
-    }
+  const dispatchBody = (rawBody: string) => {
+    const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
 
-    const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, rawBody, reqBodyType);
     let dispatched: MionResponse | Promise<MionResponse>;
     try {
       dispatched = dispatchMaybeSync(context, rawRequest, res);
@@ -215,7 +222,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // which is exactly the maxBodySize contract. A not-found chain has no route to feed: its body is dropped as it arrives.
   if (!chain.readsBody) {
     drainRequestBody(res);
-    dispatchBody('', false);
+    dispatchBody('');
     return;
   }
 
@@ -224,20 +231,19 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (fullBody === null) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       answerWith(
-        dispatchPlatformError(chain, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
+        dispatchPlatformError(chain, path, urlQuery, method, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
       );
       return;
     }
 
-    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test): a single-read body is a
-    // zero-copy window into uWS' receive buffer, DETACHED when this callback returns, so it must be decoded synchronously
-    // here; a multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
+    // A single-read body is a zero-copy window DETACHED when this callback returns (HttpResponseWrapper.h): decode now.
+    // A multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so a microtask may decode it.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
       // a body-less request (every GET) skips the view and the decode altogether
-      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString(), true);
+      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString());
       return;
     }
-    // bigger than one read can deliver → guaranteed the ownership-transferred path, so the buffer survives the microtask.
+    // past one read's size → always the ownership-transferred path, so the buffer survives the microtask.
     // The zero-length check is a tripwire for an upstream change: fail loudly instead of parsing a neutered buffer.
     queueMicrotask(() => {
       if (state.replied) return;
@@ -251,7 +257,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         fatalFail(res, state, respHeaders, error);
         return;
       }
-      dispatchBody(releaseAfterDecode(fullBody), true);
+      dispatchBody(releaseAfterDecode(fullBody));
     });
   });
 }
@@ -272,19 +278,17 @@ function releaseAfterDecode(fullBody: ArrayBuffer): string {
 /** `transfer` is ES2024 and this package compiles against an ES2023 lib; optional because a runtime without it must work. */
 type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
-// only called when there is an http error or weird unhandled route errors
-function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: MionHeaders, error: RpcError<string>) {
-  const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
-  reply(res, state, routeResponse);
+interface ReplyState {
+  replied: boolean;
+  aborted: boolean;
+  /** RFC 9110: a HEAD answer has no body; one sent anyway is read as the start of the next answer */
+  readonly head: boolean;
 }
 
-function isHeaderSafe(text: string): boolean {
-  // one pass, no allocation: a CR, LF or NUL anywhere makes the header unsafe to write
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code === 13 || code === 10 || code === 0) return false;
-  }
-  return true;
+// only for http errors and unhandled route errors
+function fatalFail(res: HttpResponse, state: ReplyState, respHeaders: MionHeaders, error: RpcError<string>) {
+  const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
+  reply(res, state, routeResponse);
 }
 
 /** The line is a pure function of the code, so it is built once per code rather than per response. */
@@ -298,24 +302,24 @@ function statusLine(statusCode: number): string {
   return line;
 }
 
-function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
+function reply(res: HttpResponse, state: ReplyState, mionResp: MionResponse) {
   // uWS freed the response when the client left; touching it would crash
   if (state.aborted) return;
   const headers = mionResp.headers as RecordResponseHeaders;
 
   // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
+  // uWS writes a `connection: close` header but keeps the socket open, so the close is asked for here
+  const close = headers.get('connection')?.toLowerCase() === 'close';
 
   // cork makes one syscall; uWS headers are write-only and must all precede end().
   // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
-  // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
-  const write = (name: string, value: string) => {
-    if (isHeaderSafe(value)) res.writeHeader(name, value);
-  };
+  // the header store refused any CR, LF or NUL when it was set
+  const write = (name: string, value: string) => res.writeHeader(name, value);
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
     headers.forEach((name, value) => {
-      if (name === 'content-length' || name === 'content-type' || !isHeaderSafe(name)) return;
+      if (name === 'content-length' || name === 'content-type') return;
       if (typeof value === 'string') write(name, value);
       // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
       else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);
@@ -324,7 +328,8 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
     res.writeHeader('content-type', mionResp.contentType);
 
-    res.end(payload);
+    if (state.head) res.endWithoutBody(Buffer.byteLength(payload, 'utf8'), close);
+    else res.end(payload, close);
   });
   releaseHeaders(headers);
 }

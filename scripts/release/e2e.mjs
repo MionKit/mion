@@ -141,7 +141,7 @@ function ensureTarballs(force) {
 const MATRIX_SCRIPT = `set -eu
 cd /e2e
 cp -a /e2e-src/apps /e2e-src/test /e2e-src/pure-fns /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
-rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt /e2e/apps/*/.next /e2e/apps/*/selftest.json
+rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt /e2e/apps/*/.next
 echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from $MION_E2E_REGISTRY"
 # Install with npm (like a real consumer + the host smoke): additive onto the
 # baked pnpm-hoisted toolchains, and store-agnostic (pnpm's build-time store lives
@@ -156,10 +156,7 @@ echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-# apps/mion-next hosts the mion API inside a Next app, so the matrix root needs the framework
-# packages that app imports too. They ride their OWN version (the framework train), which is why
-# they are a separate variable from the type-system one above.
-npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" $MION_E2E_MATRIX_MION_PKGS --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
@@ -190,8 +187,8 @@ node --test pure-fns/test/*.test.mjs`;
 // fixture keeps its own package.json so a maintainer can run the lane on a host.
 const MION_SCRIPT = `set -eu
 cd /e2e-mion
-rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types
-cp -a /e2e-src/mion-api-types /e2e-mion/
+rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types /e2e-mion/edge
+cp -a /e2e-src/mion-api-types /e2e-src/mion-consumer/edge /e2e-mion/
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/tsconfig.compile-fetch.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
 npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
@@ -211,7 +208,11 @@ echo "e2e-mion: asserting the compiled server generated the table, imports it, a
 npx vitest run --config vitest.compile-output.config.ts
 echo "e2e-mion: a client built from a packed API's .d.ts checks the server build version (matching, plain tsc, drifted)"
 node mion-api-types/run.mjs
-node --test mion-api-types/test/*.test.mjs`;
+node --test mion-api-types/test/*.test.mjs
+echo "e2e-mion: a Worker built from the packed packages with the documented config answers on workerd (no nodejs_compat)"
+cd /e2e-mion/edge
+npx vite build
+npx vitest run`;
 
 // The bun lane installs into its OWN directory rather than /e2e-mion: bun resolves
 // node_modules by walking up from the entry, and a bun tree sharing a root with the
@@ -245,17 +246,11 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
   if (bun !== 0) die('e2e: the mion bun consumer lane failed', bun);
 }
 
-// What apps/mion-next imports, and nothing more: the matrix is not the consumer lane, it just
-// happens to host one mion app now.
-const MATRIX_MION_PACKAGES = ['@mionjs/core', '@mionjs/router', '@mionjs/client', '@mionjs/platform-vercel'];
-
-function runContainerMatrix(engine, container, version, mionVersion, registry) {
+function runContainerMatrix(engine, container, version, registry) {
   note(`running the multi-bundler feature matrix inside the container (registry: ${registry})`);
-  const matrixMionPkgs = MATRIX_MION_PACKAGES.map((name) => `${name}@${mionVersion}`).join(' ');
   const env = [
     '-e', `MION_E2E_VERSION=${version}`,
     '-e', `MION_E2E_REGISTRY=${registry}`,
-    '-e', `MION_E2E_MATRIX_MION_PKGS=${matrixMionPkgs}`,
   ];
   const code = run(engine, ['exec', ...env, container, 'sh', '-c', MATRIX_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
   if (code !== 0) die('e2e: the in-container feature matrix failed', code);
@@ -368,7 +363,7 @@ async function runContainerBackend(version, mionVersion, port, opts) {
   try {
     if (!(await waitContainerHealthy(engine, container))) die('e2e: containerized verdaccio failed to publish the tarballs in time');
     note(`containerized verdaccio is healthy on 127.0.0.1:${port}`);
-    if (opts.matrix) runContainerMatrix(engine, container, version, mionVersion, VERDACCIO_INTERNAL);
+    if (opts.matrix) runContainerMatrix(engine, container, version, VERDACCIO_INTERNAL);
     if (opts.mion) runMionLanes(engine, container, version, mionVersion, VERDACCIO_INTERNAL);
     if (opts.hostSmoke) runHostSmoke(version, `http://127.0.0.1:${port}`);
   } finally {
@@ -419,9 +414,8 @@ async function runNpmBackend(version, registry, opts) {
     process.on('SIGINT', () => (teardown(), process.exit(130)));
     process.on('SIGTERM', () => (teardown(), process.exit(143)));
     try {
-      runContainerMatrix(engine, container, version, readMionVersion(), registry);
-      // The framework packages publish from this tree on the same train, so the
-      // consumer lanes verify the LIVE release exactly as they verified the tarballs.
+      runContainerMatrix(engine, container, version, registry);
+      // Framework packages publish on the same train, so the consumer lanes verify the LIVE release like the tarballs.
       if (opts.mion) runMionLanes(engine, container, version, readMionVersion(), registry);
     } finally {
       teardown();

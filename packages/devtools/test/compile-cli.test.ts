@@ -98,6 +98,58 @@ describe('mion compile (tsc-like CLI)', () => {
     }
   });
 
+  // Next rejects a `"use client"` / `"use server"` that is not the first statement, so imports land after the prologue.
+  const compileDirective = (call: string) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-directive-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'tsconfig.json'), TSCONFIG);
+      fs.mkdirSync(path.join(dir, 'src'));
+      writeMarkerPackage(dir);
+      fs.writeFileSync(
+        path.join(dir, 'src', 'client.ts'),
+        `"use client";
+import {getRunTypeId} from '@mionjs/run-types';
+interface User {
+  id: number;
+}
+const user: User = {id: 1};
+export const id = ${call};
+`
+      );
+      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
+        label: 'compile-cli-directive',
+      });
+      expect(run.status, run.report).toBe(0);
+      const js = fs.readFileSync(path.join(dir, 'dist', 'client.js'), 'utf8');
+      const map = JSON.parse(fs.readFileSync(path.join(dir, 'dist', 'client.js.map'), 'utf8'));
+      return {js, segments: decodeMappings(map.mappings)};
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  };
+  const DIRECTIVE_FIRST =
+    /^"use client";\nimport \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/\.mion\/types\/[A-Za-z0-9_$/]+\.js';\n/;
+  // The map still lands on the original lines: the directive on 0, the call on 6.
+  const expectOriginalLines = (js: string, segments: ReturnType<typeof decodeMappings>, needle: string) => {
+    expect(segments[0].map((segment) => segment.originalLine)).toContain(0);
+    const callLine = js.split('\n').findIndex((line) => line.includes(needle));
+    expect(segments[callLine].map((segment) => segment.originalLine)).toContain(6);
+  };
+
+  register('keeps a "use client" directive first in the emitted .js: static getRunTypeId<T>()', () => {
+    const {js, segments} = compileDirective('getRunTypeId<User>()');
+    expect(js).toMatch(DIRECTIVE_FIRST);
+    expect(js).toMatch(/getRunTypeId\(undefined, __rt_[A-Za-z0-9_$]+\)/);
+    expectOriginalLines(js, segments, 'getRunTypeId(undefined');
+  });
+
+  register('keeps a "use client" directive first in the emitted .js: reflect getRunTypeId(value)', () => {
+    const {js, segments} = compileDirective('getRunTypeId(user)');
+    expect(js).toMatch(DIRECTIVE_FIRST);
+    expect(js).toMatch(/getRunTypeId\(user, __rt_[A-Za-z0-9_$]+\)/);
+    expectOriginalLines(js, segments, 'getRunTypeId(user');
+  });
+
   // validate-method-dropped (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
   // Both getRunTypeId shapes ride along (marker coverage rule) and must compile clean.
   const METHOD_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';

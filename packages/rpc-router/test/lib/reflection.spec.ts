@@ -31,6 +31,14 @@ describe('reflection error classification', () => {
     expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(/emitMode: 'both'/);
   });
 
+  it('still classifies the run-types error that names the code-only entry, and keeps the entry in the cause', () => {
+    const def = failingDef(
+      `Code generation from strings disallowed for this context: compiled fn "ab12_xyz" (User) has no live function, only a code string.`
+    );
+    expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(RuntimeCodeGenBlockedError);
+    expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(/Cause: .*compiled fn "ab12_xyz"/);
+  });
+
   it('reports anything else as a missing marker payload', async () => {
     const def = failingDef('rtFns is not defined');
     expect(() => getHandlerReflection(def as never, 'myRoute', routerOptions)).toThrow(MissingRtFnsError);

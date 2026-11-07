@@ -11,12 +11,14 @@
 import {createServer, createServerModuleRunner} from 'vite';
 import {fileURLToPath} from 'node:url';
 
-const configFile = process.argv[2];
-if (!configFile) throw new Error('usage: laneServerChild.mjs <vitest config file>');
+const [configFile, root] = process.argv.slice(2);
+if (!configFile || !root) throw new Error('usage: laneServerChild.mjs <vitest config file> <vitest project root>');
 const entry = fileURLToPath(new URL('../../../private-test-server/src/test-server.ts', import.meta.url));
 
+// Vitest's own project root (vite's default, the cwd, is the repo root here); laneServer.ts refuses any other.
 const vite = await createServer({
   configFile,
+  root,
   mode: 'test',
   appType: 'custom',
   logLevel: 'warn',
@@ -26,7 +28,7 @@ const runner = createServerModuleRunner(vite.environments.ssr, {hmr: false});
 const {startTestServer} = await runner.import(entry);
 const server = await startTestServer(0);
 const port = server.address().port;
-if (process.send) process.send({port});
+if (process.send) process.send({port, root: vite.config.root});
 else console.log(`lane server listening on http://localhost:${port}`);
 
 let closing;

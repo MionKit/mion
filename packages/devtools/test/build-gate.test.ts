@@ -1,6 +1,6 @@
 // The stamp fast path of scripts/core/build.mjs: main(['all'], {trustStamp: true}) must cost a digest on a
 // warm tree and fall back to the build-id compare when the stamp disagrees. Needs Go + the submodule, so CI
-// runs it in go-fuzz, never in js-lint.
+// runs it in go-checks, never in the JS suite.
 import {spawnSync} from 'node:child_process';
 import {existsSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -51,6 +51,12 @@ describe('build gate — the mion-bin/mion stamp', () => {
     if (original) writeFileSync(STAMP, original);
   });
 
+  it('a binary carries no git state, so a commit elsewhere cannot change its build ID', () => {
+    const {stdout} = spawnSync('go', ['version', '-m', join(REPO_ROOT, 'mion-bin/mion')], {encoding: 'utf8'});
+    expect(stdout).toContain('-compiler=gc');
+    expect(stdout).not.toContain('vcs.');
+  }, 60_000);
+
   it('a trusted call on a matching stamp skips the reference build', () => {
     const {status, out} = trusted();
     expect(status, out).toBe(0);
@@ -65,7 +71,7 @@ describe('build gate — the mion-bin/mion stamp', () => {
     expect(out).toContain('mion-bin/mion is up to date (stamp)');
   }, 60_000);
 
-  // js-lint restores code-digest from the cache and checks it with no Go, as part of `all`.
+  // The JS jobs restore code-digest from the cache and check it with no Go, as part of `all`.
   it('trusts the code-digest stamp with no Go on PATH', () => {
     const {status, out} = trusted(['digest'], withoutGo());
     expect(status, out).toBe(0);
@@ -113,6 +119,7 @@ describe('build gate — the mion-bin/mion stamp', () => {
       expect(out).not.toContain(`mion-bin/mion-linux-${GOARCH} is up to date (stamp)`);
       expect(out).toContain(`Built mion-bin/mion-linux-${GOARCH}.`);
       expect(statSync(LINUX_BIN).size).toBeGreaterThan(0);
+      expect(spawnSync('go', ['version', '-m', LINUX_BIN], {encoding: 'utf8'}).stdout).not.toContain('vcs.');
       expect(readFileSync(LINUX_STAMP, 'utf8')).toBe(linuxOriginal);
     },
     300_000

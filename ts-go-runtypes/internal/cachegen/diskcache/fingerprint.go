@@ -26,6 +26,8 @@ type FingerprintInputs struct {
 	// never in typeIDs (generation is post-intern), so only the fingerprint can re-derive the entries a sample-less pattern reaches.
 	PatternSampleCount   int
 	PatternSampleRetries int
+	// MaxUnknownKeys is baked into every strict errors body, so two caps never share cache entries.
+	MaxUnknownKeys int
 	// JSONMaxBytes is the root-row slot 21 switch: on and off render different root rows, so they never share cache entries.
 	JSONMaxBytes bool
 }
@@ -46,9 +48,10 @@ type FingerprintInputs struct {
 // v11 added the binary identity, so a rebuilt DEV binary with changed emitters stops serving the previous build's function bodies.
 // v12 added the JSONMaxBytes switch.
 // v13 dropped the binary size-estimate inputs with the binary families.
+// v14 added MaxUnknownKeys.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v13\n")
+	sb.WriteString("v14\n")
 	sb.WriteString(inputs.BinaryVersion)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.BinaryStamp)
@@ -62,6 +65,8 @@ func Fingerprint(inputs FingerprintInputs) string {
 	sb.WriteString(strconv.Itoa(inputs.PatternSampleCount))
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.Itoa(inputs.PatternSampleRetries))
+	sb.WriteByte('\n')
+	sb.WriteString(strconv.Itoa(inputs.MaxUnknownKeys))
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.FormatBool(inputs.JSONMaxBytes))
 	sb.WriteByte('\n')

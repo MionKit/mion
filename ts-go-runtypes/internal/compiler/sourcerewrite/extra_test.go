@@ -23,7 +23,7 @@ func TestApply_ExtraDiff(t *testing.T) {
 	for i, tc := range cases {
 		tc := tc
 		t.Run(tc.File+"#"+itoa(i), func(t *testing.T) {
-			gotCode, gotMap := Apply(tc.File, tc.Code, tc.Sites, tc.Replacements)
+			gotCode, gotMap := Apply(tc.File, tc.Code, 0, tc.Sites, tc.Replacements)
 			if gotCode != tc.ExpectedCode {
 				t.Errorf("code mismatch\n got: %q\nwant: %q", gotCode, tc.ExpectedCode)
 			}

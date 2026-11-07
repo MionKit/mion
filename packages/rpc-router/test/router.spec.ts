@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
   getMiddlewaresSize,
-  geRoutesSize,
+  getRoutesSize,
   getComplexity,
   getMiddlewareExecutable,
   getRouteExecutionChain,
@@ -110,7 +110,7 @@ describe('Create routes should', () => {
   it('create a flat routes Map', async () => {
     mion.initRoutes(routes);
 
-    expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
+    expect(getRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
     expect(getMiddlewaresSize()).toEqual(5);
 
     expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
@@ -219,7 +219,7 @@ describe('Create routes should', () => {
   it('add prefix & suffix to routes', async () => {
     createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
-    expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
+    expect(getRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
     expect(getMiddlewaresSize()).toEqual(5);
 
     expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
@@ -247,10 +247,16 @@ describe('Create routes should', () => {
     expect(() => mion.initRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
   });
 
-  it('throw an error when contextDataFactory returns invalid values', async () => {
-    const errorMessage = 'contextDataFactory must return a plain object with at least one property';
+  it('names the nesting limit when routes nest too deep', async () => {
+    let deep: Routes = {route1};
+    for (let level = 0; level < 12; level++) deep = {nested: deep};
+    expect(() => mion.initRoutes(deep)).toThrow('Too many nested routes, you can only nest routes 10 levels');
+  });
 
-    const initWith = (contextDataFactory: () => any) => createMionRouter({contextDataFactory}).initRoutes(routes);
+  it('throw an error when sharedDataFactory returns invalid values', async () => {
+    const errorMessage = 'sharedDataFactory must return a plain object with at least one property';
+
+    const initWith = (sharedDataFactory: () => any) => createMionRouter({sharedDataFactory}).initRoutes(routes);
 
     expect(() => initWith(() => undefined)).toThrow(errorMessage);
     resetRouter();
@@ -265,10 +271,19 @@ describe('Create routes should', () => {
     expect(() => initWith(() => ({}))).toThrow(errorMessage);
   });
 
-  it('accept valid contextDataFactory that returns an object with properties', async () => {
-    expect(() => createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes(routes)).not.toThrow();
+  it('accept valid sharedDataFactory that returns an object with properties', async () => {
+    expect(() => createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})}).initRoutes(routes)).not.toThrow();
     resetRouter();
-    expect(() => createMionRouter({contextDataFactory: () => ({user: null, data: 'test'})}).initRoutes(routes)).not.toThrow();
+    expect(() =>
+      createMionRouter({
+        sharedDataFactory: (): {user: null; data: string} => ({user: null, data: 'test'}),
+      }).initRoutes(routes)
+    ).not.toThrow();
+    resetRouter();
+    // a key filled later by a handler (the pagination example) counts, even while it holds undefined
+    expect(() =>
+      createMionRouter({sharedDataFactory: (): {page?: number} => ({page: undefined})}).initRoutes(routes)
+    ).not.toThrow();
   });
 
   it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {

@@ -27,7 +27,7 @@ describe('website-deploy dry run', () => {
 
   it('skips the live-version guard and the deploy on a dry run', () => {
     expect(step('Verify the deploy target is the live npm release (abort otherwise)')).toContain('if: ${{ !inputs.dry_run }}');
-    expect(step('Deploy the site to Cloudflare Pages (mion.pages.dev)')).toContain('if: ${{ !inputs.dry_run }}');
+    expect(step('Deploy the site to Cloudflare Pages (mion.io)')).toContain('if: ${{ !inputs.dry_run }}');
   });
 
   it('checks the Cloudflare credentials read-only instead, against the same project', () => {
@@ -73,5 +73,39 @@ describe('website-deploy dry run', () => {
     expect(step('Refuse to deploy from a ref that is not main or prod')).toContain(
       "if: github.ref_name != 'main' && github.ref_name != 'prod'"
     );
+  });
+});
+
+// reuse_benchmarks ships the last deploy's bench-data/ instead of re-running the benchmarks, so a docs-only
+// deploy takes minutes; a full deploy must stay the default and nothing may run a benchmark when it is on.
+describe('website-deploy reuse_benchmarks', () => {
+  const REUSE = 'if: ${{ inputs.reuse_benchmarks }}';
+  const FULL = 'if: ${{ !inputs.reuse_benchmarks }}';
+
+  it('takes a boolean reuse_benchmarks input that defaults to running the benchmarks', () => {
+    expect(workflow).toMatch(/reuse_benchmarks:\n(?:\s+.+\n)*?\s+type: boolean\n\s+default: false\n/);
+  });
+
+  it('copies bench-data/ from the newest unexpired deploy artifact, only when asked', () => {
+    const find = step("Find the last deploy's benchmark data (reuse_benchmarks)");
+    expect(find).toContain(REUSE);
+    expect(find).toContain('actions/artifacts?name=website-output-deploy');
+    expect(find).toContain('select(.expired | not)');
+    const download = step("Download the last deploy's site (reuse_benchmarks)");
+    expect(download).toContain(REUSE);
+    expect(download).toContain('name: website-output-deploy');
+    expect(download).toContain('run-id: ${{ steps.last-bench.outputs.run-id }}');
+    expect(step('Reuse its benchmark data (reuse_benchmarks)')).toContain(REUSE);
+    // the artifact the next reuse reads is the one every deploy uploads
+    expect(step('Upload static artifact')).toContain('name: website-output-deploy');
+    expect(workflow).toMatch(/permissions:\n\s+contents: read\n\s+packages: read\n(?:\s+#.*\n)*\s+actions: read\n/);
+  });
+
+  it('builds with --no-bench only when reusing, and runs no benchmark then', () => {
+    expect(step('Build binary + benchmarks + static site')).toContain(
+      "run: pnpm miondevx website build ${{ inputs.reuse_benchmarks && '--no-bench' || '' }}"
+    );
+    expect(step('Pull the prebuilt mion-bench image (CI never builds it)')).toContain(FULL);
+    expect(step('Engine-branch throughput check (counter inversion, node + bun)')).toContain(FULL);
   });
 });

@@ -358,22 +358,26 @@ describe('website-theme-tokens', () => {
   });
 });
 
-// The `home` path each subsite declares (app/utils/subsites.ts).
+// What app/utils/subsites.ts declares for a subsite.
 const SUBSITES_SOURCE = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
-const homeOf = (id: string): string => new RegExp(`id: '${id}',[\\s\\S]*?home: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
-// Every route the content tree produces (Nuxt Content strips the numeric prefixes).
-const contentRoutes = new Set(
-  walk(CONTENT_DIR, (name) => name.endsWith('.md')).map(
-    (rel) =>
-      '/' +
-      rel
-        .replace('container/website/content/', '')
-        .split('/')
-        .map((segment) => segment.replace(/^\d+\./, '').replace(/\.md$/, ''))
-        .filter((segment) => segment !== 'index')
-        .join('/')
-  )
-);
+const subsiteField = (id: string, field: string): string =>
+  new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
+// A subsite's home page: the first page of its first section (its about page).
+function homeFile(dir: string): string {
+  const intro = join(
+    dir,
+    readdirSync(dir)
+      .filter((name) => /^\d\d\./.test(name))
+      .sort()[0]!
+  );
+  return join(
+    intro,
+    readdirSync(intro)
+      .filter((name) => name.endsWith('.md'))
+      .sort()[0]!
+  );
+}
+const frontmatter = (file: string): string => /^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '';
 
 describe('website-subsites', () => {
   it('names the same subsites in the subsite list, the theme dirs, the content tree and the landing pages', () => {
@@ -383,17 +387,26 @@ describe('website-subsites', () => {
     expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(SUBSITE_IDS);
     for (const [i, id] of SUBSITE_IDS.entries()) {
       const dir = join(CONTENT_DIR, `0${i + 1}.${id}`);
-      // the subsite home is a docs page inside the sidebar (its about page), the root
-      // redirects to it, and no landing index.md is left to shadow that redirect
-      expect(contentRoutes.has(homeOf(id)), `${id}: home ${homeOf(id)} is a content page`).toBe(true);
-      expect(existsSync(join(dir, 'index.md')), `${id}: a landing index.md would shadow the redirect`).toBe(false);
+      // the subsite home is a docs page inside the sidebar (its about page) served AT the
+      // subsite root, so the short URL is the page itself; nothing may shadow that route
+      const home = homeFile(dir);
+      const meta = frontmatter(home);
+      expect(subsiteField(id, 'path'), `${id}: subsite path`).toBe(`/${id}`);
+      expect(meta, `${id}: home served at the subsite root`).toMatch(new RegExp(`^path: /${id}$`, 'm'));
+      expect(meta, `${id}: home out of the generated tree (subsiteSidebar lists it)`).toMatch(/^navigation: false$/m);
+      expect(meta, `${id}: homeTitle is the home page's title`).toContain(`\ntitle: ${subsiteField(id, 'homeTitle')}\n`);
+      expect(existsSync(join(dir, 'index.md')), `${id}: a landing index.md would shadow the home page`).toBe(false);
       expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
-      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: root route`).toBe(true);
-      expect(readFileSync(join(WEBSITE, 'app/pages', id, 'index.vue'), 'utf8'), `${id}: root redirects to its home`).toContain(
-        `redirect: '${homeOf(id)}'`
+      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: an app route would shadow the home page`).toBe(
+        false
       );
+      // the home page's file-derived address, which every old link used, redirects to the root
+      const slug = home
+        .slice(dir.length)
+        .replace(/\/\d+\./g, '/')
+        .replace(/\.md$/, '');
       expect(readFileSync(join(WEBSITE, 'public/_redirects'), 'utf8'), `${id}: static redirect`).toMatch(
-        new RegExp(`^/${id}\\s+${homeOf(id)}\\s+301$`, 'm')
+        new RegExp(`^/${id}${slug}\\s+/${id}\\s+301$`, 'm')
       );
     }
     expect(existsSync(join(CONTENT_DIR, 'index.md')), 'the root landing page').toBe(true);
@@ -443,11 +456,13 @@ describe('website-subsites', () => {
     expect(css).toMatch(/@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)/);
   });
 
-  it('links every subsite entry to its home page, never to the redirecting root', () => {
-    const subsites = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
-    for (const id of SUBSITE_IDS) expect(homeOf(id), `${id}: home path`).toMatch(new RegExp(`^/${id}/introduction/`));
-    expect(readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.home"');
-    expect(readFileSync(join(WEBSITE, 'app/components/app/AppHeaderBody.vue'), 'utf8')).toContain('to: entry.home,');
+  it('links every subsite entry to its root, and lists the home page in both sidebars', () => {
+    expect(readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
+    const mobile = readFileSync(join(WEBSITE, 'app/components/app/AppHeaderBody.vue'), 'utf8');
+    expect(mobile).toContain('to: entry.path,');
+    expect(mobile).toContain('subsiteSidebar(navigation?.value, subsite.value)');
+    const aside = readFileSync(join(WEBSITE, 'app/components/docs/DocsAsideLeftBody.vue'), 'utf8');
+    expect(aside, 'the desktop sidebar lists the home page too').toContain('subsiteSidebar(navigation?.value, subsite.value)');
     expect(existsSync(join(WEBSITE, 'app/components/SiteLanding.vue')), 'the landing renderer went with the landing pages').toBe(
       false
     );

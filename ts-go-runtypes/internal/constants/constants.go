@@ -352,10 +352,10 @@ const (
 	// PureFnModuleDir is the basename directory prefix for pure-fn entry modules (`pf/<ns>/<fn>`), keeping them
 	// distinct from the hash-keyed runtype / type-fn modules.
 	PureFnModuleDir = "pf"
-	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text#pf_9Zt1bRm4cVaPqL`.
+	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text:9Zt1bRm4cV`.
 	// One spelling on both sides: the build writes it into every id, a consumer's compiler splits ids on it.
-	// A package name holds no `#`, so the last occurrence always splits an id.
-	PureFnHashPrefix = "#pf_"
+	// No package name, body hash or other entry key holds a `:`, so it both splits an id and tells one apart.
+	PureFnHashPrefix = ":"
 	// PureFnArtifactDir is what every mion build writes into its output dir: its own `pf/` cache modules
 	// (`<package>/<hash>.js`, as generate wrote them) plus the index below. A consumer's compiler serves an
 	// installed package's pure fns from here alone, never its bundle, and `files: ["dist"]` ships it.
@@ -513,6 +513,10 @@ const (
 	// only a budget yielding zero surviving values fails the build.
 	DefaultPatternSampleRetries = 10
 )
+
+// DefaultMaxUnknownKeys caps the `never` errors a strict errors fn lists per object; past it one `tooManyUnknownKeys`
+// entry stands for the rest, so a body full of extra keys stays a small report. Internal `maxUnknownKeys` knob.
+const DefaultMaxUnknownKeys = 10
 
 // Tuple slot-0 kind discriminators for entry-module tuples. Type-fn entries carry their QUOTED family tag in
 // slot 0 instead of a number, so the runtime discriminates with `typeof t[0] === 'string'`.

@@ -12,10 +12,12 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
+import {createConnection} from 'net';
 
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 
@@ -46,7 +48,7 @@ describe('uws adapter hardening', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
     const body = (await response.json()) as RpcBody;
-    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
@@ -55,15 +57,16 @@ describe('uws adapter hardening', () => {
     expect(alive.status).toBe(200);
   });
 
-  it('a header value carrying CR or LF is dropped instead of written into the response', async () => {
+  it('a header value carrying CR or LF fails the handler instead of being written into the response', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/reflectHeader`, {
       method: 'POST',
       body: JSON.stringify({reflectHeader: ['ok\r\nx-injected: 1']}),
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-injected')).toBeNull();
     expect(response.headers.get('x-reflected')).toBeNull();
-    expect(await response.json()).toEqual({reflectHeader: 'ok\r\nx-injected: 1'});
+    const body = (await response.json()) as RpcBody;
+    expect(body[MION_ROUTES.thrownErrors].reflectHeader.type).toBe('unknown-error');
   });
 
   it('a clean header value is written', async () => {
@@ -206,5 +209,120 @@ describe('uws adapter: a refused request', () => {
         expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
       }
     );
+  });
+});
+
+describe('uws adapter: the HTTP method', () => {
+  const methodsPort = 8298;
+  let server: UwsServer;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    setUwsHttpOpts({port: methodsPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it('puts it on the request, uppercase, including one outside the constant map', async () => {
+    const url = `http://127.0.0.1:${methodsPort}/api/readMethod`;
+    for (const method of ['GET', 'POST', 'PUT'])
+      expect(await (await fetch(url, {method, headers: {'content-type': 'application/json'}})).json()).toEqual({
+        readMethod: method,
+      });
+  });
+});
+
+// uWS takes the first of two content-lengths and reads any transfer-encoding as chunked; behind mionSecurity
+// such a request is refused and, since the answer says `connection: close`, the adapter closes the socket
+describe('uws adapter: body length and answer framing', () => {
+  const framingPort = 8297;
+  let server: UwsServer;
+  const body = '{"echo":[{"name":"a","surname":"b"}]}';
+  const readName = mion.query((ctx: CallContext): string => 'mion');
+
+  /** Every byte the server writes on one connection, until it closes it or goes quiet. */
+  function rawExchange(request: string): Promise<{data: string; closed: boolean}> {
+    return new Promise((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port: framingPort}, () => socket.write(request));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      const quiet = setTimeout(() => {
+        socket.destroy();
+        resolve({data, closed: false});
+      }, 300);
+      socket.on('close', () => {
+        clearTimeout(quiet);
+        resolve({data, closed: true});
+      });
+    });
+  }
+  const post = (framing: string, payload = body) =>
+    `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\n${framing}\r\n\r\n${payload}`;
+  const chunked = `${body.length.toString(16)}\r\n${body}\r\n0\r\n\r\n`;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    mion.initRoutes({mionSecurity: mionSecurity(), echo, readName});
+    setUwsHttpOpts({port: framingPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it.each([
+    ['two different content-lengths', `Content-Length: 4\r\nContent-Length: ${body.length}`],
+    ['an empty content-length', 'Content-Length: '],
+    ['a transfer-encoding other than chunked', 'Transfer-Encoding: identity'],
+    ['chunked twice', 'Transfer-Encoding: chunked, chunked'],
+  ])('%s is refused with a 400 and the connection closed', async (_, framing) => {
+    const {data, closed} = await rawExchange(post(framing, framing.startsWith('Transfer') ? chunked : body));
+    expect(data).toMatch(/^HTTP\/1\.1 400 /);
+    expect(data).toContain('unclear-body-length');
+    expect(closed).toBe(true);
+  });
+
+  it('a content-length next to a chunked transfer-encoding is refused by uWS itself, with the connection closed', async () => {
+    const {data, closed} = await rawExchange(post(`Content-Length: 4\r\nTransfer-Encoding: chunked`, chunked));
+    expect(data).toMatch(/^HTTP\/1\.1 400 /);
+    expect(closed).toBe(true);
+  });
+
+  it('a plain content-length or a chunked body in any letter case still dispatches, on a connection kept open', async () => {
+    for (const request of [
+      post(`Content-Length: ${body.length}`),
+      post('Transfer-Encoding: chunked', chunked),
+      post('Transfer-Encoding: Chunked', chunked),
+    ]) {
+      const {data, closed} = await rawExchange(request);
+      expect(data).toMatch(/^HTTP\/1\.1 200 /);
+      expect(data.endsWith('{"echo":{"name":"a","surname":"b"}}')).toBe(true);
+      expect(closed).toBe(false);
+    }
+  });
+
+  it('a request head up to the 8 KB maxHeaderSize gets through, past it uWS answers 431', async () => {
+    // uWS' own default is 4 KB, which a 4096-character ?data= URL alone would fill
+    const long = await fetch(`http://127.0.0.1:${framingPort}/api/readName?pad=${'a'.repeat(6000)}`);
+    expect(long.status).toBe(200);
+    const tooLong = await fetch(`http://127.0.0.1:${framingPort}/api/readName?pad=${'a'.repeat(9000)}`);
+    expect(tooLong.status).toBe(431);
+  });
+
+  it('a HEAD answer has no body, so the next answer on the connection starts where the client expects it', async () => {
+    const head = 'HEAD /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
+    const get = 'GET /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
+    const {data} = await rawExchange(head + get);
+    const [headAnswer, getAnswer] = data.split(/(?=HTTP\/1\.1 )/);
+    expect(headAnswer).toMatch(/^HTTP\/1\.1 200 /);
+    // the length a GET would get, and nothing after the blank line
+    expect(headAnswer).toMatch(/content-length: 19\r\n/i);
+    expect(headAnswer.endsWith('\r\n\r\n')).toBe(true);
+    expect(getAnswer.endsWith('{"readName":"mion"}')).toBe(true);
   });
 });

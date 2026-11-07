@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -19,21 +20,39 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key for `validationErrorsStrict`;
-// "" when an index signature declares every key or the shape declares no names.
+// emitParentUnknownKeyErrors emits the `never` errors for `validationErrorsStrict`, at most ctx.MaxUnknownKeys() per
+// object, then one `tooManyUnknownKeys` entry so a body full of extra keys stays a small report.
+// It returns "" when an index signature declares every key or the shape declares no names.
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
-func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
+// On the count path a node with no prop error reports keys only when validate's count is off, so both agree;
+// an off count on a plain object with no unknown name (a prop the count cannot see) gets one `shapeExpected` entry.
+// A node with a prop error lists every unknown name. `prologue` must run before the property checks.
+func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeExpected string) (prologue string, code string) {
 	if objectHasIndexSignatureChild(rt, ctx) {
-		return ""
+		return "", ""
 	}
 	unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true)
 	if unknownValue == "" {
-		return ""
+		return "", ""
 	}
 	unknownVar := ctx.NextLocalVar("unk")
-	keyVar := ctx.NextLocalVar("ky")
-	return "const " + unknownVar + " = " + unknownValue + ";" +
-		"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + callUnknownKeyErr(ctx, keyVar) + "}}"
+	indexVar := ctx.NextLocalVar("iu")
+	limit := strconv.Itoa(ctx.MaxUnknownKeys())
+	report := "const " + unknownVar + " = " + unknownValue + ";" +
+		"for (let " + indexVar + " = 0; " + indexVar + " < " + unknownVar + ".length && " + indexVar + " < " + limit + "; " + indexVar + "++) {" +
+		callUnknownKeyErr(ctx, unknownVar+"["+indexVar+"]") + "}" +
+		"if (" + unknownVar + ".length > " + limit + ") " + callRTErr(ctx, "tooManyUnknownKeys", "")
+	keyCount, ok := countFastPathN(rt, ctx)
+	if !ok {
+		return "", report
+	}
+	errArg := ctx.ArgName("εrr")
+	startVar := ctx.NextLocalVar("ne")
+	prologue = "const " + startVar + " = " + errArg + ".length"
+	clean := errArg + ".length === " + startVar
+	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, keyCount) + ")) {" + report + ";if (" + clean + " && " + emitPlainObject(ctx.Vλl) + ") " +
+		callRTErr(ctx, shapeExpected, "") + "}"
+	return prologue, code
 }

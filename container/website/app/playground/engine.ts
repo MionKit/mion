@@ -115,17 +115,22 @@ export async function versions(options?: ResolverOptions): Promise<ResolverVersi
   return (await getResolver(options)).versions;
 }
 
-// link the emitted entry modules into the root tuple. Each module is
-// `export const __rt_X = [...]` possibly preceded by `import { __rt_dep } …`;
-// deps ride lazy thunks (slot 1) so concatenating every const into one scope
-// and returning the root binding is enough, no TDZ on the lazy references.
-function linkRootTuple(entryModules: Record<string, string>, binding: string): unknown {
+const EXPORTED_BINDING = /^\s*export\s+const\s+(__rt_[\w$]+)/gm;
+
+// Deps ride lazy thunks (tuple slot 1), so one scope holding every module's consts hits no TDZ.
+function linkBindings(sources: readonly string[]): Record<string, unknown> {
   const parts: string[] = [];
-  for (const src of Object.values(entryModules)) {
+  const names: string[] = [];
+  for (const src of sources) {
+    for (const match of src.matchAll(EXPORTED_BINDING)) names.push(match[1]);
     parts.push(src.replace(/^\s*import[^;]*;\s*$/gm, '').replace(/^\s*export\s+const/gm, 'const'));
   }
-  parts.push(`\nreturn ${binding};`);
-  return new Function(parts.join('\n'))();
+  parts.push(`\nreturn {${names.join(', ')}};`);
+  return new Function(parts.join('\n'))() as Record<string, unknown>;
+}
+
+function linkRootTuple(entryModules: Record<string, string>, binding: string): unknown {
+  return linkBindings(Object.values(entryModules))[binding];
 }
 
 // Which CALL FORM the engine renders and resolves: `'type'` is the static form
@@ -333,6 +338,33 @@ export async function generatedCache(
   const {dispatch} = await getResolver(options);
   const {entryModules} = scan(dispatch, factory, userCode, mode, fnOptions);
   return Object.entries(entryModules).map(([basename, code]) => ({name: `rtmod:/${basename}.js`, code: code.trim()}));
+}
+
+// The emitted `function g_<key>(utl){…}` that builds and returns the live function.
+export interface GeneratedFactory {
+  file: string; // the cache module it lives in, e.g. `rtmod:/fns/jdCL.js`
+  name: string; // e.g. `g_jdCL_Xk7`
+  code: string;
+}
+
+// Only type-fn factories are named `g_…` (ts-go-runtypes cachegen/typefunctions): pure fns are anonymous.
+// Never called: `functions` mode makes toString() the emitted text. getRunType's data bundle has none.
+export function generatedFactories(modules: readonly CacheModule[]): GeneratedFactory[] {
+  if (modules.length === 0) return [];
+  const bindings = linkBindings(modules.map((module) => module.code));
+  const factories: GeneratedFactory[] = [];
+  for (const module of modules) {
+    for (const match of module.code.matchAll(EXPORTED_BINDING)) {
+      const tuple = bindings[match[1]];
+      if (!Array.isArray(tuple)) continue;
+      for (const slot of tuple) {
+        if (typeof slot === 'function' && slot.name.startsWith('g_')) {
+          factories.push({file: module.name, name: slot.name, code: slot.toString()});
+        }
+      }
+    }
+  }
+  return factories;
 }
 
 // mock generates a random value for the type via createMockDataFn (the same

@@ -93,6 +93,66 @@ describe('resolver lifecycle: respawn-retry on unexpected child death', () => {
   });
 });
 
+describe('resolver lifecycle: a child that exits with an error is reported, not respawned', () => {
+  let dir = '';
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-fatal-exit-'));
+    fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify({extends: './missing-base.json'}));
+  });
+  afterEach(() => fs.rmSync(dir, {recursive: true, force: true}));
+
+  register('a broken tsconfig surfaces the child error and never prints the respawn warning', async () => {
+    const warnings: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => warnings.push(args.join(' '));
+    try {
+      const client = new ResolverClient(BIN, dir, 'tsconfig.json');
+      const pid = client.pid;
+      await expect(client.scanFiles(['user.ts'])).rejects.toThrow(/resolver exited \(code 1\): .*missing-base\.json/s);
+      // a later request still names the real error instead of "resolver is closed"
+      await expect(client.scanFiles(['user.ts'])).rejects.toThrow(/missing-base\.json/);
+      expect(client.pid).toBe(pid);
+      client.close();
+    } finally {
+      console.error = originalError;
+    }
+    expect(warnings.filter((line) => line.includes('respawned'))).toEqual([]);
+  });
+});
+
+describe('resolver lifecycle: a crashing child (exit 2, a Go panic) is still respawned', () => {
+  let dir = '';
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-crash-exit-'));
+  });
+  afterEach(() => fs.rmSync(dir, {recursive: true, force: true}));
+
+  (process.platform === 'win32' ? it.skip : register)(
+    'the first spawn exits 2, the respawned real resolver answers',
+    async () => {
+      const wrapper = path.join(dir, 'crash-once.sh');
+      const marker = path.join(dir, 'crashed');
+      fs.writeFileSync(
+        wrapper,
+        `#!/bin/sh\nif [ ! -f '${marker}' ]; then touch '${marker}'; echo 'panic: boom' >&2; exit 2; fi\nexec '${BIN}' "$@"\n`
+      );
+      fs.chmodSync(wrapper, 0o755);
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const client = new ResolverClient(wrapper, BARE_CWD, '', {
+          inlineSources: {...MARKER_PACKAGE_OVERLAY, 'user.ts': USER_SRC},
+        });
+        const result = await client.scanFiles(['user.ts']);
+        expectBothShapesScanned(result.sites);
+        client.close();
+      } finally {
+        console.error = originalError;
+      }
+    }
+  );
+});
+
 // Plugin-level lifecycle: two containers over one plugin instance (the vite
 // client + ssr environment shape). Driven through the rollup adapter like the
 // other plugin suites — the hooks are the shared unplugin factory's.

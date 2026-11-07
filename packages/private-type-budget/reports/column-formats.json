@@ -5,21 +5,21 @@
     {
       "dialect": "pg",
       "label": "5 mixed, select",
-      "types": 681,
-      "builders": 1160,
+      "types": 688,
+      "builders": 1151,
       "budget": {
-        "types": 681,
-        "builders": 1160
+        "types": 688,
+        "builders": 1151
       }
     },
     {
       "dialect": "pg",
       "label": "5 mixed, select + insert",
-      "types": 1288,
-      "builders": 1842,
+      "types": 1294,
+      "builders": 1833,
       "budget": {
-        "types": 1288,
-        "builders": 1842
+        "types": 1294,
+        "builders": 1833
       }
     },
     {
@@ -85,21 +85,21 @@
     {
       "dialect": "pg",
       "label": "refineTableType, select",
-      "types": 1382,
-      "builders": 1883,
+      "types": 1389,
+      "builders": 1874,
       "budget": {
-        "types": 1382,
-        "builders": 1883
+        "types": 1389,
+        "builders": 1874
       }
     },
     {
       "dialect": "pg",
       "label": "toDrizzle + select / insert / update query",
-      "types": 8821,
-      "builders": 9996,
+      "types": 8827,
+      "builders": 9987,
       "budget": {
-        "types": 8821,
-        "builders": 9996
+        "types": 8827,
+        "builders": 9987
       }
     },
     {

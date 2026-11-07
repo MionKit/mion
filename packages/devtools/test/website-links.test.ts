@@ -1,6 +1,6 @@
 // Nothing in CI renders the containerized site, so this resolves every in-site link against the
 // content tree: a broken link or '#anchor' fails silently in the browser, and an absolute
-// mion.pages.dev link skips the client router.
+// in-site link (mion.io, or the old pages.dev hosts) skips the client router.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, globSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -15,6 +15,9 @@ const PUBLIC_DIR = join(WEBSITE, 'public');
 // Nuxt Content drops the numeric prefix from every path segment and maps a dir's
 // index.md onto the dir itself.
 const routeSegment = (name: string): string => name.replace(/^\d+\./, '').replace(/\.md$/, '');
+// A page's frontmatter `path:` overrides the address its file name gives it (the subsite homes).
+const pathOverride = (file: string): string | undefined =>
+  /^path: (\S+)$/m.exec(/^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '')?.[1];
 
 /** Every route the content tree produces, plus the app routes outside it. */
 function siteRoutes(): Set<string> {
@@ -27,7 +30,7 @@ function siteRoutes(): Set<string> {
         visit(full, [...prefix, routeSegment(name)]);
       } else if (name.endsWith('.md')) {
         const segments = name === 'index.md' ? prefix : [...prefix, routeSegment(name)];
-        routes.add(`/${segments.join('/')}`);
+        routes.add(pathOverride(full) ?? `/${segments.join('/')}`);
       }
     }
   };
@@ -54,6 +57,8 @@ interface Link {
 
 /** The route of a content file, the way the browser sees it (no trailing slash). */
 function routeOfFile(rel: string): string {
+  const override = rel.endsWith('.md') ? pathOverride(join(REPO_ROOT, rel)) : undefined;
+  if (override) return override;
   const segments = rel
     .replace(/^container\/website\/content\//, '')
     .split('/')
@@ -119,7 +124,7 @@ describe('website-internal-links', () => {
     expect(broken).toEqual([]);
   });
 
-  it('keeps every in-site link relative (no pages.dev domain in the content tree)', () => {
+  it('keeps every in-site link relative (no site domain in the content tree)', () => {
     const offenders: string[] = [];
     const visit = (dir: string): void => {
       for (const name of readdirSync(dir)) {
@@ -127,7 +132,7 @@ describe('website-internal-links', () => {
         if (statSync(full).isDirectory()) visit(full);
         else if (
           name.endsWith('.md') &&
-          /https?:\/\/(runtypes|mion)\.pages\.dev(?!\/runtypes\/schema\/)/.test(readFileSync(full, 'utf8'))
+          /https?:\/\/(runtypes\.pages\.dev|mion\.pages\.dev|mion\.io)(?!\/runtypes\/schema\/)/.test(readFileSync(full, 'utf8'))
         ) {
           offenders.push(posix.relative(REPO_ROOT, full.split('\\').join('/')));
         }
@@ -232,7 +237,7 @@ describe('website-anchor-links', () => {
   it('finds the headings and anchor links it claims to check', () => {
     expect(headings.get('/rpc/server/routes')?.has('request-size')).toBe(true);
     // A heading nested inside an MDC component, its words in an MDC span, still publishes its plain-text id.
-    expect(headings.get('/rpc/introduction/about-mion-rpc')?.has('rpc-like')).toBe(true);
+    expect(headings.get('/rpc')?.has('rpc-like')).toBe(true);
     expect(links.length).toBeGreaterThan(20);
     expect(links.some(({target}) => target.startsWith('#'))).toBe(true);
   });
@@ -264,7 +269,7 @@ describe('website-redirects', () => {
       });
   const routes = siteRoutes();
 
-  it('sends every old mion.pages.dev path to a page that exists', () => {
+  it('sends every old path to a page that exists', () => {
     const broken = rules(join(PUBLIC_DIR, '_redirects'))
       .filter(({to}) => !to.includes(':splat'))
       .filter(({to}) => !routes.has(to))
@@ -275,6 +280,76 @@ describe('website-redirects', () => {
       const root = to.replace(/\/:splat$/, '');
       expect(routes.has(root), `${to}: '${root}' is not a section of the site`).toBe(true);
     }
+  });
+
+  // Pages applies redirects BEFORE static files, so a rule whose source covers a file in
+  // public/ hides that file: the old `/platforms/*` page redirect once sent every platform
+  // logo to a 404 under /rpc/platforms/.
+  it('never redirects a file the site serves from public/', () => {
+    const sources = rules(join(PUBLIC_DIR, '_redirects')).map(({from}) => from);
+    const covers = (from: string, path: string): boolean =>
+      from.endsWith('/*') ? path.startsWith(from.slice(0, -1)) : path === from;
+    const assets = globSync('**/*', {cwd: PUBLIC_DIR, withFileTypes: true})
+      .filter((entry) => entry.isFile())
+      .map(
+        (entry) =>
+          `/${posix.relative(PUBLIC_DIR.split('\\').join('/'), join(entry.parentPath, entry.name).split('\\').join('/'))}`
+      );
+    expect(assets.length).toBeGreaterThan(10);
+    const hidden = assets.flatMap((path) => sources.filter((from) => covers(from, path)).map((from) => `${path} (by ${from})`));
+    expect(hidden).toEqual([]);
+  });
+
+  // A chain (old -> moved -> final) costs every visitor and crawler an extra hop: each rule
+  // must land on a final page. Pages applies the FIRST matching rule, so a splat whose
+  // landing spot was itself redirected needs an explicit rule above it.
+  it('lands every old path on its final page in one hop', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const isSplat = (from: string): boolean => from.endsWith('/*');
+    const sources = new Set(all.filter(({from}) => !isSplat(from)).map(({from}) => from));
+    const chained = all.filter(({to}) => sources.has(to)).map(({from, to}) => `${from} -> ${to}`);
+    for (const [index, {from, to}] of all.entries()) {
+      if (!isSplat(from) || !to.endsWith('/:splat')) continue;
+      const [fromRoot, toRoot] = [from.slice(0, -2), to.slice(0, -'/:splat'.length)];
+      for (const source of sources) {
+        if (!source.startsWith(`${toRoot}/`)) continue;
+        const old = fromRoot + source.slice(toRoot.length);
+        if (!all.slice(0, index).some((rule) => rule.from === old)) chained.push(`${old} -> ${source} (via ${from})`);
+      }
+    }
+    expect(chained).toEqual([]);
+  });
+
+  // Pages applies the FIRST matching rule.
+  it('puts every specific rule above the splat that covers it', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const shadowed = all.flatMap(({from}, index) =>
+      all
+        .slice(0, index)
+        .filter((rule) => rule.from.endsWith('/*') && from.startsWith(rule.from.slice(0, -1)))
+        .map((rule) => `${from} (shadowed by ${rule.from})`)
+    );
+    expect(shadowed).toEqual([]);
+  });
+
+  it('sends the moved Drizzle ORM pages to live pages', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const land = (path: string): string | undefined => {
+      for (const {from, to} of all) {
+        if (from.endsWith('/*') && path.startsWith(from.slice(0, -1))) return to.replace(':splat', path.slice(from.length - 1));
+        if (from === path) return to;
+      }
+      return undefined;
+    };
+    const old = [
+      '/rpc/drizzle-orm',
+      '/rpc/drizzle-orm/views',
+      '/rpc/drizzle-orm/indexes-constraints',
+      '/drizzle-orm/views',
+      '/drizzle-orm/indexes-constraints',
+    ];
+    const dead = old.filter((path) => !routes.has(land(path) ?? '')).map((path) => `${path} -> ${land(path)}`);
+    expect(dead).toEqual([]);
   });
 });
 

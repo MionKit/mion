@@ -172,8 +172,7 @@ export interface PureFnSite {
   file: string;
   start: number;
   end: number;
-  // The pure fn's id: the package that owns it and a hash of the body that
-  // ships (`@acme/text#pf_9Zt1bRm4cVaPqL`).
+  // The pure fn's id: owning package plus a hash of the shipped body (`@acme/text:9Zt1bRm4cV`).
   key: string;
   // The identifier the registration was assigned to, absent when written straight into a call.
   // Not part of the id; carried because a report of hashes names nothing a reader can search for.
@@ -229,9 +228,10 @@ export interface BatchSite {
 export interface TransformResult {
   code?: string;
   map?: SourceMap;
-  // 'edits' mode: the deduped import block prepended at offset 0, one physical line, relativized to
-  // <outDir>/types in files mode. Absent when the file needs no injected imports.
+  // 'edits' mode: deduped import block for `importAt`, one physical line, relativized to <outDir>/types in files mode.
   importBlock?: string;
+  // 'edits' mode: UTF-16 offset of `importBlock`, past `#!` and the directive prologue (both stay first). Absent = 0.
+  importAt?: number;
   // 'edits' mode: the flat point/span edit list, NOT the import block, in UTF-16 code-unit offsets
   // against the ORIGINAL source (the FE indexes JS strings natively).
   edits?: Edit[];
@@ -363,6 +363,8 @@ export interface Response {
   // The plugin gates its per-file transform on this set, so wrapper call sites in another package
   // (node_modules included) rewrite with zero configuration.
   siteFiles?: string[];
+  // `generate` only: hash of program sources, compiler options and tsconfig text, for a host caching transforms.
+  programHash?: string;
   // enrich only: the computed mirror files (path + content + added + kind).
   // The daemon never writes; the caller writes them under its own HMR-suppression window.
   enrichFiles?: EnrichFile[];

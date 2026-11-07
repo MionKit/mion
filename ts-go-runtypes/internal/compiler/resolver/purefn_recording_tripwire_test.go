@@ -61,18 +61,18 @@ export const jd = createJsonDecoderFn<WithFmt>();
 
 // emittedPureFnRe matches a `getPureFn`/`usePureFn` call in an emitted body. The
 // body rides the tuple as a quoteJS single-quoted string, so its inner quotes
-// arrive escaped (`getPureFn(\'@mionjs/run-types/src/…#pf_newRunTypeErr\')`); the
+// arrive escaped (`getPureFn(\'@mionjs/run-types/src/…:newRunTypeErr\')`); the
 // leading `\\*['"]` tolerates the escaped form, a bare single quote, or a double
 // quote so a raw getPureFn written in any quote style is still caught (that's
 // the whole point).
-var emittedPureFnRe = regexp.MustCompile(`(?:get|use)PureFn\(\s*\\*['"]([^'"\\]+#[^'"\\]+)`)
+var emittedPureFnRe = regexp.MustCompile(`(?:get|use)PureFn\(\s*\\*['"]([^'"\\]+:[^'"\\]+)`)
 
 // recordedPureFnRe matches an UNescaped `'<id>'` token — the shape the
 // pureFnDependencies slot renders (pureFnDepsJS). The `[^\\]` guard rejects the
 // escaped `\'…\'` ids that live inside the body string, so this isolates the
 // recorded-deps slot from the getPureFn calls in the code. rtDependencies /
-// cross-family refs are `<fnHash>_<id>` (no `#`), so they never match.
-var recordedPureFnRe = regexp.MustCompile(`(?:^|[^\\])'([^'\\]+#[^'\\]+)'`)
+// cross-family refs are `<fnHash>_<id>` (no `:`), so they never match.
+var recordedPureFnRe = regexp.MustCompile(`(?:^|[^\\])'([^'\\]+:[^'\\]+)'`)
 
 func pureFnKeysOf(re *regexp.Regexp, module string) map[string]bool {
 	out := map[string]bool{}

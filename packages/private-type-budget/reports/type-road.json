@@ -5,20 +5,20 @@
     {
       "dialect": "pg",
       "label": "builder road, 5 mixed columns",
-      "netInstantiations": 1089,
-      "budget": 1089
+      "netInstantiations": 1107,
+      "budget": 1107
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns",
-      "netInstantiations": 676,
-      "budget": 676
+      "netInstantiations": 684,
+      "budget": 684
     },
     {
       "dialect": "pg",
       "label": "type road, 5 mixed columns + insert model",
-      "netInstantiations": 1283,
-      "budget": 1283
+      "netInstantiations": 1290,
+      "budget": 1290
     },
     {
       "dialect": "pg",

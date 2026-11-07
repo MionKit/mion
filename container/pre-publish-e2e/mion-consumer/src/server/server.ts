@@ -14,7 +14,7 @@ import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // The options are written once here; every handler below is declared through `mion.*`
 // and `startServer` boots with `mion.initRoutes(routes)`. The factory's return type IS
 // the type of `ctx.shared` in every handler, so spell out what `auth` will store in it.
-const mion = createMionRouter({contextDataFactory: (): {user: User | null} => ({user: null})});
+const mion = createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.

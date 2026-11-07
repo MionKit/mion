@@ -38,11 +38,11 @@ type ValidationErrorData = {
 
 // Explicit routes type for refactoring support
 type FormatTestRoutes = {
-  createUser: ReturnType<typeof mion.route<(ctx: CallContext, user: UserWithFormats) => UserWithFormats>>;
+  createUser: ReturnType<typeof mion.route<(ctx: CallContext<never>, user: UserWithFormats) => UserWithFormats>>;
 } & Routes;
 
 type ValidateNameRoutes = {
-  validateName: ReturnType<typeof mion.route<(ctx: CallContext, name: String<{minLength: 2; maxLength: 20}>) => string>>;
+  validateName: ReturnType<typeof mion.route<(ctx: CallContext<never>, name: String<{minLength: 2; maxLength: 20}>) => string>>;
 } & Routes;
 
 describe('Dispatch routes with format types', () => {

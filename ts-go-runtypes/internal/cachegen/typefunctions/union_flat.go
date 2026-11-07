@@ -147,7 +147,7 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 				propParts = append(propParts, "if ("+namedPropertyPresenceTest(mp.Name, v, accessor)+") {"+propCode+"}")
 			}
 		}
-		body := strings.Join(propParts, ";")
+		body := joinSemicolons(append([]string{emitUnionAccessorCopy(layout, v, ctx)}, propParts...)...)
 		if body != "" {
 			body += ";"
 		}
@@ -166,6 +166,26 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 	errVar := flatUnionEncodeErrorVar(ctx)
 	clauses = append(clauses, " else { throw new Error("+errVar+") }")
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeS}
+}
+
+// emitUnionAccessorCopy copies all members' accessors: one the taken arm lacks reads undefined, which props and JSON skip.
+func emitUnionAccessorCopy(layout FlatLayout, v string, ctx *EmitContext) string {
+	var members []*reflection.RunType
+	var tests []string
+	seen := map[string]bool{}
+	for _, member := range layout.ObjectMembers {
+		for _, accessor := range hiddenAccessors(member.Resolved, ctx) {
+			if !seen[accessor.Name] {
+				seen[accessor.Name] = true
+				members = append(members, accessor)
+				tests = append(tests, quoteJS(accessor.Name)+" in "+v)
+			}
+		}
+	}
+	if len(members) == 0 {
+		return ""
+	}
+	return "if (" + strings.Join(tests, " || ") + ") " + emitAccessorCopy(members, v)
 }
 
 // emitMergedPropPrepare returns the inline JS body that transforms one merged property's value, or

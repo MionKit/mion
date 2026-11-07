@@ -166,7 +166,7 @@ func TestCompile_ClientCarriesBatchIdAndMapperID(t *testing.T) {
 	if !regexp.MustCompile(`'b_[A-Za-z0-9_-]+'`).MatchString(emitted) {
 		t.Errorf("emitted client lacks the batch id:\n%s", emitted)
 	}
-	if !regexp.MustCompile(`'#[A-Za-z0-9_-]+'`).MatchString(emitted) {
+	if !regexp.MustCompile(`':[A-Za-z0-9_-]+'`).MatchString(emitted) {
 		t.Errorf("emitted client lacks the mapper id:\n%s", emitted)
 	}
 	// a client is not a server: nothing generated under rpc/, no import appended

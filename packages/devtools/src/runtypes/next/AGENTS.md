@@ -18,6 +18,8 @@
   - [`apps/smoke-next/`](../../../../../container/pre-publish-e2e/apps/smoke-next/):
     the app. Page prerenders shared `selfCheck()` → passing build proves the rewrite survived Turbopack
     **and** the transformed code ran.
+    Its `"use client"` / `"use server"` call sites also run through `next build --webpack` and `next dev` on both
+    bundlers: Next rejects the file if the injected imports land above a directive.
   - [`apps/smoke-next-ts/`](../../../../../container/pre-publish-e2e/apps/smoke-next-ts/):
     the same check in emitMode 'ts' (typed `.ts` cache modules).
   - [`build-all.mjs`](../../../../../container/pre-publish-e2e/build-all.mjs):
@@ -76,6 +78,10 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
    - Second write is not redundant: Turbopack empties `distDir` between loading config and first loader run.
    - Best effort by design: a Next app is never installed as a package. Lanes that matter: library bundlers
      and `mion compile`.
+9. **`isTurbopack` reads `__NEXT_DEV_SERVER`, not only `--webpack`.**
+   - `next dev` forks its server: argv loses `--webpack`, env gets `TURBOPACK` only for Turbopack.
+   - Argv alone → the `next dev --webpack` server took the Turbopack branch: no plugin, no rewrite, every
+     marker call threw `no id injected`.
 
 ## Gotchas when testing by hand
 

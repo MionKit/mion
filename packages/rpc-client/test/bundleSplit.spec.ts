@@ -55,7 +55,7 @@ export const app = {installers, middlewares};
 const SYNC_MARKERS = ['useSyncRoutes', 'routeSyncIds', 'route-sync-required', 'route-types-mismatch'];
 
 /** Names only the router puts in an artifact. */
-const ROUTER_MARKERS = ['createMionRouter has already been called', 'mion router initialized'];
+const ROUTER_MARKERS = ['createMionRouter has already been called'];
 
 /** Names only the mock generator and the built-in pattern table put in an artifact. */
 const MOCK_MARKERS = ['createMockDataFn', 'mockStringFormat', 'mockBoundedDateTime', 'registerMockingFunction'];

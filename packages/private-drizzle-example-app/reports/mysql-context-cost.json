@@ -2,40 +2,45 @@
   "dialect": "mysql",
   "results": [
     {
+      "name": "inferred database context",
+      "client": 14713,
+      "registeredClient": 14769
+    },
+    {
       "name": "empty context",
-      "client": 1945,
-      "registeredClient": 1995
+      "client": 2012,
+      "registeredClient": 2060
     },
     {
       "name": "small context",
-      "client": 2003,
-      "registeredClient": 2061
+      "client": 2091,
+      "registeredClient": 2147
     },
     {
       "name": "database context",
-      "client": 14637,
-      "registeredClient": 14695
+      "client": 14713,
+      "registeredClient": 14769
     },
     {
       "name": "unused database context",
-      "client": 14637,
-      "registeredClient": 14695
+      "client": 14713,
+      "registeredClient": 14769
     },
     {
       "name": "light handler context",
-      "client": 14629,
-      "registeredClient": 14687
+      "client": 14706,
+      "registeredClient": 14762
     },
     {
       "name": "opaque database context",
-      "client": 1985,
-      "registeredClient": 2043
+      "client": 2091,
+      "registeredClient": 2147
     },
     {
       "name": "written database context",
-      "client": 14629,
-      "registeredClient": 14687
+      "client": 14706,
+      "registeredClient": 14762
     }
   ],
-  "inferredResultClient": 14644
+  "inferredResultClient": 14751
 }

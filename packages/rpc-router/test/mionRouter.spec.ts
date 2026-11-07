@@ -12,14 +12,14 @@ import {headersFromRecord} from '../src/lib/headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {Routes} from '../src/types/general.ts';
-import type {MionRouter, RouterCallContext, RouteHelper} from '../src/types/mionRouter.ts';
+import type {MionRouter, RouterCallContext, RouteHelper, WithShared} from '../src/types/mionRouter.ts';
 import type {ApiBuildVersion, PublicApi, RemoteApi} from '../src/types/publicMethods.ts';
 
 type SharedData = {user: string | null; visits: number};
 const getSharedData = (): SharedData => ({user: null, visits: 0});
 
 // The module-level factory: one per app, the shape every consumer file has.
-const mion = createMionRouter({basePath: 'api', contextDataFactory: getSharedData});
+const mion = createMionRouter({basePath: 'api', sharedDataFactory: getSharedData});
 // Plain closures: destructuring keeps the typed context and the build-time injection.
 const {route: destructuredRoute, middleware: destructuredMiddleware} = mion;
 
@@ -84,18 +84,17 @@ describe('createMionRouter helpers', () => {
   });
 
   it('keeps the options literal, frozen', () => {
-    expect(mion.options).toEqual({basePath: 'api', contextDataFactory: getSharedData});
+    expect(mion.options).toEqual({basePath: 'api', sharedDataFactory: getSharedData});
     expect(Object.isFrozen(mion.options)).toBe(true);
     expectTypeOf(mion.options.basePath).toEqualTypeOf<'api'>();
   });
 });
 
 describe('createMionRouter types', () => {
-  it('types the handler context from contextDataFactory', () => {
-    expectTypeOf<RouterCallContext<typeof mion.options>>().toEqualTypeOf<CallContext<SharedData>>();
-    expectTypeOf(mion.route).toEqualTypeOf<
-      RouteHelper<{readonly basePath: 'api'; readonly contextDataFactory: () => SharedData}>
-    >();
+  it("types the handler context from sharedDataFactory's return type", () => {
+    type Options = {readonly basePath: 'api'; readonly sharedDataFactory: () => SharedData};
+    expectTypeOf<RouterCallContext<WithShared<Options, object>>>().toEqualTypeOf<CallContext<SharedData>>();
+    expectTypeOf(mion.route).toEqualTypeOf<RouteHelper<Options, WithShared<Options, object>>>();
     mion.route((ctx, name: string) => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
@@ -104,9 +103,9 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('falls back to an untyped context when there is no contextDataFactory', () => {
+  it('types ctx.shared as never without a sharedDataFactory', () => {
     type Bare = MionRouter<{basePath: 'x'}>;
-    expectTypeOf<RouterCallContext<Bare['options']>>().toEqualTypeOf<CallContext<any>>();
+    expectTypeOf<RouterCallContext<object>>().toEqualTypeOf<CallContext<never>>();
     expectTypeOf<Parameters<Bare['initRoutes']>[0]>().toEqualTypeOf<Routes>();
   });
 
@@ -125,7 +124,7 @@ describe('createMionRouter types', () => {
   // The only assertions that catch `ctx.shared` widening to `any`; every runtime test would keep passing.
   // They bite under `tsc -p tsconfig.json` (the package's typecheck:test), not vitest: the handlers never run.
 
-  it('types the handler context from contextDataFactory in middleware', () => {
+  it("types the handler context from sharedDataFactory's return type in middleware", () => {
     mion.middleware((ctx, greeting: string): string => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
@@ -134,7 +133,7 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('types the handler context from contextDataFactory in headersMiddleware', () => {
+  it("types the handler context from sharedDataFactory's return type in headersMiddleware", () => {
     mion.headersMiddleware((ctx, {headers}: HeadersSubset<'Authorization'>): string => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
@@ -143,7 +142,7 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('types the handler context from contextDataFactory in rawMiddleware', () => {
+  it("types the handler context from sharedDataFactory's return type in rawMiddleware", () => {
     mion.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
@@ -196,7 +195,7 @@ describe('PublicApi resolved options', () => {
     resetRouter();
     const compact = createMionRouter({
       parser: 'compact',
-      contextDataFactory: getSharedData,
+      sharedDataFactory: getSharedData,
       getPublicRoutesData: true,
     });
     const defs = {
@@ -295,7 +294,7 @@ describe('createMionRouter lifecycle', () => {
   it('initializes the router with the factory options and dispatches through the declared routes', async () => {
     mion.initRoutes(routes);
     expect(getRouterOptions().basePath).toBe('api');
-    expect(getRouterOptions().contextDataFactory).toBe(getSharedData);
+    expect(getRouterOptions().sharedDataFactory).toBe(getSharedData);
 
     const headers = headersFromRecord({Authorization: 'Bearer 123'});
     const body = JSON.stringify({timestamp: [123], print: ['John'], greet: ['hi']});

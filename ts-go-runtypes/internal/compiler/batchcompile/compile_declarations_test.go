@@ -74,7 +74,7 @@ export const shout = registerPureFn(function (text: string): string {
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "declaration": true,`, 1))
 	compileProject(t, dir, nil)
 	js := readEmitted(t, dir, "index.js")
-	id := regexp.MustCompile(`'(@acme/shout#[^']+)'`).FindStringSubmatch(js)
+	id := regexp.MustCompile(`'(@acme/shout:[^']+)'`).FindStringSubmatch(js)
 	if id == nil {
 		t.Fatalf("the registration got no id:\n%s", js)
 	}

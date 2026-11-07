@@ -9,6 +9,7 @@
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
+import type {MionSecurityHandlerOptions} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';
@@ -29,7 +30,11 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null; page: number | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 // The default 100 is too few for the metadata 'all' mode to answer every method here
-const mion = createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 200});
+// `handler` is here so the client tests see an added key (`cors`) ride the metadata
+const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({
+  sharedDataFactory: getSharedData,
+  getAllRemoteMethodsMaxNumber: 200,
+});
 const {route, headersMiddleware, middleware, query, mutation, rawMiddleware} = mion;
 
 // ============ Batch chain fixtures (flow/*) ============
@@ -245,26 +250,33 @@ const routes = {
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.
-  auth: headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
-    if (h.headers.Authorization === 'WRONG-TOKEN') {
-      return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
-    }
-    ctx.shared.user = {name: 'John', surname: 'Doe'};
-  }),
-  session: middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
-    if (!sessionToken) return null;
-    if (sessionToken === 'expired') {
-      return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
-    }
-    return {
-      userId: 'user-123',
-      role: 'admin',
-      expiresAt: Date.now() + 3600000, // 1 hour from now
-    };
-  }),
+  auth: headersMiddleware(
+    (ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+      if (h.headers.Authorization === 'WRONG-TOKEN') {
+        return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+      }
+      ctx.shared.user = {name: 'John', surname: 'Doe'};
+    },
+    {cors: false}
+  ),
+  session: middleware(
+    (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+      if (!sessionToken) return null;
+      if (sessionToken === 'expired') {
+        return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
+      }
+      return {
+        userId: 'user-123',
+        role: 'admin',
+        expiresAt: Date.now() + 3600000, // 1 hour from now
+      };
+    },
+    {cors: false}
+  ),
 
   // ============ JSON routes (default parser) ============
   sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
+  corsOff: route((_ctx, name: string): string => `Hello ${name}`, {cors: false}),
   alwaysFails: route((ctx, user: User): User | RpcError<'unknown-error'> => {
     return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
   }),

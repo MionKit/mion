@@ -10,6 +10,8 @@
 // the order from the workspace; publish-tarballs.mjs stages in the SAME order),
 // so a consumer install never resolves a package whose dependency 404s.
 //
+// It first refuses a checkout whose version.json differs from origin prod's
+// (a checkout that missed the bump would look for the wrong version).
 // This reads the pending stage-ids for THIS repo's version (version.json) from
 // `npm stage list --json`, sorts them leaves-first, asks ONCE for your 2FA OTP,
 // and passes it to each `npm stage approve <id>` — the registry accepts the same
@@ -35,6 +37,7 @@ import {setTimeout as sleep} from 'node:timers/promises';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, noteErr, reportCliError, run, success, warn} from '../lib/proc.mjs';
 import {lockstepPackages, publishRank, readWorkspaceManifests, topOfTrain} from '../lib/publish-order.mjs';
+import {checkoutGuard} from '../lib/release-checkout.mjs';
 
 // Staged publishing needs npm >= 11.15.0 (Trusted Publishing/OIDC needs >= 11.5.1).
 const MIN_NPM = [11, 15, 0];
@@ -217,6 +220,9 @@ async function main(argv) {
   const deployOnly = argv.includes('--deploy-only');
   ensureNpmSupportsStage();
   const version = readVersion();
+  const guard = checkoutGuard(version, REPO_ROOT);
+  if (guard?.die) die(`stage-approve: ${guard.die}`);
+  if (guard?.warn) warn(`stage-approve: ${guard.warn}`);
   note(`stage-approve for @mionjs/* @ ${version}`);
 
   if (deployOnly) return deployAfterLive(version);

@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/drizzle-orm",
-    "version": "0.45.1",
+    "version": "0.45.2",
     "versionLine": "drizzle-orm",
     "type": "module",
     "description": "Dialect-agnostic core of the mion drizzle-orm packages: slim column/table recorders, flat model types and refinement",
@@ -47,7 +47,6 @@
         "dev": "vite build --watch",
         "dev:test": "vitest watch",
         "lint": "eslint src",
-        "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "clean": "rimraf .dist .coverage .mion",
@@ -60,12 +59,15 @@
         "@mionjs/run-types": "workspace:*"
     },
     "peerDependencies": {
-        "@mionjs/run-types": ">=0.13.0 <0.14.0",
+        "@mionjs/run-types": ">=0.14.0 <0.15.0",
         "drizzle-orm": ">=0.45.0 <0.46.0"
     },
     "peerDependenciesMeta": {
         "drizzle-orm": {
             "optional": true
         }
+    },
+    "engines": {
+        "node": ">=24"
     }
 }

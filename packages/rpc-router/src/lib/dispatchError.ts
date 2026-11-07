@@ -1,6 +1,6 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
 import {JSON_CONTENT_TYPE} from '../constants.ts';
-import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
+import type {CallContext, MionResponse, MionHeaders, MionRequest, ResponseBody} from '../types/context.ts';
 
 /** The response for an error raised outside the router by any adapter; it goes in `@thrownErrors` like a route error. */
 
@@ -15,6 +15,7 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
     contentType: JSON_CONTENT_TYPE,
     hasErrors: true,
+    stopped: true,
     fatalError: returnErr,
     headers: respHeaders,
     body,
@@ -31,7 +32,7 @@ export function errorHeaderValue(type: string): string {
 }
 
 /** Marks the response as ended by `rpcError`: the error header (first error only), the status code,
- *  `hasErrors` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
+ *  `hasErrors`, `stopped` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
  *  thrown path and a returned FatalError; where the error itself lands is the caller's decision.
  *  `fallbackStatus` answers when the error carries no statusCode: a thrown one is unexpected (422), a
  *  returned FatalError a declared application error (400). */
@@ -43,6 +44,15 @@ export function markResponseFailed(context: CallContext, rpcError: RpcError<stri
   }
   response.statusCode = rpcError.statusCode ?? fallbackStatus;
   response.hasErrors = true;
+  response.stopped = true;
+}
+
+/** Later members are skipped except `alwaysRun` ones, as after an error, but `hasErrors` stays false. */
+export function endChain(context: CallContext, statusCode: number = StatusCodes.OK): void {
+  const response = context.response as Mutable<MionResponse>;
+  if (response.stopped) return;
+  response.statusCode = statusCode;
+  response.stopped = true;
 }
 
 /** Whatever an adapter caught, as the mion error the wire carries. */

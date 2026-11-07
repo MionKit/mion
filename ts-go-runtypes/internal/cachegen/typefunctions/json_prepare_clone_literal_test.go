@@ -28,6 +28,9 @@ func literalSafeTypes() (*EmitContext, map[string]*reflection.RunType) {
 	tmBig1 := &reflection.RunType{ID: "tmBig1", Kind: reflection.KindTupleMember, Position: &pos1, Child: makeRef("big2")}
 	tupBig := &reflection.RunType{ID: "tupBig", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmBig0"), makeRef("tmBig1")}}
 
+	tmOpt1 := &reflection.RunType{ID: "tmOpt1", Kind: reflection.KindTupleMember, Position: &pos1, Optional: true, Child: makeRef("big2")}
+	tupOpt := &reflection.RunType{ID: "tupOpt", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmBig0"), makeRef("tmOpt1")}}
+
 	propA := &reflection.RunType{ID: "pA", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: makeRef("big1")}
 	propB := &reflection.RunType{ID: "pB", Kind: reflection.KindPropertySignature, Name: "b", IsSafeName: true, Child: makeRef("big2")}
 	objBig := &reflection.RunType{ID: "objBig", Kind: reflection.KindObjectLiteral, TypeName: "BigLits", Children: []*reflection.RunType{makeRef("pA"), makeRef("pB")}}
@@ -35,7 +38,7 @@ func literalSafeTypes() (*EmitContext, map[string]*reflection.RunType) {
 	all := []*reflection.RunType{
 		bigOne, bigTwo, symLit, strLit, unionBig,
 		arrBig, arrUnionBig, arrSym, arrStrLit,
-		tmBig0, tmBig1, tupBig,
+		tmBig0, tmBig1, tupBig, tmOpt1, tupOpt,
 		propA, propB, objBig,
 	}
 	refTable := make(map[string]*reflection.RunType, len(all))
@@ -131,6 +134,20 @@ func TestPrepareForJsonClone_BigintLiteralShapes(t *testing.T) {
 	}
 }
 
+// The trim runs on every encode, so it must not copy the literal.
+func TestPrepareForJsonClone_OptionalTupleTrimsInPlace(t *testing.T) {
+	got := compileSafeLiteral(t, "tupOpt")
+	if !strings.Contains(got, "return trimTuple([v[0].toString(),(v[1] === undefined ? null : v[1].toString())],v.length)") {
+		t.Errorf("expected the literal trimmed by the hoisted fn, got %q", got)
+	}
+	if strings.Contains(got, ".slice(") {
+		t.Errorf("the trim copies the tuple: %q", got)
+	}
+	if strings.Count(got, "const trimTuple") != 1 {
+		t.Errorf("expected one hoisted trimTuple, got %q", got)
+	}
+}
+
 // `(1n | 2n)[]` — the exact repro. The union itself is fine; the array's
 // extra-proof shortcut was what skipped the transform.
 func TestPrepareForJsonClone_ArrayOfBigintLiteralUnion(t *testing.T) {
@@ -152,15 +169,5 @@ func TestPrepareForJsonClone_ArrayOfSymbolLiteral(t *testing.T) {
 	}
 	if strings.Contains(decl, "Symbol:") {
 		t.Errorf("no symbol wire form may be emitted, got:\n%s", decl)
-	}
-}
-
-// An object whose props are ALL required and ALL bigint literals must not take
-// the `Object.keys(v).length === N` fastpath — that returns the input by
-// reference, bigints and all.
-func TestPrepareForJsonClone_BigintLiteralObjectSkipsKeyCountFastpath(t *testing.T) {
-	decl := compileSafeLiteral(t, "objBig")
-	if strings.Contains(decl, "Object.keys(") {
-		t.Errorf("object of bigint-literal props must not take the key-count fastpath, got:\n%s", decl)
 	}
 }

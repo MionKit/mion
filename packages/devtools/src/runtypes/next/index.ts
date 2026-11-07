@@ -1,5 +1,5 @@
 // Turbopack runs loaders, not plugins; one config-process broker serves the loader workers.
-// Export the pieces for downstream composition; read ./AGENTS.md for invariants and container-only build coverage.
+// Read ./AGENTS.md for invariants and container-only build coverage.
 import path from 'node:path';
 import {unplugin} from '../../core/unplugin.ts';
 import {startBroker, socketPathFor, ownsBroker, isNextDev, type BrokerHandle, type NextOptions} from './broker.ts';
@@ -21,7 +21,7 @@ interface TurbopackRule {
   as?: string;
 }
 interface NextConfigLike {
-  turbopack?: {rules?: Record<string, unknown>; resolveAlias?: Record<string, unknown>; [key: string]: unknown};
+  turbopack?: {rules?: Record<string, unknown>; [key: string]: unknown};
   webpack?: (config: WebpackConfigLike, context: unknown) => WebpackConfigLike;
   [key: string]: unknown;
 }
@@ -44,6 +44,9 @@ export function runTypesTurbopackRules(socketPath: string): Record<string, Turbo
 export function isTurbopack(): boolean {
   if (process.env.TURBOPACK === '0') return false;
   if (process.env.TURBOPACK) return true;
+  // `next dev` forks its server with `__NEXT_DEV_SERVER` set and passes TURBOPACK only to a Turbopack one, never
+  // the `--webpack` flag: without this the `next dev --webpack` server got the Turbopack rules and no rewrite.
+  if (process.env.__NEXT_DEV_SERVER) return false;
   return !process.argv.includes('--webpack');
 }
 

@@ -23,19 +23,12 @@ import type {
   ParserStrategy,
 } from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types/runtime';
-import {getOrCreateGlobal} from './utils.ts';
+import {jitFunctionsCache, headerJitFunctionsCache} from './jitFunctionsCaches.ts';
 
-// Null-prototype on purpose: the id comes off the wire, so a plain object would answer `constructor` /
-// `toString` / `__proto__` with an inherited value. Every lookup below is an own-key lookup for the same reason.
-const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => Object.create(null) as MethodsCache);
+// Null-prototype: a wire id like `constructor` or `__proto__` must not hit an inherited value; lookups are own-key too.
+const methodsCache: MethodsCache = Object.create(null) as MethodsCache;
 
-const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
-const headerJitFunctionsCache = getOrCreateGlobal(
-  'mion.routerUtils.headerJitFunctionsCache',
-  () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
-);
-
-/** The router cache: method metadata for routes registered via addRoutesToCache() or virtual modules. */
+/** Method metadata for routes registered via addRoutesToCache(). */
 export const routesCache = {
   getMetadata(id: string): MethodWithOptions | undefined {
     // a plain read is an own-key read on a null-prototype table
@@ -213,8 +206,6 @@ export function getRoutePath(pathPointer: string[], routerOptions: Pick<CoreRout
 export function resetRoutesCache() {
   for (const k in methodsCache) delete methodsCache[k];
 }
-
-// resetJitFunctionsCache moved to @mionjs/core/testing: a shipped client must not carry a cache reset.
 
 // Noop fns for handlers with no params or void return; the json pair reads as `mutate`, which frames
 // as a plain json value and never encodes anything.

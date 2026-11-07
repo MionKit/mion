@@ -139,7 +139,7 @@ func TestBatch_TransformCarriesIdAndMapperHash(t *testing.T) {
 	if !strings.Contains(code, "'b_") {
 		t.Errorf("transformed code lacks the injected batch id:\n%s", code)
 	}
-	if !regexp.MustCompile(`'[^']*#[A-Za-z0-9_-]+'`).MatchString(code) {
+	if !regexp.MustCompile(`'[^']*:[A-Za-z0-9_-]+'`).MatchString(code) {
 		t.Errorf("transformed code lacks the nested mapper's id:\n%s", code)
 	}
 	if strings.Count(code, "'b_") != 1 {
@@ -168,7 +168,7 @@ func TestBatch_GenerateWholeProgram(t *testing.T) {
 			withMapping = &gen.BatchSites[i]
 		}
 	}
-	if withMapping == nil || withMapping.Mappings[0].FromId != "users/getById" || withMapping.Mappings[0].ToId != "orders/getById" || !strings.Contains(withMapping.Mappings[0].MapperKey, "#") {
+	if withMapping == nil || withMapping.Mappings[0].FromId != "users/getById" || withMapping.Mappings[0].ToId != "orders/getById" || !strings.Contains(withMapping.Mappings[0].MapperKey, ":") {
 		t.Errorf("expected the a.ts site to carry the users→orders mapping, got %+v", gen.BatchSites)
 	}
 	reportPath := filepath.Join(outDir, "types", "batches-report.json")

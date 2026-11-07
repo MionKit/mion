@@ -82,8 +82,15 @@ export class RecordResponseHeaders extends MionHeadersImpl implements PooledHead
     super({...defaults});
   }
 
+  /** Refuses what fetch `Headers` refuses: uws and aws write a header record as it is, unchecked. */
+  set(name: string, value: string): void {
+    assertHeaderSafe(name, value);
+    super.set(name, value);
+  }
+
   /** Keeps a repeated name's values apart, never joined: the adapter writes them its own way. */
   append(name: string, value: string): void {
+    assertHeaderSafe(name, value);
     this.unused = false;
     const key = name.toLowerCase();
     if (key === PROTO_KEY) return;
@@ -98,6 +105,22 @@ export class RecordResponseHeaders extends MionHeadersImpl implements PooledHead
   forEach(visit: (name: string, value: string | string[]) => void): void {
     for (const name in this.headers) visit(name, this.headers[name]);
   }
+}
+
+/** CR or LF splits the response (header injection); NUL ends it early on some hosts.
+ *  The value stays out of the error: it may be what an attacker sent. */
+export function assertHeaderSafe(name: string, value: string): void {
+  if (hasControlBreak(name) || hasControlBreak(value))
+    throw new TypeError(`Invalid header ${JSON.stringify(name.slice(0, 64))}: CR, LF or NUL`);
+}
+
+function hasControlBreak(text: string): boolean {
+  // one pass, no allocation
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 13 || code === 10 || code === 0) return true;
+  }
+  return false;
 }
 
 /** The response headers of the fetch adapters (bun, cloudflare, vercel). */

@@ -15,9 +15,11 @@ const card = (name: string, title: string, body: string) =>
 const server = createCardServer({
   cardPaths: {
     drizzle: join(CARDS_DIR, 'drizzle-type-cost.vue'),
+    batch: join(CARDS_DIR, 'rpc-batch-compiled.vue'),
     wraps: join(DIR, 'wraps.vue'),
     wide: join(DIR, 'wide.vue'),
     clipped: join(DIR, 'clipped.vue'),
+    crowded: join(DIR, 'crowded.vue'),
   },
 });
 let base = '';
@@ -27,6 +29,8 @@ beforeAll(async () => {
   card('wide', 'Wide code', `<CardWindow><CardCode code="const x = '${'x'.repeat(120)}';" /></CardWindow>`);
   // the value outgrows its 300px column and is cut at the window's edge
   card('clipped', 'Clipped', '<CardWindow><CardBars><CardBar label="L" before="1,234,567,890" after="2,345,678,901" unit="steps" /></CardBars></CardWindow>');
+  // the wall's name is wider than its column and runs into the outcome header
+  card('crowded', 'Crowded', '<CardWindow><CardLanes gate="server batch table" outcome="Server answers"><CardLane label="L" :steps="[{label: \'s\', value: \'v\'}]" result="r" /></CardLanes></CardWindow>');
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
@@ -48,6 +52,7 @@ describe('code card in Chromium', {timeout: 60_000}, () => {
     expect(await checksOf('wraps')).toEqual([expect.stringContaining('wraps onto a second line: "A title long enough')]);
     expect(await checksOf('wide')).toEqual([expect.stringContaining('too wide, scrolls sideways')]);
     expect(await checksOf('clipped')).toContainEqual(expect.stringContaining('sticks out of the card'));
+    expect(await checksOf('crowded')).toEqual([expect.stringContaining('runs into "Server answers": "server batch table"')]);
   });
 
   it('shot refuses a card failing its checks, and writes no PNG', async () => {
@@ -79,5 +84,35 @@ describe('code card in Chromium', {timeout: 60_000}, () => {
     expect(final.every((width) => width > 0)).toBe(true);
     expect(armed.every((width) => width === 0)).toBe(true);
     expect(played).toEqual(final);
+  });
+
+  it('CardBatchCompile: a packet shows only while it rides its arrow; a phone reads the run scene top to bottom', async () => {
+    const result = await withBrowser(`${base}/card/batch?shot`, (cli) =>
+      evalJson(
+        cli,
+        `async () => {
+          await window.cardChecks;
+          const loop = document.querySelector('.cc-loop');
+          const run = document.querySelectorAll('.cc-loop-item')[1];
+          const packets = () => [...run.querySelectorAll('.cc-bc-packet')].map((el) => Number(getComputedStyle(el).opacity));
+          const still = packets();
+          // 0.22 into the run scene's turn: the id rides its arrow (0.14 to 0.3), the answer has not left
+          const stillTime = loop.style.getPropertyValue('--cc-loop-t');
+          loop.style.setProperty('--cc-loop-t', String((1 + 0.22) / 2));
+          const riding = packets();
+          loop.style.setProperty('--cc-loop-t', stillTime);
+          window.cardPlayer.card.style.width = '360px';
+          const order = [...run.querySelectorAll('.cc-bc-box, .cc-bc-say')]
+            .sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top)
+            .map((el) => (el.querySelector('code') ?? el).textContent.trim());
+          return {still, riding, order};
+        }`
+      )
+    );
+    expect(result).toEqual({
+      still: [0, 0],
+      riding: [1, 0],
+      order: ['POST /mion-batch?id=b_7Kq2', 'only the id', '✓finds b_7Kq2', '2 routes + mapper', 'one answer', '[[order], [user]]'],
+    });
   });
 });

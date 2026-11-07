@@ -8,10 +8,6 @@ import {EXEMPT, projectsOf, readPackages} from './typecheck-coverage.mjs';
 
 const MION = join(REPO_ROOT, 'mion-bin', 'mion');
 
-export const TSC_ONLY = {
-  'run-types/tsconfig.cjs.json': 'the CommonJS emit needs node10 resolution, which tsgo removed (TS5108)',
-};
-
 export function tsErrors(output) {
   return output.split('\n').filter((line) => /error TS\d+:/.test(line));
 }
@@ -27,8 +23,7 @@ export function projects(repoRoot = REPO_ROOT) {
   const rootScripts = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).scripts ?? {};
   return readPackages(repoRoot)
     .filter(({dir}) => !(dir in EXEMPT))
-    .flatMap(({dir, scripts}) => projectsOf(dir, scripts, rootScripts).map((config) => ({dir, config})))
-    .filter(({dir, config}) => !(`${dir}/${config}` in TSC_ONLY));
+    .flatMap(({dir, scripts}) => projectsOf(dir, scripts, rootScripts).map((config) => ({dir, config})));
 }
 
 export function main() {

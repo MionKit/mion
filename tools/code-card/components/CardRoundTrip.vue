@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // One value's JSON round trip, server to wire to client, then what plain JSON gives instead.
+import {at} from './shared.ts';
+
 const props = withDefaults(
   defineProps<{
     /** Code, one line: shown on the server and again on the client. */
@@ -14,8 +16,6 @@ const props = withDefaults(
 );
 for (const key of ['type', 'wire'] as const) if (!props[key].trim()) throw new Error(`CardRoundTrip: needs a ${key}`);
 
-// When each beat starts, as a fraction of the item's turn in a CardLoop.
-const at = (start: number, until?: number) => ({'--cc-at': start, ...(until === undefined ? {} : {'--cc-until': until})});
 const SERVER = 0.04;
 const WIRE = 0.22;
 const CLIENT = 0.4;

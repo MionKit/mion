@@ -3,19 +3,22 @@ package apitypes
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestTrim_CutsWithTheRealRouter reads @mionjs/router's workspace sources, so a PrivateDef or public method type
 // change cannot slip past the stub.
 func TestTrim_CutsWithTheRealRouter(t *testing.T) {
-	_, self, _, _ := runtime.Caller(0)
-	repo := filepath.Join(filepath.Dir(self), "..", "..", "..", "..")
+	repo := testfixtures.RepoRoot()
 	workspaceModules := filepath.Join(repo, "packages", "private-test-server", "node_modules", "@mionjs")
 	if _, err := os.Stat(filepath.Join(workspaceModules, "router")); err != nil {
 		t.Skipf("the workspace router is not installed: %v", err)
+	}
+	if err := testfixtures.DeclareInputs("packages/rpc-router", "packages/core", "packages/run-types", "pnpm-lock.yaml"); err != nil {
+		t.Fatal(err)
 	}
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "node_modules"), 0o755); err != nil {

@@ -21,8 +21,7 @@ func applyMemberModifiers(member *reflection.RunType, symbol *ast.Symbol, asClas
 		// Synthesised symbols carry no class-level modifiers: visibility/static/abstract live on declarations.
 		return
 	}
-	// CheckFlagsReadonly can be set on a non-synthesised symbol too (a `const`, a getter without setter), so
-	// both it and the AST modifier check are honoured.
+	// A non-synthesised symbol can carry CheckFlagsReadonly too (a `const`), so the AST check alone misses it.
 	if symbol.CheckFlags&ast.CheckFlagsReadonly != 0 {
 		member.Readonly = true
 	}

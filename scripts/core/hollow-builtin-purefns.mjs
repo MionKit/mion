@@ -1,30 +1,7 @@
-// hollow-builtin-purefns.mjs — strip the built-in pure-fn factory BODIES out of
-// the published dist, keeping only the registration scaffolding.
-//
-// Why: the resolver delivers every package-owned body on demand from the
-// built-in table, so the side-effect-imported registration files
-// (pure-fns-utils.js, *-pure-fns.js) no longer need to CARRY the bodies — they
-// cost roughly 11 KB in every bundle. This post-build step rewrites each
-// `registerPureFnFactory(<factory>, <id>)` in those dist files to
-// `registerPureFnFactory(null /** <id> hollowed */)`, so the file keeps its
-// exports, its line count (stack traces / maps line up), and its side-effect
-// registration (now an inert no-op — see registerCore's hollow lane), but ships
-// scaffolding bytes only. The `.d.ts` is untouched (neither argument is part of
-// the declared type). The bodies still reach a consumer, on demand, through the
-// pure-fn cache, which is why `src` must stay in this package's published
-// `files`: it is the only place they exist.
-//
-// The id argument goes with the body: an inert registration has nothing to key,
-// and dropping it leaves the generated id module with no used export, so a
-// bundler drops those strings too. A `null` factory is what marks the hollow
-// lane; a file no build processed still throws.
-//
-// Only the listed registration FILES are rewritten; every other pure fn,
-// including a consumer's own, is left alone.
-//
-// Usage: node scripts/core/hollow-builtin-purefns.mjs [<distDir>]
-//   distDir defaults to packages/run-types/dist; both it and its dist/cjs twin
-//   are processed.
+// Post-build: the resolver delivers built-in pure-fn bodies on demand, so each listed registration file's
+// `registerPureFnFactory(<factory>, <id>)` becomes `registerPureFnFactory(null /** <id> hollowed */)`, ~11 KB a bundle.
+// Line count must not change, so stack traces and maps line up. The id goes too, so bundlers drop the id strings.
+// A `null` factory marks registerCore's hollow lane; a file no build processed still throws. Other pure fns stay.
 
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, writeFileSync} from 'node:fs';
@@ -212,39 +189,25 @@ function findTopLevelComma(src, from, close) {
   return -1;
 }
 
-// hollowSource rewrites every listed registerPureFnFactory call in one dist
-// file. Returns {code, count}. Idempotent: an already-hollowed call (factory arg
-// literally `null`) is skipped.
+// Idempotent: an already-hollowed call (factory literally `null`) is skipped.
 export function hollowSource(src, file = '<memory>') {
   let out = '';
   let cursor = 0;
   let count = 0;
   for (let at = src.indexOf(CALL); at !== -1; at = src.indexOf(CALL, at + 1)) {
-    // `CALL` must be a standalone identifier — the char on each side is not part
-    // of a longer identifier. This matches both the ESM shape
-    // (`registerPureFnFactory(`) and the tsc CJS shape
-    // (`(0, mod.registerPureFnFactory)(`), where a member access precedes it and
-    // a `)` follows before the args paren.
+    // `CALL` must stand alone, not be part of a longer identifier.
     const before = src[at - 1];
     const after = src[at + CALL.length];
     if (before && /[A-Za-z0-9_$]/.test(before)) continue;
     if (after && /[A-Za-z0-9_$]/.test(after)) continue;
-    // Locate the ARGS open paren: skip whitespace; step over the CJS
-    // `(0, …name)` wrapper's closing `)`; then expect `(`.
     let j = at + CALL.length;
     while (j < src.length && /\s/.test(src[j])) j++;
-    if (src[j] === ')') {
-      j++;
-      while (j < src.length && /\s/.test(src[j])) j++;
-    }
     if (src[j] !== '(') continue; // a reference to the name that is not a call
     const openParen = j;
     const close = findCallCloseParen(src, openParen);
     if (close === -1) throw new Error(`${file}: unbalanced ${CALL}( at offset ${at}`);
 
-    // The factory is the FIRST argument; the id follows it. A call with no
-    // second argument is not one of ours (the build injects the id, and these
-    // files pass it explicitly), so leave it alone.
+    // A call with no id argument is not one of ours: these files pass the id explicitly.
     let factoryStart = openParen + 1;
     while (factoryStart < close && /\s/.test(src[factoryStart])) factoryStart++;
     const comma = findTopLevelComma(src, factoryStart, close);
@@ -255,7 +218,6 @@ export function hollowSource(src, file = '<memory>') {
     const factory = src.slice(factoryStart, comma);
     if (factory.trim() === 'null' || factory.trimStart().startsWith('null ')) continue; // already hollow
 
-    // The whole argument list is replaced, so count the newlines it spans.
     const newlines = (src.slice(factoryStart, close).match(/\n/g) || []).length;
     // Replacement occupies the SAME number of lines so maps/traces line up.
     const replacement = `null /** ${id} hollowed — body ships on demand${'\n'.repeat(newlines)}*/`;
@@ -268,39 +230,30 @@ export function hollowSource(src, file = '<memory>') {
   return {code: out, count};
 }
 
-function processDistRoot(distRoot, label) {
-  if (!existsSync(distRoot)) return {files: 0, hollowed: 0};
+function main() {
+  const distArg = process.argv[2];
+  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/run-types/dist');
   let files = 0;
   let hollowed = 0;
   for (const rel of BUILTIN_FILES) {
     const path = join(distRoot, rel);
     if (!existsSync(path)) continue;
     const src = readFileSync(path, 'utf8');
-    const {code, count} = hollowSource(src, `${label}/${rel}`);
+    const {code, count} = hollowSource(src, `dist/${rel}`);
     if (count === 0) continue;
     if (src.split('\n').length !== code.split('\n').length) {
-      throw new Error(`${label}/${rel}: line count changed (${src.split('\n').length} -> ${code.split('\n').length}) — hollowing must preserve it`);
+      throw new Error(`dist/${rel}: line count changed (${src.split('\n').length} -> ${code.split('\n').length}) — hollowing must preserve it`);
     }
     writeFileSync(path, code);
-    // Fail loudly if the rewrite produced invalid JS.
     execFileSync(process.execPath, ['--check', path]);
     files++;
     hollowed += count;
   }
-  return {files, hollowed};
-}
-
-function main() {
-  const distArg = process.argv[2];
-  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/run-types/dist');
-  const esm = processDistRoot(distRoot, 'dist');
-  const cjs = processDistRoot(join(distRoot, 'cjs'), 'dist/cjs');
-  const total = esm.hollowed + cjs.hollowed;
-  if (total === 0) {
+  if (hollowed === 0) {
     console.error('hollow-builtin-purefns: no built-in registrations found to hollow (already hollow, or dist not built?)');
     return;
   }
-  console.error(`hollow-builtin-purefns: hollowed ${total} built-in registration(s) across ${esm.files + cjs.files} dist file(s)`);
+  console.error(`hollow-builtin-purefns: hollowed ${hollowed} built-in registration(s) across ${files} dist file(s)`);
 }
 
 // Run only when invoked directly (`node hollow-builtin-purefns.mjs`), not when a

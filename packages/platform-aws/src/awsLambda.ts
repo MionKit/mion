@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
+import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchWithContext,
@@ -13,10 +13,11 @@ import {
   getRouterFatalErrorResponse,
   headersFromRecord,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultHeaders,
   releaseHeaders,
+  toHttpMethod,
+  toRpcError,
 } from '@mionjs/router';
 import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -49,32 +50,28 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-  let rawBody: any = decodeEventBody(rawRequest);
+  const rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
   const respHeaders = getDefaultHeaders();
   // AWS Lambda always receives body as string (JSON)
-  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+  const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
     // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
-    const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
-    const context = createCallContext(rawRequest.path, urlQuery, rawRequest, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const context = createCallContext(
+      rawRequest.path,
+      urlQuery,
+      rawRequest,
+      reqHeaders,
+      respHeaders,
+      rawBody,
+      reqBodyType,
+      toHttpMethod(rawRequest.httpMethod)
+    );
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);
   } catch (err) {
-    const error =
-      err instanceof RpcError
-        ? err
-        : new FatalError({
-            publicMessage: 'Internal Error',
-            originalError: err as Error,
-            type: 'unknown-error',
-          });
-    return reply(getRouterFatalErrorResponse(error, respHeaders), respHeaders);
+    return reply(getRouterFatalErrorResponse(toRpcError(err), respHeaders), respHeaders);
   }
 }
 

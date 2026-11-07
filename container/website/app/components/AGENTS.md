@@ -13,7 +13,7 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
     each with its change vs the base.
   - `HomeBenchTable` (root landing summary): fastest servers + validators, from the bench pages' generated datasets.
   - All three draw each bar with `app/components/BenchBar.vue`: full-width track, fill grows on first scroll into view.
-  - The three geometric-mean ones read `app/utils/benchAggregate.ts`. The two bench-page ones format numbers via
+  - The three geometric-mean ones read `app/utils/benchAggregate.js`. The two bench-page ones format numbers via
     `app/utils/benchFormat.ts`: one measurement never reads two ways.
   - `HomeTestTiles` (root landing test tiles): tile list lives in the component (else on the landing collection
     a frontmatter list silently collapses to its first key).
@@ -23,7 +23,8 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
     `assets/css/code-card.css`, `utils/codeCardPlayer.ts` or `public/fonts/code-card/`: export again.
   - `VerticalIntegration` (rpc home): replaced libraries beside the mion logo, hover shows what mion does instead.
     Library list + icons: `app/utils/replacedLibraries.ts`.
-  - `PlatformTiles` (rpc home): linked platform logos from `public/platforms/`, a `dark` twin for black-ink logos.
+  - `PlatformTiles` (rpc home): logos from `public/platform-logos/`, a `dark` twin for black-ink logos.
+    Never `public/platforms/`: the old `/platforms/*` redirect would capture it.
   - Also: `StatTiles`, `DiagnosticCatalog`, `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `SlidedTitle`,
     `TypeSafeAnimation`, `StylishList`, `HoverList`, `MionType`, `Spacer`,
     `AppHeaderLogo`, `MionLogo`.

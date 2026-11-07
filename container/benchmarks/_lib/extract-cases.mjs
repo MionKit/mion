@@ -158,13 +158,16 @@ export function makeExtractors(ts) {
     return {preamble: extractPreamble(source, mapName), entries};
   }
 
-  /** DFS for the first `callName<…>(…)` call carrying a type argument under `node`
-   *  (callName is the call's source text — `createValidateFn` or `typia.createIs`). */
-  function findTypedCall(node, callName, source) {
+  /** DFS for the first `callNames` call with a type argument; `allowUntyped` also takes a builder-form call. */
+  function findTypedCall(node, callNames, source, {allowUntyped = false} = {}) {
     let found = null;
     const visit = (n) => {
       if (found || !n) return;
-      if (ts.isCallExpression(n) && n.typeArguments?.length && n.expression.getText(source) === callName) {
+      if (
+        ts.isCallExpression(n) &&
+        callNames.includes(n.expression.getText(source)) &&
+        (n.typeArguments?.length || (allowUntyped && n.arguments.length))
+      ) {
         found = n;
         return;
       }
@@ -174,14 +177,8 @@ export function makeExtractors(ts) {
     return found;
   }
 
-  /** Type-form competitor cases.ts (ts-go type, typia) → {preamble, entries:{key:
-   *  {locals, typeText}}, keys}. Each entry is a `{build, buildErrors}` object,
-   *  optionally wrapped in an IIFE `(() => { …local decls…; return {…}; })()` whose
-   *  pre-return statements declare the enum/interface/type the `<T>` references. The
-   *  literal type argument lives on the `build` thunk's `callName<T>(…)` call —
-   *  `createValidateFn` for ts-go, `typia.createIs` for typia. NOT_SUPPORTED entries
-   *  are skipped; `keys` lists EVERY map key in file order (drives table/row order). */
-  function extractTypeForm(file, mapName, callName) {
+  /** Type-form cases.ts (ts-go, typia); `keys` keeps every map key, NOT_SUPPORTED too, as it drives row order. */
+  function extractTypeForm(file, mapName, callNames, opts = {}) {
     const source = sf(file);
     const obj = findMapObject(source, mapName);
     const entries = {};
@@ -191,7 +188,7 @@ export function makeExtractors(ts) {
         if (!ts.isPropertyAssignment(prop)) continue;
         const key = prop.name.getText(source).replace(/['"]/g, '');
         keys.push(key);
-        // Unwrap an optional IIFE wrapper, capturing its local declarations verbatim.
+        // Optional IIFE wrapper: ts-go declares the case's local types there.
         const init = unwrapExpr(prop.initializer);
         const locals = [];
         let objLiteral = init;
@@ -212,21 +209,21 @@ export function makeExtractors(ts) {
           (p) => ts.isPropertyAssignment(p) && p.name.getText(source) === 'build'
         );
         if (!build) continue;
-        const call = findTypedCall(build.initializer, callName, source);
+        const call = findTypedCall(build.initializer, callNames, source, opts);
         if (!call) continue;
-        // typia authors the type's local decls INSIDE the build block — `() => { type
-        // Person = …; const check = typia.createIs<Pick<Person, …>>(); return … }` —
-        // whereas ts-go uses an outer IIFE (captured above). Gather the build-block
-        // declarations too, skipping the `return` and the createIs/createValidateFn
-        // statement itself so `<T>` resolves without dragging the runtime call in.
+        // typia declares the type's locals inside the build block: keep them, minus the return and the runtime call.
         const buildArrow = build.initializer;
         if (ts.isArrowFunction(buildArrow) && ts.isBlock(buildArrow.body)) {
           for (const stmt of buildArrow.body.statements) {
-            if (ts.isReturnStatement(stmt) || findTypedCall(stmt, callName, source)) continue;
+            if (ts.isReturnStatement(stmt) || findTypedCall(stmt, callNames, source, opts)) continue;
             locals.push(stmt.getText(source));
           }
         }
-        entries[key] = {locals, typeText: call.typeArguments[0].getText(source)};
+        entries[key] = {
+          locals,
+          typeText: call.typeArguments?.length ? call.typeArguments[0].getText(source) : null,
+          callText: call.getText(source),
+        };
       }
     }
     return {preamble: extractPreamble(source, mapName), entries, keys};

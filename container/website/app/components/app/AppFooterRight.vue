@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Local override of docus/app/components/app/AppFooterRight.vue. Preserves the
 // default icon row (socials + github + color-mode toggle) and prepends a short
-// project-lineage note with an external link to mion.pages.dev.
+// project-lineage note with an external link to mion.io.
 const appConfig = useAppConfig()
 const { forced: forcedColorMode } = useDocusColorMode()
 
@@ -51,7 +51,7 @@ const links = computed<FooterLink[]>(() => {
         rel="noopener noreferrer"
       >Deepkit</a>, matured through
       <a
-        href="https://mion.pages.dev/"
+        href="https://mion.io/"
         target="_blank"
         rel="noopener noreferrer"
       >mionjs</a>

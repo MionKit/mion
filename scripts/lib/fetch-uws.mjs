@@ -41,11 +41,9 @@ export const UWS_PKG_DIR = path.join(REPO_ROOT, 'packages', 'bin-uws');
 const CHECKSUMS_FILE = path.join(UWS_PKG_DIR, 'uws-checksums.json');
 export const UWS_CACHE_DIR = path.join(UWS_PKG_DIR, '.uws-cache');
 
-// Platform-arch pairs (the shared UWS_PLATFORMS list, in upstream's file-name
-// spelling) and the Node ABIs the pinned tag ships. Keep the ABIs in lockstep
-// with ABI_TO_NODE_MAJOR in packages/bin-uws/lib/index.js.
+// The Node >= 24 ABIs the pinned tag ships; keep in lockstep with ABI_TO_NODE_MAJOR in packages/bin-uws/lib/index.js.
 const PLATFORMS = UWS_PLATFORMS.map((platform) => `${platform.os}_${platform.cpu}`);
-const ABIS = ['127', '137', '147'];
+const ABIS = ['137', '147'];
 export const UWS_LICENSE_FILE = 'LICENSE';
 
 export function readUwsTag() {

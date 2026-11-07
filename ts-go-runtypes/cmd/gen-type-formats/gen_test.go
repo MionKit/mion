@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestTypeFormatsFileInSync asserts the committed typeFormats.generated.ts
@@ -21,6 +23,9 @@ import (
 // pins the names + kinds themselves. The blank import of formats/all lives in
 // gen.go, so the registry is populated in this test binary too.
 func TestTypeFormatsFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(typeFormatsOutputPath()); err != nil {
+		t.Fatal(err)
+	}
 	committed, err := os.ReadFile(typeFormatsOutputPath())
 	if err != nil {
 		t.Fatalf("read %s: %v", typeFormatsOutputPath(), err)

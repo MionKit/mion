@@ -22,6 +22,8 @@ import {hostPlatform, missingPlatformTarballs} from '../../../scripts/lib/binary
 import {selectPlatforms, selectUwsPlatforms} from '../../../scripts/lib/binary-platforms.mjs';
 // @ts-expect-error untyped .mjs
 import {lookup} from '../../../scripts/lib/devx-registry.mjs';
+// @ts-expect-error untyped .mjs
+import {allUwsFiles} from '../../../scripts/lib/fetch-uws.mjs';
 // @ts-expect-error plain ESM dev script, no types
 import {binCacheKey, cachedBinPath, goBuild, releaseLdflags} from '../../../scripts/release/build-binaries.mjs';
 // @ts-expect-error plain ESM dev script, no types
@@ -109,6 +111,14 @@ describe('binary platform selection', () => {
   it('the shim keeps the same list', () => {
     const listed = /const SUPPORTED_PLATFORMS = \[([^\]]*)\]/.exec(read('packages/bin-uws/lib/index.js'))?.[1] ?? '';
     expect([...listed.matchAll(/'([a-z0-9-]+)'/g)].map((match) => match[1])).toEqual(uwsPlatforms.map(keyOf));
+  });
+
+  it('the shim, the fetch list and the checksums name the same Node ABIs', () => {
+    const shimAbis = /const ABI_TO_NODE_MAJOR = \{([^}]*)\}/.exec(read('packages/bin-uws/lib/index.js'))?.[1] ?? '';
+    const abisOf = (files: string[]) => [...new Set(files.map((file) => /_(\d+)\.node$/.exec(file)?.[1]).filter(Boolean))].sort();
+    const checksummed = Object.keys(JSON.parse(read('packages/bin-uws/uws-checksums.json')).files);
+    expect(checksummed.sort()).toEqual([...allUwsFiles()].sort());
+    expect(abisOf(checksummed)).toEqual([...shimAbis.matchAll(/(\d+):/g)].map((match) => match[1]).sort());
   });
 
   it('this test host is a publish platform (the workflows run the flag on ubuntu)', () => {

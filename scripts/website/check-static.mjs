@@ -57,6 +57,13 @@ function routeOf(source) {
   return `/${segments.join('/')}`;
 }
 
+/** The route the site serves a page at: a frontmatter `path:` (the subsite homes, served at
+ *  `/<id>`) overrides the file-derived one, as it does for Nuxt Content. */
+export function pageRoute(source, markdown) {
+  const frontmatter = /^---\n([\s\S]*?)\n---/.exec(markdown)?.[1] ?? '';
+  return /^path: (\S+)$/m.exec(frontmatter)?.[1] ?? routeOf(source);
+}
+
 // The `::bench-table{bench="x" metric="y"}` components on one page, in order.
 function benchTables(markdown) {
   const tables = [];
@@ -102,7 +109,7 @@ function allPages(contentRoot) {
         servers: /servers=['"]([^'"]+)['"]/.exec(match[1])?.[1],
         validation: /validation=['"]([^'"]+)['"]/.exec(match[1])?.[1],
       }));
-      pages.push({source, route: routeOf(source), tables: benchTables(markdown), charts, barCharts, homeTables});
+      pages.push({source, route: pageRoute(source, markdown), tables: benchTables(markdown), charts, barCharts, homeTables});
     }
   };
   walk(contentRoot);

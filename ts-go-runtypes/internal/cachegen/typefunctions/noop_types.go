@@ -319,6 +319,9 @@ func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mo
 		if isMethodMember(resolved.Kind) {
 			continue
 		}
+		if mode == noopModePrepare && isHiddenAccessor(resolved, ctx) {
+			return false
+		}
 		if !jsonNoopRecursive(resolved, ctx, mode, visited) {
 			return false
 		}
@@ -475,12 +478,12 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		return nodeFormatTransform(rt, "v") == ""
 
 	case reflection.KindObjectLiteral:
-		return formatNoopObjectChildren(objectMembers(rt), ctx, visited)
+		return formatNoopObjectChildren(rt, ctx, visited)
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindNone {
 			// User classes recurse like objects (emitObjectFormat).
-			return formatNoopObjectChildren(objectMembers(rt), ctx, visited)
+			return formatNoopObjectChildren(rt, ctx, visited)
 		}
 		// Date / Map / Set / Temporal / builtins: identity arm.
 		return true
@@ -523,8 +526,8 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 
 // formatNoopObjectChildren mirrors emitObjectFormat's member walk: a static or function-like member is a
 // skipped slot, every surviving property must be noop.
-func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
-	for _, childRef := range children {
+func formatNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+	for _, childRef := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(childRef)
 		if resolved == nil {
 			continue
@@ -533,6 +536,9 @@ func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, 
 			continue
 		}
 		if isMethodMember(resolved.Kind) {
+			continue
+		}
+		if skipsFormat(rt, resolved) {
 			continue
 		}
 		if !formatNoopRecursive(resolved, ctx, visited) {

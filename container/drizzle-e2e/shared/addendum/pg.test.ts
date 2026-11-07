@@ -36,6 +36,7 @@ import {
   sparsevec,
   text,
   uniqueIndex,
+  uuid,
   vector,
 } from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
@@ -231,6 +232,39 @@ describe('addendum — bit, vector, halfvec, sparsevec and geometry', () => {
     expect(rows[0]!.embedding).toEqual([1, 2, 3]);
     expect(rows[0]!.half).toEqual([1, 2, 3]);
     expect(rows[0]!.place).toEqual({x: 1, y: 2});
+  });
+});
+
+// ── a uuid version: mion's own setting, replayed as its default ─────────────
+
+const sessions = pgTable('addendum_sessions', {
+  id: uuid('id', {version: '7', primaryKey: true}),
+  token: uuid('token', {version: '4', notNull: true}),
+});
+const sessionsDb = toDrizzle(sessions);
+
+describe('addendum — uuid version', () => {
+  beforeAll(async () => {
+    // postgres 18 ships uuidv7(); the image is 17, so this stand-in makes the recorded default run.
+    await db.execute(sql`
+      create or replace function uuidv7() returns uuid language sql as $$
+        select encode(set_bit(set_bit(overlay(uuid_send(gen_random_uuid())
+          placing substring(int8send((extract(epoch from clock_timestamp()) * 1000)::bigint) from 3)
+          from 1 for 6), 52, 1), 53, 1), 'hex')::uuid
+      $$`);
+    // Defaults read off the recorded columns, so the database runs what mion recorded.
+    const [id, token] = getTableConfig(sessionsDb).columns;
+    await db.execute(sql`drop table if exists ${sessionsDb}`);
+    await db.execute(
+      sql`create table ${sessionsDb} (id uuid primary key default ${id!.default}, token uuid not null default ${token!.default})`
+    );
+  });
+
+  test('each version generates its own uuid version', async () => {
+    await db.insert(sessionsDb).values({});
+    const [row] = await db.select().from(sessionsDb);
+    expect(row!.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
+    expect(row!.token).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/);
   });
 });
 

@@ -22,6 +22,9 @@ const RouterModule = "@mionjs/router"
 // FactoryName is a cheap pre-filter before the signature is resolved.
 const FactoryName = "createMionRouter"
 
+// withTypesName: a `createMionRouter.withTypes<T>()` call marks its module as the router-init module too.
+const withTypesName = "withTypes"
+
 // Site is one module that creates the router.
 type Site struct {
 	// FilePath is absolute; End is the file's byte length, the point the batch import is appended at.
@@ -99,7 +102,7 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 		if node == nil || found {
 			return false
 		}
-		if node.Kind == ast.KindCallExpression && isFactoryCall(typeChecker, markerOpts, node) {
+		if node.Kind == ast.KindCallExpression && IsFactoryCall(typeChecker, markerOpts, node) {
 			found = true
 			return false
 		}
@@ -110,16 +113,22 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	return found
 }
 
-// isFactoryCall resolves the callee through any alias chain to the factory's name, then requires the
+// IsFactoryCall resolves the callee through any alias chain to the factory's name, then requires the
 // resolved signature to be declared by the router package, so a same-named local never matches.
-func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
+func IsFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
 		return false
 	}
-	nameNode := calleeNameNode(callExpr)
+	nameNode := identifierOrMemberName(callExpr.Expression)
 	if nameNode == nil {
 		return false
+	}
+	if nameNode.Text() == withTypesName && callExpr.Expression.Kind == ast.KindPropertyAccessExpression {
+		nameNode = identifierOrMemberName(callExpr.Expression.AsPropertyAccessExpression().Expression)
+		if nameNode == nil {
+			return false
+		}
 	}
 	symbol := typeChecker.GetSymbolAtLocation(nameNode)
 	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
@@ -135,12 +144,11 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), markerOpts.FS) == RouterModule
 }
 
-// calleeNameNode returns the identifier a call is made through, the member name for `ns.f(...)`.
-func calleeNameNode(callExpr *ast.CallExpression) *ast.Node {
-	if callExpr == nil || callExpr.Expression == nil {
+// identifierOrMemberName returns the identifier itself, or the member name of `ns.f`.
+func identifierOrMemberName(expr *ast.Node) *ast.Node {
+	if expr == nil {
 		return nil
 	}
-	expr := callExpr.Expression
 	switch expr.Kind {
 	case ast.KindIdentifier:
 		return expr

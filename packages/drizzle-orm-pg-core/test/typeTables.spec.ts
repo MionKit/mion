@@ -873,3 +873,54 @@ describe('pg columns: models compile full-fidelity validators', () => {
     expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
   });
 });
+
+const sessions = pgTable('sessions', {
+  id: uuid({version: '7', primaryKey: true}),
+  token: uuid('token', {version: '4', notNull: true}),
+});
+type Sessions = PgTable<'sessions', {id: Uuid<{version: '7'; primaryKey: true}>; token: Uuid<{version: '4'; notNull: true}>}>;
+const rawSessions = dz.pgTable('sessions', {
+  id: dz
+    .uuid()
+    .default(dzSql`uuidv7()`)
+    .primaryKey(),
+  token: dz.uuid('token').defaultRandom().notNull(),
+});
+type Session = InferSelectModel<typeof sessions>;
+const validSession = {id: '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80', token: '793aff46-42ac-4372-b7fa-c48ba48ed94f'};
+
+describe('pg columns: only pg: uuid version', () => {
+  const validateSession = createValidateFn<Session>();
+  it('the builder and the hand-written type materialize the uuid with its version default', () => {
+    expect(project(toDrizzle(sessions))).toEqual(project(rawSessions));
+    expect(project(toDrizzle(tableFromType<Sessions>()))).toEqual(project(rawSessions));
+  });
+  it('the default is the sql that generates the version, on both roads', () => {
+    const pgDialect = new dz.PgDialect();
+    const defaultSql = (table: dz.PgTable) =>
+      dz.getTableConfig(table).columns.map((column) => pgDialect.sqlToQuery(column.default as never).sql);
+    expect(defaultSql(toDrizzle(sessions))).toEqual(['uuidv7()', 'gen_random_uuid()']);
+    expect(defaultSql(toDrizzle(tableFromType<Sessions>()))).toEqual(['uuidv7()', 'gen_random_uuid()']);
+  });
+  it('a version with a second default throws, on both roads', () => {
+    expect(() => uuid({version: '7', defaultRandom: true})).toThrow('a uuid version sets its own default');
+    expect(() => tableFromType<PgTable<'two_defaults', {id: Uuid<{version: '4'; default: ['x']}>}>>()).toThrow(
+      'a uuid version sets its own default'
+    );
+  });
+  it('an unknown version throws', () => {
+    expect(() => uuid({version: '1'} as never)).toThrow("uuid version takes '4' or '7', got 1");
+  });
+  it('the model checks the uuid version', () => {
+    expect(validateSession(validSession)).toBe(true);
+    expect(validateSession({...validSession, id: validSession.token})).toBe(false);
+    expect(validateSession({...validSession, token: validSession.id})).toBe(false);
+  });
+  it('static form: the versioned model resolves to the hand-written table model', () => {
+    expect(getRunTypeId<Session>()).toBe(getRunTypeId<InferSelectModel<Sessions>>());
+  });
+  it('reflection form: the versioned model resolves to the hand-written table model', () => {
+    const session: Session = validSession as Session;
+    expect(getRunTypeId(session)).toBe(getRunTypeId<InferSelectModel<Sessions>>());
+  });
+});

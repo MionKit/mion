@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   // `url` is what canonical links, the sitemap and the og:url tags are built from.
   site: {
     name: 'mion',
-    url: 'https://mion.pages.dev',
+    url: 'https://mion.io',
   },
   css: [
     '~/assets/css/mion.css',

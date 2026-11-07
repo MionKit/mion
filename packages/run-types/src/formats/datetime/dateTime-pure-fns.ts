@@ -40,24 +40,30 @@ type SegmentFn = (segment: string) => boolean;
 // it via utl.getPureFn, so the Go extractor records the transitive dep.
 
 export const isDateString = registerPureFnFactory(function () {
-  return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
-    let y: number | undefined;
-    if (year) {
-      if (year.length !== 4) return false;
-      y = Number(year);
-      if (isNaN(y) || y < 0 || y > 9999) return false;
+  // -1 unless exactly `len` ASCII digits. Not `Number()`, which takes '0x1F', '1e03', '+1', ' 1' and '1.' too.
+  function digitsVal(part: string, len: number): number {
+    if (part.length !== len) return -1;
+    let val = 0;
+    for (let i = 0; i < len; i++) {
+      const digit = part.charCodeAt(i) - 48;
+      if (digit < 0 || digit > 9) return -1;
+      val = val * 10 + digit;
     }
-    if (month.length !== 2) return false;
-    const m = Number(month);
-    if (isNaN(m) || m < 1 || m > 12) return false;
-    if (day) {
-      if (day.length !== 2) return false;
-      const d = Number(day);
-      if (isNaN(d) || d < 1 || d > 31) return false;
-      if (m === 2) {
-        if (d > 29) return false;
-        if (y && d === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) return false;
-      } else if ((m === 4 || m === 6 || m === 9 || m === 11) && d > 30) {
+    return val;
+  }
+  return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
+    // `undefined` means the layout has no such part; an empty string is a missing one and fails.
+    const yearNum = year === undefined ? -1 : digitsVal(year, 4);
+    if (year !== undefined && yearNum < 0) return false;
+    const monthNum = digitsVal(month, 2);
+    if (monthNum < 1 || monthNum > 12) return false;
+    if (day !== undefined) {
+      const dayNum = digitsVal(day, 2);
+      if (dayNum < 1 || dayNum > 31) return false;
+      if (monthNum === 2) {
+        if (dayNum > 29) return false;
+        if (yearNum >= 0 && dayNum === 29 && !(yearNum % 4 === 0 && (yearNum % 100 !== 0 || yearNum % 400 === 0))) return false;
+      } else if ((monthNum === 4 || monthNum === 6 || monthNum === 9 || monthNum === 11) && dayNum > 30) {
         return false;
       }
     }
@@ -414,12 +420,10 @@ export const timeStrToMs = registerPureFnFactory(function () {
   };
 }, timeStrToMsId);
 
-// relativeNowKey — evaluates a `now`, `now+P…`, or `now-P…` spec to a
-// comparison key on the requested scale. scale: 'epoch' → UTC epoch ms (calendar-correct add via Date
-// arithmetic); 'epochDate' → the same floored to UTC midnight, matching dateStrToMs; 'timeOfDay' → ms-of-day
-// (only T-section components apply, date components are rejected build-time so won't appear here).
+// Parses a `now` or `now±P…` spec once; the validator hoists the returned fn and calls it per check.
+// 'timeOfDay' ignores date components: they are rejected at build time.
 export const relativeNowKey = registerPureFnFactory(function () {
-  // Parses the ISO-8601 duration tail into years, months, weeks, days, hours, minutes and seconds.
+  // Parses the ISO-8601 duration tail.
   function parseDuration(tail: string): Record<string, number> {
     const out: Record<string, number> = {years: 0, months: 0, weeks: 0, days: 0, hours: 0, minutes: 0, seconds: 0};
     const body = tail.substring(1); // drop leading 'P'
@@ -438,31 +442,37 @@ export const relativeNowKey = registerPureFnFactory(function () {
     eat(timePart, {H: 'hours', M: 'minutes', S: 'seconds'});
     return out;
   }
-  return function _relative_now_key(spec: string, scale: string): number {
-    const now = new Date();
+  return function _relative_now_key(spec: string, scale: string): () => number {
+    const isPlainNow = spec === 'now';
+    const sign = spec[3] === '-' ? -1 : 1;
+    const duration = parseDuration(spec.substring(4));
+    const timeMs = sign * (duration.hours * 3600000 + duration.minutes * 60000 + duration.seconds * 1000);
     if (scale === 'timeOfDay') {
-      let ms = now.getUTCHours() * 3600000 + now.getUTCMinutes() * 60000 + now.getUTCSeconds() * 1000 + now.getUTCMilliseconds();
-      if (spec !== 'now') {
-        const sign = spec[3] === '-' ? -1 : 1;
-        const d = parseDuration(spec.substring(4));
-        ms += sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000);
+      return function () {
+        const now = new Date();
+        return (
+          now.getUTCHours() * 3600000 +
+          now.getUTCMinutes() * 60000 +
+          now.getUTCSeconds() * 1000 +
+          now.getUTCMilliseconds() +
+          timeMs
+        );
+      };
+    }
+    return function () {
+      const result = new Date();
+      if (!isPlainNow) {
+        // Calendar-correct: Y/M first (months vary in length), then W/D and time as fixed offsets.
+        result.setUTCFullYear(result.getUTCFullYear() + sign * duration.years);
+        result.setUTCMonth(result.getUTCMonth() + sign * duration.months);
+        result.setUTCDate(result.getUTCDate() + sign * (duration.weeks * 7 + duration.days));
+        result.setTime(result.getTime() + timeMs);
       }
-      return ms;
-    }
-    const result = new Date(now.getTime());
-    if (spec !== 'now') {
-      const sign = spec[3] === '-' ? -1 : 1;
-      const d = parseDuration(spec.substring(4));
-      // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
-      result.setUTCFullYear(result.getUTCFullYear() + sign * d.years);
-      result.setUTCMonth(result.getUTCMonth() + sign * d.months);
-      result.setUTCDate(result.getUTCDate() + sign * (d.weeks * 7 + d.days));
-      result.setTime(result.getTime() + sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000));
-    }
-    if (scale === 'epochDate') {
-      // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
-      return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
-    }
-    return result.getTime();
+      if (scale === 'epochDate') {
+        // Same scale as dateStrToMs, which builds dates at 00:00:00Z.
+        return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
+      }
+      return result.getTime();
+    };
   };
 }, relativeNowKeyId);

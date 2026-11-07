@@ -29,8 +29,8 @@ describe('cloudflare handler', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -137,7 +137,7 @@ describe('cloudflare handler', () => {
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createCloudflareHandler();
     });

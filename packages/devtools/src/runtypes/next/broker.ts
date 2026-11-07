@@ -41,8 +41,7 @@ export interface NextOptions extends PluginOptions {
   // Set it only to keep two projects that share a root from sharing one resolver.
   socketPath?: string;
   // Next's distDir, as withRunTypes derives it. Nothing reads the copy: a Next app is never installed as a package.
-  // Best effort, as Turbopack has no post-build hook: written once buildStart is done, and again on the first
-  // loader request because Turbopack has emptied the dir by then.
+  // Best effort, no post-build hook: written after buildStart and on the first loader request (Turbopack empties it).
   artifactDir?: string;
 }
 
@@ -163,20 +162,17 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       debug(`buildStart done, ${countGenerated()} generated modules`);
       refreshStamp(true);
       startWatching();
-      void writeArtifact();
+      // Returned so close() waits for it and the first request's own write never overlaps it.
+      return writeArtifact();
     })
     .catch((error) => {
       startupError = error;
     });
 
   // ── invalidation stamp ────────────────────────────────────────────────────
-  // A rewrite depends on types in OTHER files, which Turbopack cannot see: `TransformResult.typeDeps` names them
-  // when the resolver can, and the stamp is the fallback. It hashes the generated listing, whose names are
-  // content-addressed (a `types/rt/` entry adds a content hash), and every rewritten file declares it, so any type
-  // change re-runs every marker-bearing file. Bounded: only files with sites are transformed, a few ms each.
-  // `rpc/` is listed because a Next app hosting the mion API gets the batch table's import appended to its route
-  // handler, which appears or vanishes on a client's first or last batch with no import edge to follow.
-  // The mapper modules under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
+  // Turbopack cannot see types from OTHER files: `TransformResult.typeDeps` names them, the stamp is the fallback.
+  // Every rewritten file declares the stamp, a hash of the generated listing: a type change re-runs them all.
+  // Bounded: only files with marker sites are rewritten, a few ms each.
   // `.ts` under emitMode 'ts', `.js` otherwise.
   const isModuleFile = (name: string): boolean => name.endsWith('.js') || name.endsWith('.ts');
 
@@ -189,22 +185,19 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     }
   }
 
-  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. A `types/rt/`
-   *  module keeps its name when its types change, so its entry adds a content hash. */
+  /** A `types/rt/` module keeps its name when its types change, so its entry adds a content hash. */
   function generatedListing(): string[] {
+    let names: string[];
+    try {
+      names = fs.readdirSync(path.join(genDirAbs, 'types'), {recursive: true}) as string[];
+    } catch {
+      return []; // not generated yet
+    }
     const listing: string[] = [];
-    for (const half of ['types', 'rpc']) {
-      let names: string[];
-      try {
-        names = fs.readdirSync(path.join(genDirAbs, half), {recursive: true}) as string[];
-      } catch {
-        continue; // this half has not been generated
-      }
-      for (const name of names) {
-        // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
-        const entry = `${half}/${name.split(path.sep).join('/')}`;
-        listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
-      }
+    for (const name of names) {
+      // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
+      const entry = `types/${name.split(path.sep).join('/')}`;
+      listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
     }
     return listing.sort();
   }
@@ -346,9 +339,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         | undefined;
       collecting = null;
       collectingDeps = null;
-      // Forced: the reply hands the loader this stamp, so it must reflect THIS transform's output. The throttle
-      // is for the fs-watcher path; two back-to-back transforms land inside its window and the second reply
-      // pointed at a stale stamp (caught by the "moves the invalidation stamp" test).
+      // Forced: the reply hands the loader this stamp, so it must reflect THIS transform's output.
+      // The fs-watcher throttle left a back-to-back second reply on a stale stamp ("moves the invalidation stamp" test).
       refreshStamp(true);
       reply = {
         id: request.id,
@@ -392,7 +384,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       watcher?.close();
       if (flushTimer) clearTimeout(flushTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      // In-flight work still writes into the project; a caller deleting it after close() hit ENOTEMPTY. None rejects.
+      await Promise.all([ready, chain, hotUpdate]);
       await unlinkQuietly(socketPath);
+      process.off('exit', cleanup);
       built.buildEnd?.call(context);
     },
   };

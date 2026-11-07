@@ -148,7 +148,7 @@ export class Counter { private hits: number = 0; }
 	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/shout", "type": "module", "peerDependencies": {"@mionjs/run-types": "*"}}`)
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
 	compileProject(t, dir, nil)
-	assertContains(t, readEmitted(t, dir, "index.d.ts"), "@acme/shout#", "protected hits: number;")
+	assertContains(t, readEmitted(t, dir, "index.d.ts"), "@acme/shout:", "protected hits: number;")
 }
 
 // installLedger compiles a consumer of @acme/ledger installed from the given files, returning its site id and codes.

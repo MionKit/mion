@@ -78,6 +78,7 @@ Props interfaces + `*ColMods` bags (method sets) → [authoring.md](authoring.md
 - Layout + file map → [SKILL.md](SKILL.md#packages).
 - All four packages ride the drizzle versionLine.
 - Dialect packages depend on the root by minor-aligned peer range + workspace devDependency.
+  A release that republishes a dialect floors that range at the root version it ships with (`rootPeerRangeFor`).
 
 ## Where drizzle types are paid
 

@@ -461,7 +461,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ───────────────────────── batch routes (rpc-batch-*) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
-		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
+		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
 		Fix: `const user = routes.users.getById(id);
 batch([user, routes.orders.list()]);`,
 	},
@@ -1071,6 +1071,11 @@ export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {
 	CodeRouteThrowInHandler: {
 		Summary: "A returned error stays in the handler's signature, so the client gets it typed at the call site. A thrown one goes to the undeclared `@thrownErrors` slot, and the client sees only its public message. A `throw` caught by `try` and `catch` in the same handler is not reported. If a throw is on purpose, add `// @mion-expect-error rpc-handler-throws` above it and say why.",
 		Fix:     "return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});",
+	},
+	CodeRouteSharedFactoryUntyped: {
+		// No Example: the harness lacks `@mionjs/router`, which raises it; routerrules_test.go covers each factory shape.
+		Summary: "`ctx.shared` is typed from what `sharedDataFactory` returns. A client types the router by inferring its whole options object, so a factory with no written return type makes every client compute that return from the body, a whole database type included, even when every route is slim. Write the return type; a database the client never needs can be declared `unknown` and cast on the server.",
+		Fix:     "createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});",
 	},
 	CodeRouteReturnedErrorType: {
 		Summary: "A returned `RpcError` (or any subclass) goes to its own typed slot, and the client gets it typed. A plain `Error`, a class extending it, or a bare `TypedError` fails the request and goes to the undeclared `@thrownErrors` slot, so your declared return type is no longer true. Answer with an `RpcError` or a `FatalError`.",

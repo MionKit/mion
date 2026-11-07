@@ -52,7 +52,7 @@ export const REGISTRY = [
   {name: 'CLOUDFLARE_ACCOUNT_ID', scope: 'secret', task: 'deploy-website', desc: 'Cloudflare account id; .env for a local deploy, a GitHub secret in CI'},
 
   // — deploy config (non-secret) —
-  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the docs site mion.pages.dev (default mion); .env for a local deploy, a GitHub repo variable in CI'},
+  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the docs site mion.io (default mion); .env for a local deploy, a GitHub repo variable in CI'},
 
   // — GHCR coordinates (defaults already target this repo) —
   {name: 'GHCR_OWNER', scope: 'dev', task: '-', desc: 'GHCR namespace (default mionkit)'},
@@ -199,7 +199,7 @@ export const REGISTRY = [
 
   // — mion framework knobs (MION_*) —
   {name: 'GENERATE_ROUTER_SPEC', scope: 'dev', task: '-', desc: "Set to 'true' to make @mionjs/router expose its public routes data (the router spec). Read at runtime by the router, so it keeps its unprefixed name: renaming it would break every consumer that already sets it"},
-  {name: 'MION_SUPPRESS_DUAL_LOAD_WARN', scope: 'dev', task: '-', desc: 'Silence the warning @mionjs/core prints when it is loaded twice in one process (a duplicated install or a bundle that inlines a second copy)'},
+  {name: 'UWS_HTTP_MAX_HEADERS_SIZE', scope: 'dev', task: '-', desc: "uWebSockets.js' own limit in bytes for a request's line and headers, read once when its binary loads. @mionjs/platform-uws sets it from its maxHeaderSize option (8 KB) unless you set it first"},
   {name: 'MION_UWS_BINARY_DIR', scope: 'dev', task: '-', desc: "Directory holding a uWebSockets.js native binary (uws_<platform>_<arch>_<abi>.node) that @mionjs/bin-uws loads INSTEAD of the fetched cache / the @mionjs/native-uws-* optional dependency — the escape hatch for air-gapped installs, vendored copies, or self-built binaries for an unsupported Node ABI"},
 
   // — internal / protocol vars: set by the scripts (container paths, plumbing). DO NOT set in .env —
@@ -228,11 +228,9 @@ export const REGISTRY = [
   {name: 'MION_DRIZZLE_HOME', scope: 'internal', task: '-', desc: "Overrides the drizzle-e2e install root (/drizzle-e2e) for container/drizzle-e2e/shared/runners/durable-worker.mjs, so the Durable Objects harness can be smoke-tested on the host against .cache/drizzle-suites/<tag>-translated with no container"},
   {name: 'MION_DRIZZLE_SHARED', scope: 'internal', task: '-', desc: 'Overrides the mounted shared-assets dir (/drizzle-src) for durable-worker.mjs; the host twin of MION_DRIZZLE_HOME'},
 
-  {name: 'MION_E2E_CLIENT_ROUTES', scope: 'internal', task: '-', desc: "client.routes mode apps/mion-next's next.config.mjs builds on, set by build-all.mjs for its SECOND Turbopack build. Unset is the fetched lane (the round trip the app serves); 'bundle' builds into dist/next-bundle (its genDir stays a sibling, .rt-bundle, because a genDir is a build INPUT), which test/build-outputs.test.mjs reads to prove the fetched lane left the output"},
   {name: 'MION_E2E_VERSION', scope: 'internal', task: '-', desc: 'type-system package version the e2e matrix installs (passed into the registry container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_REGISTRY', scope: 'internal', task: '-', desc: 'Registry the e2e lanes install the type-system and framework packages from (in-container verdaccio for pre-publish; registry.npmjs.org for the post-publish npm backend; passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_MION_VERSION', scope: 'internal', task: '-', desc: '@mionjs/* version the mion consumer lanes install. Read from the framework packages\' own package.json files (which must agree with each other and with version.json), passed into the container via -e by scripts/release/e2e.mjs'},
-  {name: 'MION_E2E_MATRIX_MION_PKGS', scope: 'internal', task: '-', desc: 'Space-separated <name>@<version> install list the e2e feature MATRIX adds on top of the type-system packages: what apps/mion-next imports (@mionjs/core, router, client, platform-vercel) at MION_E2E_MION_VERSION. Separate from MION_E2E_MION_PKGS because the matrix hosts one mion app, not the whole consumer surface (passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_MION_PKGS', scope: 'internal', task: '-', desc: 'Space-separated <name>@<version> install list for the mion consumer lane: the lockstep @mionjs/* packages at MION_E2E_MION_VERSION plus @mionjs/drizzle-orm and the @mionjs/drizzle-orm-*-core packages at their own drizzle-aligned versions (passed into the container via -e by scripts/release/e2e.mjs)'},
   {name: 'MION_E2E_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside the e2e registry container, read by e2e-serve.sh (default /etc/verdaccio/config.yaml). scripts/container/image.mjs sets it to /e2e-src/registry/verdaccio.yaml so the repo's config (with the '@mionjs/*' local-only rule) overrides the one baked into the pulled image without a republish"},
   {name: 'MION_AUDIT_ALIGNMENT', scope: 'internal', task: '-', desc: 'Bench mode flag: emit alignment records instead of timing (set by rt bench audit)'},

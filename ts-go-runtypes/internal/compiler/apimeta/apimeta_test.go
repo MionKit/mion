@@ -2,6 +2,7 @@ package apimeta
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -390,6 +391,81 @@ export const a = routes.r(1).call();
 	}
 	if _, present := tree.ById["r"].Options["sanitizeParams"]; present {
 		t.Errorf("a widened option must stay unset")
+	}
+}
+
+// Added `handler` keys ride the options as an intersection (rpc-router ResolvedRouteOptions); widened ones are reported.
+func TestWalkApi_ReadsAddedOptionKeysOffTheIntersection(t *testing.T) {
+	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
+type Base = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined};
+type Types = {params: [n: number]; return: number; headers: never; isAsync: false};
+type Auth = {headers: {authorization: string}};
+type Api = {
+  hidden: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: false; audit: {level: 'high'}}; types?: Types};
+  wide: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: boolean}; types?: Types};
+  log: {type: 2; handler: (n: number) => Promise<void>; options: Base & {cors: false}; types?: Types};
+  token: {type: 3; handler: (h: Auth) => Promise<void>; options: Base & {cors: false}; types?: {params: []; return: void; headers: Auth; isAsync: false}};
+};
+const {routes} = initClient<Api>({});
+export const a = routes.hidden(1).call();
+export const b = routes.wide(1).call();
+`})
+	sites, _ := overlay.extract()
+	for _, site := range sites {
+		tree, problem := WalkApi(site.Checker, site.ApiType)
+		if problem != "" {
+			t.Fatalf("WalkApi: %s", problem)
+		}
+		hidden := tree.ById["hidden"].Options
+		if hidden["cors"] != false || hidden["alwaysRun"] != false {
+			t.Errorf("hidden options %v", hidden)
+		}
+		if audit, _ := hidden["audit"].(map[string]any); audit["level"] != "high" {
+			t.Errorf("a nested added key is read whole, got %v", hidden["audit"])
+		}
+		for _, middlewareId := range []string{"log", "token"} {
+			if tree.ById[middlewareId].Options["cors"] != false {
+				t.Errorf("%s options %v", middlewareId, tree.ById[middlewareId].Options)
+			}
+		}
+		if strings.Join(tree.ById["wide"].WidenedOptions, ",") != "cors" {
+			t.Errorf("widened %v", tree.ById["wide"].WidenedOptions)
+		}
+		if _, present := tree.ById["wide"].Options["cors"]; present {
+			t.Errorf("a widened added key must stay unset")
+		}
+	}
+}
+
+// Every value shape readOptions meets has a row: read whole, or reported widened, never guessed.
+func TestReadOptions_EveryValueShapeHasARow(t *testing.T) {
+	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
+type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {
+  literal: 'x'; optional?: 7; union: boolean; nested: {inner: true}; wide: number; gone: undefined;
+}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
+const {routes} = initClient<Api>({});
+export const a = routes.r(1).call();
+`})
+	sites, _ := overlay.extract()
+	tree, problem := WalkApi(sites[0].Checker, sites[0].ApiType)
+	if problem != "" {
+		t.Fatalf("WalkApi: %s", problem)
+	}
+	options := tree.ById["r"].Options
+	read := map[string]any{"literal": "x", "optional": float64(7), "nested": map[string]any{"inner": true}}
+	for name, want := range read {
+		if fmt.Sprint(options[name]) != fmt.Sprint(want) {
+			t.Errorf("%s: read %v, want %v", name, options[name], want)
+		}
+	}
+	if got := strings.Join(tree.ById["r"].WidenedOptions, ","); got != "union,wide" {
+		t.Errorf("widened %s", got)
+	}
+	if _, present := options["gone"]; present {
+		t.Errorf("an undefined option must be absent")
+	}
+	if len(options) != len(read) {
+		t.Errorf("unexpected options %v", options)
 	}
 }
 

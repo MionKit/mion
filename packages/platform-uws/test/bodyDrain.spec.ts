@@ -25,7 +25,7 @@ const chunkBytes = 20_000;
 const chunkEveryMs = 100; // 200 KB/s: ~15s of upload, past uWS' 10s idle timeout
 
 const mion = createMionRouter({
-  contextDataFactory: () => ({user: null}),
+  sharedDataFactory: (): {user: null} => ({user: null}),
   basePath: 'api/',
   pathTransform: (request, path: string): string => {
     if (path.includes('boom')) throw new Error('pathTransform exploded');

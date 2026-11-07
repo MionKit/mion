@@ -30,12 +30,19 @@ interface UUIDParams {
 export const isUUID = registerPureFnFactory(function () {
   return function _isUUID(value: string, params: UUIDParams): boolean {
     if (typeof value !== 'string' || value.length !== 36) return false;
+    // Version 'any' (JSON Schema `format: uuid`) takes slots 14 and 19 as plain hex, so the Nil and Max UUIDs pass.
+    const pinned = params.version !== 'any';
     for (let i = 0; i < 36; i++) {
       if (i === 8 || i === 13 || i === 18 || i === 23) {
         if (value[i] !== '-') return false;
-      } else if (i === 14 && params.version !== 'any') {
-        // The version-agnostic UUID ('any', JSON Schema `format: uuid`) treats slot 14 as ordinary hex.
+      } else if (i === 14 && pinned) {
         if (value[i] !== params.version) return false;
+      } else if (i === 19 && pinned) {
+        // RFC 9562 variant: `[89abAB]`.
+        const variant = value.charCodeAt(i);
+        const isVariant =
+          variant === 56 || variant === 57 || variant === 97 || variant === 98 || variant === 65 || variant === 66;
+        if (!isVariant) return false;
       } else {
         const charCode = value.charCodeAt(i);
         const is09 = charCode >= 48 && charCode <= 57;
@@ -446,10 +453,8 @@ export const isEmailAddress = registerPureFnFactory(function (utl: RTUtils) {
 
 // ############### IP pure fns ###############
 //
-// isIPV4 / isIPV6 take a params object carrying version, allowLocalHost and allowPort, and both
-// delegate the hostname test to isLocalHost. Both return the FAILURE MODE rather than a boolean: ''
-// when good, 'port' when `allowPort` is on and the port piece is the problem (not digits, or over
-// 65535), 'address' for everything else. That feeds the `errorType` of the emitted format error.
+// isIPV4 / isIPV6 return the format error's `errorType`, '' when good.
+// 'port' means a bad or missing port under `allowPort`; anything else is 'address'.
 
 interface IPParams {
   version: 4 | 6 | 'any';
@@ -472,11 +477,11 @@ export const isLocalHost = registerPureFnFactory(function () {
 
 export const isIPV4 = registerPureFnFactory(function (utl: RTUtils) {
   const isLocalHostFn = utl.getPureFn(isLocalHost) as IsLocalHostFn;
-  // Dotted quad, ASCII digits only. Anchored and `Number`-free on purpose: `Number('')` is 0,
-  // `Number('0x7f')` is 127 and `Number(' 1\n')` is 1, so a coercion-based octet check silently accepts
-  // `192.168..1`, `0x7f.0.0.1` and trailing whitespace. `\d` stays ASCII under every flag, which keeps
-  // full-width and Bengali digits out.
-  const ipv4Regexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+  // Regex, not `Number()`: coercion accepts `192.168..1`, `0x7f.0.0.1` and trailing whitespace.
+  // `\d` stays ASCII under every flag, which keeps full-width and Bengali digits out.
+  // No leading zeros: some parsers read `010` as octal 8.
+  const ipv4Regexp = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+  const portRegexp = /^\d{1,5}$/;
   return function _is_ip_v4(ip: string, params: IPParams): string {
     let address = ip;
     let portS: string | undefined;
@@ -486,22 +491,21 @@ export const isIPV4 = registerPureFnFactory(function (utl: RTUtils) {
       address = parts[0];
       portS = parts[1];
     }
-    // The address is judged BEFORE the port: "that is not an address" outranks
-    // "bad port" when both are wrong.
+    // Address before port: a bad address outranks a bad port when both are wrong.
     if (isLocalHostFn(address)) {
       if (params.allowLocalHost !== true) return 'address';
     } else if (!ipv4Regexp.test(address)) return 'address';
-    if (portS && (!/^\d{1,5}$/.test(portS) || Number(portS) > 65535)) return 'port';
+    if (params.allowPort && (portS === undefined || !portRegexp.test(portS) || Number(portS) > 65535)) return 'port';
     return '';
   };
 }, isIPV4Id);
 
 export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
   const isLocalHostFn = utl.getPureFn(isLocalHost) as IsLocalHostFn;
-  const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
-  // The group walkers work on index RANGES of the one address string: a split-and-regex version of the
-  // same rules measured ~2x slower, all of it allocation and per-group regex overhead.
-  // isIPv4Quad: dotted quad over [start, end) with the ipv4 octet rules, leading zeros tolerated.
+  const ipv6PortRegexp = /^\[([^\]]+)\](?::([\s\S]*))?$/;
+  const portRegexp = /^\d{1,5}$/;
+  // The walkers use index ranges: split-and-regex measured ~2x slower, all allocation and per-group regex cost.
+  // isIPv4Quad: same octet rules as isIPV4, no leading zeros.
   function isIPv4Quad(s: string, start: number, end: number): boolean {
     let octets = 0;
     let val = 0;
@@ -518,12 +522,11 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
       }
       const code = s.charCodeAt(i);
       if (code < 48 || code > 57) return false;
-      if (digits === 3 || (val = val * 10 + (code - 48)) > 255) return false;
+      if (digits === 3 || (digits === 1 && val === 0) || (val = val * 10 + (code - 48)) > 255) return false;
       digits++;
     }
     return false;
   }
-  // isHexGroup: one 16-bit group over [start, end) — 1-4 hex digits.
   function isHexGroup(s: string, start: number, end: number): boolean {
     const n = end - start;
     if (n < 1 || n > 4) return false;
@@ -533,8 +536,7 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     }
     return true;
   }
-  // Counts the 16-bit groups in one `:`-separated run [start, end), or -1 when a group is malformed. A
-  // dotted quad is accepted in the LAST position only (ipv4-mapped) and counts as the two groups it encodes.
+  // -1 on a malformed group. A dotted quad counts as two groups, allowed last only (ipv4-mapped).
   function countGroups(s: string, start: number, end: number, allowIPv4Tail: boolean): number {
     if (start >= end) return 0;
     let count = 0;
@@ -549,8 +551,7 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     }
     return count;
   }
-  // isAddress: `::` elides one or more all-zero groups and may appear at most once; a lone leading /
-  // trailing `:` is not an elision, so those runs come back with an empty group and are rejected.
+  // A lone leading / trailing `:` is not an elision: its run has an empty group and is rejected.
   function isAddress(address: string): boolean {
     const elision = address.indexOf('::');
     if (elision === -1) return countGroups(address, 0, address.length, true) === 8;
@@ -558,16 +559,14 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     const head = countGroups(address, 0, elision, false);
     const tail = countGroups(address, elision + 2, address.length, true);
     if (head === -1 || tail === -1) return false;
-    // The elision stands for at least one group, so the written ones must leave
-    // room for it.
+    // The elision stands for at least one group, so the written ones must leave room for it.
     return head + tail <= 7;
   }
   return function _is_ip_v6(ip: string, params: IPParams): string {
     let address = ip;
     let port: string | undefined;
     if (params.allowPort) {
-      // With a port the address MUST be bracketed, `[addr]:port`; a bare `::1` is then not in the
-      // accepted shape, which counts as an address problem.
+      // With a port the address must be bracketed, `[addr]:port`; a bare `::1` is an address problem.
       const match = ip.match(ipv6PortRegexp);
       if (!match) return 'address';
       address = match[1];
@@ -577,7 +576,7 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     if (isLocalHostFn(address)) {
       if (params.allowLocalHost !== true) return 'address';
     } else if (!isAddress(address)) return 'address';
-    if (port && Number(port) > 65535) return 'port';
+    if (params.allowPort && (port === undefined || !portRegexp.test(port) || Number(port) > 65535)) return 'port';
     return '';
   };
 }, isIPV6Id);

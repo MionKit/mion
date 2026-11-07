@@ -36,8 +36,7 @@ const GROUPS = [
       'packages/*/dist',
       'packages/*/.dist',
       'packages/*/.coverage',
-      // devtools' compiled eslint + vite-plugin entries (rebuilt by check:builds); test-server's edge/workers bundles.
-      'packages/devtools/build',
+      // test-server's edge/workers bundles.
       'packages/private-test-server/build',
       'packages/**/*.tsbuildinfo',
       '.coverage',

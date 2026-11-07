@@ -9,14 +9,15 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// Element / root rejection reasons, surfaced as rpc-batch-element-unreadable's `{0}` argument (and, prefixed, as rpc-batch-mapper-unreadable's).
+// Rejection reasons: rpc-batch-element-unreadable's `{0}` argument, and, prefixed, rpc-batch-mapper-unreadable's.
 const (
 	reasonSpread         = "spread element"
 	reasonNotRouteCall   = "not a route call"
 	reasonNotRoutesProxy = "root is not the client routes proxy"
 	reasonNotBound       = "binding is not a const/let with a route-call initializer"
 	reasonReassigned     = "binding is reassigned after its initializer"
-	reasonChainRoot      = "route path does not start at an identifier (`this`, a call result, …)"
+	reasonChainRoot      = "route path does not start at an identifier (`this`, `new X()`, …)"
+	reasonCallResult     = "client comes from a function call the build cannot follow (`inject()`, a composable, …)"
 	reasonComputedMember = "computed member in the route path"
 	reasonOptionalChain  = "optional chaining in the route path"
 	reasonDepthCap       = "depth cap"
@@ -96,8 +97,7 @@ func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
 	return symbol != nil && symbol.Name == routeSubRequestName && marker.DeclaredInModule(symbol, ClientModule, scope.markerOpts.FS)
 }
 
-// accessChain splits an access chain into its segments (outermost last) and the identifier at its root:
-// `a.b['c'].d` gives ([b c d], a). Any other shape yields a non-empty reason.
+// accessChain gives `a.b['c'].d` as ([b c d], a), rooted at an identifier or a call; any other shape gives a reason.
 func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason string) {
 	for {
 		expr = unwrap(expr)
@@ -126,7 +126,7 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason stri
 			}
 			segments = append(segments, key)
 			expr = access.Expression
-		case ast.KindIdentifier:
+		case ast.KindIdentifier, ast.KindCallExpression:
 			for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
 				segments[i], segments[j] = segments[j], segments[i]
 			}
@@ -137,10 +137,16 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason stri
 	}
 }
 
-// resolveRootPath resolves the root identifier of an access chain, plus the chain's segments, to the full
-// path from the client object (`initClient()`'s result). A non-empty reason is the rpc-batch-element-unreadable argument.
-func (scope *fileScope) resolveRootPath(identifier *ast.Node, segments []string, depth int) (path []string, reason string) {
-	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
+// resolveRootPath resolves a chain root to its path from `initClient()`'s result; no other call can be followed.
+// A non-empty reason is the rpc-batch-element-unreadable argument.
+func (scope *fileScope) resolveRootPath(root *ast.Node, segments []string, depth int) (path []string, reason string) {
+	if root.Kind == ast.KindCallExpression {
+		if scope.isInitClientCall(root) {
+			return segments, ""
+		}
+		return nil, reasonCallResult
+	}
+	symbol := scope.typeChecker.GetSymbolAtLocation(root)
 	return scope.resolveSymbolPath(symbol, segments, depth)
 }
 
@@ -170,12 +176,18 @@ func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string,
 		}
 		switch declaration.Kind {
 		case ast.KindBindingElement:
-			if bindingPath, ok := scope.bindingElementPath(declaration); ok {
-				if scope.isReassigned(symbol, declaration) {
-					return nil, reasonReassigned
-				}
-				return append(bindingPath, segments...), ""
+			bindingPath, initializer := bindingElementPath(declaration)
+			if initializer == nil {
+				continue
 			}
+			if scope.isReassigned(symbol, declaration) {
+				return nil, reasonReassigned
+			}
+			prefix, initReason := scope.initializerPath(initializer, depth)
+			if initReason != "" {
+				return nil, initReason
+			}
+			return append(append(prefix, bindingPath...), segments...), ""
 		case ast.KindVariableDeclaration:
 			initializer := blockScopedInitializer(declaration)
 			if initializer == nil {
@@ -184,21 +196,23 @@ func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string,
 			if scope.isReassigned(symbol, declaration) {
 				return nil, reasonReassigned
 			}
-			if scope.isInitClientCall(initializer) {
-				return append([]string(nil), segments...), ""
-			}
-			initSegments, root, chainReason := accessChain(initializer)
-			if chainReason != "" {
-				continue
-			}
-			prefix, rootReason := scope.resolveRootPath(root, initSegments, depth+1)
-			if rootReason != "" {
-				return nil, rootReason
+			prefix, initReason := scope.initializerPath(initializer, depth)
+			if initReason != "" {
+				return nil, initReason
 			}
 			return append(prefix, segments...), ""
 		}
 	}
 	return nil, reasonNotRoutesProxy
+}
+
+// initializerPath resolves a binding's initializer to its path from the client object.
+func (scope *fileScope) initializerPath(initializer *ast.Node, depth int) ([]string, string) {
+	segments, root, chainReason := accessChain(initializer)
+	if chainReason != "" {
+		return nil, reasonNotRoutesProxy
+	}
+	return scope.resolveRootPath(root, segments, depth+1)
 }
 
 // moduleExport looks an export up by name on a module symbol, including the ones `export * from` forwards.
@@ -211,46 +225,39 @@ func (scope *fileScope) moduleExport(moduleSymbol *ast.Symbol, name string) *ast
 	return nil
 }
 
-// bindingElementPath returns the property path a destructuring element binds, only when its declaration is
-// a const / let initialised by initClient(). Rest elements and array patterns are not paths.
-func (scope *fileScope) bindingElementPath(declaration *ast.Node) ([]string, bool) {
+// bindingElementPath gives `const {routes} = client` as ([routes], client).
+// A nil initializer means no path: a rest element, an array pattern, a `var`, or no initializer.
+func bindingElementPath(declaration *ast.Node) ([]string, *ast.Node) {
 	var path []string
 	node := declaration
 	for node != nil && node.Kind == ast.KindBindingElement {
 		element := node.AsBindingElement()
 		if element.DotDotDotToken != nil {
-			return nil, false
+			return nil, nil
 		}
 		nameNode := element.PropertyName
 		if nameNode == nil {
 			nameNode = element.Name()
 		}
 		if nameNode == nil {
-			return nil, false
+			return nil, nil
 		}
 		switch nameNode.Kind {
 		case ast.KindIdentifier, ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
 			path = append(path, nameNode.Text())
 		default:
-			return nil, false
+			return nil, nil
 		}
 		pattern := node.Parent
 		if pattern == nil || pattern.Kind != ast.KindObjectBindingPattern {
-			return nil, false
+			return nil, nil
 		}
 		node = pattern.Parent
-	}
-	if node == nil || node.Kind != ast.KindVariableDeclaration {
-		return nil, false
-	}
-	initializer := blockScopedInitializer(node)
-	if initializer == nil || !scope.isInitClientCall(initializer) {
-		return nil, false
 	}
 	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
 		path[i], path[j] = path[j], path[i]
 	}
-	return path, true
+	return path, blockScopedInitializer(node)
 }
 
 // blockScopedInitializer returns the unwrapped initializer of a `const` / `let` declaration, nil for `var`.

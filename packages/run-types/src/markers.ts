@@ -201,7 +201,7 @@ export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?
 
 /**
  * Pure-fn id injection marker, like `InjectRunTypeId<T>` (no literal double-duty): the build fills the
- * trailing `id?` with the package plus a hash of the shipped body (`@acme/text#pf_Kq3f_xN9pQ2wLd`).
+ * trailing `id?` with the package plus a hash of the shipped body (`@acme/text:Kq3f_xN9pQ`).
  * Renaming or moving keeps the id, editing the body changes it, identical callbacks share one entry.
  * It propagates through wrappers: `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)`
  * gets injected at ITS call sites with zero scanner diagnostics.

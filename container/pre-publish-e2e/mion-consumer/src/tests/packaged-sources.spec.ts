@@ -6,7 +6,9 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
+import {execFileSync} from 'node:child_process';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {createRequire} from 'node:module';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -40,8 +42,8 @@ function pkgDir(name: string): string {
     return resolve(consumerRoot, 'node_modules', name);
 }
 
-function readManifest(name: string): {exports?: unknown} {
-    return JSON.parse(readFileSync(resolve(pkgDir(name), 'package.json'), 'utf8')) as {exports?: unknown};
+function readManifest(name: string): {exports?: unknown; imports?: unknown} {
+    return JSON.parse(readFileSync(resolve(pkgDir(name), 'package.json'), 'utf8')) as {exports?: unknown; imports?: unknown};
 }
 
 function walk(dir: string, acc: string[] = [], base = dir): string[] {
@@ -55,11 +57,11 @@ function walk(dir: string, acc: string[] = [], base = dir): string[] {
     return acc;
 }
 
-function collectSourcePathsFromExports(exportsField: unknown, out: string[] = []): string[] {
+function collectCondition(exportsField: unknown, condition: string, out: string[] = []): string[] {
     if (!exportsField || typeof exportsField !== 'object') return out;
     const record = exportsField as Record<string, unknown>;
-    if (typeof record.source === 'string') out.push(record.source);
-    for (const value of Object.values(record)) if (value && typeof value === 'object') collectSourcePathsFromExports(value, out);
+    if (typeof record[condition] === 'string') out.push(record[condition]);
+    for (const value of Object.values(record)) if (value && typeof value === 'object') collectCondition(value, condition, out);
     return out;
 }
 
@@ -69,11 +71,9 @@ describe('published tarballs ship type definitions, never sources', () => {
             const root = pkgDir(name);
             const manifest = readManifest(name);
 
-            // scripts/release/pack.mjs strips it: it would name a src/ the tarball does not carry,
-            // and a dangling condition fails the consumer who asks, where an absent one falls
-            // through to `types`.
+            // scripts/release/pack.mjs strips it: naming the missing src/ fails, an absent one falls through to `types`.
             it('declares no `source` export condition', () => {
-                const sourcePaths = collectSourcePathsFromExports(manifest.exports);
+                const sourcePaths = collectCondition(manifest.exports, 'source');
                 expect(sourcePaths, `${name} still declares "source": ${sourcePaths.join(', ')}`).toEqual([]);
             });
 
@@ -103,4 +103,30 @@ describe('published tarballs ship type definitions, never sources', () => {
             });
         });
     }
+});
+
+// ESM only: a CommonJS consumer loads each package through require(esm), one copy for import and require.
+// @mionjs/devtools stays import-only: its `./eslint` entry uses top-level await, which require refuses.
+const requirablePackages = [...publicPackages.filter((name) => name !== '@mionjs/devtools'), '@mionjs/bin-uws'];
+// `./drizzle` re-exports upstream drizzle-orm, an optional peer this lane does not install.
+const optionalPeerSubpaths = new Set(['./drizzle']);
+const requireFromConsumer = createRequire(resolve(consumerRoot, 'consumer.cjs'));
+
+describe('a CommonJS consumer require()s every package', () => {
+    for (const name of requirablePackages) {
+        it(name, () => {
+            const manifest = readManifest(name);
+            expect(collectCondition([manifest.exports, manifest.imports], 'require'), `${name} has a require condition`).toEqual([]);
+            for (const subpath of Object.keys(manifest.exports as object)) {
+                if (optionalPeerSubpaths.has(subpath)) continue;
+                const id = subpath === '.' ? name : `${name}/${subpath.slice(2)}`;
+                expect(() => requireFromConsumer(id), `require('${id}')`).not.toThrow();
+            }
+        });
+    }
+
+    it('type-checks a .cts consumer under module nodenext', () => {
+        const tsc = requireFromConsumer.resolve('typescript/bin/tsc');
+        execFileSync(process.execPath, [tsc, '-p', resolve(consumerRoot, 'src/cjs-consumer/tsconfig.json')], {stdio: 'pipe'});
+    });
 });

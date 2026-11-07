@@ -93,6 +93,18 @@ register('drizzle convert CLI round trip', () => {
     expect(convertTo(buildersForm, 'type')).toBe(typeForm);
   });
 
+  it('only pg: a uuid version rides the round trip, where a $type override cannot', () => {
+    const versionSource =
+      "import * as DZ from '@mionjs/drizzle-orm-pg-core';\n" +
+      "export const sessions = DZ.pgTable('sessions', {\n" +
+      "  id: DZ.uuid({version: '7', primaryKey: true}),\n" +
+      '});\n' +
+      'export type SessionsTable = typeof sessions;\n';
+    const typeForm = convertTo(versionSource, 'type');
+    expect(typeForm).toContain("  id: DZ.Uuid<{version: '7'; primaryKey: true}>;");
+    expect(convertTo(typeForm, 'builders')).toBe(versionSource);
+  });
+
   it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
     const typeForm = convertTo(BUILDERS_SOURCE, 'type');
     expect(typeForm).toContain("export type UsersTable = DZ.PgTable<'users', {");

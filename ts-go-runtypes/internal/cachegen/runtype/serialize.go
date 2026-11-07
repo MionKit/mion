@@ -12,7 +12,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -666,7 +665,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 		// Literal-symbol validation compares `.description` at runtime, the string `Symbol(<desc>)` was called
 		// with, while tsgo's symbol.Name is the BINDING identifier (e.g. `sym`). What cannot be resolved
 		// statically falls back to the binding name and fails validation gracefully rather than panicking.
-		node.Literal = map[string]any{"symbol": uniqueSymbolDescription(tsType)}
+		node.Literal = map[string]any{"symbol": uniqueSymbolDescription(cache.typeChecker, tsType)}
 		node.Flags = append(node.Flags, "symbol")
 
 	case flags&checker.TypeFlagsString != 0:
@@ -1170,21 +1169,18 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 		}
 	}
 
-	memberName := stableMemberName(symbol.Name)
+	memberName := typeid.StableMemberName(cache.typeChecker, symbol.Name)
 	member := &reflection.RunType{Name: memberName}
 	// A non-enumerable-guarded member is projected as OPTIONAL, the wire may omit it, so validators accept its
 	// absence. Mirrors typeid.memberID through the shared typeid.IsNonEnumerable, so id and projection can't
 	// drift; NonEnumerable additionally tells the emitters to gate the write on enumerability.
 	guarded := typeid.IsNonEnumerable(symbol)
-	if symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || typeid.IsTypelessPrivateSymbol(symbol) {
+	if symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || typeid.IsTypelessPrivateSymbol(symbol) || typeid.IsSetterOnly(symbol) {
 		member.Optional = true
 	}
 	member.NonEnumerable = guarded
 	member.IsSafeName = isSafeName(memberName)
 	applyMemberModifiers(member, symbol, asClass)
-	if asClass && typeid.IsAccessorMember(symbol) {
-		member.Flags = append(member.Flags, reflection.FlagAccessor)
-	}
 
 	// The member id must exist BEFORE a signature projects into it: parameters intern under
 	// `_pa_<member id>_<name>_<i>`, so an empty id collides every same-named parameter onto one node.
@@ -1208,6 +1204,15 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 			member.Kind = reflection.KindProperty
 		} else {
 			member.Kind = reflection.KindPropertySignature
+		}
+		// Twins of the same reads in typeid.memberID, past the method form.
+		member.Readonly = member.Readonly || typeid.IsGetterOnly(symbol)
+		// Stays a member on encode: missing from the JSON, a decoded plain object fails validation for its own type.
+		if typeid.IsAccessorMember(symbol) {
+			member.Flags = append(member.Flags, reflection.FlagAccessor)
+		}
+		if typeid.HasNoUsableSetter(cache.typeChecker, symbol) {
+			member.Flags = append(member.Flags, reflection.FlagAccessorNoSetter)
 		}
 		// The Optional flag IS the "undefined-permitted" signal, so the `T | undefined` wrapper is redundant;
 		// stripping it also closes a circular optional self-reference on the inner type, not on a union node.
@@ -1410,12 +1415,13 @@ func declarationPos(symbol *ast.Symbol) int {
 // uniqueSymbolDescription extracts the description argument of a `Symbol(<desc>)` call when the type is
 // `typeof <const>`, falling back to the binding name for declarations that don't resolve statically.
 // Symbol literals are validated by matching runtime `.description`, so the emit needs the constructor's string.
-func uniqueSymbolDescription(tsType *checker.Type) string {
+func uniqueSymbolDescription(typeChecker *checker.Checker, tsType *checker.Type) string {
 	symbol := tsType.Symbol()
 	if symbol == nil {
 		return ""
 	}
-	fallback := symbol.Name
+	// The platform's `Symbol.iterator` has no `Symbol()` call to read; "Symbol.iterator" is its runtime description.
+	fallback := typeid.UniqueSymbolName(typeChecker, tsType)
 	declaration := symbol.ValueDeclaration
 	if declaration == nil {
 		return fallback
@@ -1501,27 +1507,6 @@ func parseNumberLiteral(text string) any {
 		return asFloat
 	}
 	return text
-}
-
-// stableMemberName strips the checker-instance symbol id off a late-bound symbol-keyed member name
-// ("\xFE@toPrimitive@5" → "\xFE@toPrimitive"): that trailing id is an allocation counter of the checker that
-// materialized the symbol, so keeping it would leak checker identity into member names and wire ids.
-// The property INDEX in the `_pr_` scheme keeps same-name symbol members distinct within one parent.
-// Mirrored in internal/cachegen/runtype/typeid (which can't import its parent) — keep them in sync.
-func stableMemberName(name string) string {
-	if len(name) < 2 || name[0] != 0xFE || name[1] != '@' {
-		return name
-	}
-	at := strings.LastIndexByte(name, '@')
-	if at <= 1 || at == len(name)-1 {
-		return name
-	}
-	for i := at + 1; i < len(name); i++ {
-		if name[i] < '0' || name[i] > '9' {
-			return name
-		}
-	}
-	return name[:at]
 }
 
 // isSafeName reports whether name works with dot access (obj.foo) rather than brackets (obj["weird name"]),

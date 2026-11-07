@@ -29,12 +29,13 @@ export async function setup(project: TestProject): Promise<void> {
   const configFile = project.vite.config.configFile;
   if (!configFile) throw new Error(`lane server: project ${project.name} has no config file to start the server from`);
   const entry = fileURLToPath(new URL('./laneServerChild.mjs', import.meta.url));
-  const spawned = fork(entry, [configFile], {
+  // Rooted anywhere but vitest's project root, the child's and vitest's generate prune each other's genDir modules.
+  const spawned = fork(entry, [configFile, project.config.root], {
     env: {...process.env, NODE_ENV: 'test'},
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
   });
   child = spawned;
-  const port = await startedPort(spawned, project.name).catch((error: unknown) => {
+  const port = await startedPort(spawned, project.name, project.config.root).catch((error: unknown) => {
     // vitest never runs teardown for a globalSetup that threw, so the fork would outlive the run
     spawned.kill();
     child = undefined;
@@ -43,15 +44,16 @@ export async function setup(project: TestProject): Promise<void> {
   project.provide('laneServerBaseURL', `http://localhost:${port}`);
 }
 
-function startedPort(spawned: ChildProcess, name: string): Promise<number> {
+function startedPort(spawned: ChildProcess, name: string, root: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`lane server for ${name} did not start within ${START_TIMEOUT_MS}ms`)),
       START_TIMEOUT_MS
     );
-    spawned.once('message', (message: {port?: number}) => {
+    spawned.once('message', (message: {port?: number; root?: string}) => {
       clearTimeout(timer);
       if (typeof message?.port !== 'number') return reject(new Error(`lane server for ${name} sent no port`));
+      if (message.root !== root) return reject(new Error(`lane server for ${name} compiled under ${message.root}, not ${root}`));
       resolve(message.port);
     });
     spawned.once('exit', (code) => {

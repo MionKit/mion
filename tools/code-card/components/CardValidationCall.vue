@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // One route call: call, client check, server check, result; a failed client check leaves the server row empty.
+import {at} from './shared.ts';
+
 const props = withDefaults(
   defineProps<{
     /** Code, one line: the call as written in the client. */
@@ -18,8 +20,6 @@ const props = withDefaults(
 for (const key of ['call', 'client', 'server'] as const) if (!props[key].trim()) throw new Error(`CardValidationCall: needs a ${key}`);
 if (props.stopped && props.result) throw new Error('CardValidationCall: a stopped call sends nothing, so it has no result');
 
-// When each beat starts, as a fraction of the item's turn in a CardLoop.
-const at = (start: number, until?: number) => ({'--cc-at': start, ...(until === undefined ? {} : {'--cc-until': until})});
 const CALL = 0.04;
 const CLIENT = 0.22;
 const SERVER = 0.4;

@@ -13,12 +13,18 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // markerPackageRoot is the real @mionjs/run-types: its published artifact is the compiler's own contract.
 func markerPackageRoot(t *testing.T) string {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
+	// The compiler reads the package from its real path, outside the module, where Go's test cache cannot see.
+	if err := testfixtures.DeclareInputs("packages/run-types"); err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.Abs(filepath.Join(testfixtures.RepoRoot(), "packages", "run-types"))
 	if err != nil {
 		t.Fatal(err)
 	}

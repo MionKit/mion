@@ -55,10 +55,10 @@ const apiTypeTS = `type Headers = {headers: {authorization: string}};
 type MfOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
 type RouteOpts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 export type Api = {
-  auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
+  auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts & {cors: false}; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
-    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true; sync: [[id: number], {id: number; name: string}, 'json', 'json']}};
-    audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
+    getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts & {cors: false}; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true; sync: [[id: number], {id: number; name: string}, 'json', 'json']}};
+    audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts & {cors: false}; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
     remove: {type: 1; handler: (id: number) => Promise<boolean>; options: RouteOpts; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
   };
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
@@ -139,6 +139,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 		t.Fatalf("unexpected rpc-client-* diagnostics: %+v", diags)
 	}
 	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
+	assertGitIgnoredButPacked(t, apiDir)
 	files := listGenerated(t, apiDir)
 	joined := strings.Join(files, "\n")
 	for _, want := range []string{"m/users/getById.js", "m/users/audit.js", "m/auth.js", "m/sum.js", "s/users/getById.js", "s/sum.js"} {
@@ -169,7 +170,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	// a route module carries its row and the marker payload the server helper
 	// receives, with its entries imported from the mirror
 	getById := readGenerated(t, apiDir, "m/users/getById.js")
-	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middlewareIds":["auth","users/audit"]`, `"parser":{"params":"clone","return":"clone"}`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
+	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middlewareIds":["auth","users/audit"]`, `"parser":{"params":"clone","return":"clone"}`, `"cors":false`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
 		if !strings.Contains(getById, want) {
 			t.Errorf("m/users/getById.js lacks %s:\n%s", want, getById)
 		}
@@ -178,7 +179,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 		t.Errorf("a route carries no headers slot:\n%s", getById)
 	}
 	auth := readGenerated(t, apiDir, "m/auth.js")
-	for _, want := range []string{`"type":3`, "headersFns: [", "headersId: __rt_"} {
+	for _, want := range []string{`"type":3`, `"cors":false`, "headersFns: [", "headersId: __rt_"} {
 		if !strings.Contains(auth, want) {
 			t.Errorf("m/auth.js lacks %s:\n%s", want, auth)
 		}
@@ -464,10 +465,13 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if got := strings.Join(getById.Families, ","); got != "validateUnionKeys,validationErrorsUnionKeys,formatTransform,prepareForJsonClone,restoreFromJsonClone,validateUnionKeys,validationErrorsUnionKeys,prepareForJsonClone,restoreFromJsonClone" {
 		t.Errorf("getById families: %s", got)
 	}
-	if getById.Options["alwaysRun"] != false {
+	if getById.Options["alwaysRun"] != false || getById.Options["cors"] != false {
 		t.Errorf("getById options: %+v", getById.Options)
 	}
-	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddlewareIds) != 0 {
+	if audit := manifest.Methods["users/audit"]; audit.Type != 2 || audit.Options["cors"] != false {
+		t.Errorf("audit row: %+v", audit)
+	}
+	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddlewareIds) != 0 || auth.Options["cors"] != false {
 		t.Errorf("auth row: %+v", auth)
 	}
 }

@@ -12,7 +12,7 @@ Each competitor is a **standalone pnpm project**: its own `package.json` (under
 [`_deps/competitors/<name>/`](_deps/competitors/)) → its own `node_modules`, with
 its source under [`competitors/<name>/`](competitors/), its own build and its own
 `dist/run.mjs`, run as its own process
-writing [`results/<name>.json`](results/). [`aggregate.mjs`](aggregate.mjs) then
+writing `results/<name>.json`. [`aggregate.mjs`](aggregate.mjs) then
 joins those per-competitor results by case key into one comparison table.
 
 ```
@@ -34,7 +34,7 @@ This isolation is the whole point:
   only thing special about it is *build* mechanics — its validators are generated
   at build time by `@mionjs/devtools` spawning the **Go binary**, so that
   binary + the first-party packages are bind-mounted into its `node_modules` at run
-  time (see [`scripts/website/bench-data/bench.mjs`](../scripts/website/bench-data/bench.mjs) `mount_args`).
+  time (see [`scripts/website/bench-data/bench.mjs`](../../scripts/website/bench-data/bench.mjs) `mount_args`).
 
 ## Totality — a validator **or** an explicit not-supported, for every case
 
@@ -65,12 +65,11 @@ measures throughput. A builder that **throws** is a hard `errored` (a broken
 plugin rewrite for ts-go, a broken schema for the rest) — surfaced loudly, never
 hidden as not-supported.
 
-Why the competitors are not-supported on so many: JSON Schema (ajv) has no
-`bigint`, can't reject `NaN`/`Infinity`, can't validate `Date`/`Map`/`Set`/`Temporal`;
-TypeBox can't express bigint literals or `RegExp`; zod has no compile-time type
-recovery for many TS-only constructs; typia's runtime semantics diverge on a
-handful of shapes (see below). RunTypes is not-supported only on the three
-cases that are intrinsically un-validatable (bare `symbol` at a root, etc.).
+Not-supported is rare: every competitor runs 263 or more of the 272 cases. What is left is the
+cases mion itself refuses as non-data (a bare `symbol`, a `RegExp`, a `Promise`, a function root, …:
+`factoryThrows` in the shared case) and two cases with no samples. Where a library has no dedicated
+feature, its entry uses a leaf custom check doing the same work (see
+[Fair comparison rules](#fair-comparison-rules)).
 
 ## typia — wired via the tsgo transform
 
@@ -100,12 +99,11 @@ set at least that old.
 
 typia entries copy the per-case literal `T` verbatim from the ts-go competitor
 (the type must be written at the `createIs<T>()` call site, like ts-go's
-`createValidateFn<T>()`). A case is supported only when typia can express the type
-**and** its runtime semantics match the shared samples; the divergences that force
-`NOT_SUPPORTED` are documented inline in
-[`competitors/typia/cases.ts`](competitors/typia/cases.ts) — e.g. `createIs<number>()`
-accepts `NaN`/`Infinity`, `Date` is an `instanceof` check, and a string index
-signature accepts an explicit-`undefined` property value (`{a: undefined}`).
+`createValidateFn<T>()`). The plugin entry in
+[`competitors/typia/tsconfig.json`](competitors/typia/tsconfig.json) sets `finite: true`, so every
+`number` rejects `NaN`/`Infinity` like mion's. Checks typia has no tag for (a valid `Date`, a plain
+object, a cycle) are custom tags declared once at the top of
+[`competitors/typia/cases.ts`](competitors/typia/cases.ts).
 
 ## What runs where
 
@@ -152,7 +150,7 @@ timing runs on native Temporal, the same runtime the published library targets, 
 `MION_VALIDATION_BENCH_BASE_IMAGE`, forwarded to the build).
 
 **`bench:serialization`** runs the mion-only round-trip bench
-([`scripts/website/bench-data/gen-serialization.mjs`](../scripts/website/bench-data/gen-serialization.mjs))
+([`scripts/website/bench-data/gen-serialization.mjs`](../../scripts/website/bench-data/gen-serialization.mjs))
 **inside** the Node 26 container — previously it ran on the host (wrong Node /
 polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
@@ -338,6 +336,41 @@ _lib/extract-cases.mjs  shared AST extractors (typecost + compiletime consume it
 aggregate.mjs           results/*.json → comparison table + coverage; sets the exit code
 ```
 
+## Fair comparison rules
+
+mion is the reference: each competitor entry does the SAME work as mion's validator for that case, with the
+library's own features. Check every new or changed entry against these rules, reading the library source or its
+generated code when in doubt:
+
+1. **Same answer.** Accept and reject exactly the shared samples.
+2. **Same work.** The same checks mion runs, no more, no less: types, unknown keys (ignored outside STRICT,
+   never stripped or copied when the library offers a way not to), NaN / Infinity, Invalid Date, format rules,
+   bounds, cycle detection (only the CIRCULAR_REFS cases). A check the library's own type always does is its
+   built-in cost, not a violation.
+3. **Real features.** The dedicated feature when the library has one (`z.email()`, not a regex refine). A custom
+   hook (`z.custom`, `.refine`, `Type.Refine`, an ajv keyword, a typia custom tag) is fine when none fits, placed
+   at the leaf that needs it, never one hook that re-implements the whole validator.
+4. **Best real path.** Compile once inside the builder (`z.compile`, `Compile`, `ajv.compile`, `typia.createIs`);
+   the returned function only calls it and turns the result into a boolean.
+5. **All errors.** `buildErrors` collects every error, like mion: no early stop, no default error cap.
+6. **Options.** Library defaults, unless a one-line comment says why. Library-wide settings that make the
+   library match mion (TypeBox `maxErrors`, typia `finite`) are set once per competitor.
+7. **No feature, no case.** If neither a feature nor a hook can do the same work, the entry is `NOT_SUPPORTED`
+   with a one-line reason. A `NOT_SUPPORTED` the library can do is a bug.
+8. **Overrides are a last resort.** A `samples` override is kept only when the library treats a value
+   differently by design, no hook can fix it, and the kept samples are as hard to check as the shared ones.
+9. **Relative bounds stay live.** A fixed date bound may be parsed once; "now" is read on every call.
+
+How the numbers stay fair once the entries are:
+
+- **Timing.** `benchOps` reads the clock once per 1000+ calls (a clock read costs more than most validators),
+  keeps every result so the call cannot be optimized away, and compiles a fresh loop per measured stream so one
+  shared call site never slows later cases.
+- **Scores.** Every average is a geometric mean over every case at least one library runs. A library that skips
+  or fails a case scores it at the WORST result among the libraries that ran it (lowest ops, highest count), so
+  supporting a slow case only one library runs never lowers that library's score, and skipping a case never
+  helps (`container/website/app/utils/benchAggregate.js`).
+
 ## Adding competitor coverage for a case
 
 Edit the relevant `competitors/<name>/cases.ts`: change a `NOT_SUPPORTED` entry to
@@ -349,7 +382,7 @@ back to `NOT_SUPPORTED` (with a one-line reason) when the library genuinely
 diverges from RunTypes' semantics. To add a whole new competitor, copy a
 `competitors/<name>/` source folder, add its `package.json` under
 `_deps/competitors/<name>/`, write a total `cases.ts`, add a COPY+install layer
-to [`Containerfile`](Containerfile), and add it to `competitor_list()` in
+to [`container/website/Containerfile`](../website/Containerfile), and add it to `competitor_list()` in
 `scripts/website/bench-data/bench.mjs`.
 
 ## Cross-library validation alignment audit

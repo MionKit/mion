@@ -626,7 +626,7 @@ func nearestRoot(roots []string, fromDir string) string {
 // VendorDir is where a types package ships other packages' pure fns, hidden so its own artifact walk skips them.
 const VendorDir = constants.ApiTypesManifestDir + "/vendor"
 
-// PackageOfID is the owner half of an id (`@acme/text#pf_9Zt1…` → `@acme/text`); empty when not an id or nameless.
+// PackageOfID is the owner half of an id (`@acme/text:9Zt1…` → `@acme/text`); empty when not an id or nameless.
 func PackageOfID(id string) string {
 	packageName, _, ok := purefunctions.SplitID(id)
 	if !ok {

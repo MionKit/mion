@@ -70,6 +70,17 @@
           const height = Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top));
           if (height > lineHeight * 1.5) errors.push(`wraps onto a second line: ${text(el)}`);
         }
+        // Children of an `apart` box sit side by side: a long label must not run into its neighbour.
+        for (const box of card.querySelectorAll('[data-check~="apart"]')) {
+          const children = [...box.children].map((el) => [el, el.getBoundingClientRect()]);
+          children.forEach(([first, firstRect], i) =>
+            children.slice(i + 1).forEach(([other, otherRect]) => {
+              const overlaps = firstRect.right > otherRect.left + 0.5 && otherRect.right > firstRect.left + 0.5;
+              if (overlaps && firstRect.bottom > otherRect.top + 0.5 && otherRect.bottom > firstRect.top + 0.5)
+                errors.push(`runs into ${text(other)}: ${text(first)}`);
+            })
+          );
+        }
         for (const el of card.querySelectorAll('[data-check~="no-overflow"]'))
           if (el.scrollWidth > el.clientWidth + 1) errors.push(`too wide, scrolls sideways: ${text(el)}`);
         // Past the padding of its window body (which clips it) or of the card: cut off, or crowding the edge.

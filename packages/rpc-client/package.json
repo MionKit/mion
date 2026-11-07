@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/client",
-    "version": "0.13.2",
+    "version": "0.14.0",
     "type": "module",
     "sideEffects": false,
     "description": "Browser client for mion Apps.",
@@ -23,25 +23,21 @@
         ".": {
             "source": "./index.ts",
             "types": "./.dist/esm/index.d.ts",
-            "require": "./.dist/cjs/index.cjs",
             "default": "./.dist/esm/index.js"
         },
         "./middlewares": {
             "source": "./middlewares.ts",
             "types": "./.dist/esm/middlewares.d.ts",
-            "require": "./.dist/cjs/middlewares.cjs",
             "default": "./.dist/esm/middlewares.js"
         }
     },
     "imports": {
         "#metadata-from-server": {
             "source": "./src/lib/metadataFromServer.ts",
-            "require": "./.dist/cjs/src/lib/metadataFromServer.cjs",
             "default": "./.dist/esm/src/lib/metadataFromServer.js"
         },
         "#bundled-api": {
             "source": "./src/lib/bundledApi.ts",
-            "require": "./.dist/cjs/src/lib/bundledApi.cjs",
             "default": "./.dist/esm/src/lib/bundledApi.js"
         }
     },
@@ -66,7 +62,6 @@
         "dev:test": "vitest watch",
         "lint": "eslint src",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
-        "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "clean": "rimraf .dist .coverage .mion .mion",
         "fresh-start": "pnpm run clean && rimraf node_modules"
@@ -84,5 +79,8 @@
     "dependencies": {
         "@mionjs/core": "workspace:*",
         "@mionjs/run-types": "workspace:*"
+    },
+    "engines": {
+        "node": ">=24"
     }
 }

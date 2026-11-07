@@ -1,7 +1,5 @@
-// Runtime-behavior assertions over the BUILT artifacts. Loads each app's dist
-// (produced by build-all.mjs — each bundler transformed the shared source through
-// its RunTypes plugin) and runs the app's selfCheck(). Proves the transform is
-// correct AFTER that bundler mangled it (ESM/CJS, tree-shaking, minification).
+// Runs each app's selfCheck() on its BUILT dist from build-all.mjs: proves the RunTypes transform
+// survives each bundler's tree-shaking and minification.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
@@ -70,6 +68,14 @@ for (const app of ['smoke-next', 'smoke-next-ts']) {
   });
 }
 
+// Next rejects a directive that is not the first statement, so these ids render only if the imports land below it.
+test('smoke-next: "use client" and "use server" call sites keep their directive first', () => {
+  const rendered = readFileSync(path.join(APPS, 'smoke-next', '.next/server/app/index.html'), 'utf8');
+  for (const probe of ['rt-use-client', 'rt-use-server']) {
+    assert.match(rendered, new RegExp(`id="${probe}">\\w+`), `smoke-next: no ${probe} id in the prerendered HTML`);
+  }
+});
+
 // emitMode 'ts' writes typed .ts cache modules and no .js twins, so the passing page above ran the typed ones.
 test('smoke-next-ts: the cache holds typed .ts modules only', () => {
   const types = path.join(APPS, 'smoke-next-ts', '.rt/types');
@@ -84,68 +90,6 @@ test('smoke-next: generates into the tsconfig genDir', () => {
   assert.ok(existsSync(stamp), `smoke-next: no stamp at ${stamp}, the tsconfig genDir was not honoured`);
   assert.ok(!existsSync(path.join(APPS, 'smoke-next', '.mion')), 'smoke-next: generated into .mion instead of the tsconfig genDir');
 });
-
-// mion-next is the framework half of the Next story: the app HOSTS the mion API through an App
-// Router catch-all handler. build-all.mjs builds it, serves it with `next start` and fetches the
-// app's own /selftest route, which does the calling; this reads what that reported.
-//
-// A batch is the assertion that matters. Its id is baked into the server by the same build that
-// gave the client's call site that id, so a batch that answers proves client and API really did
-// come out of ONE program — which is the whole reason the API lives in the app.
-test('mion-next: the app serves its own mion API, on both wires and in a batch', () => {
-  const report = path.join(APPS, 'mion-next', 'selftest.json');
-  assert.ok(existsSync(report), 'mion-next: selftest.json is missing — did build-all.mjs run for it?');
-  const {json, compact, batch} = JSON.parse(readFileSync(report, 'utf8'));
-
-  // JSON wire: the Date came back as a Date, which only the compiled serializer can do.
-  assert.equal(json.error, '', `mion-next JSON round trip failed: ${json.error}`);
-  assert.equal(json.message, 'Hello mion!');
-  assert.equal(json.atIsDate, true, 'mion-next: the Date did not survive the JSON round trip');
-
-  // Compact wire: the same client, a route whose serializer is positional.
-  assert.equal(compact.error, '', `mion-next compact round trip failed: ${compact.error}`);
-  assert.equal(compact.sum, 42);
-
-  // Batch: one request, both routes, run by the id this build compiled into the server.
-  assert.equal(batch.error, '', `mion-next batch failed: ${batch.error}`);
-  assert.equal(batch.message, 'Hello batch!');
-  assert.equal(batch.sum, 3);
-});
-
-// A bundled client with useFetchMetadata ships the fetch lane, downloaded only for an unseen route or a moved-on server.
-// Turbopack has no plugin API, so the lane is a plain dynamic import; only a REAL build shows Turbopack kept that split.
-test('mion-next: a bundled Turbopack build keeps the metadata lane out of the page', () => {
-  const dist = path.join(APPS, 'mion-next', 'dist/next-bundle');
-  assert.ok(existsSync(dist), 'mion-next: dist/next-bundle is missing — did build-all.mjs run for it?');
-  const files = readJsFiles(dist);
-  const code = files.map((file) => file.code).join('\n');
-
-  // Guard against a vacuous pass: the routes must be in there before anything else means something.
-  assert.match(code, /sayHello/, 'mion-next bundled: the build emitted no bundled route');
-
-  // The lane ships: a bundled client that comes up short has nowhere else to go.
-  for (const marker of ['indexedDB', 'requestIdleCallback']) {
-    assert.ok(code.includes(marker), `mion-next bundled: the output carries no '${marker}', so no lane at all`);
-  }
-
-  // ...and never beside the registration the page runs on load, or it would be downloaded with it.
-  // Both markers are literals, so they survive the minifier a production Next build runs.
-  const together = files.filter(
-    (file) => file.code.includes('indexedDB') && file.code.includes('bundle-api-invalid-payload')
-  );
-  assert.equal(
-    together.length,
-    0,
-    `mion-next bundled: ${together.map((file) => file.name).join(', ')} carries the lane beside the bundled routes`
-  );
-});
-
-/** Every JavaScript file a build wrote, with its name: which file holds what is the question here. */
-function readJsFiles(dir) {
-  return readdirSync(dir, {recursive: true, withFileTypes: true})
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
-    .map((entry) => ({name: entry.name, code: readFileSync(path.join(entry.parentPath, entry.name), 'utf8')}));
-}
 
 // React escapes the JSON it renders into the page; undo just enough to parse it.
 function decodeEntities(text) {

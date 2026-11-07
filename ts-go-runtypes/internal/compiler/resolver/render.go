@@ -44,6 +44,7 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 		// cannot run.
 		JSEngine:           sess.opts.JSEngine,
 		PatternSampleCount: sess.opts.PatternSampleCount,
+		MaxUnknownKeys:     sess.opts.MaxUnknownKeys,
 		PatternGenFailures: sess.patternGenFailures,
 		RefTable:           sess.fullRefTable(),
 		// One predicate memo per dispatch, shared by every family collect: the predicates are emitter-independent.

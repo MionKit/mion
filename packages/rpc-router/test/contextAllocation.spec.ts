@@ -71,10 +71,10 @@ describe('shared data', () => {
     expect(newContext('/echo').shared).not.toBe(newContext('/echo').shared);
   });
 
-  it('a configured contextDataFactory runs exactly once per request', () => {
+  it('a configured sharedDataFactory runs exactly once per request', () => {
     let calls = 0;
     const mion = createMionRouter({
-      contextDataFactory: () => {
+      sharedDataFactory: (): {user: null} => {
         calls++;
         return {user: null};
       },

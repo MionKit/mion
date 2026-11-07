@@ -8,6 +8,7 @@ package marker
 import (
 	"encoding/json"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -827,7 +828,7 @@ func lookupPackageUpward(dir string, fs vfspkg.FS) (name, rootDir string) {
 			var pkg struct {
 				Name string `json:"name"`
 			}
-			if err := json.Unmarshal([]byte(content), &pkg); err == nil {
+			if err := json.Unmarshal([]byte(content), &pkg); err == nil && isValidPackageName(pkg.Name) {
 				return pkg.Name, current
 			}
 			return "", current
@@ -838,6 +839,14 @@ func lookupPackageUpward(dir string, fs vfspkg.FS) (name, rootDir string) {
 		}
 		current = parent
 	}
+}
+
+// npmPackageName is npm's name rule, legacy uppercase allowed: the name becomes a path segment of generated modules.
+var npmPackageName = regexp.MustCompile(`^(?i)(@[a-z0-9~-][a-z0-9._~-]*/)?[a-z0-9~-][a-z0-9._~-]*$`)
+
+// isValidPackageName rejects a name npm could never publish (`/abs/path`, `../x`); such a package counts as nameless.
+func isValidPackageName(name string) bool {
+	return len(name) <= 214 && npmPackageName.MatchString(name)
 }
 
 // readPackageJSON reads path through fs when non-nil, otherwise os.ReadFile; ok is false when the

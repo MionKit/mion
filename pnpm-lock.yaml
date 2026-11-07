@@ -77,6 +77,9 @@ importers:
       oxlint-tsgolint:
         specifier: 7.0.2001
         version: 7.0.2001
+      playwright:
+        specifier: 1.63.0-alpha-2026-08-31
+        version: 1.63.0-alpha-2026-08-31
       prettier:
         specifier: 3.8.2
         version: 3.8.2
@@ -169,15 +172,9 @@ importers:
 
   packages/platform-bun:
     dependencies:
-      '@mionjs/bin-compiler':
-        specifier: workspace:*
-        version: link:../bin-compiler
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
-      '@mionjs/devtools':
-        specifier: workspace:*
-        version: link:../devtools
       '@mionjs/router':
         specifier: workspace:*
         version: link:../rpc-router

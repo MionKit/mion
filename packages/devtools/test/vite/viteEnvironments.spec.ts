@@ -9,7 +9,7 @@ import {describe, expect, it, beforeEach, afterEach} from 'vitest';
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {createBuilder} from 'vite';
+import {createBuilder, createServer, type InlineConfig} from 'vite';
 
 /** `createBuilder` as the `vite build` CLI calls it: the second argument is `null`, so the config's
  *  own `builder` block is what decides between the app build and the legacy single-environment one.
@@ -132,14 +132,17 @@ register('one config, two bundles', () => {
     };
   }
 
-  /** Runs the whole app build exactly as the `vite build` CLI does. */
-  async function buildApp(
+  /** `extra` keys replace the default keys whole, not merged into them. */
+  function appConfig(
     binary: string,
-    serverOutDir?: string,
-    entry = path.join(root, 'src', 'server.ts'),
-    rootFromPlugin = false
-  ): Promise<void> {
-    const builder = await createBuilderLikeCli({
+    extra: InlineConfig = {},
+    {
+      serverOutDir,
+      entry = path.join(root, 'src', 'server.ts'),
+      rootFromPlugin = false,
+    }: {serverOutDir?: string; entry?: string; rootFromPlugin?: boolean} = {}
+  ): InlineConfig {
+    return {
       root: rootFromPlugin ? undefined : root,
       configFile: false,
       logLevel: 'silent',
@@ -159,7 +162,18 @@ register('one config, two bundles', () => {
         ...(rootFromPlugin ? [{name: 'late-root', config: () => ({root})}] : []),
       ],
       build: {minify: false},
-    });
+      ...extra,
+    };
+  }
+
+  /** Runs the whole app build exactly as the `vite build` CLI does. */
+  async function buildApp(
+    binary: string,
+    serverOutDir?: string,
+    entry = path.join(root, 'src', 'server.ts'),
+    rootFromPlugin = false
+  ): Promise<void> {
+    const builder = await createBuilderLikeCli(appConfig(binary, {}, {serverOutDir, entry, rootFromPlugin}));
     await builder.buildApp();
   }
 
@@ -251,6 +265,49 @@ register('one config, two bundles', () => {
     await buildApp(binary, 'dist-api');
     expect(existsSync(path.join(root, 'dist-api'))).toBe(true);
     expect(existsSync(path.join(root, 'dist-server'))).toBe(false);
+  });
+
+  it('keeps the static folder out of the server bundle', async () => {
+    mkdirSync(path.join(root, 'public'));
+    writeFileSync(path.join(root, 'public', 'robots.txt'), 'User-agent: *\n');
+    const {binary} = countingBinary();
+    await buildApp(binary);
+    expect(existsSync(path.join(root, 'dist', 'robots.txt'))).toBe(true);
+    expect(existsSync(path.join(root, 'dist-server', 'robots.txt'))).toBe(false);
+  });
+
+  it.each([
+    ['rollupOptions', (input: string) => ({rollupOptions: {input}})],
+    ['rolldownOptions', (input: string) => ({rolldownOptions: {input}})],
+    ['ssr', (input: string) => ({ssr: input})],
+  ])('fails instead of replacing an ssr input the config set through %s', async (_key, ssrBuild) => {
+    const {binary} = countingBinary();
+    const config = appConfig(binary, {environments: {ssr: {build: ssrBuild(path.join(root, 'src', 'audit.ts'))}}});
+    await expect(createBuilderLikeCli(config)).rejects.toThrow(
+      /server\.build would replace the ssr environment's input .*audit\.ts/
+    );
+    expect(existsSync(path.join(root, 'dist-server'))).toBe(false);
+  });
+
+  it('builds when the ssr environment is marked ssr without naming an entry', async () => {
+    const {binary} = countingBinary();
+    const builder = await createBuilderLikeCli(appConfig(binary, {environments: {ssr: {build: {ssr: true}}}}));
+    await builder.buildApp();
+    expect(readFileSync(serverBundleIn(path.join(root, 'dist-server')), 'utf8')).toContain('__serverRan');
+  });
+
+  it('fails instead of replacing a server bundle this run already builds', async () => {
+    const {binary} = countingBinary();
+    const config = appConfig(binary, {build: {ssr: path.join(root, 'src', 'audit.ts')}});
+    await expect(createBuilderLikeCli(config)).rejects.toThrow(/server\.build cannot run in an SSR build/);
+  });
+
+  it('still starts the dev server when the config builds a server bundle of its own', async () => {
+    const {binary} = countingBinary();
+    const server = await createServer(
+      appConfig(binary, {server: {middlewareMode: true}, build: {ssr: path.join(root, 'src', 'audit.ts')}})
+    );
+    await server.close();
   });
 
   it('leaves a build alone when server.build is not set', async () => {

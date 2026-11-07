@@ -14,6 +14,7 @@ import {
   missedInputs,
   moduleGraph,
   parseCli,
+  withoutProjects,
   passRecorder,
   projectSalt,
   recordPass,
@@ -225,7 +226,24 @@ describe('test-skip — the audit on main', () => {
 describe('test-skip — the command line', () => {
   it('takes repeatable projects and excludes, and leaves the rest as filters', () => {
     const cli = parseCli(['--project', 'core', '--project', 'router', '--exclude', '**/fuzz/**', 'errors']);
-    expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], excludes: ['**/fuzz/**']});
+    expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], skipProjects: [], excludes: ['**/fuzz/**']});
+  });
+
+  it('splits the specs into the skipped projects and the rest, losing none', () => {
+    const specs = ['a', 'b', 'a', 'c'].map((name, at) => ({project: {name}, moduleId: `f${at}`}));
+    const rest = withoutProjects(specs, ['a']);
+    const skipped = specs.filter((spec) => !rest.includes(spec));
+    expect(rest.map((spec: {moduleId: string}) => spec.moduleId)).toEqual(['f1', 'f3']);
+    expect(skipped.map((spec) => spec.moduleId)).toEqual(['f0', 'f2']);
+    expect(withoutProjects(specs, [])).toEqual(specs);
+  });
+
+  it('takes repeatable --skip-project names, and refuses one that names no vitest project', () => {
+    expect(parseCli(['--skip-project', 'client', '--skip-project', 'client-bundled']).scope.skipProjects).toEqual([
+      'client',
+      'client-bundled',
+    ]);
+    expect(() => parseCli(['--skip-project', 'no-such-project'])).toThrow(/names no vitest project: no-such-project/);
   });
 
   it('turns the audit on with --audit, and leaves it off by default', () => {

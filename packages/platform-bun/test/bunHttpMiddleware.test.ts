@@ -19,7 +19,7 @@ setDefaultTimeout(30_000);
 describe('bun asMiddleware should', () => {
   type SimpleUser = {name: string; surname: string};
   type Context = CallContext<ReturnType<typeof getSharedData>>;
-  const getSharedData = () => ({auth: {me: null as any}});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
 
   let host: Server<any> | undefined;
 
@@ -28,7 +28,10 @@ describe('bun asMiddleware should', () => {
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
-    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const mion = createMionRouter({
+      sharedDataFactory: getSharedData,
+      basePath: 'api/',
+    });
     const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
       return {name: 'NewName', surname: user.surname};
     });

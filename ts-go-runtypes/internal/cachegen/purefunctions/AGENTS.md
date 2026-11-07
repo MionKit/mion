@@ -2,7 +2,9 @@
 
 Read before changing what a pure fn id is made of.
 
-- Shape: `<package name>#pf_<hash of the body as it ships>`, e.g. `@mionjs/run-types#pf_Kq3f_xN9pQ2wLd`.
+- Shape: `<package name>:<hash of the body as it ships>`, e.g. `@acme/text:Kq3f_xN9pQ`.
+- `@mionjs/run-types` is spelled `_rt` (`_rt:Kq3f_xN9pQ`): every emitted body names its built-ins.
+  npm forbids a leading `_`, so no real package claims it. `SplitID` maps it back.
 - Hashed body = the one that SHIPS: every dep reference already lowered to that dep's own id (`deps.go`, `lowerings`).
 - So computing an id IS producing the cache entry.
 - Cost: a registration cannot be hashed before the registrations it reaches (dependency ordering).

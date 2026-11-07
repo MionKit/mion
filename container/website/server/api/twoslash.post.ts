@@ -4,7 +4,7 @@ import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@s
 // which re-exports its own `createTwoslasher`. Functionally identical for non-Vue code.
 import { createTwoslasher } from 'twoslash-vue'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, relative, resolve, dirname, sep } from 'path'
+import { join, relative, resolve, dirname } from 'path'
 import { createRequire } from 'module'
 import { getRepoRoot, resolveInPackages } from '../utils/repo-root'
 
@@ -130,18 +130,13 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
   return files
 }
 
-/**
- * The built `.d.ts` a package's own package.json names as its `.` types entry, absolute.
- * Reads the three spellings the workspace uses: a plain `exports['.'].types`, the
- * conditional `exports['.'].import.types` (@mionjs/run-types), and a top-level `types`.
- * Undefined when the manifest names none. Mirrored by repo-contracts.test.ts.
- */
+/** Mirrored by declaredTypes() in repo-contracts.test.ts. */
 function typesEntry(pkgDir: string): string | undefined {
   const manifestPath = join(pkgDir, 'package.json')
   if (!existsSync(manifestPath)) return undefined
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
   const root = manifest.exports?.['.']
-  const declared: unknown = typeof root === 'string' ? root : (root?.types ?? root?.import?.types ?? manifest.types)
+  const declared: unknown = typeof root === 'string' ? root : (root?.types ?? manifest.types)
   if (typeof declared !== 'string' || !declared.endsWith('.d.ts')) return undefined
   return resolve(pkgDir, declared)
 }
@@ -222,18 +217,13 @@ function loadPackageTypes(): Map<string, string> {
       continue
     }
     const pkgDistDir = dirname(entry)
-    // dist/cjs/ is the CommonJS twin of the same declarations, mounting it would
-    // double the VFS for no added resolution, so keep only the ESM tree.
-    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/).filter(
-      (file) => !relative(pkgDistDir, file).startsWith('cjs' + sep),
-    )
+    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/)
     if (dtsFiles.length === 0) {
       console.warn(`[twoslash] ${pkg.name}: no .d.ts under ${relative(repoRoot, pkgDistDir)} (not built?), not mounted`)
       continue
     }
 
-    // Synthetic package.json so TS's Node resolver finds the entry (and subpath
-    // exports like `@mionjs/run-types/formats`) for bare imports in examples.
+    // Synthetic package.json so TS resolves an example's bare import to the entry.
     const entryFile = relative(pkgDistDir, entry)
     fsMap.set(
       `/node_modules/${pkg.name}/package.json`,
@@ -241,17 +231,12 @@ function loadPackageTypes(): Map<string, string> {
     )
 
     for (const dtsFile of dtsFiles) {
-      // Get relative path from dist directory
       const relativePath = relative(pkgDistDir, dtsFile)
-      // Create virtual node_modules path
       const virtualPath = `/node_modules/${pkg.name}/${relativePath}`
 
       try {
         let content = readFileSync(dtsFile, 'utf-8')
-        // Strip .ts extensions from imports so TypeScript resolves to .d.ts files.
-        // Our .d.ts files carry .ts extensions (e.g. `from './types.ts'`, the
-        // source spelling tsc preserves) but the VFS only has .d.ts files.
-        // Extensionless imports let TS find them.
+        // Our .d.ts files import `./types.ts` (tsc keeps the source spelling), but the VFS holds only .d.ts.
         content = content.replace(/(from\s+['"])([^'"]+)\.ts(['"])/g, '$1$2$3')
         fsMap.set(virtualPath, content)
       } catch (e) {

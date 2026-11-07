@@ -11,7 +11,7 @@
 
 import {isColModName} from './columns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
-import type {AnyTableRef, BuildTableFn, ReflectedNode, TableFromTypeOptions} from './types.ts';
+import type {AnyTableRef, BuildTableFn, ColumnShortcuts, ReflectedNode, TableFromTypeOptions} from './types.ts';
 import {createRtTable} from './table.ts';
 
 /** The kind discriminators the walker dispatches on. Local on purpose (no runtime @mionjs/run-types
@@ -96,7 +96,8 @@ function buildColumn(
   key: string,
   dbName: string | undefined,
   options: TableFromTypeOptions | undefined,
-  consumedRuntime: Set<string>
+  consumedRuntime: Set<string>,
+  shortcutsByFn: Readonly<Record<string, ColumnShortcuts>> | undefined
 ): RtColumnRecorder {
   const spec = memberNamed(columnNode, '@rtColSpecKey')?.child;
   if (!spec) fail(`column "${key}" carries no column spec, use the dialect column types (Text, Integer, ...)`);
@@ -105,12 +106,14 @@ function buildColumn(
   if (typeof fn !== 'string') fail(`column "${key}" spec has no builder fn literal`);
   if (fn === 'enum' || fn === 'custom')
     fail(`column "${key}" is a ${fn} column, which needs its runtime handle: declare it with the builders`);
+  const shortcuts = shortcutsByFn?.[fn];
   const configMembers = membersOf(plainMember(spec, 'config')?.child);
   const config: Record<string, unknown> = {};
   for (const member of configMembers) {
     if (typeof member.name !== 'string' || member.child === undefined) fail(`column "${key}" config has a malformed member`);
     // Modifier keys are skipped BEFORE reading a value: $type carries a type with no literal value.
-    if (!isColModName(member.name)) config[member.name] = literalValueOf(member.child, `${key}.${member.name}`);
+    if (!isColModName(member.name) && !shortcuts?.[member.name])
+      config[member.name] = literalValueOf(member.child, `${key}.${member.name}`);
   }
   const args: unknown[] = [];
   if (dbName !== undefined) args.push(dbName);
@@ -118,6 +121,15 @@ function buildColumn(
   const recorder = new RtColumnRecorder((context) => context.ns[fn](...(args as never[])));
   for (const member of configMembers) {
     const method = member.name as string;
+    const shortcut = shortcuts?.[method];
+    if (shortcut) {
+      const [shortcutMethod, shortcutArgs] = shortcut(
+        literalValueOf(member.child as ReflectedNode, `${key}.${method}`),
+        configMembers.map((configMember) => configMember.name as string)
+      );
+      recorder.record(shortcutMethod, [...shortcutArgs]);
+      continue;
+    }
     if (!isColModName(method) || method === '$type') continue;
     if (runtimeModMethods.has(method)) {
       const callback = options?.runtime?.[key]?.[method as '$default'];
@@ -202,7 +214,8 @@ export function buildRtTableFromGraph(
   graph: ReflectedNode,
   buildTable: BuildTableFn,
   options?: TableFromTypeOptions,
-  expectedDialect?: string
+  expectedDialect?: string,
+  shortcutsByFn?: Readonly<Record<string, ColumnShortcuts>>
 ): object {
   const brandMember = memberNamed(graph, '@rtTableBrand');
   if (!brandMember)
@@ -223,7 +236,7 @@ export function buildRtTableFromGraph(
     const key = columnMember.name;
     if (typeof key !== 'string' || columnMember.child === undefined) continue;
     // Never keyless: drizzle caches keyless column names once per table name, so a second table with that name misses its own.
-    columns[key] = buildColumn(columnMember.child, key, names[key] ?? key, options, consumedRuntime);
+    columns[key] = buildColumn(columnMember.child, key, names[key] ?? key, options, consumedRuntime, shortcutsByFn);
   }
   for (const [key, callbacks] of Object.entries(options?.runtime ?? {})) {
     for (const [method, callback] of Object.entries(callbacks ?? {})) {
@@ -259,13 +272,14 @@ export function rtTableFromRunType(
   runType: ReflectedNode,
   buildTable: BuildTableFn,
   dialect: string,
-  options?: TableFromTypeOptions
+  options?: TableFromTypeOptions,
+  shortcutsByFn?: Readonly<Record<string, ColumnShortcuts>>
 ): object {
-  if (options !== undefined) return buildRtTableFromGraph(runType, buildTable, options, dialect);
+  if (options !== undefined) return buildRtTableFromGraph(runType, buildTable, options, dialect, shortcutsByFn);
   const cacheKey = `${dialect}:${runType.id}`;
   let slimTable = fromTypeTables.get(cacheKey);
   if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType, buildTable, undefined, dialect);
+    slimTable = buildRtTableFromGraph(runType, buildTable, undefined, dialect, shortcutsByFn);
     fromTypeTables.set(cacheKey, slimTable);
   }
   return slimTable;

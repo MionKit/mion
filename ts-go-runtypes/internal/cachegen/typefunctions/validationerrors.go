@@ -180,8 +180,8 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 	return base
 }
 
-// wrapFormatCheckPath pushes this node's static access-path segments onto the runtime `pth` around the check, then splices
-// them off. Format errors snapshot the path as `[...pth]` (formats.FormatErrCall), so without this a failure at a property,
+// wrapFormatCheckPath pushes this node's static access-path segments onto the runtime `pth` around the check, then pops
+// them off. Format errors snapshot the path as `pth.slice()` (formats.FormatErrCall), so without this a failure at a property,
 // array element or map entry would report `path: []`. An empty access path (a root-position format) is left unchanged.
 func wrapFormatCheckPath(ctx *EmitContext, check string) string {
 	pathLen := ctx.AccessPathLength("")
@@ -191,7 +191,7 @@ func wrapFormatCheckPath(ctx *EmitContext, check string) string {
 	pathLit := ctx.AccessPathLiteral("")
 	pthArg := ctx.ArgName("pλth")
 	pushArgs := pathLit[1 : len(pathLit)-1] // strip the surrounding `[` … `]`
-	return pthArg + ".push(" + pushArgs + ");" + check + ";" + pthArg + ".splice(-" + strconv.Itoa(pathLen) + ")"
+	return pthArg + ".push(" + pushArgs + ");" + check + ";" + popPath(pthArg, pathLen, ";")
 }
 
 // baseKindGuard returns an expression that is true when vλl matches the base kind, gating format-specific error checks so
@@ -438,8 +438,17 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 }
 
 // EmitDependencyCall returns the call into a pre-rendered child validationErrors entry, wrapped in a
-// `pth.push(...) ; <call> ; pth.splice(-N)` envelope so the child's errors carry the right access-path prefix.
+// `pth.push(...) , <call> , pth.pop()…` envelope so the child's errors carry the right access-path prefix.
+// An override child gets its own copy of the path instead: user code may keep the array, and the live one is reused.
 func (ValidationErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
+	if ctx.walker.OverrideOpKey != "" && rt.Overrides[ctx.walker.OverrideOpKey] != "" {
+		pthArg := ctx.ArgName("pλth")
+		ownPath := pthArg + ".slice()"
+		if pathLit := ctx.AccessPathLiteral(""); pathLit != "" {
+			ownPath = pthArg + ".concat(" + pathLit + ")"
+		}
+		return ctx.emitDepCall(childID, ctx.Vλl+","+ownPath+","+ctx.ArgName("εrr"), "")
+	}
 	return ctx.emitPathTrackedDepCall(childID)
 }
 
@@ -554,17 +563,13 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 
 	// Runs AFTER the property errors, inside the `else` where `v` is a non-null object, so entries interleave per node.
 	// emitsUnknownKeyCheck decides, the same call emitObjectValidate makes.
-	unknownKeyErrors := ""
+	unknownKeyPrologue, unknownKeyErrors := "", ""
 	if emitsUnknownKeyCheck(rt, ctx, nil) {
-		// Arrays excluded HERE and nowhere else in this family. emitObjectValidate's `&&` chain short-circuits on a failed property
-		// check, so it never reaches the key scan on an array; this family reports everything instead of stopping at the first
-		// failure, and would list an array's indices as undeclared keys.
-		// The shapes where no property check stops an array carry the `[object Object]` brand guard in objectCheck above.
-		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
-			unknownKeyErrors = guardStatement("!Array.isArray("+v+")", keyErrors)
-		}
+		// No array skip: an array with every declared prop passes the property checks and the validator rejects its indices,
+		// so skipping it here would leave a rejected value with no errors.
+		unknownKeyPrologue, unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx, expected)
 	}
-	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
+	bodyCode := joinSemicolons(unknownKeyPrologue, childrenCode, unknownKeyErrors)
 
 	if bodyCode == "" {
 		// No contributing children — emit only the shape guard.
@@ -790,7 +795,7 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		}
 		if keyRT.Code != "" {
 			inner.WriteString(keyRT.Code)
-			// A dep-call envelope ends in `(pth.push(...), <call>, pth.splice(-1))`, a parenthesised comma expression with no trailing
+			// A dep-call envelope ends in `(pth.push(...), <call>, pth.pop())`, a parenthesised comma expression with no trailing
 			// semicolon, so the next `const val0 = …` would lex as `(expr)const`. Append `;` for any non-terminator-ending key code.
 			if last := keyRT.Code[len(keyRT.Code)-1]; last != ';' && last != '}' {
 				inner.WriteString(";")

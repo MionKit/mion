@@ -71,7 +71,7 @@ const (
 	flagsDeclareNamedTypes printFlags = 1 << iota
 	// flagsDeclareUniqueSymbols prints a symbol key as `[name]` with a declared unique symbol.
 	flagsDeclareUniqueSymbols
-	// flagsNonEnumerableTag prints @nonEnumerable as a JSDoc tag instead of refusing the member.
+	// flagsNonEnumerableTag prints @nonEnumerable, and an accessor outside a class, as a JSDoc tag instead of refusing the member.
 	flagsNonEnumerableTag
 	// flagsSortMembers prints members sorted by name, since merged declarations bind in file order.
 	flagsSortMembers
@@ -570,7 +570,7 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("format family %q is not convertible yet (see https://mion.pages.dev/runtypes/tooling/source-conversion)", name)}
+		Message: fmt.Sprintf("format family %q is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", name)}
 }
 
 // tupleShape is a tuple node partitioned into the three builder positions, in validated order:
@@ -826,8 +826,10 @@ type objectMember struct {
 	// modifiers, accessor, field and typeless are class members' own (TypeScript's addClassModifiers).
 	modifiers string
 	accessor  bool
-	field     bool
-	typeless  bool
+	// accessorTag is the JSDoc tag for an accessor `get` / `set` cannot spell.
+	accessorTag string
+	field       bool
+	typeless    bool
 }
 
 // indexSignature is one `[key: K]: V` member.
@@ -844,6 +846,7 @@ type indexSignature struct {
 func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, []indexSignature, *Diagnostic) {
 	var members []*objectMember
 	var indexes []indexSignature
+	inClass := node.Kind == reflection.KindClass
 	for _, memberRef := range node.Children {
 		member := ctx.deref(memberRef)
 		if member == nil {
@@ -878,6 +881,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		if keyDiag != nil && member.Kind != reflection.KindCallSignature {
 			return nil, nil, keyDiag
 		}
+		accessor := hasFlag(member, reflection.FlagAccessor)
 		switch member.Kind {
 		case reflection.KindCallSignature:
 			members = append(members, &objectMember{signatureNode: member, callSignature: true})
@@ -895,15 +899,22 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			})
 			continue
 		case reflection.KindPropertySignature, reflection.KindProperty:
+			if accessor && !inClass && ctx.flags&(flagsNonEnumerableTag|flagsDataOnly) == 0 {
+				// Same reason as @nonEnumerable: a copy of a class accessor folds into the id with no builder spelling.
+				return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+					Message: fmt.Sprintf("member %q is a class getter or setter, which has no conversion spelling yet", member.Name)}
+			}
 		default:
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see https://mion.pages.dev/runtypes/tooling/source-conversion)", member.Name, kindLabel(member.Kind))}
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", member.Name, kindLabel(member.Kind))}
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
 			return nil, nil, unsupportedDiag(node, ctx.decl)
 		}
 		dataOnly := ctx.flags&flagsDataOnly != 0
+		// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
+		typeless := member.Visibility != nil && *member.Visibility == reflection.VisibilityPrivate && child.Kind == reflection.KindAny
 		members = append(members, &objectMember{
 			name: member.Name,
 			key:  key,
@@ -913,9 +924,10 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			nonEnumerable: member.NonEnumerable && !dataOnly,
 			child:         child,
 			modifiers:     classModifiers(member),
-			accessor:      hasFlag(member, reflection.FlagAccessor),
-			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
-			typeless: member.Visibility != nil && *member.Visibility == reflection.VisibilityPrivate && child.Kind == reflection.KindAny,
+			// Only a class spells `get` / `set`: a mapped copy can be optional, which an accessor cannot.
+			accessor:    inClass && accessor,
+			accessorTag: accessorTag(member, inClass && !typeless, dataOnly),
+			typeless:    typeless,
 		})
 	}
 	if ctx.flags&flagsSortMembers != 0 {
@@ -976,6 +988,21 @@ func hasSignatureMembers(members []*objectMember) bool {
 	return false
 }
 
+// accessorTag names the tag keeping a member's id: a copy outside a class, a typeless member, a setter of another type.
+// spelled: the member prints `get` / `set`.
+func accessorTag(member *reflection.RunType, spelled, dataOnly bool) string {
+	noSetter := hasFlag(member, reflection.FlagAccessorNoSetter)
+	switch {
+	case dataOnly || !hasFlag(member, reflection.FlagAccessor):
+		return ""
+	case spelled && (!noSetter || member.Readonly || member.Optional):
+		return ""
+	case noSetter:
+		return reflection.FlagAccessorNoSetter
+	}
+	return reflection.FlagAccessor
+}
+
 // hasFlag reports whether the node carries the given free-form flag marker.
 func hasFlag(node *reflection.RunType, flag string) bool {
 	for _, candidate := range node.Flags {
@@ -989,7 +1016,7 @@ func hasFlag(node *reflection.RunType, flag string) bool {
 // unsupportedDiag reports a kind outside the current printer coverage.
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("%s is not convertible yet (see https://mion.pages.dev/runtypes/tooling/source-conversion)", kindLabel(node.Kind))}
+		Message: fmt.Sprintf("%s is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", kindLabel(node.Kind))}
 }
 
 // isNonDataMember reports a member DataOnly<T> drops: a method or call signature, a symbol key, a non-public member, or a

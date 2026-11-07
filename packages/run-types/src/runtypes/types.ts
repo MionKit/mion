@@ -26,7 +26,7 @@ export type PureFunction = (...args: any[]) => any;
 export type PureFunctionFactory = (rtUtils: RTUtils) => PureFunction;
 
 export interface PureFunctionData {
-  /** Package plus shipped-body hash (`@acme/text#pf_Kq3f_xN9pQ2wLd`), computed by the build; the cache key. */
+  /** Package plus shipped-body hash (`@acme/text:Kq3f_xN9pQ`), computed by the build; the cache key. */
   readonly id: string;
   readonly paramNames: string[];
   /** The factory body string: present in `code`/`both` emit modes, undefined in `functions` mode where the live

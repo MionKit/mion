@@ -12,7 +12,7 @@
 // itself from a real type-check scan, so it cannot accept the SYNTHETIC sites the
 // fixtures pin (fabricated typeIds, multi-fn binding arrays, hand-authored pure-fn
 // replacements). Those synthetic inputs feed the lower-level entry point
-// sourcerewrite.Apply(file, source, sites, replacements) directly — the same
+// sourcerewrite.Apply(file, source, prologueEnd, sites, replacements) directly — the same
 // function the tests exercise — so this generator calls Apply directly. No binary,
 // no JS, no type-checking.
 //
@@ -257,7 +257,7 @@ func buildFixture(name string, gc fixtureCase) fixture {
 	if replacements == nil {
 		replacements = []protocol.Replacement{}
 	}
-	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, sites, replacements)
+	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, 0, sites, replacements)
 	return fixture{
 		Name:         name,
 		File:         gc.file,

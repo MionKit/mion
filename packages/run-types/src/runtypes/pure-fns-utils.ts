@@ -41,8 +41,8 @@ interface RTValidationError {
 declare const Bun: unknown;
 
 export const getUnknownKeysFromArray = registerPureFnFactory(function () {
-  const MAX_UNKNOWN_KEYS = 10;
-  return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
+  // Stops one key past `max`, so a huge body stays cheap and the extra key tells the caller more were cut.
+  return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[], max: number): StrNumber[] {
     const unknownKeys: StrNumber[] = [];
     for (const prop in obj) {
       let found = false;
@@ -54,7 +54,7 @@ export const getUnknownKeysFromArray = registerPureFnFactory(function () {
       }
       if (!found) {
         unknownKeys.push(prop as string);
-        if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
+        if (unknownKeys.length > max) break;
       }
     }
     return unknownKeys;
@@ -197,13 +197,9 @@ export const uniqueMapEntries = registerPureFnFactory(function (utl: RTUtils) {
 }, uniqueMapEntriesId);
 
 export const newRunTypeErr = registerPureFnFactory(function () {
-  return function _err(
-    pλth: readonly StrNumber[],
-    εrr: RTValidationError[],
-    expected: string,
-    accessPath?: readonly StrNumber[]
-  ): void {
-    const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+  return function _err(pλth: readonly StrNumber[], εrr: RTValidationError[], expected: string, accessPath?: StrNumber[]): void {
+    // accessPath is a fresh literal per call site evaluation, so it can be handed over when pλth adds nothing; pλth never can.
+    const path = accessPath === undefined ? pλth.slice() : pλth.length === 0 ? accessPath : pλth.concat(accessPath);
     const runTypeErr: RTValidationError = {expected, path};
     εrr.push(runTypeErr);
   };

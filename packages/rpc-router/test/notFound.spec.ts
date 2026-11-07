@@ -45,6 +45,7 @@ function dispatchRefused(path: string) {
     chain,
     path,
     undefined,
+    'POST',
     requestPayloadTooLarge(),
     rawRequest.headers,
     headersFromRecord({}),

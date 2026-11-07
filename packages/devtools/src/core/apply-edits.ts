@@ -1,20 +1,24 @@
-// apply-edits.ts — the FE half of 'edits'-mode transform: it applies the resolver's edit list
-// (computed by internal/compiler/sourcerewrite/edits.go) in JS, so the rewritten file and its dense
-// source map never cross the wire. It must call prepend / appendLeft / update in the same sequence as
-// Go's Apply, or the two modes stop being byte-identical. Offsets are UTF-16 CODE UNITS, converted
-// from bytes on the Go side, so a JS string indexes with them directly.
+// Applies the resolver's edit list (internal/compiler/sourcerewrite/edits.go) in JS, so the rewritten file
+// and its source map never cross the wire. Must call appendLeft / update in the same order as Go's Apply,
+// or the two modes stop being byte-identical. Offsets are UTF-16 code units, already converted on the Go side.
 import {EditBuffer, type SourceMap} from './edit-buffer.ts';
 import type {Edit} from './protocol.ts';
 
-// applyEdits prepends `importBlock` verbatim (the resolver already relativized it for files-mode) and
-// lands the edits against ORIGINAL coordinates, so their order is irrelevant. `file` names sources[0].
-export function applyEdits(file: string, code: string, importBlock: string, edits: Edit[]): {code: string; map: SourceMap} {
+// `importBlock` comes relativized; it goes in first so it precedes any other insertion at `importAt`.
+// Edits use ORIGINAL coordinates, so their order is irrelevant. `file` names sources[0].
+export function applyEdits(
+  file: string,
+  code: string,
+  importBlock: string,
+  importAt: number,
+  edits: Edit[]
+): {code: string; map: SourceMap} {
   const buffer = new EditBuffer(code);
+  buffer.appendLeft(importAt, importBlock);
   for (const edit of edits) {
     if (edit.start === edit.end) buffer.appendLeft(edit.start, edit.text);
     else buffer.update(edit.start, edit.end, edit.text);
   }
-  if (importBlock) buffer.prepend(importBlock);
   const map = buffer.generateMap({source: file, includeContent: true});
   return {code: buffer.toString(), map};
 }

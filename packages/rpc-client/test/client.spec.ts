@@ -34,6 +34,18 @@ describe('client', () => {
     expect(client.isApiBundled).toBe(false);
   });
 
+  it('routes and middlewares proxies are not thenables, so awaiting them settles', async () => {
+    const {routes, middlewares} = initClient<MyApi>({baseURL});
+    expect((routes as any).then).toBeUndefined();
+    expect((routes.utils as any).then).toBeUndefined();
+    expect((middlewares as any).then).toBeUndefined();
+    expect(await (async () => routes)()).toBe(routes);
+    expect(await Promise.resolve(routes.utils)).toBe(routes.utils);
+    expect(await (async () => middlewares)()).toBe(middlewares);
+    expect((routes as any)[Symbol.iterator]).toBeUndefined();
+    expect((routes as any)[Symbol.toPrimitive]).toBeUndefined();
+  });
+
   it('proxy to trap remote methods calls and return MethodRequest data', () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
 
@@ -789,6 +801,16 @@ describe('client', () => {
       expect(result?.message).toBe('hello from query');
       expect(result?.httpMethod).toBe('GET');
       expect(result?.urlQuery).toContain('data=');
+    });
+
+    it('query() route whose URL would pass 4096 characters uses POST, so the server head limit never refuses it', async () => {
+      await routes.getRequestInfo('primes the metadata').call();
+      const message = 'x'.repeat(3500);
+      const [result, error] = await routes.getRequestInfo(message).call();
+
+      expect(error).toBeUndefined();
+      expect(result?.message).toBe(message);
+      expect(result?.httpMethod).toBe('POST');
     });
 
     it('mutation() route should use POST', async () => {

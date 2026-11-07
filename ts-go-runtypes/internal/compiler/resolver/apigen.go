@@ -364,6 +364,9 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
+	if err := writeGeneratedDirIgnores(apiDir); err != nil {
+		return diags, err
+	}
 	if _, err := materializeModules(apiDir, files, jsModuleExt); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}

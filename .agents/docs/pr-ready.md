@@ -34,6 +34,9 @@ so an unlabelled PR can merge untested.
 - `website`: builds the docs site. For [container/website/](../../container/website/) and
   [packages/private-examples/](../../packages/private-examples/) (pages import its files).
 - `bench`: validation benchmarks. For [container/benchmarks/](../../container/benchmarks/) or their deps.
+- `bench-report`: publishable validation numbers vs the live site, posted as a PR comment
+  ([pr-bench-report.yml](../../.github/workflows/pr-bench-report.yml)). Same `linux-arm64` runner as the deploy,
+  about an hour. For a PR meant to move the charts. Runs once per label: the run removes it, add it again to re-measure.
 - `pre-publish-e2e`: packs every package, publishes to a throwaway registry, runs the consumer lanes.
   For package exports, `package.json` changes, public API renames, anything a consumer installs.
 - `drizzle-e2e`: drizzle's own suites against real databases. For [packages/drizzle-orm/](../../packages/drizzle-orm/),
@@ -46,8 +49,9 @@ so an unlabelled PR can merge untested.
 - Label = necessary, NOT sufficient: every lane is also gated on content ([lanes.mjs](../../scripts/ci/lanes.mjs)).
 - Each lane declares the paths feeding it, hashes exactly those, runs unless a marker says that hash already passed.
   Labelled lane re-runs on a commit changing its inputs, skips one that does not. Docs-only commit skips every lane.
-- Container lanes split into items (per database, bench competitor, e2e half, smoke half), each with its own
-  marker → only unproven items run.
+- Lanes split into items (per database, bench competitor, e2e half, smoke half, Go shard, fuzz job), each with
+  its own marker → only unproven items run.
+- `ci.yml` runs each heavy part as its own parallel job, so a PR waits for the longest one, not the sum.
 - What this tree needs: `pnpm miondevx core lanes`.
 - Adding a top-level directory → classify it there. An unclassified path joins EVERY lane's hash:
   everything re-runs until someone says what reads it.
@@ -58,4 +62,5 @@ so an unlabelled PR can merge untested.
   (git and node only).
 - [.github/actions/resolver](../../.github/actions/resolver/action.yml) = ONE place a job sets up Go + the tsgolint
   submodule, only on a cache miss or with `toolchain: 'true'`.
+- `ci.yml`'s `go-build` job runs it first. Every heavy job waits, then restores. A Go change builds once per run.
 - CI's Go version pinned in `ts-go-runtypes/.go-version`.

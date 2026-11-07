@@ -6,6 +6,8 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -353,16 +355,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 	}
 }
 
-// THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
-//
-// The fused validator needs no object guard beyond its own: `typeof` / `!== null` are
-// already its leading term, and an array is already stopped by the property
-// check (an array has no `a`) or, on a shape with no required property, by the
-// `[object Object]` brand guard emitObjectValidate adds for exactly that reason.
-//
-// The error family is the one exception, and it is not about shape: it reports
-// everything rather than stopping at the first failure, so unlike the validator
-// it can still reach the key scan on an array. Pinned separately below.
+// The fused validator's leading `typeof` / `!== null` is its only guard; an array with every declared prop fails the key check.
 func TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
@@ -381,15 +374,25 @@ export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
 	}
 }
 
-// The error family DOES keep the array test, for the one reason that is not
-// about shape: it does not short-circuit. A value that fails its property checks
-// still reaches the key scan here, so without this an array's indices would be
-// listed as undeclared keys on a value the type does not admit at all.
-func TestCheckUnknowns_ErrorFamilyStillExcludesArrays(t *testing.T) {
-	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+// No array test in the error family either: it reports an array's index keys wherever the validator rejects them.
+func TestCheckUnknowns_ErrorFamilyScansArraysLikeValidator(t *testing.T) {
+	assertNoArraySkip(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
 export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
 `)
+}
+
+func TestCheckUnknowns_ErrorFamilyScansArraysLikeValidator_ValueFirst(t *testing.T) {
+	assertNoArraySkip(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+const sample: T = {a: 'x', b: 1};
+export const tErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertNoArraySkip(t *testing.T, source string) {
+	t.Helper()
+	modules := scanEntryModules(t, source)
 	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
 	if !ok {
 		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
@@ -398,8 +401,85 @@ export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns:
 	if got := strings.Count(body, objectGuardNeedle); got != 1 {
 		t.Errorf("the fused error form emits the shape guard %d times, want exactly 1:\n%s", got, body)
 	}
-	if !strings.Contains(body, "!Array.isArray") {
-		t.Errorf("the fused error form lost its array exclusion:\n%s", body)
+	if strings.Contains(body, "Array.isArray") {
+		t.Errorf("the fused error form skips arrays, so it reports nothing for an array its validator rejects:\n%s", body)
+	}
+	if !strings.Contains(body, purefnids.GetUnknownKeysFromArray) {
+		t.Errorf("the fused error form lost its unknown-key scan:\n%s", body)
+	}
+	if !strings.Contains(body, "tooManyUnknownKeys") {
+		t.Errorf("the fused error form lost its cap on unknown-key errors:\n%s", body)
+	}
+}
+
+// A declared `length` keeps the validator off the key count: an array passes the `length` check without enumerating it.
+func TestCheckUnknowns_DeclaredLengthSkipsKeyCount(t *testing.T) {
+	assertKeyScanNotCount(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Sized {id: number; length: number}
+export const isSized = createValidateFn<Sized>(undefined, {checkUnknowns: true});
+`)
+}
+
+func TestCheckUnknowns_DeclaredLengthSkipsKeyCount_ValueFirst(t *testing.T) {
+	assertKeyScanNotCount(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Sized {id: number; length: number}
+const sample: Sized = {id: 1, length: 0};
+export const isSized = createValidateFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertKeyScanNotCount(t *testing.T, source string) {
+	t.Helper()
+	modules := scanEntryModules(t, source)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	if !ok {
+		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := fnBodyOf(modules[name])
+	if strings.Contains(body, purefnids.CountEnumKeys) {
+		t.Errorf("a declared `length` took the key count, which misses an array's non-enumerable length:\n%s", body)
+	}
+	if !strings.Contains(body, purefnids.HasUnknownKeysFromArray) {
+		t.Errorf("a declared `length` lost its key scan:\n%s", body)
+	}
+}
+
+// The maxUnknownKeys knob reaches the emitted cap: the scan stops one key past it and the loop lists at most that many.
+func TestCheckUnknowns_MaxUnknownKeysKnob(t *testing.T) {
+	assertUnknownKeysCap(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
+`)
+}
+
+func TestCheckUnknowns_MaxUnknownKeysKnob_ValueFirst(t *testing.T) {
+	assertUnknownKeysCap(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+const sample: T = {a: 'x', b: 1};
+export const tErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertUnknownKeysCap(t *testing.T, source string) {
+	t.Helper()
+	r := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.MaxUnknownKeys = 3
+	})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	name, ok := findEntryWith(resp.EntryModules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(resp.EntryModules))
+	}
+	body := fnBodyOf(resp.EntryModules[name])
+	for _, want := range []string{", 3)", "< 3;", ".length > 3)"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("maxUnknownKeys 3 did not reach the emitted cap (missing %q):\n%s", want, body)
+		}
 	}
 }
 
@@ -531,4 +611,151 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 			}
 		}
 	})
+}
+
+// An all-required error twin gates on validate's key count, or a getter leaves validate rejecting with no errors.
+func strictErrorsBody(t *testing.T, source string) string {
+	t.Helper()
+	modules := scanEntryModules(t, source)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	return modules[name]
+}
+
+func assertErrorsGateOnKeyCount(t *testing.T, body string) {
+	t.Helper()
+	snapshotAt := strings.Index(body, "const ne0 = er.length;")
+	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2 && v.constructor === Object))")
+	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
+		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
+	}
+	if !strings.Contains(body, `if (er.length === ne0 && v.constructor === Object) nRT(pth,er,\'objectLiteral\')`) {
+		t.Errorf("an off count on a plain object with no unknown name reports nothing:\n%s", body)
+	}
+}
+
+func TestCheckUnknowns_AllRequiredErrorsGateOnKeyCount_Static(t *testing.T) {
+	assertErrorsGateOnKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface User {a: string; b: number}
+export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_AllRequiredErrorsGateOnKeyCount_Value(t *testing.T) {
+	assertErrorsGateOnKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+const user: {a: string; b: number} = {a: 'x', b: 1};
+export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true});
+`))
+}
+
+func assertErrorsTakeNoKeyCount(t *testing.T, body string) {
+	t.Helper()
+	if strings.Contains(body, "cntEK(") || strings.Contains(body, "er.length === ne") {
+		t.Errorf("optional-prop shape's error report took the key-count gate:\n%s", body)
+	}
+}
+
+func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount_Static(t *testing.T) {
+	assertErrorsTakeNoKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface User {a: string; b?: number}
+export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount_Value(t *testing.T) {
+	assertErrorsTakeNoKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+const user: {a: string; b?: number} = {a: 'x'};
+export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true});
+`))
+}
+
+const accessorGateClasses = `
+class Plain {a = ''; b = 1}
+class WithGetter {a = ''; get b(): number { return 1; }}
+declare const plain: Plain;
+declare const withGetter: WithGetter;
+`
+
+func assertStrictCountHoldsOnPlainObjectsOnly(t *testing.T, modules map[string]string) {
+	t.Helper()
+	for _, name := range []string{"Plain", "WithGetter"} {
+		entry, ok := findEntryWith(modules, "'"+name+"'")
+		if !ok {
+			t.Fatalf("no entry for %s\nmodules: %v", name, keys(modules))
+		}
+		body := modules[entry]
+		if !strings.Contains(body, "(v.constructor === Object ? cntEK(v) === 2 : !(hUKFA(v, ") {
+			t.Errorf("%s must trust the key count on a plain object only:\n%s", name, body)
+		}
+	}
+}
+
+// A count cannot see a class getter, whichever type names the value.
+func TestCheckUnknowns_StrictCountHoldsOnPlainObjectsOnly_Static(t *testing.T) {
+	assertStrictCountHoldsOnPlainObjectsOnly(t, scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const isPlain = createValidateFn<Plain>(undefined, {checkUnknowns: true});
+export const isGetter = createValidateFn<WithGetter>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_StrictCountHoldsOnPlainObjectsOnly_Value(t *testing.T) {
+	assertStrictCountHoldsOnPlainObjectsOnly(t, scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const isPlain = createValidateFn(plain, {checkUnknowns: true});
+export const isGetter = createValidateFn(withGetter, {checkUnknowns: true});
+`))
+}
+
+func assertCloneNeverCountsKeys(t *testing.T, modules map[string]string) {
+	t.Helper()
+	for _, name := range []string{"Plain", "WithGetter"} {
+		entry, ok := findEntryWith(modules, "'"+name+"'")
+		if !ok {
+			t.Fatalf("no entry for %s\nmodules: %v", name, keys(modules))
+		}
+		if body := modules[entry]; strings.Contains(body, "Object.keys(v).length") {
+			t.Errorf("clone of %s must not count keys:\n%s", name, body)
+		}
+	}
+}
+
+func TestCloneEncode_NeverCountsKeys_Static(t *testing.T) {
+	assertCloneNeverCountsKeys(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const encodePlain = createJsonEncoderFn<Plain>();
+export const encodeGetter = createJsonEncoderFn<WithGetter>();
+`))
+}
+
+func TestCloneEncode_NeverCountsKeys_Value(t *testing.T) {
+	assertCloneNeverCountsKeys(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const encodePlain = createJsonEncoderFn(plain);
+export const encodeGetter = createJsonEncoderFn(withGetter);
+`))
+}
+
+func assertArrayBesideASetIsShared(t *testing.T, modules map[string]string) {
+	t.Helper()
+	for name, body := range modules {
+		if strings.Contains(body, "'array'") && strings.Contains(body, ".map(") {
+			t.Errorf("%s: a string array must be shared, not copied:\n%s", name, body)
+		}
+	}
+}
+
+// A Set element is a ref, and the verdict it reaches must not stick to `string`.
+func TestCloneEncode_ArrayBesideASetIsShared_Static(t *testing.T) {
+	assertArrayBesideASetIsShared(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+export const encodeSet = createJsonEncoderFn<Set<string>>();
+export const encodeArray = createJsonEncoderFn<string[]>();
+`))
+}
+
+func TestCloneEncode_ArrayBesideASetIsShared_Value(t *testing.T) {
+	assertArrayBesideASetIsShared(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+const set: Set<string> = new Set();
+const array: string[] = [];
+export const encodeSet = createJsonEncoderFn(set);
+export const encodeArray = createJsonEncoderFn(array);
+`))
 }

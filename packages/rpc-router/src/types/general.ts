@@ -6,13 +6,13 @@
  * ######## */
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
-import {ContextDataFactory} from './context.ts';
-import {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
+import {CallContext, SharedDataFactory} from './context.ts';
+import {AnyHeadersMiddlewareDef, AnyMiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
 export type Route = RouteDef;
 
-export type RouterEntry = Routes | MiddlewareDef | RouteDef | RawMiddlewareDef | HeadersMiddlewareDef;
+export type RouterEntry = Routes | AnyMiddlewareDef | RouteDef<any, object> | RawMiddlewareDef | AnyHeadersMiddlewareDef;
 
 /** Data structure to define all the routes */
 export interface Routes {
@@ -22,15 +22,15 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreRouterOptions {
+export interface RouterOptions<Req = any, SharedData extends Record<string, any> = any> extends CoreRouterOptions {
   /** basePath for all routes, i.e: api/v1. A path separator is added after it */
   basePath: string;
   /** suffix for all routes, i.e: .json. No path separator is added before it */
   suffix: string;
   /** Transform the path before finding a route */
   pathTransform?: (request: Req, path: string) => string;
-  /** factory function to initialize shared call context data */
-  contextDataFactory?: ContextDataFactory<ContextData>;
+  /** Creates `ctx.shared` on each request; its written return type is the type of `ctx.shared` */
+  sharedDataFactory?: SharedDataFactory<SharedData>;
   /** The router-wide parser strategy: a string sets both directions, an object `params` and `return`.
    *  A BUILD-TIME literal, so a widened value is a type error; a route's own `parser` overrides it.
    *  @default {params: 'clone', return: 'clone'} */
@@ -72,4 +72,40 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
 export interface HostRequestHandler {
   node?(req: unknown, res: unknown): void;
   fetch?(req: Request): Response | Promise<Response>;
+}
+
+/** Options of `mionSecurity` */
+export interface MionSecurityOptions {
+  /** Trusted to send state-changing requests and, with `cors`, to read answers; a lookup runs only when it matters */
+  origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>);
+  /** Lets the trusted origins read answers; off by default */
+  cors?: false | MionCorsSettings;
+  /** Cross-site request forgery checks, each on by default; a body must always be JSON while csrf is on */
+  csrf?: false | MionCsrfSettings;
+}
+
+/** Handler option keys `mionSecurity` reads; add with `createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()()` */
+export interface MionSecurityHandlerOptions {
+  /** `false` keeps every header the handler declares off the CORS lists, like `excludeHeaders`; still sent */
+  cors?: false;
+}
+
+export interface MionCorsSettings {
+  /** Lets the browser send cookies; the caller's origin is echoed, and `origins: '*'` is refused */
+  credentials?: boolean;
+  /** Seconds the browser caches a preflight answer */
+  maxAge?: number;
+  /** Request headers a raw middleware reads, added to the ones the routes declare */
+  allowHeaders?: string[];
+  /** Response headers a raw middleware sets, added to the ones the routes declare */
+  exposeHeaders?: string[];
+  /** Headers kept off both lists, whoever declares them; still sent, so never a way to hide a secret */
+  excludeHeaders?: string[];
+}
+
+export interface MionCsrfSettings {
+  /** Refuses a request another site sent, unless its origin is trusted */
+  crossOrigin?: boolean;
+  /** A mutation, an intent-less route and a batch accept only POST; a query GET, HEAD and POST */
+  methodByIntent?: boolean;
 }

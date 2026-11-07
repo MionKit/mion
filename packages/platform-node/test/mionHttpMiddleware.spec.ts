@@ -24,8 +24,11 @@ import type {CallContext, Route} from '@mionjs/router';
 
 describe('startNodeServer({asMiddleware: true})', () => {
   type SimpleUser = {name: string; surname: string};
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({
+    sharedDataFactory: getSharedData,
+    basePath: 'api/',
+  });
   const changeUserName: Route = mion.route(
     (context: CallContext<ReturnType<typeof getSharedData>>, user: SimpleUser): SimpleUser => {
       return {name: 'NewName', surname: user.surname};

@@ -221,11 +221,14 @@ const DIALECTS: RoadDialect[] = [
       // All raised 8 to 24: a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
       // 570 -> 1081: a REVIEWED EXCEPTION, single-call builders (647 at the declaration, the rest models deriving flags).
       // Precomputing flags in the builder cut this to 990 but broke builder = hand-written (TYPE-COST.md, attempt 14).
-      'builder road, 5 mixed columns': 1089,
+      // 1089 -> 1107: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      'builder road, 5 mixed columns': 1107,
       // 968 -> 666: a column type holds its raw props and no db name, flags derived only where a model reads them.
-      'type road, 5 mixed columns': 676,
+      // 676 -> 684: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      'type road, 5 mixed columns': 684,
       // 1434 -> 1259, the same change.
-      'type road, 5 mixed columns + insert model': 1283,
+      // 1283 -> 1290: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      'type road, 5 mixed columns + insert model': 1290,
       // 1341 -> 299: one shared column type for the twenty columns, the db names on the table.
       'type road, 20 plain columns': 309,
       // 345 -> 573: a REVIEWED EXCEPTION, single-call builders (see the five-column case).

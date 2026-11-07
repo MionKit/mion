@@ -6,6 +6,15 @@ Phase 2 + Phase 3: frozen release PR into `prod`, gate green, merge or hand over
 
 `release/vX.Y.Z` → `prod`. Bump on `main` → cut a frozen release branch at that commit, open the PR from it:
 
+Before the cut, check the homepage numbers at `origin/main` (the gate fails on either):
+
+```bash
+pnpm miondevx website test-counts --check
+pnpm miondevx website client-size --check    # needs: pnpm --filter @mionjs/core --filter @mionjs/client run build
+```
+
+Stale → refresh PR into `main` first (`website test-counts` / `website client-size`, commit), then cut:
+
 ```bash
 git fetch origin main
 git branch release/vX.Y.Z origin/main        # cut at the bump commit (main's tip)
@@ -35,6 +44,8 @@ gh pr create --base prod --head release/vX.Y.Z --title "release: vX.Y.Z" --body-
 - Watch: `gh pr checks <n>` (poll or `--watch`).
 - Red job → read logs (`gh run view --job <id> --log`), diagnose.
 - **Fix forward on `main`**: normal PR (branch off main → fix → review → rebase-merge).
+- That PR also refreshes the homepage numbers it moves, before the re-cut: `website test-counts` always,
+  `website client-size` if it changed the client. Both `--check` green on the PR branch.
 - Never a commit on the release branch, never a branch off `prod`, never a direct push.
 - Fix landed on `main` → **re-cut the release branch forward** to the `main` commit that contains it:
 
@@ -72,9 +83,11 @@ Apply the clean/red rule from [Roles](SKILL.md#when-you-merge-and-when-you-ask):
 - Watch: `gh run list --workflow=publish.yml --limit 1`, then `gh run watch <id>`.
 - `vX.Y.Z` tag exists → frozen branch is done, delete it: `git push origin --delete release/vX.Y.Z`.
 - Success → hand the developer the finishing steps, in order:
-  1. `pnpm miondevx release stage-approve`: asks the 2FA OTP once (reused while its ~30s window lasts,
+  1. `pnpm miondevx release stage-approve` from an up-to-date `main` (it refuses a checkout whose
+     `version.json` differs from prod's): asks the 2FA OTP once (reused while its ~30s window lasts,
      re-prompted on expiry), approves leaves-first, waits for npm to serve the new version,
      then **auto-dispatches the website deploy** (`--no-deploy` skips; `--deploy-only` re-fires a skipped/failed one).
-  2. Optional: `pnpm miondevx release e2e --backend npm` verifies the LIVE packages.
+  2. After the approvals, the agent dispatches `post-publish.yml` (manual only, nothing else starts it):
+     `gh workflow run post-publish.yml --ref prod -f version=X.Y.Z`, and watches it and the deploy to green.
   3. Only if step 1 reported `DEPLOY NOT TRIGGERED`: **Actions → "prod · deploy website" → Run workflow**
      on the **prod** ref (its `verify-live` guard aborts until the packages are live).

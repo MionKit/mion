@@ -31,6 +31,7 @@ type buildFlags struct {
 	numberMode           string
 	patternSampleCount   int
 	patternSampleRetries int
+	maxUnknownKeys       int
 	markerPackages       string
 	noMarkerPackageCheck bool
 }
@@ -51,6 +52,7 @@ type buildOptions struct {
 	numberMode             string
 	patternSampleCount     int
 	patternSampleRetries   int
+	maxUnknownKeys         int
 	markerPackages         []string
 	skipMarkerPackageCheck bool
 }
@@ -71,6 +73,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		numberMode:           flags.numberMode,
 		patternSampleCount:   flags.patternSampleCount,
 		patternSampleRetries: flags.patternSampleRetries,
+		maxUnknownKeys:       flags.maxUnknownKeys,
 	}
 
 	if !flags.set["emit-mode"] && strings.TrimSpace(plugin.EmitMode) != "" {
@@ -118,6 +121,9 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	}
 	if !flags.set["pattern-sample-retries"] && plugin.PatternSampleRetries != nil {
 		out.patternSampleRetries = *plugin.PatternSampleRetries
+	}
+	if !flags.set["max-unknown-keys"] && plugin.MaxUnknownKeys != nil {
+		out.maxUnknownKeys = *plugin.MaxUnknownKeys
 	}
 
 	// The tsconfig keys read true=on like PluginOptions; the flags are the inverted --no-parallel-* opt-outs.

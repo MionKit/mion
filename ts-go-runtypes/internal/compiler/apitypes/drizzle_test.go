@@ -3,13 +3,14 @@ package apitypes
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // drizzleSchemaTS mixes the slim models with server-only drizzle values in one file, as an app does.
@@ -146,8 +147,13 @@ func trimDrizzleExampleApp(t *testing.T, apiText string) *Output {
 // drizzleWorkspace is a temp project linking the workspace's real drizzle and mion packages.
 func drizzleWorkspace(t *testing.T) (dir, repo string) {
 	t.Helper()
-	_, self, _, _ := runtime.Caller(0)
-	repo = filepath.Join(filepath.Dir(self), "..", "..", "..", "..")
+	repo = testfixtures.RepoRoot()
+	// The compiler reads these through the temp project's links, outside the module, where Go's test cache cannot see.
+	if err := testfixtures.DeclareInputs("packages/private-drizzle-example-app", "packages/drizzle-orm", "packages/drizzle-orm-pg-core",
+		"packages/drizzle-orm-mysql-core", "packages/drizzle-orm-sqlite-core", "packages/rpc-router", "packages/core", "packages/run-types", "packages/platform-node",
+		"pnpm-lock.yaml"); err != nil {
+		t.Fatal(err)
+	}
 	appModules := filepath.Join(repo, "packages", "private-drizzle-example-app", "node_modules", "@mionjs")
 	realDrizzle := filepath.Join(repo, "node_modules", "drizzle-orm")
 	for _, required := range []string{filepath.Join(appModules, "drizzle-orm-pg-core"), filepath.Join(appModules, "router"), realDrizzle} {

@@ -14,6 +14,8 @@ One block per column function:
    - Formats live in `@mionjs/run-types/formats`. Pick per the drizzle column's VALUE semantics
      (length/width bounds, uuid, ip, date/time string shapes).
    - No matching format → plain data type (boolean, string, unknown for json).
+   - A mion-only setting drizzle lacks (pg uuid `version`): own config interface, plus a `ColumnShortcuts` entry that
+     replays it as a real modifier, passed by the builder (`recordNsColumn`) and by tableFromType (by fn).
 2. **Column type** in `src/columns.ts`: PascalCase of the fn name (upperFirst; manifest records it as `typeAlias`):
    `type Varchar<P extends Only<P, XConfig & XColMods> = NoProps> = Column<'varchar', P, VarcharData<P>>`.
    `Only` rejects a stray key. Serial-likes pass their base flags as the 4th argument.

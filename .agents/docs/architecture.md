@@ -18,8 +18,11 @@ Load-bearing pipeline rules. Read before touching markers, rewrites, caches, val
 ## Validate contract: serializable data only
 
 - Validators / decoders operate on the JSON-shaped projection of `T`.
-- Non-serialisable members (functions, symbols, getters) drop with a build-time **Info** (hidden unless
-  `levels: 'all'`). Decoders return `DataOnly<T>`.
+- Non-serialisable members (functions, symbols) drop with a build-time **Info** (hidden unless `levels: 'all'`).
+  Decoders return `DataOnly<T>`.
+- A `get` / `set` member is a prop in every family, on any shape a mapped type copies it to. JS lists neither, so
+  a strict key count only holds on a plain object (`v.constructor === Object`, else key names), and clone never
+  counts keys. Mutate works on a copy and a format skips a no-setter member, emitted only for a type naming one.
 - `any` / `unknown` the author wrote ARE data, kept for third-party types: accepted at every position in every
   family (a required member only needs its key). An Info at a root, never an error.
 - `any` from an unresolved name, import or lib = RuntimeError: `marker-any-from-unresolved-import`,

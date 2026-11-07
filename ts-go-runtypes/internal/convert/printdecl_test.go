@@ -114,6 +114,38 @@ export type Wallet = {main: Money; history: Money[]};
 	}
 }
 
+func TestDeclPrinter_ClassAccessorsKeepTheirForm(t *testing.T) {
+	printed := assertDeclIDs(t, `export declare class Doors {
+  get read(): number;
+  get both(): string; set both(value: string);
+  set write(value: boolean);
+  get mixed(): string; set mixed(value: number);
+  get action(): () => void;
+  accessor auto: number;
+  private get hidden();
+  private get hiddenPair(); private set hiddenPair(value);
+}
+export interface Plain { get read(): number; get both(): string; set both(value: string) }
+export type Holder = {
+  doors: Doors;
+  picked: Pick<Doors, 'read' | 'both'>;
+  partial: Partial<Doors>;
+  frozen: Readonly<Doors>;
+  plain: Plain;
+};
+`, "Holder")
+	for _, want := range []string{"get read(): number", "get both(): string; set both(value: string)", "set write(value: boolean)"} {
+		if !strings.Contains(printed, want) {
+			t.Errorf("missing %q:\n%s", want, printed)
+		}
+	}
+	for _, invented := range []string{"set read(", "get write("} {
+		if strings.Contains(printed, invented) {
+			t.Errorf("invented accessor %q:\n%s", invented, printed)
+		}
+	}
+}
+
 func TestDeclPrinter_InheritedMembersFlattenIntoTheClass(t *testing.T) {
 	assertDeclIDs(t, `export declare class Base { id: string; touch(at: Date): void }
 export declare class Item extends Base { name: string }
@@ -153,6 +185,29 @@ func TestDeclPrinter_UniqueSymbolTypesPrintAsTypeofTheirKey(t *testing.T) {
 export type Keys = {k: keyof string; own: typeof tag; it: typeof Symbol.iterator};
 `, "Keys")
 	assertContainsAll(t, printed, "typeof Symbol.iterator", "declare const tag: unique symbol;", "typeof tag")
+}
+
+func TestDeclPrinter_UserSymbolNamedLikeAPlatformOneAsAKey(t *testing.T) {
+	assertUserAndPlatformSymbolsDiffer(t, `declare const iterator: unique symbol;
+export type User = {[iterator]: string};
+export type Platform = {[Symbol.iterator]: string};
+`, "[iterator]: string", "[Symbol.iterator]: string")
+}
+
+func TestDeclPrinter_UserSymbolNamedLikeAPlatformOneAsATypeofType(t *testing.T) {
+	assertUserAndPlatformSymbolsDiffer(t, `declare const iterator: unique symbol;
+export type User = {tag: typeof iterator};
+export type Platform = {tag: typeof Symbol.iterator};
+`, "tag: typeof iterator", "tag: typeof Symbol.iterator")
+}
+
+func assertUserAndPlatformSymbolsDiffer(t *testing.T, source, userText, platformText string) {
+	t.Helper()
+	printed := assertDeclIDs(t, source, "User", "Platform")
+	assertContainsAll(t, printed, "declare const iterator: unique symbol;", userText, platformText)
+	if ids := declIDsIn(t, map[string]string{"main.ts": source}); ids["User"] == ids["Platform"] {
+		t.Errorf("a user `iterator` must not share the id of `Symbol.iterator`: %q", ids["User"])
+	}
 }
 
 func TestDeclPrinter_RecursiveShapesPrintAsNamedAliases(t *testing.T) {

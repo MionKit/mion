@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestFnHashesFileInSync asserts the committed fnHashes.generated.ts carries
@@ -19,6 +21,9 @@ import (
 // --check`, which CI runs; this test is the cheap Go-level companion that needs
 // no node/oxfmt and pins the values themselves.
 func TestFnHashesFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(fnHashesOutputPath()); err != nil {
+		t.Fatal(err)
+	}
 	committed, err := os.ReadFile(fnHashesOutputPath())
 	if err != nil {
 		t.Fatalf("read %s: %v", fnHashesOutputPath(), err)
@@ -51,6 +56,9 @@ func TestCollectEntriesNonEmpty(t *testing.T) {
 // the full table because a consumer bundle cannot afford the full one, and a second file is a second thing
 // to forget: add a public family without regenerating and this fails.
 func TestJitFnIdsFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(jitFnIdsOutputPath()); err != nil {
+		t.Fatal(err)
+	}
 	committed, err := os.ReadFile(jitFnIdsOutputPath())
 	if err != nil {
 		t.Fatalf("read %s: %v", jitFnIdsOutputPath(), err)
@@ -82,6 +90,9 @@ func TestJitFnIdsMatchTheFullTable(t *testing.T) {
 
 // numberMode is one option, so no validate variant token may carry both its T and M letters.
 func TestFnHashesTableHasNoImpossibleNumberModes(t *testing.T) {
+	if err := testfixtures.DeclareInputs(fnHashesOutputPath()); err != nil {
+		t.Fatal(err)
+	}
 	committed, err := os.ReadFile(fnHashesOutputPath())
 	if err != nil {
 		t.Fatalf("read %s: %v", fnHashesOutputPath(), err)

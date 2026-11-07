@@ -1,12 +1,13 @@
 {
-  // The emit half, what `mion compile` and the CJS pass read. It re-enables what tsconfig.json turns
-  // off for the check and narrows the program back to the published src.
+  // Read by `mion compile`: re-enables the emit tsconfig.json turns off and narrows the program to src.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": true,
     "noEmit": false,
     "declaration": true,
     "declarationMap": true,
+    // The maps carry the source text: src/ is not published, so a map pointing at it warns in every consumer.
+    "inlineSources": true,
     "incremental": true,
     "outDir": "dist",
     "rootDir": "src",

@@ -13,6 +13,8 @@ import type {
   String as Str,
   StringDate,
   StringDateTime,
+  UUIDv4,
+  UUIDv7,
 } from '@mionjs/run-types/formats';
 import type {
   AnyColumn,
@@ -67,6 +69,14 @@ export interface PgDateColMods extends PgColMods {
 /** uuid: + defaultRandom(). */
 export interface PgUuidColMods extends PgColMods {
   defaultRandom?: true;
+}
+/** mion's own uuid setting: types the model and adds the default for it ('7' needs PostgreSQL 18's uuidv7()). */
+export interface PgUuidConfig {
+  version?: '4' | '7';
+}
+export interface UuidByVersion {
+  '4': UUIDv4;
+  '7': UUIDv7;
 }
 /** smallint / integer / bigint: + the identity modifiers. */
 export interface PgIntColMods extends PgColMods {

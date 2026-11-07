@@ -17,7 +17,7 @@ import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandle
 
 type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
@@ -175,5 +175,18 @@ describe('cloudflare adapter: a refused body runs the alwaysRun middlewares', ()
     const response = await send('{"echo":[{"name":"a","surname":"b"}]}');
     expect(response.status).toBe(200);
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
+  });
+});
+
+describe('cloudflare adapter: the HTTP method', () => {
+  it('puts it on the request', async () => {
+    resetCloudflareHandlerOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    const handler = createCloudflareHandler();
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await handler.fetch(new Request('http://localhost/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
+    }
   });
 });

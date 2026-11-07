@@ -40,6 +40,12 @@ useSeoMeta({
   margin: 0;
 }
 .rt-playground-page .rt-playground .rtpg-layout {
-  height: calc(100vh - 160px);
+  height: calc(100vh - 100px);
+}
+/* One column: cards stack at their own height and the page scrolls. */
+@media (max-width: 1000px) {
+  .rt-playground-page .rt-playground .rtpg-layout {
+    height: auto;
+  }
 }
 </style>

@@ -11,7 +11,6 @@ import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {GenerateInfo, PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
 import type {Plugin, PluginOption} from 'vite';
-// Shared with the Next preset — see ./options.ts for why these live outside this file.
 import {
   resolveRtBinary,
   toRunTypesOptions,
@@ -39,8 +38,7 @@ export interface MionServerOptions {
   /** DEV + no router `basePath`: paths NOT served by mion, so vite's internals and static assets still work.
    *  With a basePath the router's prefix decides what reaches mion. */
   exclude?: RegExp[];
-  /** DEV: re-load the API when its sources change (default true); the reload resets the router first, since
-   *  `initRoutes` refuses to run twice. */
+  /** DEV: re-load the API on source change (default true), a fresh copy with `@mionjs/*`; requests wait for it. */
   hotReload?: boolean;
 }
 
@@ -74,19 +72,14 @@ export interface MionPluginOptions extends MionPresetOptions {
  * });
  * ```
  */
-/** The resolver's generate echo folded into the two things vite needs. `batchesModuleOf` is the table's
- *  current path ('' when there is none), which the middleware's `add` listener compares against. A later
- *  generate where the module APPEARS or VANISHES invalidates the router-init modules: they were transformed
- *  with the opposite import. The FIRST generate never invalidates, nothing has been transformed yet.
- *  Exported for its spec; the preset is its only other caller. */
+/** A batch table APPEARING or VANISHING invalidates the router-init modules: they hold the opposite import.
+ *  Never on the FIRST generate, nothing is transformed yet. Exported for its spec; the preset is its only other caller. */
 export function createBatchTransportSignals(invalidate: (files: string[]) => void): {
   onGenerate: (info: GenerateInfo) => void;
-  batchesModuleOf: () => string;
 } {
   let firstGenerateDone = false;
   let batchesModule = '';
   return {
-    batchesModuleOf: () => batchesModule,
     onGenerate: (info) => {
       const presenceChanged = (info.batchesModule !== '') !== (batchesModule !== '');
       batchesModule = info.batchesModule;
@@ -98,7 +91,12 @@ export function createBatchTransportSignals(invalidate: (files: string[]) => voi
 
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
-  const transport = createBatchTransportSignals((files) => invalidateFiles(files));
+  // The batch table appearing or vanishing changes what the API runs, and no watcher event reports it in time.
+  let markApiStale = (): void => {};
+  const transport = createBatchTransportSignals((files) => {
+    invalidateFiles(files);
+    markApiStale();
+  });
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`) while vite serves
   // `Comp.vue`, and stale site files are reported by the path the resolver knows, so they need translating
   // before invalidating. Built here because the mion plugin and the SFC pass are both constructed below.
@@ -135,9 +133,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   const rtPluginOptions: TsRuntypesPluginOptions = {
     ...toRunTypesOptions(options),
     onGenerate: transport.onGenerate,
-    // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for the old shape:
-    // the import that named it was erased, so vite has no edge to follow and the resolver reports the stale
-    // files here instead. Vite-only, Turbopack gets the same guarantee from the broker's typeDeps + stamp.
+    // A type edit in ANOTHER file comes through an erased import vite cannot follow; the resolver names the stale files.
     onSiteFilesChanged: invalidateStaleSites,
   };
   const plugins = tsRuntypes(rtPluginOptions);
@@ -158,15 +154,10 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     if (typeof server.entry !== 'string' || !server.entry) {
       throw new Error('[mionVitePlugin] server.entry must name the server entry file.');
     }
-    // In-process: nothing is spawned, and nothing happens outside `vite dev`. `onReady`/`onError` only feed
-    // the 503 path, no promise leaves this preset.
-    extraPlugins.unshift(
-      mionMiddlewarePlugin(server, {
-        onReady: () => {},
-        onError: () => {},
-        batchesModuleOf: transport.batchesModuleOf,
-      })
-    );
+    // In-process, `vite dev` only. `onReady`/`onError` only feed the 503 path, no promise leaves this preset.
+    const middleware = mionMiddlewarePlugin(server, {onReady: () => {}, onError: () => {}});
+    markApiStale = middleware.markStale;
+    extraPlugins.unshift(middleware);
     if (server.build) extraPlugins.unshift(serverBundlePlugin(server, server.build));
   }
   return [...extraPlugins, plugins];
@@ -198,7 +189,27 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
     // Late, so a root another plugin's config hook sets is already in userConfig.
     config: {
       order: 'post',
-      handler(userConfig) {
+      handler(userConfig, env) {
+        // The API bundle takes over vite's ssr environment, silently replacing a server build the config sets.
+        // Dev only mounts the API as middleware, so nothing gets replaced.
+        if (env.command === 'build') {
+          const fix = 'Remove `server.build` and build the API with its own vite config.';
+          if (userConfig.build?.ssr) {
+            throw new Error(
+              `[mionVitePlugin] server.build cannot run in an SSR build: this vite run already builds a server ` +
+                `bundle (build.ssr is set), and the API bundle would replace it. ${fix}`
+            );
+          }
+          const ssrBuild = userConfig.environments?.ssr?.build;
+          // `build.ssr: true` names no entry: vite then reads the input, which is ours.
+          const taken = [ssrBuild?.rolldownOptions?.input, ssrBuild?.rollupOptions?.input, ssrBuild?.ssr].find(namesEntry);
+          if (taken) {
+            throw new Error(
+              `[mionVitePlugin] server.build would replace the ssr environment's input ${JSON.stringify(taken)} ` +
+                `with server.entry. ${fix}`
+            );
+          }
+        }
         // vite resolves only its own defaults against root, rollupOptions.input is taken as written.
         const root = path.resolve(userConfig.root ?? process.cwd());
         return {
@@ -210,6 +221,8 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
               build: {
                 outDir: build.outDir ?? 'dist-server',
                 emptyOutDir: true,
+                // vite copies its static folder into every outDir; those files belong to the client only.
+                copyPublicDir: false,
                 rollupOptions: {input: path.resolve(root, server.entry)},
               },
             },
@@ -218,4 +231,9 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
       },
     },
   } satisfies Plugin;
+}
+
+function namesEntry(input: unknown): boolean {
+  if (typeof input === 'string') return input !== '';
+  return typeof input === 'object' && input !== null && Object.keys(input).length > 0;
 }

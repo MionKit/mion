@@ -93,6 +93,7 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
     expect(oracles('function f(v){return v?.constructor === cix_bas}')).toEqual(['GC-IDENTITY']);
     // the shape the union encoders emit, optional chain and all
     expect(oracles('function f(v){return cix_bas && v?.constructor === cix_bas.cls}')).toEqual([]);
+    expect(oracles('function f(v){return v.constructor === Object}')).toEqual([]);
     expect(oracles('function f(v){return cix_a1$b && v.a?.constructor === cix_a1$b.cls}')).toEqual([]);
   });
 

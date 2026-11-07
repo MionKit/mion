@@ -6,6 +6,7 @@
  * ######## */
 
 import type {HostRequestHandler, Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
+import {assertHeaderSafe} from './lib/headers.ts';
 import type {
   RemoteMethod,
   MethodsExecutionChain,
@@ -17,7 +18,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import type {ResponseDefaults} from './types/context.ts';
-import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING, MION_SERVER_NAME} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -28,15 +29,7 @@ import {
   isAnyMiddlewareDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {
-  BUILD_VERSION_HEADER,
-  HandlerType,
-  isTestEnv,
-  resetRoutesCache,
-  getOrCreateGlobal,
-  resolveParser,
-  DEFAULT_MAX_BODY_SIZE,
-} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, HandlerType, resetRoutesCache, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
@@ -68,12 +61,17 @@ import {
 import type {CallContext} from './types/context.ts';
 import type {
   HeadersMiddlewareHelper,
+  CheckedRouterTypes,
+  KnownKeysOf,
   MiddlewareHelper,
   MionRouter,
   RawMiddlewareHelper,
   RouteHelper,
   RouterOptionsInput,
   RouterOptionsArg,
+  RouterTypes,
+  TypedRouterFactory,
+  WithShared,
 } from './types/mionRouter.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -84,19 +82,16 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
+const flatRouter = new Map<string, MethodsExecutionChain>(); // Main Router
 /** mion's two not-found chains (an unknown path, an unknown batch id) are NOT routes and not in the
  *  router above: each is the global middleware behind a first member that throws, and is rebuilt on
  *  every registration because that middleware is. */
-const notFoundChains = getOrCreateGlobal('mion.router.notFoundChains', () => new Map<string, MethodsExecutionChain>());
-const middlewaresById = getOrCreateGlobal(
-  'mion.router.middlewaresById',
-  () => new Map<string, MiddlewareMethod | HeadersMethod | RawMethod>()
-);
-const routesById = getOrCreateGlobal('mion.router.routesById', () => new Map<string, RouteMethod>());
-const rawMiddlewaresById = getOrCreateGlobal('mion.router.rawMiddlewaresById', () => new Map<string, RawMethod>());
-const middlewareNames = getOrCreateGlobal('mion.router.middlewareNames', () => new Set<string>());
-const routeNames = getOrCreateGlobal('mion.router.routeNames', () => new Set<string>());
+const notFoundChains = new Map<string, MethodsExecutionChain>();
+const middlewaresById = new Map<string, MiddlewareMethod | HeadersMethod | RawMethod>();
+const routesById = new Map<string, RouteMethod>();
+const rawMiddlewaresById = new Map<string, RawMethod>();
+const middlewareNames = new Set<string>();
+const routeNames = new Set<string>();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
@@ -127,8 +122,7 @@ export let endMiddlewares: RemoteMethod[] = [];
 export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
 /** The chain that answers an unknown path or an unknown batch id, by its `MION_ROUTES` id. */
 export const getNotFoundExecutionChain = (id: string) => notFoundChains.get(id);
-export const getRouteEntries = () => flatRouter.entries();
-export const geRoutesSize = () => flatRouter.size;
+export const getRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddlewareExecutable = (id: string) => middlewaresById.get(id);
 export const getMiddlewaresSize = () => middlewaresById.size;
@@ -158,11 +152,11 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
 
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
 
-// Survives resetRouter on purpose: a dev host reloads the entry after a reset and still owns the socket.
-const devHost = getOrCreateGlobal('mion.router.devHost', () => ({
+// resetRouter leaves it alone: the dev host sets it before the entry loads, not the routes.
+const devHost = {
   ownsSocket: false,
   handler: undefined as HostRequestHandler | undefined,
-}));
+};
 
 /** Set by a dev host that owns the socket (the mion vite plugin) BEFORE it loads the server entry, so whatever
  *  platform adapter the entry starts registers its routes and hands over its handler instead of listening. */
@@ -205,19 +199,14 @@ export const resetRouter = () => {
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearBatches();
-  // resetJitFnCaches() is deliberately NOT called: the JIT caches are global, and the
-  // serializableClassRegistry it clears is needed to (de)serialize classes like RpcError.
-  // Only a test of AOT cache loading calls it.
+  // No resetJitFnCaches(): it lives in @mionjs/core/testing, which a shipped router must not import.
 };
 
-/** The ONE way to initialize the router and to declare routes and middlewares: the options are written once
- *  and carried BY TYPE into every helper the factory returns, so a handler's `ctx.shared` is typed from
- *  `contextDataFactory` and router-wide defaults can be read at build time. The helpers are plain closures
- *  (no `this`), so destructuring them is fine. Create the router once per app: a second call throws until
- *  `resetRouter()` (tests) clears it. */
-export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
+/** Options ride BY TYPE into every helper, so router-wide defaults are read at build time and `ctx.shared` is typed from
+ *  `sharedDataFactory`'s written return type. The helpers are plain closures (no `this`), safe to destructure. */
+export function createMionRouter<const O extends RouterOptionsInput & KnownKeysOf<O, object> = Record<never, never>>(
   opts?: RouterOptionsArg<O>
-): MionRouter<O> {
+): MionRouter<O, WithShared<O, object>> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -226,12 +215,12 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
   const options = Object.freeze({...opts}) as Readonly<O>;
   return {
     options,
-    route: route as RouteHelper<O>,
-    query: query as RouteHelper<O, false>,
-    mutation: mutation as RouteHelper<O, true>,
-    middleware: middleware as MiddlewareHelper<O>,
-    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O>,
-    rawMiddleware: rawMiddleware as RawMiddlewareHelper<O>,
+    route: route as RouteHelper<O, WithShared<O, object>>,
+    query: query as RouteHelper<O, WithShared<O, object>, false>,
+    mutation: mutation as RouteHelper<O, WithShared<O, object>, true>,
+    middleware: middleware as MiddlewareHelper<O, WithShared<O, object>>,
+    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O, WithShared<O, object>>,
+    rawMiddleware: rawMiddleware as RawMiddlewareHelper<WithShared<O, object>>,
     // Typed by MionRouter, the one place its signature is written.
     initRoutes(routes, buildVersion) {
       initRouter(options, buildVersion);
@@ -242,6 +231,17 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     },
   };
 }
+
+/** Declares the keys a router adds (see `RouterTypes`) and returns `createMionRouter` typed by them. Types only: a type
+ *  argument on `createMionRouter` itself would stop the options literal from being inferred.
+ *  @example
+ *  ```ts
+ *  const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({basePath: 'api'});
+ *  mion.route(handler, {cors: false});
+ *  ``` */
+createMionRouter.withTypes = function withTypes<T extends RouterTypes & CheckedRouterTypes<T> = object>(): TypedRouterFactory<T> {
+  return createMionRouter as unknown as TypedRouterFactory<T>;
+};
 
 /** Once per app; `resetRouter()` clears it. */
 function initRouter(opts: RouterOptionsInput, version?: string): void {
@@ -256,7 +256,6 @@ function initRouter(opts: RouterOptionsInput, version?: string): void {
   setErrorOptions(routerOptions);
   isRouterInitialized = true;
   registerRoutes({...mionErrorsRoutes});
-  if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
 }
 
 function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
@@ -322,9 +321,7 @@ export function shouldFullGenerateSpec(): boolean {
 
 // ############# PRIVATE METHODS #############
 
-/** Flattens the routes object into a list of Executable objects. `currentPointer` is the position in that
- *  object (i.e. ['users', 'get']); `preMiddlewares` / `postMiddlewares` are the middlewares one level up, before
- *  and after that position. */
+/** `currentPointer` is the position in `routes` (e.g. ['users', 'get']); the middlewares come from one level up. */
 function recursiveFlatRoutes(
   routes: Routes,
   currentPointer: string[] = [],
@@ -333,7 +330,7 @@ function recursiveFlatRoutes(
   nestLevel = 0
 ) {
   if (nestLevel > MAX_ROUTE_NESTING)
-    throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
+    throw new Error(`Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels`);
 
   const entries = Object.entries(routes);
   if (entries.length === 0)
@@ -352,6 +349,8 @@ function recursiveFlatRoutes(
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${key}' is not a valid route name.`);
     if (key === MION_BATCH_KEY)
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${MION_BATCH_KEY}' is a reserved mion route name.`);
+    // the client proxy answers no `then`, so `await routes` settles; such a route could never be called
+    if (key === 'then') throw new Error(`Invalid route: ${joinPath(...newPointer)}. 'then' is a reserved mion route name.`);
 
     if (isAnyMiddlewareDef(item)) {
       // a start or end middleware already owns this id, and would otherwise be silently reused in its place
@@ -536,7 +535,9 @@ export function getExecutableFromMiddleware(
       alwaysRun: !!middleware.options?.alwaysRun,
       quotedId: JSON.stringify(middlewareId),
       ...reflectionData,
+      // added keys first, so mion's own always win
       options: {
+        ...middleware.options,
         alwaysRun: !!middleware.options?.alwaysRun,
         description: middleware.options?.description,
         parser,
@@ -584,6 +585,7 @@ export function getExecutableFromRawMiddleware(
     quotedId: JSON.stringify(middlewareId),
     ...reflectionData,
     options: {
+      ...middleware.options,
       alwaysRun: !!middleware.options?.alwaysRun,
       description: middleware.options?.description,
     },
@@ -614,6 +616,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       quotedId: JSON.stringify(routeId),
       ...reflectionData,
       options: {
+        ...route.options,
         alwaysRun: false,
         description: route.options?.description,
         parser,
@@ -682,15 +685,15 @@ function getExecutablesFromMiddlewaresCollection(
 }
 
 function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
-  if (!opts?.contextDataFactory) return;
-  const testSharedData = opts.contextDataFactory();
+  if (!opts?.sharedDataFactory) return;
+  const testSharedData = opts.sharedDataFactory();
   if (
     typeof testSharedData !== 'object' ||
     Array.isArray(testSharedData) ||
     testSharedData === null ||
     Object.keys(testSharedData).length === 0
   ) {
-    throw new Error('contextDataFactory must return a plain object with at least one property');
+    throw new Error('sharedDataFactory must return a plain object with at least one property');
   }
 }
 
@@ -749,8 +752,12 @@ function refreshChainBodyLimits(): void {
 /** `server` first so the option can replace it, `content-type` last so it cannot; lowercased, or `Headers` would
  *  append a name repeated in another case. */
 function mergeResponseDefaults(responseHeaders: Record<string, string>): ResponseDefaults {
-  const merged: Record<string, string> = {server: 'mionjs'};
-  for (const name in responseHeaders) merged[name.toLowerCase()] = responseHeaders[name];
+  const merged: Record<string, string> = {server: MION_SERVER_NAME};
+  for (const name in responseHeaders) {
+    // refused at startup, so no adapter ever writes a bad default
+    assertHeaderSafe(name, responseHeaders[name]);
+    merged[name.toLowerCase()] = responseHeaders[name];
+  }
   merged['content-type'] = JSON_CONTENT_TYPE;
   return merged;
 }

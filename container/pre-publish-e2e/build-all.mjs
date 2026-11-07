@@ -92,16 +92,11 @@ const APP_LIST = [
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
   // Turbopack has no plugin API; next build requires a separate CLI process.
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
-  {name: 'smoke-next', adapter: 'next'},
+  // `directiveProbes` (app/ClientProbe.tsx, app/actions.ts): also `next build --webpack`, `next dev` on both bundlers.
+  {name: 'smoke-next', adapter: 'next', directiveProbes: true},
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
   // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
   {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
-  // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
-  // handler, so one build produces the front end and the API from one program. smoke-next
-  // covers the transform under Turbopack; this covers the framework on top of it, including a
-  // batch, which only works when the client's call site and the server's table come from the
-  // same build.
-  {name: 'mion-next', adapter: 'mionNext'},
 ];
 
 async function buildVite(app) {
@@ -162,7 +157,7 @@ async function buildEsbuild(app) {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node22',
+    target: 'node24',
     outfile: path.join(appDir, 'dist/entry.js'),
     external: ['@mionjs/run-types', '@mionjs/run-types/*'],
     plugins: [runtypes(rtOptions(appDir))],
@@ -236,43 +231,34 @@ async function buildBunPreload(app) {
   runBun(path.join(APPS, app.name), ['--preload', './rt-preload.ts', 'src/run.ts']);
 }
 
-// Next owns its own output layout (.next/), so there is no dist/entry.js to
-// assert against; the page prerenders selfCheck() and the assertions read the
-// built HTML instead.
+// Next's .next/ layout has no dist/entry.js: the page prerenders selfCheck() and the assertions read the built HTML.
 async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
-  const run = () =>
-    execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  const html = path.join(appDir, '.next/server/app/index.html');
+  const run = (flags = []) =>
+    execFileSync(process.execPath, [nextBin, 'build', ...flags], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  // Next fails if the injected imports land above a directive. Turbopack builds last: build-outputs.test.mjs reads it.
+  if (app.directiveProbes) {
+    run(['--webpack']);
+    assertDirectiveIds(readFileSync(html, 'utf8'), `${app.name} (next build --webpack)`);
+    for (const flags of [[], ['--webpack']]) await checkNextDev(app, appDir, nextBin, flags);
+  }
   run();
   if (app.typeEdit === false) return;
 
-  // Second build, after editing a type the page reflects through an ERASED
-  // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge
-  // to it). The loader declares its type dependencies via addDependency; this
-  // proves declaring them does not break a Turbopack build and that the edit is
-  // picked up, with Next's persistent build cache in play.
-  //
-  // NB: `next build` re-runs loaders on every build, so this lane cannot fail
-  // for a MISSING declaration — the stale case lives in `next dev`. It is
-  // covered where it can actually be driven, in
-  // packages/devtools/test/type-deps-invalidation.test.ts, which
-  // re-transforms after a type edit and asserts the injected id moved.
+  // Rebuild after editing typeDep.ts (erased `import type`): Turbopack must accept the declared dep and see the edit.
+  // `next build` reruns loaders, so a MISSING type-dep declaration only shows in `next dev`:
+  // packages/devtools/test/type-deps-invalidation.test.ts covers that.
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');
-  const html = path.join(appDir, '.next/server/app/index.html');
-  // Capture word characters only. The injected id is [A-Za-z0-9_], and React can
-  // emit comment separators (`<!-- -->`) inside a div, which a lazy match up to
-  // </div> would swallow into the captured value.
   const injectedId = () => {
     if (!existsSync(html)) throw new Error(`smoke-next: no prerendered HTML at ${html} — did the build emit it?`);
-    const id = /id="rt-typedep">(\w+)/.exec(readFileSync(html, 'utf8'))?.[1];
-    if (!id) throw new Error(`smoke-next: no rt-typedep id in ${html} — did the page stop rendering the probe?`);
-    return id;
+    return typeDepId(readFileSync(html, 'utf8'), html);
   };
   const firstId = injectedId();
   try {
-    writeFileSync(probe, original.replace('label: string;', 'label: string;\n  country: string;'));
+    writeFileSync(probe, editTypeDep(original));
     run();
     const secondId = injectedId();
     if (firstId === secondId) {
@@ -283,60 +269,73 @@ async function buildNext(app) {
   }
 }
 
-// Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
-// the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
-const MION_NEXT_PORT = 8088;
+// Fixed, like the consumers' 8086 / 8087: the lanes run one at a time in an image nothing else listens in.
+const SMOKE_NEXT_DEV_PORT = 8089;
 
-async function waitForOk(url, child, timeoutMs) {
+// \w+, not a lazy match up to </div>: React can emit `<!-- -->` separators inside the div.
+function typeDepId(rendered, where) {
+  const id = /id="rt-typedep">(\w+)/.exec(rendered)?.[1];
+  if (!id) throw new Error(`smoke-next: no rt-typedep id in ${where} — did the page stop rendering the probe?`);
+  return id;
+}
+
+function editTypeDep(source) {
+  const edited = source.replace('label: string;', 'label: string;\n  country: string;');
+  if (edited === source) throw new Error("smoke-next: typeDep.ts has no 'label: string;' to edit");
+  return edited;
+}
+
+// A server killed by a signal keeps exitCode null and sets signalCode instead.
+const exited = (child) => child.exitCode !== null || child.signalCode !== null;
+
+function assertDirectiveIds(rendered, where) {
+  for (const probe of ['rt-use-client', 'rt-use-server']) {
+    if (!new RegExp(`id="${probe}">\\w+`).test(rendered)) throw new Error(`${where}: no ${probe} id in the rendered page`);
+  }
+}
+
+// `next dev` rewrites through the same loader (Turbopack) or plugin (webpack) as a build, served lazily.
+// Turbopack's type edit: `next dev` caches untouched rewrites, so only the broker's watcher and type deps move the id.
+async function checkNextDev(app, appDir, nextBin, flags) {
+  const {NODE_ENV: _nodeEnv, ...env} = process.env;
+  const where = `${app.name} (${['next dev', ...flags].join(' ')})`;
+  const url = `http://127.0.0.1:${SMOKE_NEXT_DEV_PORT}/`;
+  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(SMOKE_NEXT_DEV_PORT), ...flags], {cwd: appDir, stdio: 'inherit', env});
+  const probe = path.join(appDir, 'typeDep.ts');
+  const original = readFileSync(probe, 'utf8');
+  try {
+    const rendered = await (await waitForOk(url, child, 180_000)).text();
+    assertDirectiveIds(rendered, where);
+    if (flags.length) return;
+    const firstId = typeDepId(rendered, where);
+    writeFileSync(probe, editTypeDep(original));
+    const moved = (body) => typeDepId(body, where) !== firstId;
+    await waitForOk(url, child, 60_000, moved).catch((error) => {
+      throw new Error(`${where}: the rt-typedep id did not move after a type edit — the dev rewrite is stale (${error.message})`);
+    });
+  } finally {
+    writeFileSync(probe, original);
+    child.kill('SIGTERM');
+    await new Promise((resolve) => (exited(child) ? resolve() : child.once('exit', resolve)));
+  }
+}
+
+async function waitForOk(url, child, timeoutMs, accept = () => true) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`mion-next: \`next start\` exited with ${child.exitCode} before serving ${url}`);
+    if (exited(child)) throw new Error(`the server exited (${child.exitCode ?? child.signalCode}) before serving ${url}`);
     try {
       const res = await fetch(url);
-      if (res.ok) return res;
+      if (res.ok && accept(await res.clone().text())) return res;
     } catch {
-      // not listening yet
+      // not listening yet, or mid-recompile
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`mion-next: ${url} did not answer within ${timeoutMs}ms`);
+  throw new Error(`${url} did not answer within ${timeoutMs}ms`);
 }
 
-// SERVED with a real `next start`, because the API only exists at request time. The app's own /selftest
-// route does the calling (its batch has to be in the app's program); this driver only saves the report.
-async function buildMionNext(app) {
-  const appDir = path.join(APPS, app.name);
-  const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
-  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
-
-  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(MION_NEXT_PORT)], {
-    cwd: appDir,
-    stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'production'},
-  });
-  try {
-    const base = `http://127.0.0.1:${MION_NEXT_PORT}`;
-    await waitForOk(`${base}/`, child, 90_000);
-    const res = await waitForOk(`${base}/selftest`, child, 30_000);
-    const report = await res.json();
-    // Fail here as well as in the assertions: a broken lane should not need `node --test` to say so.
-    const failures = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
-    if (failures.length) throw new Error(`mion-next: the app reported errors: ${failures.join(' | ')}`);
-    writeFileSync(path.join(appDir, 'selftest.json'), `${JSON.stringify(report, null, 2)}\n`);
-  } finally {
-    child.kill('SIGTERM');
-  }
-
-  // Second build, on the bundled lane. Not served: what it proves is what is IN the output, and
-  // Turbopack drops the fetched lane through a resolveAlias, which only a real build can confirm.
-  execFileSync(process.execPath, [nextBin, 'build'], {
-    cwd: appDir,
-    stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'production', MION_E2E_CLIENT_ROUTES: 'bundle'},
-  });
-}
-
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};
 
 async function main() {
   const requested = process.argv.slice(2);

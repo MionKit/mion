@@ -14,6 +14,7 @@ import type {
   RouteHelper,
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
+
 import type {CallContext} from '../types/context.ts';
 
 // ############# Route & Middlewares initialization (INTERNAL) #############
@@ -23,8 +24,7 @@ import type {CallContext} from '../types/context.ts';
 // call them directly, each pinning its own `encoder`.
 // ⚠️ There is NO signature here on purpose: each body is TYPED BY its helper interface in
 // types/mionRouter.ts, the one place a helper signature is written, so there is no second surface to keep
-// in step. `RouterOptionsInput` is the widest options shape; `createMionRouter` narrows each helper to
-// its own `O` so a declaration reads the factory's options.
+// in step. The router factory narrows each `RouterOptionsInput` helper to its own `O` and `T`.
 
 export const route: RouteHelper<RouterOptionsInput> = (
   handler,
@@ -43,7 +43,7 @@ export const route: RouteHelper<RouterOptionsInput> = (
 });
 
 /** Typed as the same helper as `route()`, so both keep the marker signature the scanner reads at the call site. */
-function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, M> {
+function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, object, M> {
   return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId) => ({
     type: HandlerType.route,
     handler,
@@ -91,7 +91,7 @@ export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId, headersFns, headersId},
 });
 
-export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, opts) => ({
+export const rawMiddleware: RawMiddlewareHelper = (handler, opts) => ({
   type: HandlerType.rawMiddleware,
   handler,
   options: opts,

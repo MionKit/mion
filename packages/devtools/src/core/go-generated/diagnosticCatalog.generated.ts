@@ -758,7 +758,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-element-unreadable': {
     headline:
-      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.',
+      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.',
     level: 'error',
     family: 'marker',
     slots: ['reason'],
@@ -926,6 +926,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'mionroute',
     slots: ['handler', 'errorType'],
+  },
+  'rpc-handler-shared-factory-untyped': {
+    headline:
+      '`sharedDataFactory` has no written return type, so every client computes it from the body; write it, `ctx.shared` is typed from it.',
+    level: 'warning',
+    family: 'mionroute',
   },
   'rpc-handler-throws': {
     headline:

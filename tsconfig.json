@@ -15,7 +15,7 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "types": ["node"],
-    "outDir": ".dist/cjs",
+    "outDir": ".dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,

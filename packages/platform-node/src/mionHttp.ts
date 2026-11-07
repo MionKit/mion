@@ -13,11 +13,11 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
   requestPayloadTooLarge,
   handOverToHost,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
@@ -118,6 +118,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const queryIndex = nodeUrl.indexOf('?');
   const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
+  const method = toHttpMethod(httpReq.method);
   let size = 0;
   const bodyChunks: Buffer[] = [];
 
@@ -154,6 +155,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         chain,
         path,
         urlQuery,
+        method,
         requestPayloadTooLarge(),
         reqHeaders,
         respHeaders,
@@ -168,15 +170,10 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     }
   }
 
-  function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
+  function dispatch(reqRawBody: any, reqBodyType: SerializerCode) {
     // runs from a listener: an unhandled error here takes the whole process down under node's default
     try {
-      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
-      if (queryBody) {
-        reqRawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
-      const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
       const dispatched = dispatchMaybeSync(context, httpReq, httpResponse);
       // an all-sync chain answers inside the listener, with no promise in between
       if (dispatched instanceof Promise) dispatched.then(answer).catch(failWith);
@@ -212,7 +209,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // a not-found chain (an unknown path or batch id) has no route to feed: no body, no data listener.
   // Node discards whatever the client still sends once the response ends, so a kept-alive connection stays usable.
   if (!chain.readsBody) {
-    dispatch('', SerializerModes.stringifyJson, false);
+    dispatch('', SerializerModes.stringifyJson);
     return;
   }
 
@@ -231,7 +228,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // Bytes sent anyway parse as node's next request: the microtask lets node's 400 for them go out before our answer.
   const {headers} = httpReq;
   if (httpReq.httpVersionMajor === 1 && headers['content-length'] === undefined && headers['transfer-encoding'] === undefined) {
-    queueMicrotask(() => dispatch('', SerializerModes.stringifyJson, true));
+    queueMicrotask(() => dispatch('', SerializerModes.stringifyJson));
     return;
   }
 
@@ -248,7 +245,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
   httpReq.on('end', () => {
     if (replied) return;
-    dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson, true);
+    dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson);
   });
 }
 

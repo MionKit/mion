@@ -200,6 +200,21 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     ]);
   });
 
+  it('recordColumn replays a shortcut key as the modifier it stands for, never as config', () => {
+    const fake = makeFakeContext();
+    const id = recordColumn(
+      [{version: '4', primaryKey: true}],
+      (context, callArgs) => context.ns.uuid(...(callArgs as never[])),
+      {version: () => ['defaultRandom', []]}
+    );
+    id.toDrizzleColumn(fake.context);
+    expect(fake.calls).toEqual([
+      ['ns', 'uuid'],
+      ['ns.uuid', 'defaultRandom'],
+      ['ns.uuid', 'primaryKey'],
+    ]);
+  });
+
   it('a tableRef() inside sql resolves to the column it names', () => {
     const fake = makeFakeContext();
     const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));

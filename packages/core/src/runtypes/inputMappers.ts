@@ -6,7 +6,6 @@
  * ######## */
 
 import {getRTUtils, registerPureFn} from '@mionjs/run-types/runtime';
-import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# batch input mappers — a transport with a security boundary #############
 //
@@ -27,7 +26,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 // registerInputMapperTuple resolve.
 
 /** Ids a batch table may reference as input mappers. See "the security boundary" above. */
-const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', () => new Set<string>());
+const allowedMapperKeys = new Set<string>();
 
 // `registerPureFn` is a BUILD-TIME marker: a tuple passed from source is rejected with purefn-not-inline (the argument
 // must be an INLINE arrow or function expression). mion's lane has neither half a marker call needs, its key

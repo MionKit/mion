@@ -1,7 +1,7 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import dts from 'vite-plugin-dts';
-import {mionVitePlugin, cjsPackageJsonPlugin, collectBuildEntries} from '@mionjs/devtools/vite';
+import {mionVitePlugin, collectBuildEntries} from '@mionjs/devtools/vite';
 
 // Build entries come from tsconfig.build.json — its include/exclude decide what ships
 // (the same file drives vite-plugin-dts and, where present, the runtypes plugin).
@@ -12,12 +12,13 @@ export default defineConfig({
     legalComments: 'none',
   },
   plugins: [
-    cjsPackageJsonPlugin('.dist/cjs'),
     mionVitePlugin({
       tsConfig: resolve(__dirname, 'tsconfig.build.json'),
+      // edge runtimes forbid `new Function`: ship each compiled fn live, not only as a code string
+      runTypes: {emitMode: 'both'},
     }),
     dts({
-      outDir: ['.dist/cjs', '.dist/esm'],
+      outDir: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),
@@ -25,7 +26,7 @@ export default defineConfig({
   build: {
     lib: {
       entry,
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     outDir: '.dist',
     emptyOutDir: true,
@@ -37,13 +38,6 @@ export default defineConfig({
           format: 'es',
           dir: '.dist/esm',
           entryFileNames: '[name].js',
-          preserveModules: true,
-          preserveModulesRoot: '.',
-        },
-        {
-          format: 'cjs',
-          dir: '.dist/cjs',
-          entryFileNames: '[name].cjs',
           preserveModules: true,
           preserveModulesRoot: '.',
         },

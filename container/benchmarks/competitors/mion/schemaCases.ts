@@ -1,11 +1,7 @@
-// mion validators keyed by suite case key ("GROUP.case"), BUILDER form.
-// Each entry is the case's own `validateSchema` thunk copied VERBATIM from the
-// shared suites (container/benchmarks/src/suites/**) — a
-// `() => createValidateFn(RT.…)` arrow built from the `mion/builders`
-// surface instead of a literal type argument. Consumed by typecost ONLY (it is
-// NOT imported by main.ts). Cases whose value-first form can't be authored
-// (`validateSchema: 'not-supported'`) or that render an alwaysThrow factory
-// (`factoryThrows`) opt out with NOT_SUPPORTED. TOTAL over every key.
+// mion BUILDER-form validators keyed by "GROUP.case": each is the case's `validateSchema` thunk copied VERBATIM
+// from packages/run-types/test/suites/; keys and samples come from container/benchmarks/shared/cases/. typecost
+// ONLY: main.ts never imports it. Cases with no value-first form (`validateSchema: 'not-supported'`) or an
+// alwaysThrow factory (`factoryThrows`) are NOT_SUPPORTED. TOTAL over every key.
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
@@ -73,7 +69,7 @@ export const schemaCases: CompetitorCases = {
     return createValidateFn(ot);
   },
   'ARRAY.symbol_array': NOT_SUPPORTED, // factoryThrows
-  'ARRAY.readonly_string_array': () => createValidateFn(RT.array(TF.string())),
+  'ARRAY.readonly_string_array': () => createValidateFn(RT.readonly(RT.array(TF.string()))),
 
   // ── OBJECT ──
   'OBJECT.simple_interface': () => createValidateFn(RT.object({a: TF.string(), b: TF.number()})),
@@ -179,7 +175,7 @@ export const schemaCases: CompetitorCases = {
   'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
   'TUPLE.empty_tuple': () => createValidateFn(RT.tuple({})),
   'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple({required: [TF.string()]})),
-  'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
+  'TUPLE.readonly_tuple': () => createValidateFn(RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))),
 
   // ── UNION ──
   'UNION.atomic_union': () => createValidateFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),

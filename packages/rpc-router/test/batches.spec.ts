@@ -34,7 +34,8 @@ import {
   readBatchId,
 } from '../src/batches.ts';
 
-const mion = createMionRouter();
+type BatchShared = {middlewareCalled?: number; scopedMiddlewareCalled?: number};
+const mion = createMionRouter({sharedDataFactory: (): BatchShared => ({middlewareCalled: 0})});
 
 // A batch runs several routes in ONE request, sharing the call context between them. The build
 // compiles every batch into a table the server registers at boot; a request carries only the
@@ -79,6 +80,16 @@ describe('batches', () => {
       } satisfies Routes;
 
       expect(() => mion.initRoutes(routesWithBatchName)).toThrow(`'${MION_BATCH_KEY}' is a reserved mion route name`);
+    });
+
+    it('should reject a route named then, which an awaited client proxy would call', async () => {
+      expect(() => mion.initRoutes({then: mion.route((ctx): string => 'test')})).toThrow(`'then' is a reserved mion route name`);
+    });
+
+    it('should reject a nested route named then', async () => {
+      expect(() => mion.initRoutes({users: {then: mion.route((ctx): string => 'test')}})).toThrow(
+        `'then' is a reserved mion route name`
+      );
     });
   });
 
@@ -148,7 +159,7 @@ describe('batches', () => {
     });
 
     it('should deduplicate shared middlewares', async () => {
-      createMionRouter({contextDataFactory: () => ({middlewareCalled: 0})}).initRoutes(routesWithMiddleware);
+      createMionRouter({sharedDataFactory: (): BatchShared => ({middlewareCalled: 0})}).initRoutes(routesWithMiddleware);
       registerBatches({two: {routes: ['route1', 'routeX2']}});
 
       const request = getDefaultRequest({
@@ -677,7 +688,7 @@ describe('batches', () => {
         .map((m) => m.id);
 
     it('should include scoped middleware when route from that scope is called', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
+      createMionRouter({sharedDataFactory: (): BatchShared => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({mixed: {routes: ['route1', 'other/route2', 'route3']}});
 
       const request = getDefaultRequest({
@@ -699,7 +710,7 @@ describe('batches', () => {
     });
 
     it('should maintain correct order when scoped route is called first', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
+      createMionRouter({sharedDataFactory: (): BatchShared => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({scopedFirst: {routes: ['other/route2', 'route1', 'route3']}});
 
       const request = getDefaultRequest({
@@ -718,7 +729,7 @@ describe('batches', () => {
     });
 
     it('should not include scoped middleware when no routes from that scope are called', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
+      createMionRouter({sharedDataFactory: (): BatchShared => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({unscoped: {routes: ['route1', 'route3']}});
 
       const request = getDefaultRequest({

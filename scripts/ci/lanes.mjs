@@ -49,7 +49,7 @@ export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-') && !path.startsWith(CODE_DIGEST)};
 const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
-// The js lane still checks page links and CSS imports; the release gate and prod deploy still build them.
+// js-static still checks page links and CSS imports; the release gate and prod deploy still build them.
 const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
 
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
@@ -58,13 +58,12 @@ const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 't
 const WORKSPACE = [GO_BUILD, ...REPO_CONFIG];
 const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
-// The JS half of the repo. `container/` belongs here, not only to the container
-// lanes: check-code-imports reads every <code-import> in the docs content tree and
-// the contract tests walk that tree plus the benchmark competitor maps and the
-// workflow files. The old path filter listed none of them, so a content-only pull
-// request skipped js-lint and the code-import gate never ran on the very commit
-// that could break it.
-const JS = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+// The JS half of the repo as js-static reads it.
+// `container/` is in: code-import and link checks read its docs pages, the contract tests those and its benchmark maps.
+const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+// The JS test, fuzz and Go-backed lanes read the same minus the page text, which only js-static's checks read.
+const CONTAINER_CODE = {prefix: 'container/', keep: (path) => !path.startsWith('container/website/content/')};
+const JS = JS_STATIC.map((entry) => (entry === 'container/' ? CONTAINER_CODE : entry));
 // What a lane that packs and installs the workspace reads. No container/ (those
 // lanes name their own image dir) and no workflow files.
 const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
@@ -76,31 +75,33 @@ export const SKIP_DEFAULTS = 'skip-defaults';
 // else, so a file outside every entry cannot make it re-run.
 //
 // A lane is owned by exactly ONE piece of work, because that work is what proves
-// it and saves its marker. `go` and `js-fuzz` therefore split the two halves of
-// the go-fuzz job: the Go suite and the JS fuzz sweep run on the same runner but
-// answer to different inputs, and neither may claim the other's marker.
+// it and saves its marker. A lane split over several jobs gives each job an item:
+// `paths: []` feeds every lane input to every item, and a record job saves the
+// lane marker once each item passed.
 //
 // `gate` mirrors the job `if:` labels (ci-lane-contracts.test.ts), so a newer run sees what an older one runs.
 const DEFAULTS = {unless: SKIP_DEFAULTS};
 export const LANES = {
   // ci.yml
-  // The Go suites mount the real marker and drizzle packages (internal/testfixtures/realmarker.go, realdrizzle.go).
-  // The api-types tests compile the drizzle example app's server against the real router and core sources.
+  // The repo paths the Go suites read through internal/testfixtures/testdata/repo (repoLinks).
+  // One item per shard (scripts/ci/go-shard.mjs), each run by its own go-suite matrix job.
   go: {
-    job: 'go tests + fuzz · the Go suite',
+    job: 'go suite',
     hash: 'tokens',
     gate: DEFAULTS,
-    paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
+    paths: ['scripts/ci/go-shard.mjs', 'version.json', 'packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', 'packages/platform-node/', 'packages/devtools/src/core/go-generated/', ...GO_TREE],
+    items: {1: {paths: []}, 2: {paths: []}, 3: {paths: []}},
   },
-  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', gate: DEFAULTS, paths: JS},
-  // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
+  // The count-based sweep and the time-boxed lanes, each on its own runner.
+  'js-fuzz': {job: 'js fuzz', hash: 'tokens', gate: DEFAULTS, paths: JS, items: {sweep: {paths: []}, timeboxed: {paths: []}}},
+  // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so the JS jobs never set Go up.
   // Raw: the generators copy comments into what they emit (the diagnostic prose).
-  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', hash: 'raw', gate: DEFAULTS, paths: [...JS, 'ts-go-runtypes/']},
+  'go-tools': {job: 'go checks · the Go-backed JS checks', hash: 'raw', gate: DEFAULTS, paths: [...JS, 'ts-go-runtypes/']},
   // gofmt and vet read comments (formatting, //go: directives).
-  'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
-  js: {job: 'js tests + lint · the JS suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
+  'go-static': {job: 'go checks · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
+  js: {job: 'js suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // Format, lint, typecheck, the docs checks and the contract tests all read comments.
-  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', gate: DEFAULTS, paths: JS},
+  'js-static': {job: 'js lint', hash: 'raw', gate: DEFAULTS, paths: JS_STATIC},
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
@@ -167,7 +168,7 @@ const agentInstruction = (path) => /(^|\/)(AGENTS|CLAUDE)\.md$/.test(path);
 export const unclassified = (paths) => paths.filter((path) => !agentInstruction(path) && !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
 // Raw: text a test or the site reads (fixtures, snapshots, examples, `// case:` routes, e2e cli([...]), generated files).
-// JSX (four e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
+// JSX (five e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
 const CODE_FILE = /\.(ts|mts|cts|js|mjs|cjs|go)$/;
 const RAW_CODE =
   /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|^packages\/private-drizzle-example-app\/src\/server\/|^container\/pre-publish-e2e\/(build|lint)-all\.mjs$|\.generated\.(ts|go)$/;

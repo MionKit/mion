@@ -61,6 +61,8 @@ export interface ResolverClientOptions {
   patternSampleCount?: number;
   // Forwarded as --pattern-sample-retries: the per-sample draw multiplier for pattern sample generation (default 10).
   patternSampleRetries?: number;
+  // Forwarded as --max-unknown-keys: the per-object cap on a strict errors fn's unknown-key errors (default 10).
+  maxUnknownKeys?: number;
   // false forwards --json-max-bytes=false: no root row carries its compact-JSON maximum.
   jsonMaxBytes?: boolean;
   // Extra packages allowed to declare the marker types, forwarded as --marker-packages at spawn. Session config, not
@@ -117,6 +119,11 @@ const SPAWN_FAILED_PREFIX = 'spawn failed';
 function isTransportLoss(reason: string): boolean {
   return reason === RESOLVER_EXITED || reason.startsWith(SPAWN_FAILED_PREFIX);
 }
+
+// Enough for the child's fatal line, never a whole build log.
+const STDERR_TAIL_CHARS = 2048;
+// The Go binary's fatal() exit code (e.g. a broken tsconfig); a panic exits 2 and stays respawnable.
+const RESOLVER_FATAL_EXIT_CODE = 1;
 
 // How long close() waits for in-flight requests before releasing the process anyway: a hung child must not wedge teardown.
 const CLOSE_DRAIN_TIMEOUT_MS = 5000;
@@ -272,6 +279,8 @@ export interface GenerateResult {
   modules: string[];
   outDir: string;
   siteFiles: string[];
+  // Echo of Response.programHash; '' when the resolver sent none.
+  programHash: string;
   // Echo of Response.batchesModule / routerInitFiles; `batchesModule` is '' when no table was written.
   batchesModule: string;
   routerInitFiles: string[];
@@ -389,6 +398,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       modules: resp.generated ?? [],
       outDir: resp.outDir ?? '',
       siteFiles: resp.siteFiles ?? [],
+      programHash: resp.programHash ?? '',
       batchesModule: resp.batchesModule ?? '',
       routerInitFiles: resp.routerInitFiles ?? [],
       diagnostics: resp.diagnostics,
@@ -472,6 +482,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
   if (opts.patternSampleCount !== undefined) args.push('--pattern-sample-count', String(opts.patternSampleCount));
   if (opts.patternSampleRetries !== undefined) args.push('--pattern-sample-retries', String(opts.patternSampleRetries));
+  if (opts.maxUnknownKeys !== undefined) args.push('--max-unknown-keys', String(opts.maxUnknownKeys));
   if (opts.jsonMaxBytes === false) args.push('--json-max-bytes=false');
   if (opts.markerPackages?.length) args.push('--marker-packages', opts.markerPackages.join(','));
   if (opts.markerPackageCheck === false) args.push('--no-marker-package-check');
@@ -507,6 +518,8 @@ export class ResolverClient extends ResolverClientBase {
   // Lifetime respawn budget: enough for the rare transient child loss (host lifecycle races, external kills)
   // without churning forever on a host where every spawn dies.
   private respawnsLeft = 3;
+  // Set by the child's own fatal(): deterministic, so reported, never respawned.
+  private fatalExit: string | undefined;
 
   constructor(
     private readonly binary: string,
@@ -518,6 +531,8 @@ export class ResolverClient extends ResolverClientBase {
     this.spawnChild();
   }
 
+  // Quoted when the child dies: its own fatal line is the real error.
+  private stderrTail = '';
   // The child's OS pid (fresh after a respawn). Diagnostics + tests.
   get pid(): number | undefined {
     return this.child.pid;
@@ -534,6 +549,7 @@ export class ResolverClient extends ResolverClientBase {
     // The stdio pipes are libuv handles of their own and keep the loop alive, so the child handle is not enough.
     unrefHandle(this.child?.stdin);
     unrefHandle(this.child?.stdout);
+    unrefHandle(this.child?.stderr);
   }
 
   override close(): void {
@@ -549,15 +565,21 @@ export class ResolverClient extends ResolverClientBase {
     // cacheDir rides the child's MION_CACHE_DIR env, not a CLI arg, so concurrent spawns with different cache
     // dirs don't collide. A path forces the cache on there, '' forces it off, undefined leaves the env untouched.
     const env = this.opts.cacheDir !== undefined ? {...process.env, MION_CACHE_DIR: this.opts.cacheDir} : process.env;
-    const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'inherit'], env});
-    if (!child.stdin || !child.stdout) {
+    const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'pipe'], env});
+    if (!child.stdin || !child.stdout || !child.stderr) {
       throw new Error('failed to spawn mion (no stdio pipes)');
     }
     this.child = child;
+    this.stderrTail = '';
+    // Piped, not inherited, so a death report can quote it.
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => {
+      process.stderr.write(chunk);
+      this.stderrTail = (this.stderrTail + chunk).slice(-STDERR_TAIL_CHARS);
+    });
     const stdin = child.stdin;
     const stdout = child.stdout;
-    // A write into the pipe of a child that just died (exit event not yet delivered) raises a stream error;
-    // swallow it, since the exit handler below owns the failure semantics and `send` retries the request.
+    // A write to a child that just died raises a stream error: the close handler below owns it, `send` retries.
     stdin.on('error', () => {});
     const transport = new MessageTransport(stdin, stdout, () => {
       stdin.end();
@@ -572,7 +594,15 @@ export class ResolverClient extends ResolverClientBase {
       // after the constructor naturally lands after it on the wire.
       transport.writeUnframed(JSON.stringify({sources: this.opts.inlineSources}) + '\n');
     }
-    child.on('exit', () => transport.markClosed(RESOLVER_EXITED));
+    // 'close', not 'exit': it fires after stdio drains, so the tail already holds the last line.
+    child.on('close', (code) => {
+      // The child's own verdict: a fresh child would reach the same one.
+      if (code === RESOLVER_FATAL_EXIT_CODE) {
+        const tail = this.stderrTail.trim();
+        this.fatalExit = `${RESOLVER_EXITED} (code ${code})${tail ? `: ${tail}` : ''}`;
+      }
+      transport.markClosed(this.fatalExit ?? RESOLVER_EXITED);
+    });
   }
 
   // An UNEXPECTED child death is retryable: the one-shot lanes are stateless across spawns, so one respawn plus
@@ -586,6 +616,7 @@ export class ResolverClient extends ResolverClientBase {
     } catch (error) {
       // 'resolver is closed': the transport was already down before this request was written, e.g. the death
       // happened between two requests.
+      if (this.fatalExit) throw new Error(this.fatalExit);
       if (!this.canRespawn()) throw error;
       this.respawnFor(attempt);
       return this.transport.request(req);
@@ -598,7 +629,7 @@ export class ResolverClient extends ResolverClientBase {
   }
 
   private canRespawn(): boolean {
-    return !this.intentionalClose && !this.opts.serverMode && this.respawnsLeft > 0;
+    return !this.intentionalClose && !this.opts.serverMode && !this.fatalExit && this.respawnsLeft > 0;
   }
 
   // respawnFor replaces the dead child exactly once per loss: concurrent requests that died together all funnel

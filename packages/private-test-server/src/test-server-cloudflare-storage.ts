@@ -66,7 +66,7 @@ type SharedData = {d1: DrizzleD1Database | null; notes: NotesDurableObject | nul
 type Context = CallContext<SharedData>;
 
 const getSharedData = (): SharedData => ({d1: null, notes: null});
-const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
 /** A raw middleware is how a route reaches the bindings: the cloudflare adapter passes `{env, ctx}` as the raw response. */
 const withStorage = mion.rawMiddleware(async (ctx: Context, _request: unknown, platform: {env: StorageEnv}): Promise<void> => {

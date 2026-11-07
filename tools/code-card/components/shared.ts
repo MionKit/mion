@@ -29,6 +29,9 @@ export const isCount = (value: string | number) => isWritten(value) && Number.is
 /** A tile value is read at a glance: up to 12 characters (an emoji counts once). */
 export const isTileValue = (value: string) => [...value].length > 0 && [...value].length <= 12;
 
+/** When a beat starts in a CardLoop item's turn (and, for a beat that runs, ends), as the --cc-at style. */
+export const at = (start: number, until?: number) => ({'--cc-at': start, ...(until === undefined ? {} : {'--cc-until': until})});
+
 /** What a CardLanes provides its lanes. */
 export type Gate = {name: string; step: {'--cc-i': number}};
 export const GATE_KEY = Symbol('code-card-gate');

@@ -121,9 +121,9 @@ describe('zod competitor map measures both metrics on its compiled path', () => 
 describe('typebox competitor map uses the typebox package', () => {
   const source = read('container/benchmarks/competitors/typebox/cases.ts');
 
-  it('imports only typebox and typebox/compile', () => {
+  it('imports only typebox and its own subpaths', () => {
     const imports = [...source.matchAll(/from '([^.][^']*)'/g)].map((match) => match[1]);
-    expect([...new Set(imports)].sort()).toEqual(['typebox', 'typebox/compile']);
+    expect([...new Set(imports)].sort()).toEqual(['typebox', 'typebox/compile', 'typebox/format', 'typebox/system']);
   });
 
   it('records the version of the package it imports', () => {
@@ -634,11 +634,9 @@ describe("typia's esbuild wrapper leaves the shared harness to esbuild", () => {
 });
 
 describe('the all-optional zod cases keep the plain-object guard', () => {
-  // The Correctness page states zod agrees with RunTypes on every sample, the alignment
-  // report records zod's plain-object guard as deliberate, and aggregate.mjs fails the
-  // release gate on any `fail`. z.object alone accepts a Date / Map / Set / RegExp for an
-  // all-optional shape, and a `.refine` sees the parsed copy, so the guard has to wrap
-  // the schema from the input side (z.custom(...).pipe(schema)).
+  // A `fail` breaks aggregate.mjs's release gate and the Correctness page's "zod agrees on every sample".
+  // z.object alone accepts a Date / Map / Set / RegExp for an all-optional shape; a `.refine` sees the parsed copy.
+  // So the guard is a z.custom on the INPUT; a pipe into z.object would copy the object on every call.
   const source = read('container/benchmarks/competitors/zod/cases.ts');
   const entry = (key: string): string => {
     const start = source.indexOf(`'${key}': {`);
@@ -646,16 +644,11 @@ describe('the all-optional zod cases keep the plain-object guard', () => {
     return source.slice(start, source.indexOf('\n  },', start));
   };
 
-  it('defines the guard on the input side of the object schema', () => {
-    expect(source).toMatch(
-      /const plainObject = [\s\S]*?z\s*\.custom<Input>\([\s\S]*?'\[object Object\]'\)[\s\S]*?\.pipe\(schema\)/
-    );
-  });
-
   it.each(['OBJECT.interface_all_optional', 'UTILITY.partial', 'UTILITY.deep_partial_recursive_mapped'])(
-    '%s wraps its schema in it',
+    '%s guards the input and checks its keys in place',
     (key) => {
-      expect(entry(key)).toContain('plainObject(');
+      expect(entry(key)).toMatch(/z\s*\.custom<[\s\S]*?'\[object Object\]'\s*\)\s*\.check\(\s*z\.properties\(/);
+      expect(entry(key)).not.toContain('.pipe(');
       expect(entry(key)).not.toContain('samples:');
     }
   );

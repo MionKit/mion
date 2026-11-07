@@ -219,3 +219,145 @@ func TestClassMemberFlags_VisibilityFormEquivalence(t *testing.T) {
 		t.Fatalf("static and value forms must share one id, got %q vs %q", static.ID, value.ID)
 	}
 }
+
+const accessorMembersSource = `export class Reader { name = 'a'; get id(): number { return 1; } }
+export class Pair { get val(): number { return 1; } set val(v: number) {} }
+export class Writer { set only(v: number) {} }
+export class Wider { get val(): string { return ''; } set val(v: string | number) {} }
+export class Mixed { get val(): string { return ''; } set val(v: number) {} }
+export class Box<T> { get val(): T { return null!; } set val(v: T) {} }
+export interface Getter { get id(): number; }
+export const literal = {get id() { return 1; }};
+export class Auto { accessor count = 1; }
+export class Tagged {
+  /** @accessor */ plain = 1;
+  /** @accessorNoSetter */ other = 1;
+}
+export class Action { get run(): () => void { return () => {}; } }
+export type Unlocked = {-readonly [K in keyof Reader]: Reader[K]};
+`
+
+const accessorMembersImports = `import {getRunTypeId} from '@mionjs/run-types';
+import {Reader, Pair, Writer, Wider, Mixed, Box, Getter, literal, Auto, Tagged, Action, Unlocked} from './members.ts';
+declare const reader: Reader;
+declare const pair: Pair;
+declare const writer: Writer;
+declare const wider: Wider;
+declare const mixed: Mixed;
+declare const box: Box<string>;
+declare const getter: Getter;
+declare const picked: Pick<Reader, 'id'>;
+declare const partial: Partial<Reader>;
+declare const joined: Reader & {x: 1};
+declare const auto: Auto;
+declare const tagged: Tagged;
+declare const taggedCopy: Pick<Tagged, 'other'>;
+declare const action: Action;
+declare const unlocked: Unlocked;
+declare const merged: Reader & {id: number};
+`
+
+type accessorCase struct {
+	static, value, name string
+	accessor, noSetter  bool
+	readonly, optional  bool
+}
+
+var accessorCases = []accessorCase{
+	{static: "Reader", value: "reader", name: "id", accessor: true, noSetter: true, readonly: true},
+	{static: "Pair", value: "pair", name: "val", accessor: true},
+	{static: "Writer", value: "writer", name: "only", accessor: true, noSetter: true, optional: true},
+	{static: "Wider", value: "wider", name: "val", accessor: true},
+	{static: "Mixed", value: "mixed", name: "val", accessor: true, noSetter: true},
+	{static: "Box<string>", value: "box", name: "val", accessor: true},
+	{static: "Getter", value: "getter", name: "id", accessor: true, noSetter: true, readonly: true},
+	{static: "Pick<Reader, 'id'>", value: "picked", name: "id", accessor: true, noSetter: true, readonly: true},
+	{static: "Partial<Reader>", value: "partial", name: "id", accessor: true, noSetter: true, readonly: true, optional: true},
+	{static: "Reader & {x: 1}", value: "joined", name: "id", accessor: true, noSetter: true, readonly: true},
+	{static: "Unlocked", value: "unlocked", name: "id", accessor: true, noSetter: true},
+	{static: "Reader & {id: number}", value: "merged", name: "id", accessor: true, noSetter: true},
+	{static: "Auto", value: "auto", name: "count", accessor: true},
+	// An object literal getter is an own key, so it stays data.
+	{static: "typeof literal", value: "literal", name: "id"},
+	// A doc comment does not change a real field.
+	{static: "Tagged", value: "tagged", name: "plain"},
+	{static: "Tagged", value: "tagged", name: "other"},
+	{static: "Pick<Tagged, 'other'>", value: "taggedCopy", name: "other"},
+	// A getter of a function is a method, and a method has no accessor bit in its id.
+	{static: "Action", value: "action", name: "run"},
+}
+
+func assertAccessorCases(t *testing.T, site func(accessorCase) string) {
+	t.Helper()
+	for _, want := range accessorCases {
+		resolver := setupInline(t, map[string]string{"members.ts": accessorMembersSource, "site.ts": accessorMembersImports + site(want)})
+		root := resolveFile(t, resolver, "site.ts")
+		member := findMember(dump(resolver), root, want.name)
+		if member == nil {
+			t.Fatalf("%s: no member %s", want.static, want.name)
+		}
+		if got := slices.Contains(member.Flags, reflection.FlagAccessor); got != want.accessor {
+			t.Errorf("%s: accessor flag = %v, want %v", want.static, got, want.accessor)
+		}
+		if got := slices.Contains(member.Flags, reflection.FlagAccessorNoSetter); got != want.noSetter {
+			t.Errorf("%s: no-setter flag = %v, want %v", want.static, got, want.noSetter)
+		}
+		if member.Optional != want.optional {
+			t.Errorf("%s: optional = %v, want %v", want.static, member.Optional, want.optional)
+		}
+		// An object literal getter reads readonly to TypeScript, whatever our flag says.
+		if want.accessor && member.Readonly != want.readonly {
+			t.Errorf("%s: readonly = %v, want %v", want.static, member.Readonly, want.readonly)
+		}
+	}
+}
+
+func TestClassMemberFlags_AccessorSurvivesDerivedTypes_Static(t *testing.T) {
+	assertAccessorCases(t, func(want accessorCase) string { return "getRunTypeId<" + want.static + ">();\n" })
+}
+
+func TestClassMemberFlags_AccessorSurvivesDerivedTypes_Value(t *testing.T) {
+	assertAccessorCases(t, func(want accessorCase) string { return "getRunTypeId(" + want.value + ");\n" })
+}
+
+var accessorIDVariants = map[string]string{
+	"data":     `export type Shape = {id: number};`,
+	"readonly": `export type Shape = {readonly id: number};`,
+	"getter":   `class Source { get id(): number { return 1; } } export type Shape = Pick<Source, 'id'>;`,
+	"pair":     `class Source { get id(): number { return 1; } set id(v: number) {} } export type Shape = Pick<Source, 'id'>;`,
+	"mismatch": `class Source { get id(): number { return 1; } set id(v: string) {} } export type Shape = Pick<Source, 'id'>;`,
+}
+
+func accessorShapeID(t *testing.T, source, site string) string {
+	t.Helper()
+	resolver := setupInline(t, map[string]string{"shape.ts": source, "site.ts": `import {getRunTypeId} from '@mionjs/run-types';
+import type {Shape} from './shape.ts';
+` + site})
+	return resolveFile(t, resolver, "site.ts").ID
+}
+
+// Each one is written or copied differently, so none may share a cache entry with a plain prop.
+func TestClassMemberFlags_AccessorSplitsThePlainShapeID_Static(t *testing.T) {
+	seen := map[string]string{}
+	for label, source := range accessorIDVariants {
+		id := accessorShapeID(t, source, "getRunTypeId<Shape>();\n")
+		if other, dup := seen[id]; dup {
+			t.Errorf("%s and %s share type id %s", label, other, id)
+		}
+		seen[id] = label
+	}
+}
+
+func TestClassMemberFlags_AccessorSplitsThePlainShapeID_Value(t *testing.T) {
+	seen := map[string]string{}
+	for label, source := range accessorIDVariants {
+		id := accessorShapeID(t, source, "declare const shape: Shape;\ngetRunTypeId(shape);\n")
+		if static := accessorShapeID(t, source, "getRunTypeId<Shape>();\n"); id != static {
+			t.Errorf("%s: value id %s differs from static id %s", label, id, static)
+		}
+		if other, dup := seen[id]; dup {
+			t.Errorf("%s and %s share type id %s", label, other, id)
+		}
+		seen[id] = label
+	}
+}

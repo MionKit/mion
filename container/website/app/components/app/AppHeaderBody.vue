@@ -13,14 +13,11 @@ const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const tabs = computed(() => SUBSITES.map((entry) => ({
   label: entry.label,
   icon: entry.icon,
-  to: entry.home,
+  to: entry.path,
   active: isInSubsite(route.path, entry),
 })))
 
-const sections = computed<ContentNavigationItem[]>(() => {
-  if (!subsite.value || !navigation?.value) return []
-  return navigation.value.find((item) => item.path === subsite.value?.path)?.children ?? []
-})
+const sections = computed<ContentNavigationItem[]>(() => subsiteSidebar(navigation?.value, subsite.value))
 </script>
 
 <template>

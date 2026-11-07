@@ -132,9 +132,7 @@ const MODES = [
   {key: 'edits', label: 'edits (FE applies)', emitEdits: true},
 ];
 
-// transformFile returns the round-trip ms and, for 'edits', the FE apply ms
-// separately — so the breakdown shows WHERE 'edits' spends its time (the JS-side
-// map generation is O(file size), the cost it trades the wire savings for).
+// Times the FE apply apart from the round trip: its O(file size) map generation is what 'edits' trades for wire size.
 async function transformFile(client, mode, file, source) {
   if (mode.emitEdits) {
     const t0 = process.hrtime.bigint();
@@ -143,7 +141,7 @@ async function transformFile(client, mode, file, source) {
     const fr = resp.transformed[file];
     if (!fr) return {rtMs, applyMs: 0};
     const t1 = process.hrtime.bigint();
-    if (sourceHash(source) === fr.sourceHash) applyEdits(file, source, fr.importBlock ?? '', fr.edits ?? []);
+    if (sourceHash(source) === fr.sourceHash) applyEdits(file, source, fr.importBlock ?? '', fr.importAt ?? 0, fr.edits ?? []);
     return {rtMs, applyMs: Number(process.hrtime.bigint() - t1) / 1e6};
   }
   const t0 = process.hrtime.bigint();

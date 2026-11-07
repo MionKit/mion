@@ -15,6 +15,7 @@ import {build} from 'vite';
 type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
+import {CLIENT_DTS, ROUTER_DTS, ROUTES} from '../helpers/batchFixture.ts';
 
 // The batch transport through a REAL vite build over a REAL program: the resolver generates
 // `<genDir>/rpc/` (the table plus the inline mapper modules, relative imports only) and appends the
@@ -26,32 +27,6 @@ import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 // factory's declaring module is what the router-init detector reads) and to runtime stubs for
 // rollup, so the test needs no built framework packages.
 
-const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`;
-const ROUTER_DTS = `declare module '@mionjs/router' {
-  export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
-  export function replaceBatches(table: unknown): void;
-}
-declare module '@mionjs/core' {
-  export function registerInputMapperTuple(key: string, tuple: unknown): void;
-}
-`;
-const ROUTES = `import {initClient} from '@mionjs/client';
-export type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}};
-  orders: {getById: (id: number) => {id: number}};
-};
-export const {routes} = initClient<Routes>();
-`;
 const MAPPER_BODY = 'u.idFromClientCode';
 const CLIENT = `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
@@ -63,6 +38,7 @@ export const mion = createMionRouter();
 export const api = mion.initRoutes({});
 `;
 const ROUTER_STUB = `export const createMionRouter = () => ({initRoutes: () => ({})});
+createMionRouter.withTypes = () => createMionRouter;
 export const replaceBatches = (table) => { globalThis.__table = table; };
 `;
 const CORE_STUB = `export const registerInputMapperTuple = (key, tuple) => { (globalThis.__mappers ??= {})[key] = tuple; };
@@ -168,8 +144,27 @@ register('batch transport through a real vite build', () => {
     const [tuple] = Object.values(registered);
     expect(tuple).toBeDefined();
     // the registered value is the generated pure-fn tuple, the mapper's id in its id slot
-    expect(String(tuple[3])).toMatch(/#/);
+    expect(String(tuple[3])).toMatch(/:[A-Za-z0-9_-]{10}$/);
     expect(String(tuple[5])).toContain(MAPPER_BODY);
+  });
+
+  it('runs: a router typed with createMionRouter.withTypes in its own module still registers the batch table', async () => {
+    // the module calling withTypes gets the batch import; the server only calls the returned factory
+    writeFileSync(
+      path.join(root, 'src', 'appRouter.ts'),
+      "import {createMionRouter} from '@mionjs/router';\nexport const createAppRouter = createMionRouter.withTypes<{handler: {cors?: false}}>();\n"
+    );
+    writeFileSync(
+      path.join(root, 'src', 'server.ts'),
+      "import {createAppRouter} from './appRouter.ts';\nexport const mion = createAppRouter();\nexport const api = mion.initRoutes({});\n"
+    );
+    const code = await buildServer();
+    const runtime = `${root}/artifact-custom.mjs`;
+    writeFileSync(runtime, code);
+    const globals = globalThis as {__table?: Record<string, unknown>};
+    delete globals.__table;
+    await import(runtime);
+    expect(Object.keys(globals.__table ?? {})).toHaveLength(1);
   });
 
   it('builds a server without batches when the program has none, and generates no rpc/', async () => {

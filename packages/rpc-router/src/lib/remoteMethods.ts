@@ -18,13 +18,12 @@ import {
   DEFAULT_PARSER,
   resolveCompiledPureFn,
   EMPTY_HASH,
-  getOrCreateGlobal,
   HandlerType,
 } from '@mionjs/core';
 import {getRTUtils, RUN_TYPES_PURE_FN_ID_PREFIX} from '@mionjs/run-types/runtime';
 
 // ############# PRIVATE STATE #############
-const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
+const publicMethods = new Map<string, MethodWithOptions>();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -79,12 +78,11 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     pointer: executable.pointer,
     paramsCount: executable.paramsCount ?? 0,
     paramNames: executable.paramNames,
-    // a route whose types could not say takes the platform's number: filled in here, once, so the
-    // client sees the limit the server really applies (the adapter has published it by now)
-    options:
-      executable.type === HandlerType.route && executable.options.maxBodySize === undefined
-        ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
-        : executable.options,
+    // a route with no typed maxBodySize takes the platform's, so the client sees the real limit (published by now)
+    // registration copied a router's added keys onto the options: they reach the client as written
+    options: (executable.type === HandlerType.route && executable.options.maxBodySize === undefined
+      ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
+      : executable.options) as MethodWithOptions['options'],
   };
   if (executable.syncId) newRemoteMethod.syncId = executable.syncId;
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;

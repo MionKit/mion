@@ -13,10 +13,8 @@ import (
 // `prepareForJson + JSON.stringify` writes, flat-union envelopes included.
 // Cost model: one allocation per nested object / array node, with noop leaves (string, number, …)
 // shared by reference, then native JSON.stringify does the serialising.
-// Approach 3 fastpath: when the whole subtree is JSON-compatible (`isJsonCompatible` in
-// json_compat.go) AND every property is required, the object emit gates a runtime
-// `Object.keys(v).length === N` check that returns `v` unchanged. Mixed-optionality shapes always
-// build the clone — the fastpath check would be too expensive to short-circuit safely.
+// No key-count gate: on V8, `Object.keys(v).length === N` costs more than the rebuild, and a count
+// misses a class accessor.
 type PrepareForJsonCloneEmitter struct{}
 
 func (PrepareForJsonCloneEmitter) Args() []ArgSpec {
@@ -202,15 +200,28 @@ type safePropEmit struct {
 	optional   bool
 	accessor   string // input accessor `v.<name>` for the undefined check
 	expr       string // clone expression evaluated against `accessor`
+	// ownGuard runs before the read: reading a native error's `stack` formats the whole trace, only to drop it.
+	ownGuard string
 	// presenceGuard is ANDed into the `!== undefined` check so a merged-union prop with a stripped
 	// sibling is emitted only for a surviving candidate's values; a value from the stripped member
 	// (present but foreign-typed) omits the key (G4).
 	presenceGuard string
 }
 
+// presence guards an optional prop's write; ownGuard goes first, before the value is read.
+func (prop safePropEmit) presence() string {
+	test := prop.accessor + " !== undefined"
+	if prop.ownGuard != "" {
+		test = prop.ownGuard + " && " + test
+	}
+	if prop.presenceGuard != "" {
+		test += " && (" + prop.presenceGuard + ")"
+	}
+	return test
+}
+
 // emitObjectPrepareForJsonClone builds a CodeRB block returning a new object of the declared keys
-// only, with transformed leaves. The Approach 3 fastpath short-circuits to `return v` when
-// `Object.keys(v).length === N`, and only when every prop is required and extra-proof.
+// only, with transformed leaves.
 func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is DataOnly never: like a bare function, alwaysThrow at root and dropped at a property.
 	if isCallableValue(rt, ctx) {
@@ -218,10 +229,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	}
 	var props []safePropEmit
 	var indexSigs []*reflection.RunType
-	// `allExtraProof` is the stricter fastpath gate: a nested object child can be isJsonCompatible
-	// per the TYPE and still carry extras at runtime, which the outer's `return v` would leak.
-	allExtraProof := true
-	allRequired := true
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -238,7 +245,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		if resolved.Kind == reflection.KindIndexSignature {
 			// Deferred: the for-in tail below copies non-declared keys under the sig's transform.
 			indexSigs = append(indexSigs, resolved)
-			allExtraProof = false // index sig dynamic keys can't be passed through
 			continue
 		}
 		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
@@ -261,12 +267,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		if !isExtraProof(propResolved, ctx) {
-			allExtraProof = false
-		}
-		if resolved.Optional {
-			allRequired = false
-		}
 		prop := safePropEmit{
 			name:       resolved.Name,
 			isSafeName: resolved.IsSafeName,
@@ -274,17 +274,14 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 			accessor:   accessor,
 			expr:       expr,
 		}
-		// A non-enumerable-guarded member (lib-global-inherited / `@nonEnumerable`) is projected
-		// Optional, so it already takes the guarded-assignment path; the presenceGuard ANDs an
-		// own-enumerability check into it, so a value carrying the prop non-enumerably omits the
-		// key, as native `JSON.stringify` does.
+		// Guarded members (lib-global-inherited / `@nonEnumerable`) are projected Optional, so they take the guarded write.
+		// A value carrying the prop non-enumerably omits the key, as native `JSON.stringify` does.
 		if isEnumerabilityGuarded(resolved) {
-			prop.presenceGuard = propertyIsEnumerableGuard(v, resolved.Name)
+			prop.ownGuard = propertyIsEnumerableGuard(v, resolved.Name)
 		}
 		props = append(props, prop)
 	}
 
-	// An index signature walks every key at runtime, so the fastpath cannot apply.
 	// Skip ALL declared keys, not only kept props: a DROPPED one (`p0: ArrayBuffer`) must not be copied back in (G6).
 	if len(indexSigs) > 0 {
 		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
@@ -295,24 +292,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		return RTCode{Code: "return {}", Type: CodeRB}
 	}
 
-	clone := buildSafeObjectClone(props, ctx)
-	if clone.Type == CodeRB {
-		// Mixed-optionality: the accumulator block self-returns, so it IS the factory body. Splice
-		// it directly instead of hoisting into a context fn, since the object emit sits in
-		// statement position. The fastpath below cannot apply: a CodeRB clone means at least one
-		// prop is optional.
-		return clone
-	}
-
-	// With every prop required and extra-proof, the declared-key clone equals `v` whenever
-	// `Object.keys(v).length === N`, so a clean input skips the allocation.
-	fastpath := allExtraProof && allRequired
-	if fastpath {
-		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + ") return " + v + ";" +
-			"return " + clone.Code
-		return RTCode{Code: body, Type: CodeRB}
-	}
-	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
+	return buildSafeObjectClone(props, ctx)
 }
 
 // buildSafeIndexSignatureObject copies a key matching no pattern untouched, since validation refuses it.
@@ -387,11 +367,7 @@ func writePatternArm(builder *strings.Builder, keyVar string, arm indexArm) {
 func writePropAssignments(builder *strings.Builder, props []safePropEmit) {
 	for _, prop := range props {
 		if prop.optional {
-			builder.WriteString("if (" + prop.accessor + " !== undefined")
-			if prop.presenceGuard != "" {
-				builder.WriteString(" && (" + prop.presenceGuard + ")")
-			}
-			builder.WriteString(") ")
+			builder.WriteString("if (" + prop.presence() + ") ")
 		}
 		builder.WriteString("_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";")
 	}
@@ -447,13 +423,7 @@ func buildSafeObjectClone(props []safePropEmit, ctx *EmitContext) RTCode {
 			continue
 		}
 		b.WriteString("if (")
-		b.WriteString(p.accessor)
-		b.WriteString(" !== undefined")
-		if p.presenceGuard != "" {
-			b.WriteString(" && (")
-			b.WriteString(p.presenceGuard)
-			b.WriteString(")")
-		}
+		b.WriteString(p.presence())
 		b.WriteString(") _r[")
 		b.WriteString(quoteJS(p.name))
 		b.WriteString("]=")
@@ -481,6 +451,9 @@ func jsonObjectKeyLiteral(name string, isSafeName bool) string {
 // a bigint / symbol literal) is not either, since sharing it by reference would skip the transform.
 // Cycle-safe: re-entry on an in-progress ID answers false, and cloning is always the safe answer.
 func isExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
+	// Resolve first, as isJsonCompatible does: a Map/Set element arrives as a ref, and its false would be memoized under
+	// the target's id, so `string[]` beside `Set<string>` would copy.
+	rt = ctx.ResolveRef(rt)
 	if rt != nil && rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factExtraProof, rt.ID); known {
 			return verdict
@@ -571,8 +544,7 @@ func emitArrayPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	return RTCode{Code: v + ".map(function(" + elemVar + "){return " + expr + "})", Type: CodeE}
 }
 
-// emitTuplePrepareForJsonClone is a noop when every member is extra-proof; otherwise it emits a
-// tuple literal of per-position clone expressions, with a rest member as a mapped tail spread.
+// emitTuplePrepareForJsonClone emits a per-position tuple literal, with a rest member as a mapped tail spread.
 func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -582,6 +554,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	}
 	var parts []string
 	restPart := ""
+	hasOptional := false
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -597,8 +570,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 			parts = append(parts, "null")
 			continue
 		}
-		// Function-typed slots fall through to safeChildExpr and latch as unsupported: a `null`
-		// placeholder would produce a lossy clone for a structural position.
+		// Function-typed slots latch as unsupported: a `null` placeholder would be a lossy clone of a structural position.
 		if isRestTupleMember(resolved) {
 			elemVar := ctx.NextLocalVar("e")
 			expr, ok := safeChildExpr(resolved.Child, elemVar, ctx)
@@ -616,8 +588,8 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if resolved.Optional {
-			// Replace an `undefined` slot with `null` so the JSON form keeps the slot, the tuple
-			// semantic for an optional at a non-trailing position.
+			hasOptional = true
+			// `null` keeps a non-trailing optional's slot in the JSON form.
 			expr = "(" + accessor + " === undefined ? null : " + expr + ")"
 		}
 		parts = append(parts, expr)
@@ -628,7 +600,21 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	if len(parts) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: "[" + strings.Join(parts, ",") + "]", Type: CodeE}
+	tuple := "[" + strings.Join(parts, ",") + "]"
+	if hasOptional {
+		// A short tuple stays short: the literal holds every declared slot.
+		tuple = trimTupleFn(ctx) + "(" + tuple + "," + v + ".length)"
+	}
+	return RTCode{Code: tuple, Type: CodeE}
+}
+
+// trimTupleFn hoists the tail trim once. `pop` allocates nothing: a `.slice` would copy every tuple.
+func trimTupleFn(ctx *EmitContext) string {
+	const name = "trimTuple"
+	if !ctx.HasContextItem(name) {
+		ctx.SetContextItem(name, "const "+name+" = function(tuple,length){while(tuple.length>length)tuple.pop();return tuple}")
+	}
+	return name
 }
 
 // emitIndexSignaturePrepareForJsonClone produces a new object whose values are the child's
@@ -776,26 +762,24 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitMergedObjectOpenClone is the object clause of a carve-out union: a member carrying an index
-// signature declares every key from the union's point of view, so the object member keeps every key
-// exactly as the decoders keep it. A member whose props need no transform is returned untouched;
-// otherwise a copy of every own key is built, with the prototype-name refusal the record arm uses,
-// and only the declared props are rewritten. The copy skips every declared name so the writes own
-// their slot, a dropped one included (G6).
+// emitMergedObjectOpenClone keeps every key as the decoders do: a carve-out union's index signature declares them all.
+// The copy skips every declared name so the writes own their slot, a dropped one included (G6).
 func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit, ctx *EmitContext) string {
 	identity := true
 	for _, prop := range props {
-		if prop.expr != prop.accessor || prop.presenceGuard != "" {
+		if prop.expr != prop.accessor || prop.ownGuard != "" || prop.presenceGuard != "" {
 			identity = false
 			break
 		}
 	}
-	if identity {
-		return v
-	}
 	var declared []string
 	for _, member := range layout.ObjectMembers {
 		declared = append(declared, collectSiblingNamedKeys(member.Resolved, ctx)...)
+		// JSON cannot see an accessor on the untouched value.
+		identity = identity && len(hiddenAccessors(member.Resolved, ctx)) == 0
+	}
+	if identity {
+		return v
 	}
 	keyVar := ctx.NextLocalVar("k")
 	var body strings.Builder
@@ -805,11 +789,7 @@ func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit
 	for _, prop := range props {
 		write := "_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";"
 		if prop.optional {
-			presence := prop.accessor + " !== undefined"
-			if prop.presenceGuard != "" {
-				presence += " && (" + prop.presenceGuard + ")"
-			}
-			write = "if (" + presence + ") " + write
+			write = "if (" + prop.presence() + ") " + write
 		}
 		body.WriteString(write)
 	}

@@ -8,6 +8,7 @@ package typeid
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -342,11 +343,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 	// Unique symbol literal — also a literal kind in the reflection model,
 	// but tsgo's flag is `UniqueESSymbol` not a `*Literal`.
 	if flags&checker.TypeFlagsUniqueESSymbol != 0 {
-		name := ""
-		if symbol := tsType.Symbol(); symbol != nil {
-			name = symbol.Name
-		}
-		return strconv.Itoa(int(kind)) + ":sym:" + computer.lit(name)
+		return strconv.Itoa(int(kind)) + ":sym:" + computer.lit(UniqueSymbolName(computer.typeChecker, tsType))
 	}
 
 	switch kind {
@@ -613,16 +610,15 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 
 func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	propertyType := computer.typeChecker.GetTypeOfSymbol(symbol)
-	memberName := computer.lit(strconv.Quote(stableMemberName(symbol.Name)))
+	memberName := computer.lit(strconv.Quote(StableMemberName(computer.typeChecker, symbol.Name)))
 	// A non-enumerable-guarded member (lib-global-inherited or `@nonEnumerable`) is treated as optional in the
 	// projected shape — the wire may omit it — so its `optional` id bit folds the guard in, matching
 	// serialize.go's appendProperty. The separate `#ne` bit keeps a guarded-optional member distinct from a
 	// plain declared-optional one (enumerability check vs `!== undefined`).
 	guarded := IsNonEnumerable(symbol)
-	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol)
+	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol) || IsSetterOnly(symbol)
 	// Readonly splits the id: `{a: string}` and `{readonly a: string}` must not share a cache slot.
 	// Mirrors internal/cachegen/runtype/modifiers.go:applyMemberModifiers; on mapped / synthetic symbols the AST lies.
-	const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
 	var readonly bool
 	if symbol.CheckFlags&checkFlagsSynthOrMapped != 0 {
 		readonly = symbol.CheckFlags&ast.CheckFlagsReadonly != 0
@@ -659,6 +655,8 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	if asClass {
 		kind = reflection.KindProperty
 	}
+	// Past the method form: a getter of a function is a method, and a method cannot spell `readonly`.
+	readonly = readonly || IsGetterOnly(symbol)
 	// The `optional` bit says undefined: resolve the child without it, as serializer's ResolveOptionalChild does,
 	// or a recursive optional property's back-edge differs between the type-first and value-first paths.
 	// Keep the if/else: walking the raw wrapper too pollutes the pointer cache with depths inflated by the union frame.
@@ -668,12 +666,89 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	} else {
 		child = computer.Compute(propertyType)
 	}
-	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded) + accessorBit(asClass && IsAccessorMember(symbol))
+	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded) +
+		accessorBit(IsAccessorMember(symbol), HasNoUsableSetter(computer.typeChecker, symbol))
 }
 
-// IsAccessorMember reports a get / set accessor; shared by the projection and memberID so id and flag cannot drift.
+// accessorDeclarations reads declarations because a mapped copy keeps those but not the symbol's accessor flag.
+// One in an object literal is skipped: there `get` makes an own key, which is plain data.
+func accessorDeclarations(symbol *ast.Symbol) (getter, setter *ast.Node) {
+	if symbol == nil {
+		return nil, nil
+	}
+	for _, declaration := range symbol.Declarations {
+		if declaration == nil || (declaration.Parent != nil && declaration.Parent.Kind == ast.KindObjectLiteralExpression) {
+			continue
+		}
+		switch declaration.Kind {
+		case ast.KindGetAccessor:
+			getter = declaration
+		case ast.KindSetAccessor:
+			setter = declaration
+		}
+	}
+	return getter, setter
+}
+
+// checkFlagsSynthOrMapped marks a symbol the checker built, whose declarations no longer answer for it.
+const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
+
+// IsAccessorMember reports get / set or auto `accessor x`, a pair with hidden storage; shared so id and flag cannot drift.
+// Tags keep a printed declaration's id: `get` / `set` cannot spell optional, a readonly pair or a setter of another type.
 func IsAccessorMember(symbol *ast.Symbol) bool {
-	return symbol != nil && symbol.Flags&ast.SymbolFlagsAccessor != 0
+	if symbol == nil {
+		return false
+	}
+	getter, setter := accessorDeclarations(symbol)
+	return getter != nil || setter != nil || slices.ContainsFunc(symbol.Declarations, isAutoAccessor) ||
+		hasAccessorTag(symbol, reflection.FlagAccessor) || hasAccessorTag(symbol, reflection.FlagAccessorNoSetter)
+}
+
+func isAutoAccessor(declaration *ast.Node) bool {
+	return declaration != nil && ast.IsAutoAccessorPropertyDeclaration(declaration)
+}
+
+// hasAccessorTag reads a printed member's tag; a real class field holds its own value whatever its doc comment says.
+func hasAccessorTag(symbol *ast.Symbol, name string) bool {
+	isField := func(declaration *ast.Node) bool {
+		return declaration != nil && declaration.Kind == ast.KindPropertyDeclaration && declaration.Flags&ast.NodeFlagsAmbient == 0
+	}
+	return !slices.ContainsFunc(symbol.Declarations, isField) && hasJSDocTag(symbol, name)
+}
+
+// IsGetterOnly reports a member TypeScript reads as readonly; on a mapped or merged copy the checker already decided.
+func IsGetterOnly(symbol *ast.Symbol) bool {
+	if symbol != nil && symbol.CheckFlags&checkFlagsSynthOrMapped != 0 {
+		return false
+	}
+	getter, setter := accessorDeclarations(symbol)
+	return getter != nil && setter == nil
+}
+
+// IsSetterOnly reports a member with nothing to read, so a real instance reads undefined whatever its type says.
+func IsSetterOnly(symbol *ast.Symbol) bool {
+	getter, setter := accessorDeclarations(symbol)
+	return getter == nil && setter != nil
+}
+
+// HasNoUsableSetter reports getter-only, setter-only and a setter refusing the getter's type: no function may write those.
+// A setter-only value cannot be read back, so no check covers it; the getter's type is the only one the wire holds.
+func HasNoUsableSetter(typeChecker *checker.Checker, symbol *ast.Symbol) bool {
+	if symbol != nil && hasAccessorTag(symbol, reflection.FlagAccessorNoSetter) {
+		return true
+	}
+	getter, setter := accessorDeclarations(symbol)
+	if getter == nil {
+		return setter != nil
+	}
+	if setter == nil {
+		return true
+	}
+	parameters := setter.Parameters()
+	if getter.Type() == nil || len(parameters) == 0 || parameters[0].Type() == nil {
+		return false
+	}
+	return !checker.Checker_isTypeAssignableTo(typeChecker, typeChecker.GetTypeFromTypeNode(getter.Type()), typeChecker.GetTypeFromTypeNode(parameters[0].Type()))
 }
 
 // IsFunctionField reports a member declared as a property (`fn = () => 1`, a parameter property), not a method.
@@ -681,9 +756,12 @@ func IsFunctionField(symbol *ast.Symbol) bool {
 	return symbol != nil && symbol.Flags&ast.SymbolFlagsProperty != 0
 }
 
-// accessorBit keeps a getter apart from a data property of the same type: removeUnknownKeys copies one and not the other.
-func accessorBit(accessor bool) string {
-	if accessor {
+// accessorBit keeps a getter apart from a same-typed data property, and a no-write member apart from a writable one.
+func accessorBit(accessor, noSetter bool) string {
+	switch {
+	case noSetter:
+		return "#acn"
+	case accessor:
 		return "#acc"
 	}
 	return ""
@@ -705,26 +783,6 @@ func (computer *Computer) privateFieldsBit(tsType *checker.Type) string {
 		}
 	}
 	return ""
-}
-
-// stableMemberName strips the checker-instance symbol id off a late-bound symbol-keyed member name
-// ("\xFE@toPrimitive@5" → "\xFE@toPrimitive") so structural ids never embed which checker (or session)
-// materialized the member. Replicated from internal/cachegen/runtype/serialize.go (the typeid subpackage
-// can't import its parent without an import cycle) — keep them in sync.
-func stableMemberName(name string) string {
-	if len(name) < 2 || name[0] != 0xFE || name[1] != '@' {
-		return name
-	}
-	at := strings.LastIndexByte(name, '@')
-	if at <= 1 || at == len(name)-1 {
-		return name
-	}
-	for i := at + 1; i < len(name); i++ {
-		if name[i] < '0' || name[i] > '9' {
-			return name
-		}
-	}
-	return name[:at]
 }
 
 func readonlyBit(readonly bool) string {
@@ -912,7 +970,7 @@ func IsNonEnumerable(symbol *ast.Symbol) bool {
 	if !isOptionalSymbol(symbol) {
 		return false
 	}
-	return isDefaultLibGlobalMember(symbol) || hasNonEnumerableTag(symbol)
+	return isDefaultLibGlobalMember(symbol) || hasJSDocTag(symbol, NonEnumerableTagName)
 }
 
 // IsTypelessPrivateSymbol reports a member whose every declaration is an ambient typeless `private`, as plain tsc emits.
@@ -978,10 +1036,8 @@ func isDefaultLibGlobalMember(symbol *ast.Symbol) bool {
 	return true
 }
 
-// hasNonEnumerableTag reports whether any declaration of the member carries a `@nonEnumerable` JSDoc tag.
-// Custom tags parse as JSDocUnknownTag, so the match is on the bare tag name (no leading `@`), the same
-// read the tsgolint no_deprecated rule uses.
-func hasNonEnumerableTag(symbol *ast.Symbol) bool {
+// hasJSDocTag matches the bare name (no `@`) since custom tags parse as JSDocUnknownTag, as tsgolint no_deprecated does.
+func hasJSDocTag(symbol *ast.Symbol, name string) bool {
 	for _, declaration := range symbol.Declarations {
 		if declaration == nil {
 			continue
@@ -996,7 +1052,7 @@ func hasNonEnumerableTag(symbol *ast.Symbol) bool {
 					continue
 				}
 				tagName := tag.TagName()
-				if tagName != nil && tagName.Text() == NonEnumerableTagName {
+				if tagName != nil && tagName.Text() == name {
 					return true
 				}
 			}

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strconv"
 )
 
@@ -34,13 +32,9 @@ func FuzzSeed(lane string) (int64, string, error) {
 	return seed, fmt.Sprintf("[%s-fuzz] seed %d from version %s (replay: MION_FUZZ_SEED=%d)", lane, seed, version, seed), nil
 }
 
-// RepoVersion reads version.json, the one string every sweep seeds from; located from this file, so the caller's cwd cannot change it.
+// RepoVersion reads version.json, the one string every sweep seeds from; found from this file, not the cwd.
 func RepoVersion() (string, error) {
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
-	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(self), "..", "..", "..", "version.json"))
+	raw, err := os.ReadFile(Repo("version.json"))
 	if err != nil {
 		return "", fmt.Errorf("version.json: %w", err)
 	}

@@ -22,6 +22,8 @@ import {
   type LintWorkerRequest,
   type LintWorkerResponse,
 } from './session-protocol.ts';
+import {anchoredIn} from './diagnosticRouting.ts';
+import {vueLintSource} from './vueSfc.ts';
 
 const data = workerData as LintWorkerData;
 const requests = data.port;
@@ -87,25 +89,29 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
   // Retry once to recover transient failures; the fallback can also fail.
   for (let attempt = 0; ; attempt++) {
     let stage: 'connect' | 'scan' = 'connect';
+    let scanned = request.file;
     try {
       const resolver = await ensureConnection(request.tsconfig ?? '', request.binary ?? '');
       stage = 'scan';
-      const rel = path.relative(process.cwd(), request.file) || request.file;
-      await resolver.setSources({[rel]: request.text});
+      const vue = request.file.endsWith('.vue') ? vueLintSource(request.file, request.text) : undefined;
+      scanned = vue?.virtualFile ?? request.file;
+      const rel = path.relative(process.cwd(), scanned) || scanned;
+      await resolver.setSources({[rel]: vue?.text ?? request.text});
       const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
       // The resolver runs the JS engine for format-* verdicts; the worker must not recheck them.
-      const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
+      let diagnostics = (result.diagnostics ?? []) as Diagnostic[];
+      if (vue)
+        diagnostics = diagnostics.flatMap((diagnostic) =>
+          anchoredIn(diagnostic, scanned) ? (vue.toVue(diagnostic) ?? []) : [diagnostic]
+        );
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // The import gate can admit JavaScript excluded by allowJs.
       if (stage === 'scan' && message.includes('source file not in program:')) {
-        return /\.(?:[cm]?js|jsx)$/i.test(request.file)
-          ? {seq: request.seq, diagnostics: []}
-          : {seq: request.seq, error: message};
+        return /\.(?:[cm]?js|jsx)$/i.test(scanned) ? {seq: request.seq, diagnostics: []} : {seq: request.seq, error: message};
       }
-      // Config failures are deterministic; keep the connection for the next lint.
-      // setSources reparses the config, so fixes apply on the next lint.
+      // Config failures are deterministic, so keep the connection: setSources reparses the config on the next lint.
       if (message.includes('config-tsconfig-not-loaded')) {
         return {
           seq: request.seq,

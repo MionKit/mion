@@ -1,10 +1,10 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 import {getSessionUser, type AuthUser} from './myAuth.ts';
 
-// without this return type, `me` would be typed as only `null`
+// an inferred return type would be only `null`
 const newSharedData = (): {me: AuthUser | null} => ({me: null});
 
-const mion = createMionRouter({contextDataFactory: newSharedData});
+const mion = createMionRouter({sharedDataFactory: newSharedData});
 
 const routes = {
   auth: mion.middleware(async (ctx): Promise<void> => {

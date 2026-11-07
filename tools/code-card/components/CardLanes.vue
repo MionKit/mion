@@ -13,7 +13,7 @@ provide<Gate>(GATE_KEY, {name: props.gate, step});
 <template>
   <div class="cc-lanes">
     <i class="cc-wall" data-cc="wall" :style="step"></i>
-    <div class="cc-lanes-head" data-cc="fade" :style="step">
+    <div class="cc-lanes-head" data-cc="fade" data-check="apart" :style="step">
       <span class="cc-gate-name" data-check="one-line">{{ gate }}</span
       ><span v-if="outcome" class="cc-outcome" data-check="one-line">{{ outcome }}</span>
     </div>

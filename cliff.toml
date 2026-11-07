@@ -1,12 +1,12 @@
 # git-cliff — changelog generator driven by Conventional Commits.
 # Configuration reference: https://git-cliff.org/docs/configuration
 #
-# Local use (optional, needs the git-cliff binary on PATH):
-#   pnpm run changelog             # regenerate the whole CHANGELOG.md
-#   pnpm run changelog:unreleased  # prepend just the unreleased section
+# Local use: the release skill (.agents/skills/release-to-prod/bump.md) generates one
+# release section, curates it and inserts it into CHANGELOG.md. Never regenerate the
+# whole file: that erases the hand-written release intros.
 #
 # The GitHub Release notes are generated in CI by orhun/git-cliff-action
-# (.github/workflows/publish.yml), so cutting a release needs no local binary.
+# (.github/workflows/publish.yml).
 
 [changelog]
 # Rendered once at the top of the file.

@@ -3,12 +3,12 @@
 type Platform = {name: string; to: string; logo: string; dark?: string};
 
 const PLATFORMS: Platform[] = [
-  {name: 'Bun', to: '/rpc/platforms/bun', logo: '/platforms/bun.svg'},
-  {name: 'Node.js', to: '/rpc/platforms/node-js', logo: '/platforms/node.svg', dark: '/platforms/node-dark.svg'},
-  {name: 'AWS Lambda', to: '/rpc/platforms/aws-lambda', logo: '/platforms/aws-lambda.svg'},
-  {name: 'Google Cloud Functions', to: '/rpc/platforms/google-cloud-functions', logo: '/platforms/google-cloud-functions.svg'},
-  {name: 'Cloudflare Workers', to: '/rpc/platforms/cloudflare', logo: '/platforms/cloudflare.svg'},
-  {name: 'Vercel', to: '/rpc/platforms/vercel', logo: '/platforms/vercel.svg', dark: '/platforms/vercel-dark.svg'},
+  {name: 'Bun', to: '/rpc/platforms/bun', logo: '/platform-logos/bun.svg'},
+  {name: 'Node.js', to: '/rpc/platforms/node-js', logo: '/platform-logos/node.svg', dark: '/platform-logos/node-dark.svg'},
+  {name: 'AWS Lambda', to: '/rpc/platforms/aws-lambda', logo: '/platform-logos/aws-lambda.svg'},
+  {name: 'Google Cloud Functions', to: '/rpc/platforms/google-cloud-functions', logo: '/platform-logos/google-cloud-functions.svg'},
+  {name: 'Cloudflare Workers', to: '/rpc/platforms/cloudflare', logo: '/platform-logos/cloudflare.svg'},
+  {name: 'Vercel', to: '/rpc/platforms/vercel', logo: '/platform-logos/vercel.svg', dark: '/platform-logos/vercel-dark.svg'},
 ];
 </script>
 

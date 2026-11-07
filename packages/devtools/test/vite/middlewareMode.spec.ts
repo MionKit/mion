@@ -27,6 +27,8 @@ import type {Plugin} from 'vite';
 
 const ROUTER_STUB = (basePath: string) => `
 globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined, host: {}};
+globalThis.__mion.routerCopies = (globalThis.__mion.routerCopies ?? 0) + 1;
+globalThis.__mion.host = {}; // per copy, like the real router: a fresh copy owns nothing until the host says so
 export const setHostOwnsSocket = (owns) => {globalThis.__mion.host = owns ? {...globalThis.__mion.host, owns} : {};};
 export const hostOwnsSocket = () => globalThis.__mion.host.owns === true;
 export const handOverToHost = (handler) => {
@@ -96,7 +98,7 @@ describe('middleware mode (in-process vite dev server)', () => {
   let http: Server | undefined;
   let baseUrl = '';
   let ready: {resolved: boolean; error?: Error};
-  let plugin: Plugin;
+  let plugin: ReturnType<typeof mionMiddlewarePlugin>;
 
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), 'mion-middleware-'));
@@ -121,8 +123,8 @@ describe('middleware mode (in-process vite dev server)', () => {
     /** Replaces the @mionjs/platform-node stub, the adapter an entry that starts none falls back to. */
     nodePlatformStub?: string;
     server?: Partial<MionServerOptions>;
-    /** The batch table module the resolver would have generated, as the preset echoes it. */
-    batchesModule?: string;
+    /** The vite root, relative to the fixture dir; the entry stays at `src/entry.ts`. */
+    viteRoot?: string;
   }): Promise<void> {
     const routerPath = path.join(root, 'router-stub.js');
     const corePath = path.join(root, 'core-stub.js');
@@ -137,18 +139,21 @@ describe('middleware mode (in-process vite dev server)', () => {
     writeFileSync(entryPath, opts.entry ?? ENTRY(platformPath));
 
     const serverOptions: MionServerOptions = {entry: entryPath, ...opts.server};
+    const viteRoot = path.join(root, opts.viteRoot ?? '.');
+    mkdirSync(viteRoot, {recursive: true});
     vite = await createServer({
-      root,
+      root: viteRoot,
       configFile: false,
       logLevel: 'silent',
       appType: 'custom', // no SPA fallback: an unmatched request must 404, not return index.html
-      server: {middlewareMode: true},
+      // No real fs watcher: each test signals its edits with watcher.emit, and chokidar's own event for the
+      // same write could land after the first reload and load the API a third time.
+      server: {middlewareMode: true, watch: null},
       resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath, '@mionjs/platform-node': nodePlatformPath}},
       plugins: [
         (plugin = mionMiddlewarePlugin(serverOptions, {
           onReady: () => (ready.resolved = true),
           onError: (err) => (ready.error = err),
-          batchesModuleOf: () => opts.batchesModule ?? '',
         })),
       ],
     });
@@ -160,6 +165,12 @@ describe('middleware mode (in-process vite dev server)', () => {
 
   const loads = () => (globalThis as any).__mion.loads as number;
   const resets = () => (globalThis as any).__mion.resets as number;
+  const routerCopies = () => (globalThis as any).__mion.routerCopies as number;
+  const editRoutes = (marker: string) => {
+    const changed = path.join(root, 'src', 'routes.ts');
+    writeFileSync(changed, `export const marker = '${marker}';\n`);
+    vite!.watcher.emit('change', changed);
+  };
 
   it('forwards requests under the router basePath to the platform handler', async () => {
     await startDevServer({basePath: '/api'});
@@ -232,6 +243,13 @@ describe('middleware mode (in-process vite dev server)', () => {
     expect(res.status).toBe(503);
     expect(await res.text()).toContain('boom: routes are broken');
     expect(ready.error?.message).toContain('boom: routes are broken');
+  });
+
+  it('strips terminal colour codes from the 503 body', async () => {
+    await startDevServer({basePath: '/api', entry: `throw new Error('\\u001b[31mboom\\u001b[39m in red');\n`});
+    const body = await (await fetch(`${baseUrl}/api/users.get`)).text();
+    expect(body).toContain('boom in red');
+    expect(body).not.toContain('\u001b');
   });
 
   it('fails loudly when the entry opened its own port (a second adapter instance)', async () => {
@@ -335,27 +353,133 @@ globalThis.__mion.ownedAtStart = globalThis.__mion.host.owns;
     expect((globalThis as any).__mion.host.owns).toBeUndefined();
   });
 
-  it('re-loads the API after a source change, resetting the router first', async () => {
+  it('re-loads a fresh copy of the API after a source change, router included, with no reset', async () => {
     await startDevServer({basePath: '/api'});
     await fetch(`${baseUrl}/api/users.get`);
     expect(loads()).toBe(1);
-    expect(resets()).toBe(0);
+    expect(routerCopies()).toBe(1);
 
-    const changed = path.join(root, 'src', 'routes.ts');
-    writeFileSync(changed, `export const marker = 'routes-v2';\n`);
-    vite!.watcher.emit('change', changed);
+    editRoutes('routes-v2');
 
     const res = await fetch(`${baseUrl}/api/users.get`);
     expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
-    expect(resets()).toBe(1); // initRoutes would throw "already initialized" without this
+    expect(routerCopies()).toBe(2);
+    expect(resets()).toBe(0);
+  });
+
+  it('makes every request that arrives during a reload wait for it, none answered by a half-loaded API', async () => {
+    // A slow entry: the reload is in flight while the requests arrive.
+    const entry = `import {startNodeServer} from ${JSON.stringify(path.join(root, 'platform-stub.js'))};
+import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 100));
+globalThis.__mion.loads += 1;
+startNodeServer();
+`;
+    await startDevServer({basePath: '/api', entry});
+    await fetch(`${baseUrl}/api/users.get`);
+    editRoutes('routes-v2');
+
+    const answers = await Promise.all(Array.from({length: 20}, () => fetch(`${baseUrl}/api/users.get`)));
+    expect(answers.map((res) => res.status)).toEqual(Array(20).fill(200));
+    const bodies = (await Promise.all(answers.map((res) => res.json()))) as {loads: number}[];
+    expect(bodies.map((body) => body.loads)).toEqual(Array(20).fill(2));
+    expect(loads()).toBe(2);
+  });
+
+  it('re-loads an entry that sits outside the vite root (a Nuxt layout, root at app/)', async () => {
+    await startDevServer({basePath: '/api', viteRoot: 'app'});
+    await fetch(`${baseUrl}/api/users.get`);
+    editRoutes('routes-v2');
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
+  });
+
+  it('reloads after an edit made while the first load was still running', async () => {
+    const entry = `import {startNodeServer} from ${JSON.stringify(path.join(root, 'platform-stub.js'))};
+import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 150));
+globalThis.__mion.loads += 1;
+startNodeServer();
+`;
+    await startDevServer({basePath: '/api', entry});
+    const first = fetch(`${baseUrl}/api/users.get`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    editRoutes('routes-v2');
+    await first;
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
+  });
+
+  it('serves a request sent after a mid-reload edit from the reload that saw the edit', async () => {
+    const entry = `import {startNodeServer} from ${JSON.stringify(path.join(root, 'platform-stub.js'))};
+import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 150));
+globalThis.__mion.loads += 1;
+startNodeServer();
+`;
+    await startDevServer({basePath: '/api', entry});
+    await fetch(`${baseUrl}/api/users.get`);
+    editRoutes('routes-v2');
+    const duringFirstReload = fetch(`${baseUrl}/api/users.get`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    editRoutes('routes-v3');
+    const afterSecondEdit = await fetch(`${baseUrl}/api/users.get`);
+    await duringFirstReload;
+    expect((await afterSecondEdit.json()) as {loads: number}).toMatchObject({loads: 3});
+  });
+
+  it('after a failed load, retries on an edit to a file the failed load never reached', async () => {
+    writeFileSync(
+      path.join(root, 'src', 'broken.ts'),
+      `globalThis.__mion.attempts = (globalThis.__mion.attempts ?? 0) + 1;\nthrow new Error('broken');\n`
+    );
+    await startDevServer({basePath: '/api', entry: `import './broken.ts';\nimport './routes.ts';\n`});
+    expect((await fetch(`${baseUrl}/api/users.get`)).status).toBe(503);
+    expect((globalThis as any).__mion.attempts).toBe(1);
+    const unrelated = path.join(root, 'src', 'helper.ts');
+    writeFileSync(unrelated, `export const helper = 1;\n`);
+    vite!.watcher.emit('change', unrelated);
+    await fetch(`${baseUrl}/api/users.get`);
+    expect((globalThis as any).__mion.attempts).toBe(2);
+  });
+
+  it('leaves the API alone when the changed file is not part of it', async () => {
+    await startDevServer({basePath: '/api'});
+    await fetch(`${baseUrl}/api/users.get`);
+    const other = path.join(root, 'src', 'page.ts');
+    writeFileSync(other, `export const page = 1;\n`);
+    vite!.watcher.emit('change', other);
+    await fetch(`${baseUrl}/api/users.get`);
+    expect(loads()).toBe(1);
+  });
+
+  it('answers 503 while the last reload failed, and recovers on the edit that fixes it', async () => {
+    await startDevServer({basePath: '/api'});
+    await fetch(`${baseUrl}/api/users.get`);
+    const routes = path.join(root, 'src', 'routes.ts');
+    writeFileSync(routes, `throw new Error('typo in routes');\n`);
+    vite!.watcher.emit('change', routes);
+    const broken = await fetch(`${baseUrl}/api/users.get`);
+    expect(broken.status).toBe(503);
+    expect(await broken.text()).toContain('typo in routes');
+
+    editRoutes('routes-v3');
+    const fixed = await fetch(`${baseUrl}/api/users.get`);
+    expect(fixed.status).toBe(200);
+  });
+
+  it('lets page navigations through when the API failed before its basePath was known', async () => {
+    await startDevServer({basePath: '/api', entry: `throw new Error('broken API');\n`});
+    const page = await fetch(`${baseUrl}/`, {headers: {accept: 'text/html'}});
+    expect(page.status).toBe(404); // vite's own answer (appType custom): the app is reachable
+    const api = await fetch(`${baseUrl}/api/users.get`, {method: 'POST'});
+    expect(api.status).toBe(503);
   });
 
   // ############# the batch module rides the same reload #############
-  // The resolver generates `<genDir>/rpc/batches.generated.js` and appends its import to the
-  // router-init module in the transform, so it is a node in the SSR graph and a rewrite is an
-  // ordinary change. Its first APPEARANCE is the one case the graph cannot see, hence the `add`
-  // listener keyed on the path the preset echoes. The transform is the Go side's job; here the
-  // entry imports the module directly, which is what a transformed entry looks like.
+  // The transform appends the table's import to the router-init module, so a rewrite is an ordinary graph change.
+  // Its first APPEARANCE (or removal) reaches no watcher in time, so the preset marks the API stale itself.
+  // The transform is the Go side's job: here the entry imports the module directly, as a transformed one would.
   const batchesModule = () => path.join(root, '.mion', 'rpc', 'batches.generated.js');
   const BATCH_ENTRY = `
 import {createMionRouter} from '@mionjs/router';
@@ -376,14 +500,14 @@ startNodeServer();
 
   it('registers the generated batch module the entry imports, with no option', async () => {
     writeTable('b_first');
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_first']);
   });
 
   it('re-registers the new table when the resolver rewrites the module, and drops the old ids', async () => {
     writeTable('b_first');
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_first']);
 
@@ -392,42 +516,30 @@ startNodeServer();
 
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_second']);
-    expect(resets()).toBe(1);
   });
 
-  it('reloads when the module first appears at the path the preset echoes', async () => {
-    // the entry is loaded WITHOUT the table (a server started before its client had a batch):
-    // the module the entry imports is still an empty stub
+  it('reloads when the preset marks the API stale: the table appeared, and no file event says so', async () => {
+    // a server started before its client had a batch: the module the entry imports is still an empty stub
     mkdirSync(path.dirname(batchesModule()), {recursive: true});
     writeFileSync(batchesModule(), 'export {};\n');
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY, batchesModule: batchesModule()});
+    await startDevServer({basePath: '/api', entry: BATCH_ENTRY});
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual([]);
 
     writeTable('b_late');
-    vite!.watcher.emit('add', batchesModule());
+    plugin.markStale();
 
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_late']);
   });
 
-  it('ignores an `add` of any other file, and of the module path when the preset echoes none', async () => {
-    writeTable('b_first');
-    await startDevServer({basePath: '/api', entry: BATCH_ENTRY});
-    await fetch(`${baseUrl}/api/users.get`);
-    vite!.watcher.emit('add', batchesModule());
-    vite!.watcher.emit('add', path.join(root, 'src', 'other.ts'));
-    await fetch(`${baseUrl}/api/users.get`);
-    expect(loads()).toBe(1);
-  });
-
-  it('leaves the API alone on a change when hotReload is off', async () => {
+  it('leaves the API alone on a change, or a stale mark, when hotReload is off', async () => {
     await startDevServer({basePath: '/api', server: {hotReload: false}});
     await fetch(`${baseUrl}/api/users.get`);
     vite!.watcher.emit('change', path.join(root, 'src', 'routes.ts'));
+    plugin.markStale();
     await fetch(`${baseUrl}/api/users.get`);
     expect(loads()).toBe(1);
-    expect(resets()).toBe(0);
   });
 
   it('survives a broken API instead of taking the dev server down with it', async () => {

@@ -6,7 +6,7 @@
  * ######## */
 
 import type {MethodWithJitFns} from '@mionjs/core';
-import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedParser} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, type ResolvedParser} from '@mionjs/core';
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
@@ -42,7 +42,8 @@ export class RuntimeCodeGenBlockedError extends Error {
         `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
         `compiled fn as a source string that is turned into a function on first use, which edge ` +
         `runtimes (Cloudflare Workers / workerd, Vercel Edge) refuse. 'both' also emits the live ` +
-        `factory, so nothing is compiled at runtime.` +
+        `factory, so nothing is compiled at runtime. Already on 'both'? Then the entry named below comes from a ` +
+        `dependency built in 'code' mode: rebuild that dependency with 'both'.` +
         (cause ? `\nCause: ${cause}` : '')
     );
     this.name = 'RuntimeCodeGenBlockedError';
@@ -60,10 +61,7 @@ function isCodeGenBlocked(message?: string): boolean {
 
 // ############ Raw Middleware Reflection ############
 
-const rawMiddlewareReflectionCache = getOrCreateGlobal(
-  'mion.reflection.rawMiddlewareReflectionCache',
-  () => new Map<string, MethodReflect>()
-);
+const rawMiddlewareReflectionCache = new Map<string, MethodReflect>();
 
 /** Creates a MethodReflect for raw middlewares: no type info, NoopJitFns. */
 function createRawMiddlewareReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
@@ -135,7 +133,7 @@ export function assertCompiledParser(methodId: string, parser: ResolvedParser, r
       throw new Error(
         `mion: ${direction} parser of "${methodId}" is '${wanted}' at runtime but the build compiled ` +
           `'${fns.json.strategy}'. Write the parser option inline on the route (or as an \`as const\` preset) and the ` +
-          `router-wide default as a literal on createMionRouter, so the build sees the same value the runtime reads.`
+          `router-wide default as a literal on the router factory, so the build sees the same value the runtime reads.`
       );
   }
 }

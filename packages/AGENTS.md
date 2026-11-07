@@ -5,8 +5,9 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 ## Dependencies
 
 - Type-system + framework packages ride the same `version.json` lockstep, depend on each other via `workspace:*`.
-- All `dependencies` / `devDependencies` exact-pinned. THREE peerDeps stay ranges:
+- All `dependencies` / `devDependencies` exact-pinned. FOUR peerDeps stay ranges:
   - `@mionjs/devtools`: so consumers can dedupe Vite.
+  - `@mionjs/platform-bun` → optional `@types/bun` peer: its published `.d.ts` imports `'bun'`, Bun ships no types.
   - `@mionjs/drizzle-orm-*-core` → `drizzle-orm` peer: the range IS the compatibility promise of their
     drizzle-aligned version line.
   - `@mionjs/drizzle-orm-*-core` → `@mionjs/run-types` peer: consumer's single copy supplies BOTH the format types
@@ -21,7 +22,7 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 
 ## Published READMEs stay thin
 
-- Short description, sibling relationship, link to [mion.pages.dev/runtypes](https://mion.pages.dev/runtypes),
+- Short description, sibling relationship, link to [mion.io/runtypes](https://mion.io/runtypes),
   status/license lines. Nothing else.
 - No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is their one home.
 - Applies to the three package READMEs + the generated per-platform `@mionjs/native-compiler-*` one.
@@ -39,13 +40,11 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
   - Lint: ONE `mion` plugin on the `./eslint` (and `./oxlint`) subpath, four rules, one per level
     (`mion/error`, `mion/runtime-error`, `mion/warning`, `mion/info`), never one per topic.
     Every check lives in the compiler: [src/lint/AGENTS.md](devtools/src/lint/AGENTS.md).
-  - Presets: `@mionjs/devtools/vite` (`mionVitePlugin`) + `@mionjs/devtools/next` (`withMion`) = mion-opinionated.
+  - Preset: `@mionjs/devtools/vite` (`mionVitePlugin`) = mion-opinionated.
     Plain adapters: `@mionjs/devtools/runtypes/*` (vite, rollup, rolldown, webpack, rspack, esbuild, bun, next).
-    Both presets map options through `src/options.ts` so they cannot drift.
   - ⚠️ Next.js / Turbopack ([src/runtypes/next/](devtools/src/runtypes/next/)): bundler with NO plugin API →
-    broker started from `next.config` + a `turbopack.rules` loader. `withMion` composes those pieces,
-    never nests one wrapper in another. Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first:
-    invariants there look like cleanups but are not.
+    broker started from `next.config` + a `turbopack.rules` loader.
+    Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first: invariants there look like cleanups but are not.
 - [bin-compiler](bin-compiler/) (`@mionjs/bin-compiler`): platform launcher + the `mion` CLI command.
   - `getExePath()` resolves the prebuilt resolver binary from per-platform
     `@mionjs/native-compiler-<os>-<arch>` optional deps.

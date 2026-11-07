@@ -12,8 +12,8 @@ const TARBALLS = path.join(OUT, 'tarballs');
 const CONSUMER = path.join(HERE, 'consumer');
 const ARTIFACT_DIR = 'mion-pure-fns';
 const INDEX = 'index.json';
-const HASH_PREFIX = '#pf_';
-const ID = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
+const HASH_PREFIX = ':';
+const ID = /^@acme\/[a-z]+:[A-Za-z0-9_-]{10}$/;
 const PURE_FN_ERROR = /purefn-(?:forbidden-construct|reads-outer-variable|not-registered|dependency-not-id|id-mismatch|dependency-cycle|package-not-built|artifact-unreadable|artifact-conflict)/;
 
 const tarballOf = (name) => path.join(TARBALLS, readdirSync(TARBALLS).find((file) => file.startsWith(`acme-${name}-`)));
@@ -36,7 +36,7 @@ for (const [name, builtWith] of [
   test(`@acme/${name} (${builtWith}): the tarball ships dist/${ARTIFACT_DIR}/ and nothing of the build scratch`, () => {
     const entries = entriesOf(tarballOf(name));
     assert.ok(entries.includes(`package/dist/${ARTIFACT_DIR}/${INDEX}`), `no index in the tarball:\n${entries.join('\n')}`);
-    const modules = entries.filter((entry) => new RegExp(`^package/dist/${ARTIFACT_DIR}/@acme/${name}/[A-Za-z0-9_-]{14}\\.js$`).test(entry));
+    const modules = entries.filter((entry) => new RegExp(`^package/dist/${ARTIFACT_DIR}/@acme/${name}/[A-Za-z0-9_-]{10}\\.js$`).test(entry));
     assert.equal(modules.length, name === 'text' ? 2 : 1, `one module per pure fn:\n${entries.join('\n')}`);
     assert.ok(entries.includes('package/dist/index.js') && entries.includes('package/dist/index.d.ts'), 'the bundle and its declarations ship');
     assert.ok(!entries.some((entry) => entry.startsWith('package/src/')), 'sources do not ship: the artifact is what serves the bodies');
@@ -86,7 +86,7 @@ test('installed @acme/text: the index maps each export to its id and each id to 
   assert.ok(titleModule.includes(`getPureFn(\\'${slugify}\\')`), 'title module carries the lowered slugify id');
   // tsc's emit carries no id; the index is how a consumer maps the name.
   const dts = readFileSync(path.join(dir, 'index.d.ts'), 'utf8');
-  assert.ok(!dts.includes(HASH_PREFIX), `the declarations carry no id:\n${dts}`);
+  for (const id of [slugify, title]) assert.ok(!dts.includes(id), `the declarations carry no id:\n${dts}`);
 });
 
 test('installed @acme/dates: its module carries the lowered @acme/text id and lists it as a dep', () => {
@@ -130,9 +130,9 @@ for (const lane of ['vite', 'cli']) {
   test(`consumer (${lane}): the program served every body from the artifacts and both getRunTypeId shapes agree`, () => {
     const {slugify} = idsOf(installed('text'));
     const report = readJson(path.join(OUT, `report-${lane}.json`));
-    assert.match(report.stampId, /^@acme\/consumer#pf_/);
+    assert.match(report.stampId, /^@acme\/consumer:/);
     assert.equal(report.deps.length, 1);
-    assert.match(report.deps[0], /^@acme\/dates#pf_/);
+    assert.match(report.deps[0], /^@acme\/dates:/);
     // The result crosses consumer -> dates -> text: all three bodies served.
     assert.equal(report.result, 'hello-world@2026-09-18');
     assert.deepEqual(report.isoDayDeps, [slugify]);

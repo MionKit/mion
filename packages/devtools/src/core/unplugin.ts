@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -13,10 +14,13 @@ import {mayHoldDrizzleSchemas, mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveGrouped, resolveShowInfo} from './levels.ts';
 import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type HostContext} from './surface.ts';
-import type {Finding, LogStyle} from './types.ts';
+import type {CacheKeyGenerator, Finding, LogStyle, VitestCacheContext} from './types.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
+
+// The path the Vue pass registers an SFC's <script> under: `Comp.vue.ts` next to `Comp.vue`.
+const VIRTUAL_SFC_SCRIPT = /\.vue\.[mc]?[jt]sx?$/;
 
 // Host-facing plugin name, shared by every adapter entry (the bun one needs it before it builds the inner plugin).
 export const PLUGIN_NAME = '@mionjs/devtools';
@@ -102,6 +106,9 @@ export interface PluginOptions {
   // patternSampleCount × patternSampleRetries draws before a pattern is declared ungeneratable.
   // Raise it for heavily constrained patterns. Canonical home is the tsconfig `patternSampleRetries` knob.
   patternSampleRetries?: number;
+  // Internal, undocumented (--max-unknown-keys; undefined = 10): unknown-key errors a strict errors fn lists per object
+  // before one `tooManyUnknownKeys` entry. Canonical home is the tsconfig `maxUnknownKeys` knob.
+  maxUnknownKeys?: number;
   // Emit, on every reflection root whose type is fully bounded, the largest compact-JSON size a valid value
   // can have, which a framework turns into per-route request and response limits. On by default; `false`
   // emits none, so a project that keeps its own limits pays nothing. Canonical home is the tsconfig `jsonMaxBytes` key.
@@ -278,7 +285,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // The transform gate: cwd-relative, forward-slashed paths of every file the scan found marker sites in.
   // Rebuilt from generate()'s siteFiles at buildStart, kept current per-file by handleHotUpdate.
   let siteFiles = new Set<string>();
+  // Vitest cache key for files the transform may rewrite; unset until buildStart and while an edit rebuilds: no caching.
+  let cacheDigest: string | undefined;
   let cwdAbs = '';
+  let realCwdAbs = '';
   // The resolved output root (<cwd>/.mion by default); modules land under <genDirAbs>/types.
   let genDirAbs = '';
   // Held until writePureFnArtifact: generate runs at buildStart, before a bundler empties its output dir.
@@ -313,19 +323,16 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   function ensureResolver() {
     if (resolver) return;
     cwdAbs = path.resolve(options.cwd ?? (viteRoot || process.cwd()));
-    // Left empty when unset: the plugin can't parse tsconfig without a dep, so the Go side owns the
-    // <srcDir>/.mion default and echoes the resolved path back from generate().
+    realCwdAbs = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
+    // Empty when unset: no dep to parse tsconfig, so Go owns the <srcDir>/.mion default and echoes it from generate().
     genDirAbs = options.genDir ? path.resolve(cwdAbs, options.genDir) : '';
-    // Every knob below is forwarded ONLY when set explicitly here, so an unset one falls through to the
-    // tsconfig mion plugin entry and then the binary default — tsc-style precedence.
-    //
+    // Forward knobs below ONLY when set: unset falls to the tsconfig mion plugin entry, then the binary default.
     // Surface a config typo at the host boundary (the binary validates the merged value too).
     assertValidModuleMode(options.moduleMode);
     assertValidClientRoutes(options.clientRoutes);
     // getExePath throws with a clear message when no platform binary is installed.
     const binaryPath = options.binary ?? getExePath();
-    // Forward ONLY an explicit options.tsconfig: the Go side hard errors when it is missing or broken,
-    // and when unset it resolves the config exactly as tsc does, searching upward from cwd.
+    // Only an explicit tsconfig: Go hard errors on a missing or broken one; unset, it searches upward from cwd like tsc.
     resolver = new ResolverClient(binaryPath, cwdAbs, options.tsconfig ?? '', {
       ...(options.emitMode ? {emitMode: options.emitMode} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
@@ -337,6 +344,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
       ...(options.patternSampleCount !== undefined ? {patternSampleCount: options.patternSampleCount} : {}),
       ...(options.patternSampleRetries !== undefined ? {patternSampleRetries: options.patternSampleRetries} : {}),
+      ...(options.maxUnknownKeys !== undefined ? {maxUnknownKeys: options.maxUnknownKeys} : {}),
       ...(options.jsonMaxBytes !== undefined ? {jsonMaxBytes: options.jsonMaxBytes} : {}),
       ...(options.markers?.packages?.length ? {markerPackages: options.markers.packages} : {}),
       ...(options.markers?.checkPackage === false ? {markerPackageCheck: false} : {}),
@@ -344,10 +352,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Report on the wire for both 'file' and 'callback'; the JSON file only for 'file'.
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
-      // Session config the wire deliberately does not carry: an explicit genDir rides --gen-dir so EVERY op
-      // (generate, transform, enrich) roots identically, the plugin lane always relativizes transform
-      // imports (the generated modules are real files on disk), and locales/sourceLocale default from the
-      // tsconfig i18n block.
+      // Session config the wire does not carry: genDir rides --gen-dir so EVERY op roots identically.
+      // transformRelative: generated modules are real files; locales/sourceLocale default from the tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientRoutes ? {clientRoutes: options.clientRoutes} : {}),
       transformRelative: true,
@@ -358,8 +364,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
       ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
     });
-    // Unref right after spawn: the resolver stays usable, and losing the parent closes its stdin so the
-    // Go serve loop exits on EOF.
+    // The resolver stays usable, and losing the parent closes its stdin so the Go serve loop exits on EOF.
     if (options.detachResolver) resolver.unref();
   }
 
@@ -411,6 +416,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   function siteKey(file: string): string {
     const rel = path.isAbsolute(file) ? path.relative(cwdAbs || process.cwd(), file) : file;
     return rel.split(path.sep).join('/');
+  }
+
+  // Hosts load real paths, so a program spelled through a symlinked cwd misses them and silently loses rewrites.
+  function failOnSymlinkedSite(id: string): void {
+    if (realCwdAbs === cwdAbs || !siteFiles.has(siteKey(path.relative(realCwdAbs, id)))) return;
+    throw new Error(
+      `@mionjs/devtools: cannot rewrite the mion calls in ${id}. The project path ${cwdAbs} goes through a symlink, ` +
+        `but the bundler loads real paths. Build from ${realCwdAbs} instead.`
+    );
   }
 
   // A file the buildStart scan couldn't have seen can introduce NEW error-level diagnostics (warnings were
@@ -497,7 +511,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     declareTypeDeps(ctx, rel, fileResult.typeDeps);
 
     try {
-      const applied = applyEdits(rel, code, fileResult.importBlock ?? '', fileResult.edits ?? []);
+      const applied = applyEdits(rel, code, fileResult.importBlock ?? '', fileResult.importAt ?? 0, fileResult.edits ?? []);
       return {code: applied.code, map: applied.map as any};
     } catch (error) {
       // A malformed edit set (should be impossible) must not break the build.
@@ -617,6 +631,38 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return gen;
   }
 
+  // Transform output follows the whole program, the generated module set and the options, never the file alone.
+  function digestOf(gen: GenerateResult): string | undefined {
+    if (!gen.programHash) return undefined;
+    const hash = createHash('sha256');
+    for (const part of [gen.programHash, ...[...gen.modules].sort(), ...[...gen.siteFiles].sort(), gen.batchesModule]) {
+      hash.update(part).update('\0');
+    }
+    // Functions drop out: callbacks only observe, they never change what the transform writes.
+    hash.update(JSON.stringify(options) ?? '');
+    return hash.digest('hex');
+  }
+
+  // The transform's own gate, so a file the transform leaves alone keeps Vitest's plain key.
+  function mayTransform(code: string, id: string): boolean {
+    if (!/\.[mc]?[jt]sx?$/.test(id)) return false;
+    const rel = path.relative(cwdAbs || process.cwd(), id);
+    return siteFiles.has(siteKey(rel)) || mayHoldMarkerCalls(code, id, options.markers) || mayHoldDrizzleSchemas(code);
+  }
+
+  // Vitest's `defineCacheKeyGenerator` contract: a string joins the key, false skips the disk cache, undefined adds nothing.
+  // Before the first generate the site set is empty, so a wrapper call site would pass for untouched: skip them all.
+  const cacheKeyFor: CacheKeyGenerator = ({id, sourceCode}) => {
+    if (!/\.[mc]?[jt]sx?$/.test(id)) return undefined;
+    if (!resolver || !cacheDigest) return false;
+    return mayTransform(sourceCode, id) ? cacheDigest : undefined;
+  };
+
+  // Vitest reads this off any plugin in the config; Vitest 4 named the registrar `experimental_`.
+  function configureVitest(context: VitestCacheContext): void {
+    (context.defineCacheKeyGenerator ?? context.experimental_defineCacheKeyGenerator)?.(cacheKeyFor);
+  }
+
   // `<dir>/mion-pure-fns/` is the build's alone; a file with unchanged bytes is skipped so a watch build is not retriggered.
   // Each bundler's own post-bundle hook calls it, since unplugin's arg-less writeBundle carries no output dir.
   async function writePureFnArtifact(dir: string): Promise<void> {
@@ -661,7 +707,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return file ? path.dirname(path.resolve(base, file)) : '';
   }
 
-  // Fires once per output, so a multi-environment vite build gets a copy in every output dir.
+  // Fires once per output, so every output dir gets a copy.
   async function writeArtifactForOutput(this: unknown, output: {dir?: string; file?: string}): Promise<void> {
     await writePureFnArtifact(outputDirOf(output));
   }
@@ -742,6 +788,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (typeof update.content === 'string') sourceOverlay.set(overlayKey(rels[index]), update.content);
     });
     const sources: Record<string, string> = Object.fromEntries(sourceOverlay);
+    // A Vue SFC script at its virtual path is no edit: the Vue pass registers one for every .vue it transforms.
+    // A real edit clears the digest until its generate, so no fetch caches against the old program.
+    const editsProgram = relevant.some((update) => !VIRTUAL_SFC_SCRIPT.test(update.file));
+    if (editsProgram) cacheDigest = undefined;
     if (Object.keys(sources).length > 0) {
       try {
         await resolver.setSources(sources);
@@ -789,6 +839,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // Regenerate so any new/changed modules hit disk before anything resolves them.
     try {
       const gen = await regenerate();
+      if (editsProgram) cacheDigest = digestOf(gen);
       // The whole-program echo keeps a file in the gate whose only rewrite the per-file scan cannot see:
       // a router-init module gets the batch import appended at transform time, never a scan site, so the
       // loop above would have just dropped it.
@@ -866,6 +917,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     rtWritePureFnArtifact: writePureFnArtifact,
     // Not an unplugin hook: the Next broker cannot infer the resolved genDir it keeps its stamp in.
     rtGenDir: (): string => genDirAbs,
+    // Not an unplugin hook: the Vue pass keys the `.vue` files it rewrites with the same digest (false: none yet).
+    rtCacheDigest: (): string | false => (resolver && cacheDigest) || false,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform: the resolver returns byte offsets into
     // the ORIGINAL source, so code with its type syntax already stripped puts every offset past the new EOF.
     enforce: 'pre' as const,
@@ -884,6 +937,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
+      cacheDigest = digestOf(gen);
       // Adopting the echo under the explicit option is how a tsconfig-only setting reaches this dependency-free host.
       downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
       showInfo = resolveShowInfo(options.levels ?? gen.levels);
@@ -944,24 +998,27 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
     async transform(this: any, code: string, id: string) {
       if (!resolver) return null;
-      if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
-      const rel = path.relative(cwdAbs || process.cwd(), id);
       // Wrapper sites need no configuration; new files use the linter’s text gate until the next scan.
+      if (!mayTransform(code, id)) {
+        failOnSymlinkedSite(id);
+        return null;
+      }
+      const rel = path.relative(cwdAbs || process.cwd(), id);
       const inSiteSet = siteFiles.has(siteKey(rel));
-      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !mayHoldDrizzleSchemas(code)) return null;
 
       try {
         // `await` keeps rejections in this catch; returning the promise would bypass it.
         return await (transformMode === 'edits' ? transformViaEdits(this, rel, code) : transformViaGo(this, rel, {code}));
       } catch (error) {
-        // Text gates can admit files outside the program; a site-set miss must fail or real injections would be lost.
-        if (!inSiteSet && error instanceof Error && error.message.includes('source file not in program')) return null;
-        throw error;
+        // Text gates can admit non-program files; a site-set file must still fail or real injections would be lost.
+        if (inSiteSet || !(error instanceof Error && error.message.includes('source file not in program'))) throw error;
+        failOnSymlinkedSite(id);
+        return null;
       }
     },
 
-    rollup: {writeBundle: writeArtifactForOutput},
-    rolldown: {writeBundle: writeArtifactForOutput},
+    rollup: {writeBundle: writeArtifactForOutput, configureVitest},
+    rolldown: {writeBundle: writeArtifactForOutput, configureVitest},
     esbuild: {
       setup(build: {
         initialOptions: {outdir?: string; outfile?: string; absWorkingDir?: string};
@@ -981,7 +1038,16 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     },
 
     vite: {
-      writeBundle: writeArtifactForOutput,
+      configureVitest,
+
+      writeBundle(output, bundle) {
+        // The artifact feeds a consumer's compiler; a client output with a page is an app, served as is.
+        const config = this.environment?.config;
+        const isApp =
+          config?.consumer === 'client' && !config.build?.lib && Object.keys(bundle).some((file) => file.endsWith('.html'));
+        if (isApp) return;
+        return writePureFnArtifact(outputDirOf(output));
+      },
 
       // An APP build (`vite build` with a `builder` block) builds its environments SEQUENTIALLY, so each
       // buildEnd would drop the refcount to zero and make the next buildStart respawn the resolver, a

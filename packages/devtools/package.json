@@ -1,7 +1,7 @@
 {
   "name": "@mionjs/devtools",
-  "version": "0.13.2",
-  "description": "mion devtools: the build transform (Vite/Rollup/Rolldown/webpack/Rspack/esbuild/Bun/Next-Turbopack) that rewrites mion RunTypes marker calls, the mion Vite and Next presets, and the OXlint/ESLint plugin.",
+  "version": "0.14.0",
+  "description": "mion devtools: the build transform (Vite/Rollup/Rolldown/webpack/Rspack/esbuild/Bun/Next-Turbopack) that rewrites mion RunTypes marker calls, the mion Vite preset, and the OXlint/ESLint plugin.",
   "type": "module",
   "license": "MIT",
   "author": "ma jerez",
@@ -31,11 +31,6 @@
       "source": "./src/vite/index.ts",
       "types": "./dist/vite/index.d.ts",
       "import": "./dist/vite/index.js"
-    },
-    "./next": {
-      "source": "./src/next/index.ts",
-      "types": "./dist/next/index.d.ts",
-      "import": "./dist/next/index.js"
     },
     "./eslint": {
       "types": "./dist/lint/index.d.ts",
@@ -92,7 +87,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://mion.pages.dev",
+  "homepage": "https://mion.io",
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
@@ -115,13 +110,9 @@
   },
   "peerDependencies": {
     "@mionjs/bin-compiler": "workspace:*",
-    "typescript": ">=6.0.0",
     "vite": ">=5.0.0"
   },
   "peerDependenciesMeta": {
-    "typescript": {
-      "optional": true
-    },
     "vite": {
       "optional": true
     }
@@ -129,5 +120,8 @@
   "devDependencies": {
     "@mionjs/bin-compiler": "workspace:*",
     "vite": "8.0.16"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

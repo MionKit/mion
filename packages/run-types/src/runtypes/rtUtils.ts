@@ -236,7 +236,10 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
   if (compiled.fn) return;
   let factory = compiled.createPureFn;
   if (!factory) {
-    factory = buildPureFnFactoryFromCode(compiled.paramNames, compiled.code ?? '');
+    factory = buildOrNameEntry(
+      () => buildPureFnFactoryFromCode(compiled.paramNames, compiled.code ?? ''),
+      `pure fn "${compiled.id}"`
+    );
     (compiled as Mutable<CompiledPureFunction>).createPureFn = factory;
   }
   compiled.fn = factory(rtUtils);
@@ -248,6 +251,20 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
 export function buildPureFnFactoryFromCode(paramNames: string[], code: string): PureFunctionFactory {
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
+}
+
+/** Names the code-only entry in the error when the host forbids `new Function` (an EvalError). **/
+function buildOrNameEntry<F>(build: () => F, label: string): F {
+  try {
+    return build();
+  } catch (error) {
+    if (!(error instanceof EvalError)) throw error;
+    throw new Error(
+      `${error.message}: ${label} has no live function, only a code string. ` +
+        `Generated modules built with emitMode 'code' (your app's or a dependency's) ship it that way: search the bundle for that id.`,
+      {cause: error}
+    );
+  }
 }
 
 /** Builds a fresh factory closure from a serialized code body. Forces strict mode. **/
@@ -288,9 +305,11 @@ function materializeRTFn(entry: CompiledTypeFn): asserts entry is InitializedTyp
   if (!entry.createRTFn && !entry.code) return;
   materializing.add(entry.rtFnHash);
   try {
-    // `functions` mode ships createRTFn directly; otherwise rebuild it from the code string (entryCode ===
-    // entry.code here, since createRTFn is absent).
-    if (!entry.createRTFn) (entry as Mutable<CompiledTypeFn>).createRTFn = buildFactoryFromCode(entryCode(entry));
+    // entryCode === entry.code here, since createRTFn is absent.
+    if (!entry.createRTFn) {
+      const label = `compiled fn "${entry.rtFnHash}" (${entry.typeName})`;
+      (entry as Mutable<CompiledTypeFn>).createRTFn = buildOrNameEntry(() => buildFactoryFromCode(entryCode(entry)), label);
+    }
     (entry as Mutable<CompiledTypeFn>).fn = (entry as InitializedTypeFn).createRTFn(rtUtils);
   } finally {
     materializing.delete(entry.rtFnHash);

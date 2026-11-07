@@ -112,6 +112,30 @@ describe('code card components', () => {
     await expect(renderCard(() => h(component('CardLanes'), {gate: ' '}))).rejects.toThrow('needs a name');
   });
 
+  it('CardBatchCompile: a build scene then a run scene in a CardLoop, beats timed by --cc-at', async () => {
+    const props = {code: ['batch([a, b]).call();'], id: 'b_1', routes: ['a', 'b'], mapper: '(x) => x', result: '[[a], [b]]'};
+    const scene = (more: Record<string, unknown>) => renderCard(() => h(component('CardBatchCompile'), {...props, ...more}));
+    const build = await scene({scene: 'build'});
+    expect(build).toContain('<b class="cc-bc-now">1 · Build time</b>');
+    expect(build).toContain('a → b');
+    expect([...build.matchAll(/data-cc-at="travel"/g)]).toHaveLength(1);
+    const run = await scene({scene: 'run'});
+    expect(run).toContain('<b class="cc-bc-now">2 · Run time</b>');
+    expect(run).toContain('POST /mion-batch?id=b_1');
+    expect(run).toContain('2 routes + mapper');
+    // the id goes over, the answer comes back
+    expect([...run.matchAll(/data-cc-at="travel"/g)]).toHaveLength(2);
+    expect(await scene({scene: 'run', routes: ['a']})).toContain('a + mapper');
+    await expect(scene({scene: 'later'})).rejects.toThrow('scene is build or run');
+    await expect(scene({scene: 'build', code: []})).rejects.toThrow('1 to 4 lines, got 0');
+    await expect(scene({scene: 'build', code: ['', ' ']})).rejects.toThrow('the code is empty');
+    for (const id of ['123456789', 'b 1', ''])
+      await expect(scene({scene: 'build', id}), id).rejects.toThrow('1 to 8 characters, no spaces');
+    for (const routes of [[], ['a', ' ']])
+      await expect(scene({scene: 'build', routes}), String(routes)).rejects.toThrow('needs routes, each with a name');
+    await expect(scene({scene: 'build', mapper: ' '})).rejects.toThrow('needs a mapper');
+  });
+
   it('CardFrame kind mini: a plain panel, refusing a footer or badge', async () => {
     expect(await renderCard(() => frame(() => null, {kind: 'mini'}))).toMatch(/^<div class="code-card cc-kind-mini"/);
     await expect(renderCard(() => frame(() => null, {kind: 'mini', footer: 'Foot'}))).rejects.toThrow('no footer or badge');

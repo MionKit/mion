@@ -33,8 +33,6 @@ export const mockRegExpsList: RegExp[] = [
 
 export const stringCharSet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 .>?<~!@#$%^&*()_+-=[]{}|;:,';
 
-export const emailLocalPartSymbols = '._%-';
-
 export const anyValuesList: unknown[] = [
   {},
   {hello: 'world'},
