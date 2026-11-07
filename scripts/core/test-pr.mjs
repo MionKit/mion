@@ -60,18 +60,24 @@ function takeProjectFlags(args) {
   for (let at = 0; at < args.length; at++) {
     const [flag, inline] = args[at].split(/=(.*)/s);
     const into = flag === '--project' ? only : flag === '--skip-project' ? skip : undefined;
-    if (!into) rest.push(args[at]);
-    else if (inline !== undefined) into.push(inline);
-    else if (args[at + 1] === undefined) die(`core test-pr: ${flag} needs a project name`, 2);
-    else into.push(args[++at]);
+    if (!into) {
+      rest.push(args[at]);
+      continue;
+    }
+    const name = inline ?? args[++at];
+    if (!name || name.startsWith('--')) die(`core test-pr: ${flag} needs a project name`, 2);
+    into.push(name);
   }
   return {only, skip, rest};
 }
 
 // Pure, for the tests. `--project` narrows the plan, never widens it; `--skip-project` removes from it.
-export function suiteCommand(plan, {skipPassed = false, passThrough = []} = {}) {
+// `known` (every project name) turns a mistyped name into an error, not an empty plan that passes green.
+export function suiteCommand(plan, {skipPassed = false, passThrough = [], known} = {}) {
   const {only, skip, rest} = takeProjectFlags(passThrough);
   if ((only.length > 0 || skip.length > 0) && !skipPassed) die('core test-pr: --project and --skip-project need --skip-passed', 2);
+  const unknown = known ? [...only, ...skip].filter((name) => !known.includes(name)) : [];
+  if (unknown.length > 0) die(`core test-pr: no vitest project is named ${unknown.join(', ')}`, 2);
   const projects = plan.full ? only : plan.projects.filter((project) => (only.length === 0 || only.includes(project)) && !skip.includes(project));
   if (!plan.full && projects.length === 0) return null;
   const projectFlags = projects.flatMap((project) => ['--project', project]);
@@ -86,10 +92,11 @@ export function main(argv = []) {
   const skipPassed = rest.includes('--skip-passed');
   const passThrough = rest.filter((arg) => arg !== '--list' && arg !== '--skip-passed');
   const diff = changedFiles(base);
-  const plan = buildPlan({files: diff.files, packages: readWorkspaceGraph(REPO_ROOT), projects: readProjects(REPO_ROOT)});
+  const projects = readProjects(REPO_ROOT);
+  const plan = buildPlan({files: diff.files, packages: readWorkspaceGraph(REPO_ROOT), projects});
   report(plan, {base, ...diff});
   if (list) return;
-  const command = suiteCommand(plan, {skipPassed, passThrough});
+  const command = suiteCommand(plan, {skipPassed, passThrough, known: projects.map((project) => project.name)});
   if (!command) return note('test-pr: nothing to test');
   runOrThrow(...command, {failMessage: plan.full ? 'core test-pr: the full suite failed' : 'core test-pr: the affected projects failed'});
 }

@@ -103,6 +103,8 @@ export const AREAS = {
           ['--base <ref>', 'diff from its merge-base with HEAD (default origin/main); commits only'],
           ['--list', 'print the plan and stop'],
           ['--skip-passed', 'also skip the files already passed at their exact code (see test-skip)'],
+          ['--project <name>', 'narrow the plan to this vitest project (repeatable, needs --skip-passed)'],
+          ['--skip-project <name>', 'drop this vitest project from the plan (repeatable, needs --skip-passed)'],
         ],
         build: (args) => !hasFlag(args, '--list'),
       },
@@ -112,6 +114,7 @@ export const AREAS = {
         summary: 'vitest over only the files whose compiled code changed since they last passed',
         flags: [
           ['--project <name>', 'limit to a vitest project (repeatable)'],
+          ['--skip-project <name>', 'leave a vitest project out (repeatable)'],
           ['--exclude <glob>', 'leave files out (repeatable)'],
           ['--store <file>', 'the passed list (default node_modules/.cache/mion/vitest-passed.json)'],
           ['--keys <file>', 'write every file key and why a file never caches, run nothing (debugging)'],
@@ -122,11 +125,8 @@ export const AREAS = {
         name: 'go-shard',
         args: '<i>/<n>',
         summary: 'shard i of n of the Go suite: the slow packages split by test, the rest whole (what CI runs)',
-        flags: [
-          ['--list', "print the shard's go test commands and stop"],
-          ['--check <n>', 'fail unless n shards run every package and test exactly once'],
-        ],
-        build: (args) => !hasFlag(args, '--check', '--list'),
+        flags: [['--list', "print the shard's go test commands and stop"]],
+        build: (args) => !hasFlag(args, '--list'),
       },
       {
         name: 'test-bun',

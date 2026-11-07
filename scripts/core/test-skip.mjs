@@ -230,6 +230,9 @@ export function recordPass(store, id, key) {
 
 export const isProven = (store, id, {key, reason}) => !reason && (store[id] ?? []).includes(key);
 
+// Exported for the unit tests: CI runs the `maxWorkers: 1` projects in a job of their own, the rest without them.
+export const withoutProjects = (specs, names) => specs.filter((spec) => !names.includes(spec.project.name));
+
 async function openVitest({filters = [], projects = [], skipProjects = [], excludes = [], reporters = []} = {}) {
   const {createVitest} = await import('vitest/node');
   const options = {watch: false, run: true, passWithNoTests: true, cliExclude: excludes};
@@ -238,7 +241,7 @@ async function openVitest({filters = [], projects = [], skipProjects = [], exclu
   const vitest = await createVitest('test', options);
   // Sets the reporters up; a run started without it crashes the default reporter at the end.
   if (reporters.length > 0) await vitest.standalone();
-  const specs = (await vitest.globTestSpecifications(filters)).filter((spec) => !skipProjects.includes(spec.project.name));
+  const specs = withoutProjects(await vitest.globTestSpecifications(filters), skipProjects);
   return {vitest, specs};
 }
 

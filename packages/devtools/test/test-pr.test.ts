@@ -241,6 +241,20 @@ describe('the command a plan runs', () => {
     expect(() => suiteCommand(partial, {passThrough: ['--project', 'a-tests']})).toThrow(/need --skip-passed/);
     expect(() => suiteCommand(partial, {passThrough: ['--skip-project', 'a-tests']})).toThrow(/need --skip-passed/);
     expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project']})).toThrow(/needs a project name/);
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project', '--exclude', 'x']})).toThrow(
+      /needs a project name/
+    );
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project=']})).toThrow(/needs a project name/);
+  });
+
+  // A typo would otherwise empty a partial plan, print "nothing to test" and pass green.
+  it('refuses a project name no vitest project has', () => {
+    const known = ['a-tests', 'b-tests', 'c-tests'];
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'clinet'], known})).toThrow(
+      /no vitest project is named clinet/
+    );
+    expect(() => suiteCommand(partial, {skipPassed: true, passThrough: ['--skip-project', 'nope'], known})).toThrow(/named nope/);
+    expect(suiteCommand(partial, {skipPassed: true, passThrough: ['--project', 'c-tests'], known})).toBeNull();
   });
 });
 
