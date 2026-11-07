@@ -9,8 +9,7 @@
 //   - its drizzle-orm peer range is exactly `>=X.Y.0 <X.(Y+1).0`,
 //   - its @mionjs/run-types peer range covers version.json's minor (core is a
 //     type-only peer: the consumer's single copy must supply the format types),
-//   - a dialect's @mionjs/drizzle-orm peer is a range on the same line that the
-//     core's current version satisfies (corePeerProblems),
+//   - a dialect's @mionjs/drizzle-orm peer is a range on the core's line admitting it (corePeerProblems),
 //   - its committed manifest's drizzleOrm field equals the installed version.
 // Run via `pnpm miondevx release check-drizzle-versions` (CI: next to the
 // drizzle-manifest --check steps). Exits non-zero on any violation.
@@ -60,7 +59,7 @@ function main() {
     if (pkg.dependencies?.['@mionjs/run-types']) {
       problems.push(`${label}: @mionjs/run-types must be a peerDependency (+ a workspace devDependency), never a dependency`);
     }
-    // A core with no version is already reported above, by the root row's own version check.
+    // A versionless core is already reported by the root row's version check above.
     if (row.dialect !== 'root' && corePkg.version) problems.push(...corePeerProblems(pkg, corePkg.version, label));
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);

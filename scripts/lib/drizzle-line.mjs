@@ -57,9 +57,7 @@ export function rootPeerRangeFor(rootVersion) {
   return `>=${rootVersion} <${major}.${minor + 1}.0`;
 }
 
-// Why a dialect's @mionjs/drizzle-orm peer breaks the line contract, or [] when it holds: a range (never a pin,
-// so every dialect shares the consumer's one core copy) that the core's current version satisfies, capped at
-// the drizzle minor line, plus a workspace devDependency and no runtime dependency.
+// A range, never a pin, so every dialect shares the consumer's one core copy; [] when the line contract holds.
 export function corePeerProblems(pkg, coreVersion, label = pkg.name) {
   const problems = [];
   const range = pkg.peerDependencies?.['@mionjs/drizzle-orm'];
