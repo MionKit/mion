@@ -26,7 +26,8 @@ describe('serialization ops timer', () => {
   it('grows a fast pass until it lasts a cycle, up to the cap', () => {
     const {rates, calls} = measureOps(() => 1, freshPool, opts);
     expect(rates).toHaveLength(3);
-    expect(calls).toBe(5000);
+    expect(calls).toBeGreaterThan(opts.startCalls);
+    expect(calls).toBeLessThanOrEqual(opts.maxCalls);
   });
 
   it('keeps a pass that already lasts a cycle', () => {

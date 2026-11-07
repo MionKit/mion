@@ -1766,6 +1766,9 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
       "'sources.mjs')}:${tsgo}/sources.mjs"
     );
+    expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
+      "'ops-timer.mjs')}:${tsgo}/ops-timer.mjs"
+    );
   });
 
   it('every benchmark dataset has one column list, held by the driver, the generator and the gate', async () => {
