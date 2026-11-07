@@ -252,6 +252,7 @@ export const AREAS = {
       ['--website', 'the website subset'],
       ['--build-only', 'build the lanes, measure nothing'],
       ['--quick', 'the short run'],
+      ['--rounds <n>', 'interleaved rounds per competitor (default 3)'],
       ['--only <a,b>', 'only these competitors (the default run, typecheck, smoke and build)'],
     ],
     commands: [

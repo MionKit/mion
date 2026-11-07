@@ -16,7 +16,7 @@
 // A `--quick` flag anywhere maps onto every stage's native fast lever.
 
 import {COMPETITORS} from './columns.mjs';
-import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rmSync} from 'node:fs';
+import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
 import {main as coreBuild} from '../../core/build.mjs';
@@ -25,6 +25,7 @@ import {ghcrConfig} from '../../lib/engine.mjs';
 import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
 import {die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
 import {main as mionBenchMain} from './mion-bench.mjs';
+import {clearValidationRounds, mergeValidationRounds, readValidationRounds, validationPlan, validationRoundFile, validationSchedule} from './validation-rounds.mjs';
 
 // Env-independent paths.
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
@@ -122,7 +123,7 @@ function mountArgs(cfg) {
       args.push('-v', `${join(competitorsDir, competitor, base)}:/bench/competitors/${competitor}/${base}:ro${mo}`);
     }
     // dist is build OUTPUT (excluded from the ro mounts above), so it used to land
-    // in the --rm container's throwaway layer — and buildAndRunOne builds and runs
+    // in the --rm container's throwaway layer — and runCompetitors builds and runs
     // in SEPARATE containers, so node/bun found no dist/run.mjs. Mount it rw from
     // the host (gitignored) so the emitted bundle survives across those runs.
     const distDir = join(competitorsDir, competitor, 'dist');
@@ -217,43 +218,63 @@ function benchBun() {
 // every other runtime gets a subdir so the published node table is untouched).
 const runtimeResultsDir = (runtime) => (runtime === 'node' ? RESULTS_DIR : join(RESULTS_DIR, runtime));
 
-// Build + run one competitor; a failure is reported but never aborts the loop, so
-// every other lane still gets to write its results. Returns true when EVERY runtime
-// lane ran.
-//
-// The message names WHICH of the two things went wrong, because they need opposite
-// reactions and used to read identically. A lane that wrote no results/<name>.json
-// did not run at all (its build broke) and its column will be missing from every
-// page; a non-zero exit WITH a results file means the run finished and hit errored
-// case(s). A correctness divergence never reaches here: each competitor's main.ts
-// exits 0 on `fail`, because disagreeing with RunTypes on a sample is data for the
-// Correctness page, not a broken lane (see shared/harness/result.ts).
-//
-// The build happens ONCE and every runtime then executes that same emitted bundle:
-// bun is never asked to transpile TypeScript, it runs the identical dist/run.mjs node
-// ran. That also makes this the only check in the repo that the emitted bundle is
-// runtime-portable.
-function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
+// Build one competitor's bundle, ONCE: every runtime and every round then executes that
+// same emitted bundle. bun is never asked to transpile TypeScript, it runs the identical
+// dist/run.mjs node ran, which also makes this the only check in the repo that the
+// emitted bundle is runtime-portable.
+function buildOne(cfg, competitor) {
   console.log(`-------- competitor: ${competitor} --------`);
-  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build`]) !== 0) {
-    console.log(`==> competitor '${competitor}' DID NOT RUN (build failed) - no results written, its column will be missing from the tables`);
-    return false;
+  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build`]) === 0) return true;
+  console.log(`==> competitor '${competitor}' DID NOT RUN (build failed) - no results written, its column will be missing from the tables`);
+  return false;
+}
+
+// Build every competitor, then run them in interleaved rounds (validation-rounds.mjs) and
+// merge each lane's rounds into the canonical results/<name>.json. A failure is reported
+// but never aborts the loop, so every other lane still writes its results. Returns the
+// competitors whose lanes did not all run cleanly.
+//
+// The message names WHICH of two things went wrong, because they need opposite reactions.
+// A round that wrote no result did not run at all (startup broke): that lane stops, and
+// its column will be missing from every page. A non-zero exit WITH a result means the run
+// finished and hit errored case(s): its rounds still merge and publish. A correctness
+// divergence never reaches here: each competitor's main.ts exits 0 on `fail`, because
+// disagreeing with RunTypes on a sample is data for the Correctness page, not a broken
+// lane (see shared/harness/result.ts).
+function runCompetitors(cfg, competitors, withBun = benchBun()) {
+  const {rounds} = validationPlan();
+  // An MION_VALIDATION_BENCH_CASE inspection run writes no results file by design, so
+  // neither the "did it write results?" signal nor the merge applies to it.
+  const inspecting = Boolean(process.env.MION_VALIDATION_BENCH_CASE);
+  const runtimes = [['node', 'node dist/run.mjs']];
+  if (withBun) runtimes.push(['bun', `MION_VALIDATION_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
+  const broken = new Set();
+  const built = competitors.filter((competitor) => buildOne(cfg, competitor) || (broken.add(competitor), false));
+  const lanes = built.flatMap((competitor) => runtimes.map(([runtime, cmd]) => ({competitor, runtime, cmd, label: `competitor '${competitor}' (${runtime})`})));
+  for (const lane of lanes) clearValidationRounds(runtimeResultsDir(lane.runtime), lane.competitor, rounds);
+
+  const stopped = new Set();
+  for (const {round, lane} of validationSchedule(lanes, rounds)) {
+    if (stopped.has(lane)) continue;
+    console.log(`-------- round ${round}/${rounds}: ${lane.competitor} (${lane.runtime}) --------`);
+    const cmd = `cd competitors/${lane.competitor} && MION_VALIDATION_BENCH_ROUND=${round} ${lane.cmd}`;
+    if (runInContainer(cfg, ['sh', '-c', cmd]) === 0) continue;
+    broken.add(lane.competitor);
+    if (inspecting) console.log(`==> ${lane.label} FAILED - see output above`);
+    else if (existsSync(validationRoundFile(runtimeResultsDir(lane.runtime), lane.competitor, round)))
+      console.log(`==> ${lane.label}: errored case(s) in round ${round} - its results JSON WAS written, see the errors above`);
+    else {
+      console.log(`==> ${lane.label} DID NOT RUN in round ${round} (startup failed) - no results JSON, its column will be missing from the tables`);
+      stopped.add(lane);
+    }
   }
-  const runs = [['node', 'node dist/run.mjs']];
-  if (withBun) runs.push(['bun', `MION_VALIDATION_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
-  let allRan = true;
-  for (const [runtime, cmd] of runs) {
-    if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && ${cmd}`]) === 0) continue;
-    const label = `competitor '${competitor}' (${runtime})`;
-    // An MION_VALIDATION_BENCH_CASE inspection run writes no results file by design, so the
-    // "did it write results?" signal does not apply to it.
-    if (process.env.MION_VALIDATION_BENCH_CASE) console.log(`==> ${label} FAILED - see output above`);
-    else if (existsSync(join(runtimeResultsDir(runtime), `${competitor}.json`)))
-      console.log(`==> ${label}: errored case(s) - its results JSON WAS written, see the errors above`);
-    else console.log(`==> ${label} DID NOT RUN (startup failed) - no results JSON, its column will be missing from the tables`);
-    allRan = false;
+  if (inspecting) return [...broken];
+  for (const lane of lanes.filter((entry) => !stopped.has(entry))) {
+    const dir = runtimeResultsDir(lane.runtime);
+    const found = readValidationRounds(dir, lane.competitor, rounds);
+    if (found.length > 0) writeFileSync(join(dir, `${lane.competitor}.json`), `${JSON.stringify(mergeValidationRounds(found), null, 2)}\n`);
   }
-  return allRan;
+  return [...broken];
 }
 
 // The engine-branch tripwire. countEnumKeys picks a different counter per JS
@@ -300,11 +321,14 @@ function publishDocdata(cfg) {
 // Delete top-level results JSON matching a predicate (the `find -maxdepth 1 -delete`).
 function clearResults(pred) {
   mkdirSync(RESULTS_DIR, {recursive: true});
-  for (const f of globSync('*.json', {cwd: RESULTS_DIR})) if (pred(f)) rmSync(join(RESULTS_DIR, f), {force: true});
   // The per-runtime subdirs too: a stale bun result surviving a failed bun run would
-  // let checkEngineBranch pass on last week's numbers.
-  const bunDir = join(RESULTS_DIR, 'bun');
-  if (existsSync(bunDir)) for (const f of globSync('*.json', {cwd: bunDir})) if (pred(f)) rmSync(join(bunDir, f), {force: true});
+  // let checkEngineBranch pass on last week's numbers. Round files are judged by the
+  // result they belong to.
+  for (const dir of [RESULTS_DIR, join(RESULTS_DIR, 'bun')]) {
+    if (!existsSync(dir)) continue;
+    for (const f of globSync('*.json', {cwd: dir})) if (pred(f)) rmSync(join(dir, f), {force: true});
+    for (const f of globSync('rounds/*.json', {cwd: dir})) if (pred(f.slice('rounds/'.length).replace(/\.r\d+\.json$/, '.json'))) rmSync(join(dir, f), {force: true});
+  }
 }
 
 // The counter-inversion tripwire, run INSIDE the image — bun is installed there, not
@@ -328,7 +352,7 @@ function cmdBench(cfg) {
   // MION_VALIDATION_BENCH_CASE inspection run: leave the canonical results JSON untouched.
   if (!process.env.MION_VALIDATION_BENCH_CASE) clearResults((f) => f !== 'env.json');
   const competitors = competitorList();
-  const broken = competitors.filter((competitor) => !buildAndRunOne(cfg, competitor));
+  const broken = runCompetitors(cfg, competitors);
   if (process.env.MION_VALIDATION_BENCH_CASE) return note(`MION_VALIDATION_BENCH_CASE='${process.env.MION_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   // The tripwire reads mion's own results.
   if (competitors.includes('mion')) {
@@ -347,7 +371,7 @@ function cmdBenchOne(cfg, name) {
   if (!name) die('bench: usage: bench-one <competitor> (mion|zod|typebox|ajv|typia)');
   ensurePrereqs(cfg);
   if (!process.env.MION_VALIDATION_BENCH_CASE) clearResults((f) => f === `${name}.json`);
-  const ok = buildAndRunOne(cfg, name);
+  const ok = runCompetitors(cfg, [name]).length === 0;
   if (process.env.MION_VALIDATION_BENCH_CASE) return note(`MION_VALIDATION_BENCH_CASE='${process.env.MION_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   console.log('-------- aggregate --------');
   runInContainer(cfg, ['node', 'aggregate.mjs']);
@@ -365,7 +389,7 @@ function cmdBenchOne(cfg, name) {
 function cmdFullbench(cfg) {
   ensurePrereqs(cfg);
   clearResults((f) => f !== 'env.json');
-  const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
+  const broken = runCompetitors(cfg, competitorList());
   note('aggregate');
   // aggregate.mjs exits non-zero on an EXPECTED cross-library divergence (the
   // Correctness page is built from them); every competitor already wrote its
@@ -599,7 +623,8 @@ function applyQuick() {
   const setIfUnset = (name, value) => {
     if (!(name in process.env)) process.env[name] = value;
   };
-  setIfUnset('MION_VALIDATION_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 100ms)
+  setIfUnset('MION_VALIDATION_BENCH_ROUNDS', '1'); // runtime: one round (vs 3)
+  setIfUnset('MION_VALIDATION_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 50ms a round)
   setIfUnset('MION_COMPILETIME_N', '1'); // compile-time: single repeat (vs 5)
   setIfUnset('MION_TRANSFORM_WIRE_N', '1'); // transform-wire: single repeat (vs 5)
   setIfUnset('MION_COMPILETIME_COMPETITORS', 'mion');
@@ -639,9 +664,16 @@ export function main(rawArgs) {
   for (let i = 0; i < rawArgs.length; i++) {
     if (rawArgs[i] === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
     else if (rawArgs[i] === '--only') setOnlyCompetitors(rawArgs[++i] ?? '');
+    else if (rawArgs[i] === '--rounds') process.env.MION_VALIDATION_BENCH_ROUNDS = rawArgs[++i] ?? 'missing';
     else args.push(rawArgs[i]);
   }
   applyQuick();
+  // A bad round knob is a usage error, caught before any result is touched.
+  try {
+    validationPlan();
+  } catch (err) {
+    die(err.message, 2);
+  }
   dispatch(config(), args);
 }
 

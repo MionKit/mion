@@ -31,6 +31,10 @@ export interface MetricResult {
    *  mean of valid + invalid when absent.) */
   mixedOpsSec: number;
   detail: string | null;
+  /** On a merged result: each round's ops/sec per stream (the fields above are their medians). */
+  rounds?: {validOpsSec: number[]; invalidOpsSec: number[]; mixedOpsSec: number[]};
+  /** On a merged result: how far apart the rounds landed, percent of the best, widest stream. */
+  spread?: number;
 }
 
 export interface CaseResult {
@@ -68,7 +72,8 @@ export interface CompetitorResult {
    *  host them (Bun has no `Temporal`). Empty on the node lane. Present so a
    *  partial run is legible as partial in the artifact itself. */
   skippedGroups: string[];
-  env: {node: string; timeMs: number; noTiming: boolean};
+  /** `round` on one round's result; `rounds` on the merged one the driver writes. */
+  env: {node: string; timeMs: number; noTiming: boolean; round?: number; rounds?: number};
   cases: CaseResult[];
   summary: {
     total: number;
@@ -122,7 +127,10 @@ export function writeResult(result: CompetitorResult): void {
   // RESULTS_DIR, so a suffixed file would be silently absorbed as a sixth
   // competitor and corrupt the published table.
   const runtime = result.runtime ?? currentRuntime();
-  const outDir = runtime === 'node' ? RESULTS_DIR : path.join(RESULTS_DIR, runtime);
+  const runtimeDir = runtime === 'node' ? RESULTS_DIR : path.join(RESULTS_DIR, runtime);
+  // One round of an interleaved run: the driver merges the rounds into the canonical file.
+  const round = result.env.round;
+  const outDir = round ? path.join(runtimeDir, 'rounds') : runtimeDir;
   mkdirSync(outDir, {recursive: true});
-  writeFileSync(path.join(outDir, `${result.competitor}.json`), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(outDir, round ? `${result.competitor}.r${round}.json` : `${result.competitor}.json`), JSON.stringify(result, null, 2) + '\n');
 }
