@@ -47,5 +47,7 @@ this change touched, review its report against the code, and commit it as its ow
   patch (a core patch need not republish the dialects).
 - `check-drizzle-versions.mjs` calls it for every non-root row, skipped when the core has no version
   (the root row's own version check reports that).
-- Tests: accept and reject tables, a tree test, and a run of the gate itself on the tree.
+- The gate takes `--root <dir>` to check another tree.
+- Tests: accept and reject tables, a tree test, and a gate run on a fixture tree whose pg dialect pins its
+  core peer (exit 1, one problem).
 - Website: none, release internals only. Simplify-docs pass: no-op, no page touched.
