@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-11-06
 ---
 
@@ -58,6 +58,41 @@ The full run IS the normal PR: make it shorter, and stop running it for page edi
    `packages/.../node_modules`), regexsafety/shipped_patterns_test.go:14, resolver/marker_artifact_test.go:21,
    purefnindex_test.go:721,738, convert/drizzlemodnames_test.go:34, cmd/gen-drizzle-manifest/gen_test.go:152.
    Same root cause, also in CI: the `go` lane (lanes.mjs:93) misses `version.json`, which fuzzseed.go reads.
+
+## What shipped
+
+All six items. Where the build left the plan below:
+
+- **Item 2: no project went parallel.** Forced to 4 workers, `client` failed 1 of 5 runs and again on one core (7
+  files: `Cannot find module '../.mion/types/…'`, its gen dir raced) and `drizzle-example-app` its first run.
+  `client-bundled` failed every run, but not from parallelism: its lane server (a forked second process writing
+  the same genDir) rooted its vite server at the cwd, the repo root, while vitest roots the project at
+  `packages/rpc-client`. The two named the generated modules apart and each generate pruned the other's, so
+  `routeDrift.spec.ts` failed whenever it ran first (alone, after a failure reordered the files, or with its
+  siblings proven by the passed list). Fixed in the same PR: the child takes vitest's project root, and
+  `test/lib/laneServer.ts` refuses to start when the child reports any other. All three keep `maxWorkers: 1` and run in `js-serial`; no
+  `ONE_WORKER_PROJECTS` constant: the contract derives the set from the configs that set `maxWorkers: 1` and checks
+  both suite jobs' `--project` / `--skip-project` lists against it.
+- **test-skip `--skip-project`** checks names against the root config's project list, not vitest's own (a
+  `--project` filter narrows that one).
+- **`js-fuzz-green`** saves the lane once each fuzz job passed or was skipped because its item was proven;
+  `go-green` and `js-green` need plain success.
+- **`go-suite`** sets no `MION_LANES`: no step of it reads the env, its wait is the `go-suite-wait` job.
+- **Item 3: no `go-shard --check`.** It rebuilt the shards with the same planner it checked, so only a stale `HEAVY`
+  entry could fail it. `go-shard` dies on that itself, lists the three heavy packages in one parallel
+  `go test -list` call, and its unit tests prove the planner runs every package and test exactly once.
+- **Item 6:** `testfixtures.RepoRoot()` joins `Repo` and `DeclareInputs` (a test handing repo paths to the compiler
+  takes the real root, and must declare what the compiler reads); `DeclareInputs` also takes an absolute path under
+  the repo. Links: `pnpm-lock.yaml` (the apitypes temp projects link `node_modules`), `packages/platform-node` (the
+  drizzle example app's server imports it), and only `packages/devtools/src/core/go-generated` of devtools (the
+  `cmd/gen-*` tests compare the committed generated files there and in run-types and core, and declare them; the
+  generators keep their own repo paths for `go run`). `private-test-server` has none (nothing reads it through
+  `Repo`). The source scan works per package: a test file never climbs out by hand, and a package whose code reaches
+  the repo (by climbing, `…Root(), "packages"` or `RepoRoot()`) declares it in its tests. A bare `"packages/…"`
+  literal is no signal: temp-dir fixtures use the same names.
+  Repros, each answering `(cached)` before: `apimeta` after emptying `markers.d.ts` (FAIL), the apitypes router test
+  after appending a line to `packages/rpc-router/src/router.ts` (re-ran), `gen-plugin-keys` after appending a line
+  to its committed generated file (FAIL, drift).
 
 ## Plan
 
