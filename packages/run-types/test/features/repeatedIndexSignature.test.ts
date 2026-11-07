@@ -21,10 +21,9 @@ describe('repeated index signature', () => {
   it('round trips through every encoder', () => {
     const value: Split = {key1: 'value1', 0: 'zero', 5: 'five'};
     const decode = createJsonDecoderFn<Split>();
-    for (const strategy of ['clone', 'mutate', 'compact'] as const) {
-      const encoded = createJsonEncoderFn<Split>(undefined, {strategy})({...value});
-      const decoder = strategy === 'compact' ? createJsonDecoderFn<Split>(undefined, {strategy}) : decode;
-      expect(decoder(encoded), strategy).toEqual(value);
-    }
+    expect(decode(createJsonEncoderFn<Split>(undefined, {strategy: 'clone'})({...value}))).toEqual(value);
+    expect(decode(createJsonEncoderFn<Split>(undefined, {strategy: 'mutate'})({...value}))).toEqual(value);
+    const compact = createJsonEncoderFn<Split>(undefined, {strategy: 'compact'})({...value});
+    expect(createJsonDecoderFn<Split>(undefined, {strategy: 'compact'})(compact)).toEqual(value);
   });
 });
