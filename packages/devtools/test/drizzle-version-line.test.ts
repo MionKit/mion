@@ -295,6 +295,11 @@ describe('drizzle line — the tree itself', () => {
       expect(corePeerProblems(row.pkg, core)).toEqual([]);
     }
   });
+
+  it('passes the CI gate, which runs the dialect core peer check on the tree', () => {
+    const out = execFileSync('node', [join(REPO_ROOT, 'scripts/release/check-drizzle-versions.mjs')], {encoding: 'utf8'});
+    expect(out).toContain('check-drizzle-versions: OK');
+  });
 });
 
 // The 0.13.1 publish refused a skip because the live tarball "could not be downloaded", with npm's
