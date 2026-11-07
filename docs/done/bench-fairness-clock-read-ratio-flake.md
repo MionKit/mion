@@ -39,3 +39,15 @@ Docs: none, because this changes only a test.
   rounds), and still fails if a timed round reads the clock per call.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: fake clock (approved 2026-11-06, automatic delegated run)
+
+- Harness confirmed: warm-up of 1000 rounds before the clock starts, then 1 start read, 1 read per loop check
+  (`k` passing + 1 failing) and 1 elapsed read: `k + 3` reads for `k` timed rounds.
+- Test only (`packages/devtools/test/bench-fairness.test.ts`): `performance.now` returns 0 for the start read and the
+  first `k` checks, then a large time, so the loop runs exactly `k` rounds. Run for `k` = 1, 2 and 50.
+- Assert exactly: `reads === k + 3`, and timed calls / timed rounds >= 1000. A harness that reads the clock per call
+  makes about 1 call per read and fails.
+- No docs (test only), no fuzzing (fix, not a feature).
+- Considered instead: the harness counting its own rounds with the real clock. The user chose the fake clock: it pins
+  the exact read count and leaves the benchmark code untouched.
