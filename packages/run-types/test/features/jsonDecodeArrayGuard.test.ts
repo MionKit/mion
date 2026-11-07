@@ -37,7 +37,7 @@ describe('JSON decoders never loop over a non-array length', () => {
   const compact = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'compact'});
   const validate = createValidateFn<WithArrays>();
 
-  // A restore loop over the bomb would hang or fill the heap; the guard hands the object back untouched.
+  // A restore loop over the bomb would hang or fill the heap.
   for (const field of ['nums', 'dates', 'rest', 'lookup', 'bag'] as const) {
     it(`{"length": 1e9} at '${field}' is left as it is, and never validates`, () => {
       const text = bombAt(field);
