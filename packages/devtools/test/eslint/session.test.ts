@@ -97,23 +97,19 @@ createInterface({input: process.stdin}).on('line', (line) => {
     }
   });
 
-  it('surfaces a stuck engine as an engineError, quickly and stickily', {timeout: 30_000}, () => {
+  it('surfaces a stuck engine as an engineError, stickily', {timeout: 30_000}, () => {
     const project = makeFixtureProject({'a.ts': 'export const a = 1;'});
     projects.push(project);
     const session = new LintSession();
     try {
-      // A 1ms budget can't cover the cold child spawn + Program build, so the
-      // first file times out — the session must report it (never hang) and go
-      // sticky so later files answer instantly from the dead flag. (The binary
-      // and cwd are resolved transparently now; timeoutMs is the only knob.)
-      const options = {timeoutMs: 1};
+      // A 0ms budget never covers the cold child spawn + Program build, so the first file times out. The session
+      // must report it (never hang) and go sticky: the second file gets the first file's error, with no new request.
+      const options = {timeoutMs: 0};
       const first = session.lintFileSync(`${project.dir}/a.ts`, 'export const a = 1;', options);
-      expect('engineError' in first).toBe(true);
+      expect('engineError' in first && first.engineError).toContain(`(file: ${project.dir}/a.ts)`);
 
-      const start = Date.now();
       const second = session.lintFileSync(`${project.dir}/b.ts`, 'export const b = 2;', options);
-      expect('engineError' in second).toBe(true);
-      expect(Date.now() - start).toBeLessThan(250);
+      expect(second).toEqual(first);
     } finally {
       session.dispose();
     }
