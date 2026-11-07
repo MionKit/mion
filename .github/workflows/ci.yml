@@ -48,8 +48,7 @@ name: ci
 # minus the one-worker projects), js-serial (exactly those projects), and the
 # build-gate, contract and link tests their own steps run — are a complete,
 # DISJOINT partition of the JS suite, so no test is dropped or double-run.
-# `go-build` builds the Go binaries once, on a miss, and every heavy job waits for it, then restores them through
-# the same `resolver` action: a job that only runs the binaries sets up no Go.
+# Heavy jobs wait for `go-build`, then restore its binaries: a job that only runs them sets up no Go.
 #
 # `smoke` runs the website serves-a-page + benchmark
 # competitor-build checks. It is content-gated (only when container inputs change,
@@ -128,8 +127,7 @@ jobs:
         run: node scripts/ci/check-tree.mjs
 
   # ── go-build: the Go binaries, built once for every heavy job ─────────────
-  # Each heavy job restores them from the cache this job fills, so a Go change builds them on one runner, not on every
-  # one. Node is all the cache key and the build script need, so it installs no packages.
+  # The cache key and the build script need only Node, so this job installs no packages.
   go-build:
     name: build the Go binaries
     needs: lanes
