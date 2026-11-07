@@ -1,4 +1,4 @@
-// The GitHub Release body = the version's curated CHANGELOG.md section, unwrapped for GitHub's hard line breaks.
+// The GitHub Release body = the version's curated CHANGELOG.md section.
 // Lives here, like release-receipt.test.ts, because scripts/ has no vitest project of its own.
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -56,8 +56,7 @@ describe('releaseNotes', () => {
   });
 });
 
-// GitHub shows each single newline of a Release body as a line break, so a soft-wrapped changelog line would
-// break mid-sentence on the release page.
+// GitHub shows each single newline of a Release body as a line break, splitting wrapped lines mid-sentence.
 describe('unwrap', () => {
   it('joins a wrapped paragraph into one line, keeping the blank line between paragraphs', () => {
     expect(join('One sentence that\nwraps here.\n\nNext paragraph\nwraps too.')).toBe(
