@@ -1,5 +1,4 @@
-// Two index signatures with the same value type, as the resolver splits `Record<string | number, T>`: a for-in reaches
-// every key in both, so the second one used to write and check each value again, and report a bad value twice.
+// `Record<string | number, T>` splits into two signatures whose for-ins each reach every key: one bad value, two errors.
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn} from '@mionjs/run-types';
 

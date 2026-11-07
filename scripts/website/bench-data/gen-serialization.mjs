@@ -306,8 +306,7 @@ function jsonValues(caseObj) {
   return (caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
 }
 
-// A pool of `count` fresh values rotating through `indices`: one values array per lap, so in-place encoders get a
-// clean object every call.
+// One values array per lap through `indices`, so in-place encoders get a clean object every call.
 function buildPool(selectValues, count, indices) {
   const pool = [];
   while (pool.length < count) {
@@ -370,7 +369,7 @@ function measureRoundTrip(caseObj, rt) {
   // Bytes: encode one surviving sample.
   const bytes = byteLengthOf(encode(selectValues()[surviving[0]]));
 
-  // Encode throughput over fresh pools (mutate encoders need fresh objects).
+  // Mutating encoders need a fresh pool per pass.
   const encOps = timeOps(encode, (count) => buildPool(selectValues, count, surviving), maxCalls);
 
   // Decode throughput: pre-encode a fresh pool to wire form, then time decode.

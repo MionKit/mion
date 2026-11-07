@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// splitIndexSigObject builds `{[k: string]: S; [k: number]: N}`; the resolver splits `Record<string | number, T>` the
-// same way.
+// splitIndexSigObject builds `{[k: string]: S; [k: number]: N}`, as the resolver splits `Record<string | number, T>`.
 func splitIndexSigObject(numberValue string) []*reflection.RunType {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
@@ -27,8 +26,7 @@ func count(t *testing.T, runTypes []*reflection.RunType, family, needle string) 
 	return strings.Count(code, needle), entry
 }
 
-// A second signature with the first one's value type sweeps every key again: the clone and compact encoders wrote each
-// value twice, validate checked it twice and validationErrors reported one bad value twice.
+// A second signature with the same value type swept every key again: values written, checked and reported twice.
 func TestRepeatedIndexSignatureSweepsOnce(t *testing.T) {
 	runTypes := splitIndexSigObject("str")
 	for _, fam := range []string{"prepareForJsonClone", "compactForJson"} {
