@@ -6,7 +6,8 @@ package diagnostics
 // Every code is LevelRuntimeError: the call still runs. A dropped site injects no id, so `batch()` throws
 // `batch-missing-id` before any network work; rpc-batch-router-init-hidden 404s every request as `batch-unknown-id`.
 const (
-	// CodeBatchElementNotReadable: an element's type is not a `RouteSubRequest` with a string-literal id. Args: [0] reason.
+	// CodeBatchElementNotReadable: the route list is built at runtime, or an element's type is not a `RouteSubRequest`
+	// with a string-literal id. Args: [0] reason.
 	CodeBatchElementNotReadable = "rpc-batch-element-unreadable"
 	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not in the batch, or sits
 	// AFTER the route it feeds (a route only reads the output of one that ran before it). Args:
@@ -40,7 +41,7 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The type of a `batch()` element does not name its route"},
+		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A `batch()` route list can't be determined at compile time"},
 		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
 		{Code: CodeBatchIdCollision, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "Two different batches produced the same batch id"},
 		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},

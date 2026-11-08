@@ -132,7 +132,7 @@ describe('batch', () => {
       const {routes} = initClient<MyApi>({baseURL});
       // an alias whose type lost the InjectBatchId brand is invisible to the build, so no id is injected
       const untransformed = batch as unknown as (routes: RouteSubRequest<any>[]) => unknown;
-      expect(() => untransformed([routes.sayHello(someUser)])).toThrow('batch() needs the mion build plugin');
+      expect(() => untransformed([routes.sayHello(someUser)])).toThrow('batch() has no compiled batch for these routes');
     });
 
     it('should throw error when subrequests have different client instances', () => {

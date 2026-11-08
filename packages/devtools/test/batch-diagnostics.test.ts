@@ -491,20 +491,20 @@ describe('request-batch diagnostics and readable shapes', () => {
   describe('rpc-batch-element-unreadable: element not readable', () => {
     // `needle` starts the offending element, whose line is asserted; `reason` must render in the headline.
     const rejected: Record<string, {body: string; needle: string; reason?: string | RegExp}> = {
-      'spread element': {
+      spread: {
         body: `const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);\n`,
         needle: '...prepared',
-        reason: 'spread element',
+        reason: 'a spread, whose routes are only known at runtime',
       },
       'routes array held in a variable': {
         body: `const list = [routes.users.getById(1)];\nexport const b = batch(list);\n`,
         needle: 'list);',
-        reason: 'not an inline array literal',
+        reason: 'the list is built at runtime',
       },
       'routes array built by .map': {
         body: `const ids = [1, 2];\nexport const b = batch(ids.map((id) => routes.users.getById(id)));\n`,
         needle: 'ids.map',
-        reason: 'not an inline array literal',
+        reason: 'the list is built at runtime',
       },
       'an annotation that widens the id': {
         body: `const user: RouteSubRequest<any> = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(1)]);\n`,
@@ -519,7 +519,7 @@ describe('request-batch diagnostics and readable shapes', () => {
       'a value that is not a route call': {
         body: `declare const anything: any;\nexport const b = batch([anything, routes.orders.list(1)]);\n`,
         needle: 'anything, routes',
-        reason: 'its type is `any`',
+        reason: "an item's type is `any`",
       },
     };
     for (const [name, {body, needle, reason}] of Object.entries(rejected)) {
@@ -540,8 +540,8 @@ describe('request-batch diagnostics and readable shapes', () => {
         expect(run.error!.message).toMatch(/build stopped on 2 mion errors/);
         const hits = run.warns.filter((w) => w.includes('error rpc-batch-element-unreadable:'));
         expect(hits.length).toBe(2);
-        expect(hits[0]).toContain('spread element');
-        expect(hits[1]).toContain('its type is `any`');
+        expect(hits[0]).toContain('a spread');
+        expect(hits[1]).toContain("an item's type is `any`");
         expect(run.sites).toEqual([]);
       });
     });
@@ -690,6 +690,18 @@ describe('request-batch diagnostics and readable shapes', () => {
       await withBuild({'case.ts': source}, {downgradeErrors: ['rpc-batch-element-unreadable']}, async (run) => {
         expect(run.error, 'a downgraded rpc-batch-element-unreadable must not halt the build').toBeNull();
         expect(run.sites).toEqual([]);
+      });
+    });
+
+    register('a route list built at runtime, downgraded, ships with no id so batch() throws batch-missing-id', async () => {
+      const source = IMPORTS + `const ids = [1, 2];\nexport const b = batch(ids.map((id) => routes.users.getById(id)));\n`;
+      await withBuild({'case.ts': source}, {downgradeErrors: ['rpc-batch-element-unreadable']}, async (run) => {
+        expect(run.error).toBeNull();
+        expect(run.warns.some((w) => w.includes("route list can't be determined at compile time"))).toBe(true);
+        expect(run.sites).toEqual([]);
+        // no id slot is filled, the client's own guard throws at call time
+        const code = await run.transform('case.ts');
+        expect(code ?? source).not.toMatch(/'b_/);
       });
     });
 

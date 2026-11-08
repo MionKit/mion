@@ -12,10 +12,11 @@ import (
 
 // Rejection reasons: rpc-batch-element-unreadable's `{0}` argument, and, prefixed, rpc-batch-mapper-unreadable's.
 const (
-	reasonSpread       = "spread element"
-	reasonNotRoute     = "its type is not the `RouteSubRequest` a route call returns"
-	reasonAnyType      = "its type is `any` (a bare `let x;` is `any` when `noImplicitAny` is off)"
-	reasonIdNotLiteral = "its route id type is not a string literal (`string`, `any`, or an annotation that dropped it)"
+	reasonRuntimeList  = "the list is built at runtime, not written as an array literal"
+	reasonSpread       = "a spread, whose routes are only known at runtime"
+	reasonNotRoute     = "an item's type is not the `RouteSubRequest` a route call returns"
+	reasonAnyType      = "an item's type is `any` (a bare `let x;` is `any` when `noImplicitAny` is off)"
+	reasonIdNotLiteral = "an item's route id type is not a string literal (`string`, `any`, or an annotation that dropped it)"
 )
 
 // routeSubRequestName is the interface every route call returns; its Id type argument is the route id.
