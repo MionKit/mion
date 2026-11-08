@@ -1,4 +1,4 @@
-// Cuts or pads a drawn value to the length bounds, then replaces each char a char set rejects.
+// Cuts or pads a drawn value to the length bounds, then replaces each char a char set (or a char-class pattern) rejects.
 // Mirrors Go formats.GeneratorProblems, which only rejects a format that leaves the replacement nothing to use.
 
 import type {StringParams} from '../../formats/string/stringFormats.ts';
@@ -10,7 +10,7 @@ const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 const VOWELS = 'aeiou';
 
 interface FitContext extends Required<Pick<GeneratorContext, 'lo' | 'hi' | 'random'>> {
-  /** True for a char the format's char sets accept. **/
+  /** True for a char the format's char sets accept, and its pattern accepts on its own (`Alpha`'s `^\p{L}+$`). **/
   keepChar: (char: string) => boolean;
   /** Accepted chars a rejected one can become; empty when the char sets leave none. **/
   pool: readonly string[];
@@ -19,15 +19,22 @@ interface FitContext extends Required<Pick<GeneratorContext, 'lo' | 'hi' | 'rand
 }
 
 export function fitContext(params: StringParams, ctx: Pick<GeneratorContext, 'lo' | 'hi' | 'random'>): FitContext {
-  const charSets = {allowedChars: params.allowedChars, disallowedChars: params.disallowedChars};
-  const keepChar = (char: string): boolean => stringParamsAccept(char, charSets, () => true);
+  const charRules = {allowedChars: params.allowedChars, disallowedChars: params.disallowedChars, pattern: params.pattern};
+  const verdicts = new Map<string, boolean>();
+  const keepChar = (char: string): boolean => {
+    let verdict = verdicts.get(char);
+    if (verdict === undefined) verdicts.set(char, (verdict = stringParamsAccept(char, charRules, () => true)));
+    return verdict;
+  };
   const allowed = params.allowedChars?.val;
   // Both cases of an allowed char, kept only when the set accepts them (`ignoreCase`).
   const source = allowed ? allowed + allowed.toUpperCase() + allowed.toLowerCase() : MOCK_REPLACEMENT_CHARS;
   const pool = [...new Set(source)].filter(keepChar);
   const letters = LETTERS.split('').filter(keepChar);
   const padPool = letters.length > 0 ? letters : pool.length > 0 ? pool : LETTERS.split('');
-  return {lo: ctx.lo ?? 0, hi: ctx.hi ?? Infinity, random: ctx.random, keepChar, pool, padPool};
+  // `allowedChars` (`^[…]+$`) rejects '', so a value never shrinks below one char.
+  const lo = params.allowedChars ? Math.max(ctx.lo ?? 0, 1) : (ctx.lo ?? 0);
+  return {lo, hi: ctx.hi ?? Infinity, random: ctx.random, keepChar, pool, padPool};
 }
 
 /** Candidates most natural first: the caller keeps the first the format accepts. **/
@@ -90,7 +97,7 @@ function replacement(char: string, fit: FitContext): string {
     if (sameCase.length > 0) return pick(sameCase, fit);
     if (sameKind.length > 0) return pick(sameKind, fit);
   }
-  return pick(fit.pool, fit);
+  return pick(fit.padPool, fit);
 }
 
 function pick(options: readonly string[], fit: FitContext): string {

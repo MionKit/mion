@@ -53,7 +53,8 @@ func GeneratorProblems(name any, params map[string]any, fromData bool) []string 
 		return []string{"`generator` must be one generator name written as a string literal"}
 	}
 	var problems []string
-	for _, key := range []string{"allowedValues", "disallowedValues", "contentMediaType"} {
+	// `isRegex` too: a generated value is never a regex (`+44…` does not even compile).
+	for _, key := range []string{"allowedValues", "disallowedValues", "contentMediaType", "isRegex"} {
 		if _, present := params[key]; present {
 			problems = append(problems, "`generator` cannot be combined with `"+key+"`")
 		}

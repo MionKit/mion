@@ -477,13 +477,24 @@ func checkMockGenerator(findings *[]Finding, ctx *walkCtx, candidates []*reflect
 			return
 		}
 	}
+	// The mock draws the generator for every plain or String-format arm and lets a named format mock itself, so each
+	// such arm must accept it and at least one must exist.
 	problems := []string{"a generator mocks strings, and this field is not a string"}
+	applies := false
 	for _, candidate := range stringCandidates(ctx, candidates, 0) {
 		candidateProblems := generatorFieldProblems(candidate, generator)
-		if len(candidateProblems) == 0 {
-			return
+		if candidate.FormatAnnotation != nil && candidate.FormatAnnotation.Name != "stringFormat" {
+			problems = candidateProblems
+			continue
 		}
-		problems = candidateProblems
+		if len(candidateProblems) > 0 {
+			problems, applies = candidateProblems, false
+			break
+		}
+		applies = true
+	}
+	if applies {
+		return
 	}
 	field := path
 	if field == "" {

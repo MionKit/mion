@@ -99,6 +99,8 @@ describe('mock generators: out of their natural lengths', () => {
       TF.string({generator: GEN.fullName, allowedChars: {val: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '}}),
       /^[A-Z]+ [A-Z]+$/,
     ],
+    'Alpha fullName, its space replaced': [TF.alpha({generator: GEN.fullName}), /^[A-Z][a-z]+[A-Za-z][A-Z][a-z]+$/],
+    'Numeric phoneNumber, its + replaced': [TF.numeric({generator: GEN.phoneNumber}), /^\d{11,14}$/],
     'lastName from digits only': [TF.string({generator: GEN.lastName, allowedChars: {val: '0123456789'}}), /^\d{2,10}$/],
     'streetAddress cut to 7 without spaces': [
       TF.string({
@@ -128,6 +130,15 @@ describe('mock generators: out of their natural lengths', () => {
     for (const mock of [createMockDataFn<Initials>(), createMockDataFn(sample)]) {
       for (let i = 0; i < DRAWS; i++) expect(validate(mock()), 'cut fullName').toBe(true);
     }
+  });
+});
+
+describe('mock generators: MockData on a union', () => {
+  it('a named format arm mocks itself, the string arm takes the generator', () => {
+    type Contact = {id: string | TF.Email};
+    const validate = createValidateFn<Contact>();
+    const mock = createMockDataFn<Contact>(undefined, {data: {id: {pool: [], generator: 'lastName'}}});
+    for (let seed = 1; seed <= 40; seed++) expect(validate(mock({mock: {seed}}))).toBe(true);
   });
 });
 

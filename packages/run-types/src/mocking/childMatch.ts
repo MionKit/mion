@@ -11,6 +11,7 @@ import {getRTUtils} from '../runtypes/rtUtils.ts';
 import {structuralFormatAccepts} from './structuralFormat.ts';
 import {isMultipleOf} from './isMultipleOf.ts';
 import {stringParamsAccept} from './stringParamsAccept.ts';
+import {MockGeneratorExhaustedError} from './generators/index.ts';
 
 const MAX_MATCH_DEPTH = 16;
 
@@ -292,8 +293,10 @@ function childMatchError(reason: string): Error {
   );
 }
 
-/** True for the cannot-test throws above; the union mock walker falls through to a sibling arm on one.
+/** True for the cannot-test throws above and a generator out of draws; the union mock walker falls through to a
+ *  sibling arm on one.
  *  A constrained arm can be unmockable while its siblings are fine, so only an ALL-arms failure surfaces. **/
 export function isMockSamplingError(error: unknown): boolean {
+  if (error instanceof MockGeneratorExhaustedError) return true;
   return error instanceof Error && error.message.startsWith('Cannot mock a constrained child');
 }

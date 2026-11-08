@@ -16,11 +16,14 @@ const MAX_ATTEMPTS = 64;
 
 const customGenerators = new Map<string, GeneratorFn>();
 
-/** Declare the name on CustomMockGenerators first; a built-in or already registered name throws. **/
+/** Thrown when every draw failed the format; a union mock falls through to a sibling arm on it. **/
+export class MockGeneratorExhaustedError extends Error {}
+
+/** Declare the name on CustomMockGenerators first. A built-in name throws; registering a name again replaces it, so a
+ *  reloaded setup module (Vite HMR, a shared test worker) can register again. **/
 export function registerMockGenerator(customName: Extract<keyof CustomMockGenerators, string>, generator: GeneratorFn): void {
   const name: string = customName;
   if (isBuiltin(name)) throw new Error(`registerMockGenerator: \`${name}\` is a built-in generator; pick another name.`);
-  if (customGenerators.has(name)) throw new Error(`registerMockGenerator: \`${name}\` is already registered.`);
   if (typeof generator !== 'function') throw new Error(`registerMockGenerator: \`${name}\` needs a function.`);
   customGenerators.set(name, generator);
 }
@@ -48,7 +51,7 @@ export function mockFromGenerator(name: string, params: StringParams, random: Mo
       if (accepts(candidate)) return candidate;
     }
   }
-  throw new Error(
+  throw new MockGeneratorExhaustedError(
     `Mock generator \`${name}\`: ${MAX_ATTEMPTS} values failed the format's pattern, allowedChars or disallowedChars; ` +
       'relax them or drop the generator.'
   );
