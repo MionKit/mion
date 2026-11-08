@@ -1,6 +1,4 @@
-// The mock `generator` param at the type level: GEN members are the same literals in type and value positions,
-// the name list is the Go table's, a custom name joins through CustomMockGenerators, and only string formats take it.
-// Enforced by the `typecheck:test` pass (vitest erases types); the runtime `it` keeps the file in the suite.
+// Enforced by `typecheck:test` (vitest erases types); the runtime `it` keeps the file in the suite.
 
 import {describe, it, expect} from 'vitest';
 import * as TF from '@mionjs/run-types/formats';

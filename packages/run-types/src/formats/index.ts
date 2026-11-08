@@ -35,15 +35,14 @@ export type {
   StructuralBrand,
 } from './structural.ts';
 
-// The built-in mock generator names, for autocomplete: `GEN.lastName` is the literal 'lastName' as a value and a type.
+// For autocomplete: `GEN.lastName` is the literal 'lastName' as a value and a type.
 export * as GEN from '../go-generated/mockGenerators.generated.ts';
 import type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
 export type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
 
 // #region mockgenerator-names-extract — sliced verbatim by test/types/enrichHarness.ts beside the generated meta file.
-/** Extend it to name your own mock generators, registered with `registerMockGenerator`:
- *  `declare module '@mionjs/run-types/formats' { interface CustomMockGenerators { phoneNumberUk: true } }`.
- *  Declared here, not re-exported, so that augmentation of this subpath merges into it. **/
+/** Augment it via `declare module '@mionjs/run-types/formats'` to name generators for `registerMockGenerator`.
+ *  Declared here, not re-exported, so augmentation of this subpath merges into it. **/
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CustomMockGenerators {}
 

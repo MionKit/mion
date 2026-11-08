@@ -67,8 +67,7 @@ func assertGeneratorIDs(t *testing.T, ids []string, diags []diagnostics.Diagnost
 	}
 }
 
-// TestGeneratorID_ValueFirstBuilder: `TF.string({generator: GEN.lastName})` reads the namespace member as a literal
-// and converges on the type-first id.
+// TestGeneratorID_ValueFirstBuilder: `TF.string({generator: GEN.lastName})` converges on the type-first id.
 func TestGeneratorID_ValueFirstBuilder(t *testing.T) {
 	ids, diags := scanGeneratorIDs(t, generatorTypes+`
 export const last = getRunTypeId<LastLiteral>();

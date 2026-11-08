@@ -1,5 +1,4 @@
-// mion's own place data for the mock generators, ASCII only. One row per country, so every generator that depends on
-// a country (country, phone numbers, state, postcode) reads the same row and a later linked draw can share one pick.
+// mion's own place data, ASCII only; one row per country, so country-linked generators read the same row.
 
 import type {CountryRow} from '../types.ts';
 

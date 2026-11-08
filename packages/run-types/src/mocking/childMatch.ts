@@ -204,8 +204,7 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
   return named(value);
 }
 
-// The validator's exact string checks; the named families' extra `idna: 'ascii'` adds nothing over the ASCII pattern
-// beside it (domain.go emits an idna check only when params allow unicode). Any other key is a check this cannot reproduce.
+// `idna: 'ascii'` adds nothing over the ASCII pattern beside it: domain.go emits an idna check only for unicode.
 function stringParamsMatch(value: string, params: Record<string, unknown>): boolean {
   return stringParamsAccept(value, params, (key, param) => {
     if (key === 'idna' && param === 'ascii') return true;

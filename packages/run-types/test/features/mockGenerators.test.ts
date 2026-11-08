@@ -1,6 +1,4 @@
-// Mock generators: every built-in mocks values its own validator accepts, alone, under length bounds and under the
-// format's character rules, and each output has the shape its name promises. Value-first schemas spell the name
-// with `GEN.x` (the namespace-member literal); the type-first block pins both createMockDataFn call shapes.
+// Built-in generators pass their own validator; the type-first block pins both createMockDataFn call shapes.
 
 import {describe, it, expect} from 'vitest';
 import {createValidateFn, type RunType} from '@mionjs/run-types';
@@ -110,8 +108,7 @@ describe('mock generators: type-first, both call shapes', () => {
 });
 
 describe('mock generators: the three phone generators agree', () => {
-  // One seed draws one country row: the full number starts with that row's calling code, and the local number has
-  // the national length the full number carries after it.
+  // One seed draws one country row across all three phone generators.
   it('for the same seed', () => {
     const code = createMockDataFn(TF.string({generator: GEN.phoneCountryCode}));
     const full = createMockDataFn(TF.string({generator: GEN.phoneNumber}));

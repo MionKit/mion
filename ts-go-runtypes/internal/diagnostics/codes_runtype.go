@@ -137,9 +137,8 @@ const (
 	// Args: [the pattern's type as written].
 	CodeFMTPatternUnreadable = "format-pattern-unreadable"
 
-	// CodeFMTGeneratorInvalid: a string format's mock `generator` cannot produce a value the format accepts (unknown or
-	// widened name, a length range it never reaches, a character it always uses that the format forbids, or a sibling
-	// that already picks the mock value), so every mock call would throw. Args: [generator, the reasons joined].
+	// CodeFMTGeneratorInvalid: a string format's mock `generator` cannot produce a value the format accepts, so every
+	// mock call would throw. Args: [generator, the reasons joined].
 	CodeFMTGeneratorInvalid = "format-generator-invalid"
 )
 

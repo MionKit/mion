@@ -62,8 +62,7 @@ declare const order: Order;`, `export const isOrder = createValidateFn(order);`)
 	expectGeneratorInvalid(t, resp, "2 to 10")
 }
 
-// An email's localPart is a nested string format and takes a generator too (spelled with the exact TypeFormat:
-// TF.EmailParts does not let users override localPart).
+// An email's localPart takes a generator too; spelled with the exact TypeFormat, since TF.EmailParts cannot set it.
 const emailLocalPart = `import type {TypeFormat} from '@mionjs/run-types';
 type Work = TypeFormat<string, 'email', {localPart: {generator: 'fullName'; allowedChars: {val: 'abcdefghijklmnopqrstuvwxyz'}}}>;`
 
@@ -123,8 +122,7 @@ func TestFormatGenerator_WidenedNameValue(t *testing.T) {
 	}
 }
 
-// A generator that fits stays clean, including the cases a generator makes legal; a non-built-in name is a custom
-// generator, so the build skips its table checks (TypeScript catches a typo through MockGeneratorName).
+// Fitting generators stay clean; a custom name skips the table checks (TypeScript catches typos via MockGeneratorName).
 var cleanGeneratorCases = map[string]string{
 	"fits":                            `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
 	"alpha preset":                    `type Code = TF.Alpha<{maxLength: 3; generator: 'firstName'}>;`,
@@ -151,8 +149,7 @@ export const mock = createMockDataFn(code);`))
 	}
 }
 
-// TestFormatGenerator_PatternSamplesNotGenerated: a generator stands in for the pattern's samples, so the build
-// generates none for it; the control pattern without one gets them.
+// TestFormatGenerator_PatternSamplesNotGenerated: a generator replaces the pattern's samples, so none are generated.
 func TestFormatGenerator_PatternSamplesNotGenerated(t *testing.T) {
 	code := generatorPreamble + `type Code = TF.String<{pattern: {source: '^[A-Z][a-z]+$'}; generator: 'firstName'}>;
 type Plain = TF.String<{pattern: {source: '^[a-z]+$'}}>;

@@ -197,12 +197,10 @@ func (scan *Scan) BlankValues() []TagFinding {
 	return findings
 }
 
-// mockPoolSiblingKeys are the MockData knobs that fill a leaf beside an empty pool: a number or Date range
-// (`min` / `max`), or a string `generator`.
+// mockPoolSiblingKeys fill a leaf beside an empty pool: a number or Date range, or a string `generator`.
 var mockPoolSiblingKeys = map[string]bool{"min": true, "max": true, "generator": true}
 
-// rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a pool sibling. A
-// generator counts only when it names one: a non-empty string literal or a member like `GEN.lastName`.
+// rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a named pool sibling.
 func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 	offsets := map[int]bool{}
 	if sourceFile == nil {

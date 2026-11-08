@@ -64,8 +64,7 @@ type LiteralView interface {
 	StringValue(key string) (string, bool)
 	// MemberName returns the member name of a property access at key (`GEN.lastName` → "lastName").
 	MemberName(key string) (string, bool)
-	// Items returns the elements of the array literal at key, nil when the value is not an array literal; an element
-	// that is not an object literal is a nil view.
+	// Items returns the array literal elements at key, nil when not an array; a non-object element is a nil view.
 	Items(key string) []LiteralView
 }
 
@@ -76,8 +75,7 @@ var friendlyMetaKeys = map[string]bool{
 	"rt$items":  true,
 }
 
-// mockLeafKeys are the bare settings a MockData leaf carries. They are settings only when the value is not an object
-// literal: every field value is an object node, so an object under `pool` is a real field the type may declare.
+// mockLeafKeys are settings only when their value is not an object literal: an object under `pool` is a real field.
 var mockLeafKeys = map[string]bool{
 	"pool":      true,
 	"min":       true,
@@ -406,8 +404,7 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	}
 	checkMockGenerator(findings, ctx, []*reflection.RunType{rt}, literal, path)
 
-	// The structural slots the scaffold writes, in its own order: a fixed tuple's rt$slots, a Map's rt$keys /
-	// rt$values and a Set's rt$values, so every position the mirror can name is checked.
+	// Check every position the mirror can name: tuple rt$slots / rt$items, Map rt$keys / rt$values, Set rt$values.
 	if rt.Kind == reflection.KindTuple {
 		if isVariadicTuple(ctx, rt) {
 			if items := literal.Child("rt$items"); items != nil {
@@ -449,7 +446,7 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	byName := childByName(ctx, rt)
 	checkReservedProperties(findings, ctx, rt, path, diagnostics.CodeMockReservedProp)
 	for _, key := range literal.Keys() {
-		// Node settings, not a field: any rt$ key, or a leaf key whose value is not an object literal.
+		// Node settings, not fields.
 		if strings.HasPrefix(key, reservedMetaPrefix) || (mockLeafKeys[key] && literal.Child(key) == nil) {
 			continue
 		}
@@ -471,15 +468,11 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	}
 }
 
-// checkMockGenerator reports a node's `generator` that cannot mock it. candidates are the types the node's value can
-// take: the field itself, or every slot of a variadic tuple sharing one `rt$items` node. Union members are expanded,
-// and the generator is fine when any string candidate accepts it, as the mock draws it only for a string. Otherwise
-// the reason is: no string at all, a named format that mocks itself, or formats.GeneratorProblems (the same rules
-// the build applies to a format's own generator).
+// checkMockGenerator reports a `generator` no string candidate accepts; the mock only draws a generator for a string.
 func checkMockGenerator(findings *[]Finding, ctx *walkCtx, candidates []*reflection.RunType, literal LiteralView, path string) {
 	generator, ok := literal.StringValue("generator")
 	if !ok {
-		// `generator: GEN.lastName` names the generator by its member, which equals the name.
+		// `GEN.lastName`: the member name equals the generator name.
 		if generator, ok = literal.MemberName("generator"); !ok {
 			return
 		}
@@ -533,8 +526,7 @@ func generatorFieldProblems(field *reflection.RunType, generator string) []strin
 	return formats.GeneratorProblems(generator, field.FormatAnnotation.Params, true)
 }
 
-// variadicItemTypes are the types a variadic tuple's shared `rt$items` node feeds: each fixed slot, and the element
-// of the rest member.
+// variadicItemTypes are the types a variadic tuple's shared `rt$items` feeds: each fixed slot and the rest element.
 func variadicItemTypes(ctx *walkCtx, rt *reflection.RunType) []*reflection.RunType {
 	var out []*reflection.RunType
 	for _, member := range rt.Children {

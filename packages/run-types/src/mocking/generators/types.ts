@@ -1,10 +1,7 @@
-// The types the mock generators share: the one signature every generator has (built-in or registered with
-// registerMockGenerator), the parts a built-in value is composed of, and the country rows they read.
-
 import type {StringParams} from '../../formats/string/stringFormats.ts';
 import type {MockRandom} from '../mockRandom.ts';
 
-/** What a generator gets for one draw. A single object so a later field never breaks a registered generator. **/
+/** A single object, so a later field never breaks a registered generator. **/
 export interface GeneratorContext {
   /** Every draw goes through it, so a seeded mock repeats. **/
   random: MockRandom;
@@ -17,9 +14,7 @@ export interface GeneratorContext {
 
 export type GeneratorFn = (ctx: GeneratorContext) => string;
 
-/** One slot of a composed value: its achievable lengths, how many values each length has, and a draw of one.
- *  `chars` holds every character a value can contain, `common` the ones every value contains and `leading` the ones
- *  a value can start with. **/
+/** `common`: chars in every value; `leading`: chars a value can start with; `count`: values of one length. **/
 export interface Part {
   readonly lengths: readonly number[];
   readonly chars: string;

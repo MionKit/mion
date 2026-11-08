@@ -1,4 +1,4 @@
-// mion's own word lists for the mock generators, ASCII only: job titles, company suffixes, email parts and lorem words.
+// mion's own word lists for the mock generators, ASCII only.
 
 export const JOB_TITLES: readonly string[] = [
   'Account Manager',

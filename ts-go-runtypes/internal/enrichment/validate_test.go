@@ -298,8 +298,7 @@ func TestCheckMock_MetaKeysNotFlagged(t *testing.T) {
 }
 
 func TestCheckMock_LeafKeyNamedFieldIsAField(t *testing.T) {
-	// An object-literal value under `pool` / `min` / `max` is a field node, never leaf settings: a map naming a
-	// `pool` field the type lacks is an unknown field, and a real `pool` field is descended like any other.
+	// An object under `pool` / `min` / `max` is a field node: unknown when the type lacks it, else descended.
 	t.Run("unknown", func(t *testing.T) {
 		rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 		view := newFakeView().obj("name", newFakeView()).obj("pool", newFakeView())
@@ -689,8 +688,7 @@ func TestCheckMock_Generator(t *testing.T) {
 	}
 }
 
-// TestCheckMock_StructuralSlots: the check reaches every slot the scaffold writes (fixed tuple, Map, Set), so a bad
-// generator or an unknown field there is reported too.
+// TestCheckMock_StructuralSlots: a bad generator or unknown field in a tuple, Map or Set slot is reported too.
 func TestCheckMock_StructuralSlots(t *testing.T) {
 	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
 	param := func(child *reflection.RunType) *reflection.RunType {
@@ -723,9 +721,8 @@ func TestCheckMock_StructuralSlots(t *testing.T) {
 	}
 }
 
-// TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator (the mock draws it for the
-// string member), a union with no string does not, a variadic tuple's shared rt$items is checked against every slot,
-// and a `GEN.x` member is checked like the string literal it equals.
+// TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator, a stringless union does not.
+// A variadic tuple's shared rt$items is checked against every slot, and `GEN.x` like the literal it equals.
 func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
 	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
 	union := func(members ...*reflection.RunType) *reflection.RunType {

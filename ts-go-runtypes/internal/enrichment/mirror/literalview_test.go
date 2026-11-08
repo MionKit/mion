@@ -6,8 +6,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
-// TestASTLiteralView_ItemsAndMemberName reads a real mirror literal: rt$slots elements (a non-object element is a nil
-// view) and a `GEN.x` member's name.
+// TestASTLiteralView_ItemsAndMemberName: rt$slots elements (a non-object one is a nil view) and a `GEN.x` member's name.
 func TestASTLiteralView_ItemsAndMemberName(t *testing.T) {
 	view := parseDesiredObject("{rt$slots: [{pool: []}, 3, {pool: [], generator: GEN.lastName}], city: {generator: 'city'}}")
 	if view == nil {

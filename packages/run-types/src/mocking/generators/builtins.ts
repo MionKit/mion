@@ -1,6 +1,4 @@
-// The built-in mock generators, named like drizzle-seed's. Each is a list of shapes (rows of parts); a draw picks one
-// shape that can fit the context's length bounds and builds it to fit. Character and pattern rules are filtered
-// afterwards by mockFromGenerator.
+// Built-ins named like drizzle-seed's; mockFromGenerator filters character and pattern rules afterwards.
 
 import type {BuiltinMockGenerators} from '../../go-generated/mockGeneratorMeta.generated.ts';
 import {compose, digitsPart, fits, listPart, literalPart, numberPart} from './compose.ts';
@@ -59,7 +57,6 @@ export const BUILTIN_GENERATORS: Record<keyof BuiltinMockGenerators, GeneratorFn
   loremIpsum,
 };
 
-// Uniform among the shapes that can fit the bounds, then built to fit.
 function pickShape(name: string, shapes: Shapes, ctx: GeneratorContext): string {
   const lo = ctx.lo ?? 0;
   const hi = ctx.hi ?? Infinity;
@@ -86,7 +83,6 @@ function loremIpsum(ctx: GeneratorContext): string {
   return compose(best, ctx.random, lo, hi) as string;
 }
 
-/** One sentence: capitalised, words joined by spaces, ending in `.`. **/
 function loremShape(words: number): Part[] {
   const parts: Part[] = [loremOpening];
   for (let index = 1; index < words; index++) parts.push(space, loremWord);
@@ -94,7 +90,7 @@ function loremShape(words: number): Part[] {
   return parts;
 }
 
-/** `#` is one digit, anything else is literal: `#####-####` is five digits, `-`, four digits. **/
+/** `#` is one digit, anything else is literal. **/
 function templateShape(template: string): Part[] {
   return template.split(/(#+)/).flatMap((chunk) => {
     if (chunk === '') return [];

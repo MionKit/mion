@@ -258,8 +258,7 @@ func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
 	}
 }
 
-// TestFormatAnnotation_GeneratorInKey pins that a mock `generator` IS id-relevant: reflection carries it to the mock, so
-// two formats differing only in their generator must get two entries, or one twin mocks with the other's generator.
+// TestFormatAnnotation_GeneratorInKey: formats differing only in generator get two ids, or one mocks with the other's.
 func TestFormatAnnotation_GeneratorInKey(t *testing.T) {
 	key := func(generator string) string {
 		return typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
@@ -411,8 +410,7 @@ getRunTypeId<FixtureFormat>();
 	}
 }
 
-// TestMergeFormatAnnotations_GeneratorsClash: an intersection of two formats with different mock generators has no
-// single generator to mock with, so the merge refuses it; the same generator on both sides merges.
+// TestMergeFormatAnnotations_GeneratorsClash: different generators leave none to mock with, so the merge refuses.
 func TestMergeFormatAnnotations_GeneratorsClash(t *testing.T) {
 	annotation := func(generator string) *reflection.FormatAnnotation {
 		return &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"generator": generator}}

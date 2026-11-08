@@ -121,9 +121,7 @@ func TestWholeConst_WidenedRejected(t *testing.T) {
 	}
 }
 
-// TestModuleMember_Accepted: a member of a namespace import reads that module's exported const, so it traces like
-// the bare imported name, through an `export * as` re-export and from a published declaration file, which keeps
-// the literal initializer (`export declare const lastName = 'lastName'`).
+// TestModuleMember_Accepted: a namespace-import member traces like the bare name, via `export * as` or a .d.ts const.
 func TestModuleMember_Accepted(t *testing.T) {
 	cases := map[string]map[string]string{
 		"namespace import": {
