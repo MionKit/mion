@@ -153,8 +153,7 @@ function expectClean(run: BuildRun, file: string, count = 1): BatchSite[] {
   return sites;
 }
 
-// expectInjected asserts the transform spliced every reported id of `file`
-// into its call site, once per site, as the trailing argument.
+// expectInjected asserts the transform spliced each site's id once into its call, as the trailing argument.
 async function expectInjected(run: BuildRun, file: string, sites: BatchSite[]): Promise<string> {
   const code = await run.transform(file);
   expect(code, `${file} must be transformed`).not.toBeNull();
@@ -162,7 +161,7 @@ async function expectInjected(run: BuildRun, file: string, sites: BatchSite[]): 
     const occurrences = code!.split(`'${site.batchId}'`).length - 1;
     const expected = sites.filter((s) => s.batchId === site.batchId).length;
     expect(occurrences, `${site.batchId} spliced ${expected}x into ${file}:\n${code}`).toBe(expected);
-    // The id lands in the lookup object passed AFTER the routes array, not somewhere else.
+    // The id sits in the lookup object after the routes array.
     expect(code, `id follows the routes array:\n${code}`).toMatch(
       new RegExp(`\\][^\\]]*?,\\s*\\{[^}]*'${site.batchId}'[^}]*\\}\\)`)
     );

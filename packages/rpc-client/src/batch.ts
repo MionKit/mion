@@ -64,8 +64,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
   };
 }
 
-/** Must build the key Go batchLookupKey writes. The build always injects the object, so a route or a mapping it did
- * not read finds no entry; a hand-written string id is passed through as is. */
+/** Must build the key Go batchLookupKey writes; a route or mapping the build did not read finds no entry. */
 function pickBatchId(routes: RouteSubRequest<any>[], batchId: InjectBatchId<unknown> | undefined): string | undefined {
   if (typeof batchId !== 'object') return batchId;
   const key = routes

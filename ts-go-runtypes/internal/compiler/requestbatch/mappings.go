@@ -36,7 +36,7 @@ type pendingMapping struct {
 	written *ast.Node
 }
 
-// resolveMappings reads each `inputFrom()` passed top-level to a batched route call, and marks items out of sight.
+// resolveMappings reads each `inputFrom()` passed top-level to a batched route call.
 func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []diagnostics.Diagnostic) {
 	var pending []pendingMapping
 	var diags []diagnostics.Diagnostic
@@ -68,7 +68,7 @@ func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []
 				continue
 			}
 			if !ok {
-				// Not a mapping the build can follow; one written inside it (a ternary, a helper call) is reported.
+				// A mapping nested in an unreadable argument (a ternary arm, a helper call) is reported, not dropped.
 				if scope.reachesMapperCall(arg) {
 					diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperOutsideRouteCall))
 				}

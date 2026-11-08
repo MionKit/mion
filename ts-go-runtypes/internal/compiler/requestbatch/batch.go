@@ -259,9 +259,8 @@ func (fileScope *fileScope) duplicateRoutes(items []batchItem, routeIds []string
 	return diags
 }
 
-// batchIdLiteral is always `{batchLookupKey: id}`, one entry per combination, for `batch()` to pick from by the routes and
-// mappings it really got: a route or a mapping the build did not read finds no key, so `batch()` throws instead of
-// sending a null argument or another route.
+// batchIdLiteral is always `{batchLookupKey: id}`, so an unread route or mapping finds no key and `batch()` throws.
+// A bare id would send a null argument for an unread mapping, another route's batch for an unread route.
 func batchIdLiteral(sites []Site) string {
 	entries := make([]string, 0, len(sites))
 	for _, site := range sites {
@@ -270,8 +269,7 @@ func batchIdLiteral(sites []Site) string {
 	return "{" + strings.Join(entries, ", ") + "}"
 }
 
-// batchLookupKey must match the key pickBatchId in rpc-client's batch.ts builds from the routes it got; Mappings
-// are sorted by (ToId, ParamIndex), so each route's indexes come out ascending.
+// batchLookupKey must match pickBatchId in rpc-client's batch.ts; relies on Mappings sorted by (ToId, ParamIndex).
 func batchLookupKey(site Site) string {
 	parts := append([]string(nil), site.RouteIds...)
 	for i, routeId := range site.RouteIds {

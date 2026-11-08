@@ -195,8 +195,7 @@ func mappingsString(mappings []Mapping) string {
 	return strings.Join(parts, " ")
 }
 
-// assertSite pins a site's route ids, mappings and injected text; wantInject
-// "" means the default `, {'<route ids>': 'b_<id>'}` splice of a call with no mapping.
+// assertSite pins a site's route ids, mappings and injected text; wantInject "" means `, {'<lookup key>': 'b_<id>'}`.
 func assertSite(t *testing.T, site Site, wantRoutes, wantMappings, wantInject string) {
 	t.Helper()
 	if got := strings.Join(site.RouteIds, ","); got != wantRoutes {
@@ -821,8 +820,7 @@ func TestMappings_OnlyOffARouteCall_RpcBatchMapperUnreadable(t *testing.T) {
 	assertSite(t, oneSite(t, user+"var order = routes.orders.getById("+mapper+");\nvar order = routes.orders.getById(2);\nexport const b = batch([user, order]);"), "users/getById,orders/getById", "", "")
 }
 
-// Shape 11c: the lookup is keyed by each route and the arguments the build mapped into it, so a mapping the build
-// could not see (a property, an array element) finds no key at runtime and `batch()` throws.
+// Shape 11c: the lookup key names each route's mapped arguments, so a mapping the build cannot see throws at runtime.
 func TestMappings_LookupKeyNamesMappedArguments(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"

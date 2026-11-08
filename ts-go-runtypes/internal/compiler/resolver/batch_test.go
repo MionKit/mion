@@ -73,8 +73,7 @@ func setupBatchWith(t *testing.T, wire, file bool, genDir string) *resolver.Sess
 	})
 }
 
-// TestBatch_ScanInjectsId_ReportOnlyOnWire: the id splice rides every scan,
-// the report rides only the wire flag.
+// TestBatch_ScanInjectsId_ReportOnlyOnWire: the id splice rides every scan, the report only the wire flag.
 func TestBatch_ScanInjectsId_ReportOnlyOnWire(t *testing.T) {
 	off := setupInline(t, batchSources)
 	scan := off.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}})
