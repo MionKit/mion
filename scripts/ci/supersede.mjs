@@ -258,7 +258,7 @@ async function watchMain(args, {gh, env, pollMs}) {
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const ghCli = (args) => capture('gh', args);
 
-// Tests pass a fake `gh`, their own env and a short poll.
+// Tests pass a fake `gh`, their own env and a poll of a few milliseconds.
 export function main(args, {gh = ghCli, env = process.env, pollMs = 60_000} = {}) {
   if (args.includes('--watch')) return watchMain(args, {gh, env, pollMs});
   const decisionFile = flagValues(args, '--decision')[0];
