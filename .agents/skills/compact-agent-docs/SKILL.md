@@ -46,5 +46,5 @@ Every stage reads [style.md](style.md) first.
 - One fact, one home. Duplicate → keep the best home, others link or drop.
 - A move leaves no "moved to" note. Only a pointer line with a trigger.
 - No em dashes, no en dashes. Use `:`, `,`, `→` or a new bullet.
-- Never run a formatter on these files.
+- Never run a formatter by hand. Caller runs `pnpm run format` after the verify stage: it covers `packages/**/*.md`.
 - Packaged skills (`packages/*/skills/`) ship to npm: links stay inside that skill dir.
