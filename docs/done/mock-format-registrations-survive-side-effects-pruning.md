@@ -26,7 +26,7 @@ validators. `mockStringFormat.ts` likely survives only because `mocking/mockType
 it; number and bigint have no such named import.
 
 Found while planning the mock data generators feature (which adds more registration-by-import under `src/mocking/`),
-not caused by it. Not yet reproduced.
+not caused by it.
 
 ## Direction
 
