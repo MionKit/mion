@@ -61,6 +61,15 @@ func (view *astLiteralView) StringValue(key string) (string, bool) {
 	return value.Text(), true
 }
 
+// MemberName returns the member name of the property access bound to key (`GEN.lastName` → "lastName").
+func (view *astLiteralView) MemberName(key string) (string, bool) {
+	value := view.byKey[key]
+	if value == nil || !ast.IsPropertyAccessExpression(value) {
+		return "", false
+	}
+	return value.AsPropertyAccessExpression().Name().Text(), true
+}
+
 // Items returns a view per element of the array literal bound to key, nil when that value is not an array literal.
 func (view *astLiteralView) Items(key string) []enrichment.LiteralView {
 	value := view.byKey[key]

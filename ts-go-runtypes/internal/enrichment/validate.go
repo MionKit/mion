@@ -3,6 +3,7 @@ package enrichment
 import (
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -61,6 +62,8 @@ type LiteralView interface {
 	Keys() []string
 	Child(key string) LiteralView
 	StringValue(key string) (string, bool)
+	// MemberName returns the member name of a property access at key (`GEN.lastName` → "lastName").
+	MemberName(key string) (string, bool)
 	// Items returns the elements of the array literal at key, nil when the value is not an array literal; an element
 	// that is not an object literal is a nil view.
 	Items(key string) []LiteralView
@@ -80,12 +83,6 @@ var mockLeafKeys = map[string]bool{
 	"min":       true,
 	"max":       true,
 	"generator": true,
-}
-
-// isMockMetaKey reports whether a MockData key is node settings rather than a field: any rt$ key, or a leaf key whose
-// value is not an object literal.
-func isMockMetaKey(literal LiteralView, key string) bool {
-	return strings.HasPrefix(key, reservedMetaPrefix) || (mockLeafKeys[key] && literal.Child(key) == nil)
 }
 
 // reservedMetaPrefix is RESERVED for enrichment meta keys, so a type declaring one cannot be enriched: the scaffold could
@@ -407,12 +404,16 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	if literal == nil || rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		return
 	}
-	checkMockGenerator(findings, rt, literal, path)
+	checkMockGenerator(findings, ctx, []*reflection.RunType{rt}, literal, path)
 
 	// The structural slots the scaffold writes, in its own order: a fixed tuple's rt$slots, a Map's rt$keys /
 	// rt$values and a Set's rt$values, so every position the mirror can name is checked.
 	if rt.Kind == reflection.KindTuple {
-		if !isVariadicTuple(ctx, rt) {
+		if isVariadicTuple(ctx, rt) {
+			if items := literal.Child("rt$items"); items != nil {
+				checkMockGenerator(findings, ctx, variadicItemTypes(ctx, rt), items, joinPath(path, "rt$items"))
+			}
+		} else {
 			slotViews := literal.Items("rt$slots")
 			for index, slot := range tupleSlots(ctx, rt) {
 				if index < len(slotViews) {
@@ -448,7 +449,8 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	byName := childByName(ctx, rt)
 	checkReservedProperties(findings, ctx, rt, path, diagnostics.CodeMockReservedProp)
 	for _, key := range literal.Keys() {
-		if isMockMetaKey(literal, key) {
+		// Node settings, not a field: any rt$ key, or a leaf key whose value is not an object literal.
+		if strings.HasPrefix(key, reservedMetaPrefix) || (mockLeafKeys[key] && literal.Child(key) == nil) {
 			continue
 		}
 		child, ok := byName[key]
@@ -469,29 +471,26 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	}
 }
 
-// checkMockGenerator reports a node's `generator` (a string literal; a `GEN.x` member is checked by TypeScript) that
-// cannot mock it: not a string field, a named format that mocks itself, or a generator the field's format leaves
-// nothing to produce (formats.GeneratorProblems, the same rules the build applies to a format's own generator).
-func checkMockGenerator(findings *[]Finding, rt *reflection.RunType, literal LiteralView, path string) {
+// checkMockGenerator reports a node's `generator` that cannot mock it. candidates are the types the node's value can
+// take: the field itself, or every slot of a variadic tuple sharing one `rt$items` node. Union members are expanded,
+// and the generator is fine when any string candidate accepts it, as the mock draws it only for a string. Otherwise
+// the reason is: no string at all, a named format that mocks itself, or formats.GeneratorProblems (the same rules
+// the build applies to a format's own generator).
+func checkMockGenerator(findings *[]Finding, ctx *walkCtx, candidates []*reflection.RunType, literal LiteralView, path string) {
 	generator, ok := literal.StringValue("generator")
 	if !ok {
-		return
-	}
-	var problems []string
-	switch {
-	case rt.Kind != reflection.KindString:
-		problems = []string{"a generator mocks strings, and this field is not a string"}
-	case rt.FormatAnnotation != nil && rt.FormatAnnotation.Name != "stringFormat":
-		problems = []string{"the `" + rt.FormatAnnotation.Name + "` format mocks itself; a generator works on a plain string or a String format"}
-	default:
-		params := map[string]any{}
-		if rt.FormatAnnotation != nil {
-			params = rt.FormatAnnotation.Params
+		// `generator: GEN.lastName` names the generator by its member, which equals the name.
+		if generator, ok = literal.MemberName("generator"); !ok {
+			return
 		}
-		problems = formats.GeneratorProblems(generator, params, true)
 	}
-	if len(problems) == 0 {
-		return
+	problems := []string{"a generator mocks strings, and this field is not a string"}
+	for _, candidate := range stringCandidates(ctx, candidates, 0) {
+		candidateProblems := generatorFieldProblems(candidate, generator)
+		if len(candidateProblems) == 0 {
+			return
+		}
+		problems = candidateProblems
 	}
 	field := path
 	if field == "" {
@@ -505,6 +504,53 @@ func checkMockGenerator(findings *[]Finding, rt *reflection.RunType, literal Lit
 		Message:  "MockData generator `" + generator + "` cannot mock field `" + field + "`: " + reason,
 		Args:     []string{generator, field, reason},
 	})
+}
+
+// stringCandidates flattens unions (`string | null`) and keeps the string types the mock could draw a generator for.
+func stringCandidates(ctx *walkCtx, candidates []*reflection.RunType, depth int) []*reflection.RunType {
+	var out []*reflection.RunType
+	for _, candidate := range candidates {
+		candidate = ctx.deref(candidate)
+		switch {
+		case candidate == nil || depth > maxWalkDepth:
+		case candidate.Kind == reflection.KindUnion:
+			out = append(out, stringCandidates(ctx, candidate.Children, depth+1)...)
+		case candidate.Kind == reflection.KindString:
+			out = append(out, candidate)
+		}
+	}
+	return out
+}
+
+// generatorFieldProblems is why generator cannot mock one string field, nil when it can.
+func generatorFieldProblems(field *reflection.RunType, generator string) []string {
+	if field.FormatAnnotation == nil {
+		return formats.GeneratorProblems(generator, map[string]any{}, true)
+	}
+	if field.FormatAnnotation.Name != "stringFormat" {
+		return []string{"the `" + field.FormatAnnotation.Name + "` format mocks itself; a generator works on a plain string or a String format"}
+	}
+	return formats.GeneratorProblems(generator, field.FormatAnnotation.Params, true)
+}
+
+// variadicItemTypes are the types a variadic tuple's shared `rt$items` node feeds: each fixed slot, and the element
+// of the rest member.
+func variadicItemTypes(ctx *walkCtx, rt *reflection.RunType) []*reflection.RunType {
+	var out []*reflection.RunType
+	for _, member := range rt.Children {
+		member = ctx.deref(member)
+		if member == nil {
+			continue
+		}
+		slot := ctx.deref(member.Child)
+		if slot != nil && slices.Contains(member.Flags, "rest") {
+			if element := arrayElement(slot); element != nil {
+				slot = element
+			}
+		}
+		out = append(out, slot)
+	}
+	return out
 }
 
 // FormatFinding renders the text-report line body `<path> [<CODE> <severity>] <message>`; the caller prefixes the file.
