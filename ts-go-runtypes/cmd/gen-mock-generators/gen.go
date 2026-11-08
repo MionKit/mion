@@ -31,62 +31,59 @@ func monorepoRoot() string {
 
 // GenerateNames renders the GEN namespace module: `GEN.lastName` is the literal `'lastName'` as a value and a type.
 func GenerateNames() string {
-	var b strings.Builder
-	b.WriteString(header)
-	b.WriteString("// The built-in mock generator names, imported as the `GEN` namespace for autocomplete: `GEN.lastName` is the\n")
-	b.WriteString("// string literal 'lastName', in a value and in a type position alike.\n")
-	for _, row := range formats.MockGenerators() {
-		b.WriteString("\n/** " + row.Summary + " **/\n")
-		b.WriteString("export const " + row.Name + " = '" + row.Name + "';\n")
-		b.WriteString("export type " + row.Name + " = typeof " + row.Name + ";\n")
+	var builder strings.Builder
+	builder.WriteString(header)
+	builder.WriteString("// The built-in mock generator names, imported as the `GEN` namespace for autocomplete: `GEN.lastName` is the\n")
+	builder.WriteString("// string literal 'lastName', in a value and in a type position alike.\n")
+	for _, row := range formats.MockGenerators {
+		builder.WriteString("\n/** " + row.Summary + " **/\n")
+		builder.WriteString("export const " + row.Name + " = '" + row.Name + "';\n")
+		builder.WriteString("export type " + row.Name + " = typeof " + row.Name + ";\n")
 	}
-	return b.String()
+	return builder.String()
 }
 
 // GenerateMeta renders the names interface and the length / character table.
 func GenerateMeta() string {
-	var b strings.Builder
-	b.WriteString(header)
-	b.WriteString("// The built-in mock generators: their names, and the lengths (code points) and characters each one can produce.\n\n")
-	b.WriteString("/** One key per built-in mock generator name. **/\n")
-	b.WriteString("export interface BuiltinMockGenerators {\n")
-	for _, row := range formats.MockGenerators() {
-		b.WriteString("  " + row.Name + ": true;\n")
+	var builder strings.Builder
+	builder.WriteString(header)
+	builder.WriteString("// The built-in mock generators: their names, and the lengths (code points) and characters each one can produce.\n\n")
+	builder.WriteString("/** One key per built-in mock generator name. **/\n")
+	builder.WriteString("export interface BuiltinMockGenerators {\n")
+	for _, row := range formats.MockGenerators {
+		builder.WriteString("  " + row.Name + ": true;\n")
 	}
-	b.WriteString("}\n\n")
-	b.WriteString("export interface MockGeneratorMeta {\n")
-	b.WriteString("  /** Achievable lengths in code points, inclusive ranges, ascending. **/\n")
-	b.WriteString("  lengths: readonly (readonly [number, number])[];\n")
-	b.WriteString("  /** Every character an output can contain, sorted. **/\n")
-	b.WriteString("  chars: string;\n")
-	b.WriteString("  /** The characters every output contains, sorted. **/\n")
-	b.WriteString("  required: string;\n")
-	b.WriteString("  examples: readonly string[];\n")
-	b.WriteString("}\n\n")
-	b.WriteString("export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, MockGeneratorMeta>> = {\n")
-	for _, row := range formats.MockGenerators() {
+	builder.WriteString("}\n\n")
+	builder.WriteString("export interface MockGeneratorMeta {\n")
+	builder.WriteString("  /** Achievable lengths in code points, inclusive ranges, ascending. **/\n")
+	builder.WriteString("  lengths: readonly (readonly [number, number])[];\n")
+	builder.WriteString("  /** Every character an output can contain, sorted. **/\n")
+	builder.WriteString("  chars: string;\n")
+	builder.WriteString("  /** The characters every output contains, sorted. **/\n")
+	builder.WriteString("  required: string;\n")
+	builder.WriteString("  /** The characters an output can start with, sorted. **/\n")
+	builder.WriteString("  leading: string;\n")
+	builder.WriteString("}\n\n")
+	builder.WriteString("export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, MockGeneratorMeta>> = {\n")
+	for _, row := range formats.MockGenerators {
 		spans := make([]string, len(row.Lengths))
 		for i, span := range row.Lengths {
 			spans[i] = "[" + strconv.Itoa(span.Min) + ", " + strconv.Itoa(span.Max) + "]"
 		}
-		examples := make([]string, len(row.Examples))
-		for i, example := range row.Examples {
-			examples[i] = quote(example)
-		}
-		b.WriteString("  " + row.Name + ": {\n")
+		builder.WriteString("  " + row.Name + ": {\n")
 		// The formatter keeps one span inline and puts several on their own lines; match it so the drift check holds.
 		if len(spans) == 1 {
-			b.WriteString("    lengths: [" + spans[0] + "],\n")
+			builder.WriteString("    lengths: [" + spans[0] + "],\n")
 		} else {
-			b.WriteString("    lengths: [\n      " + strings.Join(spans, ",\n      ") + ",\n    ],\n")
+			builder.WriteString("    lengths: [\n      " + strings.Join(spans, ",\n      ") + ",\n    ],\n")
 		}
-		b.WriteString("    chars: " + quote(row.Chars) + ",\n")
-		b.WriteString("    required: " + quote(row.Required) + ",\n")
-		b.WriteString("    examples: [" + strings.Join(examples, ", ") + "],\n")
-		b.WriteString("  },\n")
+		builder.WriteString("    chars: " + quote(row.Chars) + ",\n")
+		builder.WriteString("    required: " + quote(row.Required) + ",\n")
+		builder.WriteString("    leading: " + quote(row.Leading) + ",\n")
+		builder.WriteString("  },\n")
 	}
-	b.WriteString("};\n")
-	return b.String()
+	builder.WriteString("};\n")
+	return builder.String()
 }
 
 // quote renders a single-quoted TS string; the table holds plain ASCII without quotes or backslashes.

@@ -27,7 +27,8 @@ export interface MockGeneratorMeta {
   chars: string;
   /** The characters every output contains, sorted. **/
   required: string;
-  examples: readonly string[];
+  /** The characters an output can start with, sorted. **/
+  leading: string;
 }
 
 export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, MockGeneratorMeta>> = {
@@ -35,13 +36,13 @@ export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, Moc
     lengths: [[4, 14]],
     chars: ' ABCDEFGHIJKLMNOPQRSTVWYZabcdefghijklmnoprstuvwxyz',
     required: '',
-    examples: ['Lisbon', 'Buenos Aires', 'Osaka'],
+    leading: 'ABCDEFGHIJKLMNOPQRSTVWYZ',
   },
   companyName: {
     lengths: [[5, 37]],
     chars: ' ,-ABCDEFGHIJKLMNOPRSTVWYZabcdefghiklmnoprstuvwxyz',
     required: ' ',
-    examples: ['Bianchi Industries', 'Zhao - Bell', 'Robinson and Kang'],
+    leading: 'ABCDEFGHIJKLMNOPRSTWYZ',
   },
   country: {
     lengths: [
@@ -50,13 +51,13 @@ export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, Moc
     ],
     chars: ' ABCDEFGIJKMNPRSTUVZabcdefghiklmnoprstuwxyz',
     required: '',
-    examples: ['Portugal', 'South Korea', 'Egypt'],
+    leading: 'ABCDEFGIJKMNPSTUV',
   },
   email: {
     lengths: [[15, 33]],
     chars: '.@_abcdefghijklmnopqrstuvwxyz',
     required: '.@_m',
-    examples: ['ancient_jessica@icloud.com', 'proud_arjun@aol.com', 'smart_thomas@example.org'],
+    leading: 'abcdefghijklmnopqrstvwyz',
   },
   firstName: {
     lengths: [
@@ -65,49 +66,49 @@ export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, Moc
     ],
     chars: 'ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnoprstuvwxyz',
     required: '',
-    examples: ['Sarah', 'Antonio', 'Mei'],
+    leading: 'ABCDEFGHIJKLMNOPRSTVWYZ',
   },
   fullName: {
     lengths: [[6, 22]],
     chars: ' ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnoprstuvwxyz',
     required: ' ',
-    examples: ['Evelyn Diaz', 'Fernando Hughes', 'Carlos Shah'],
+    leading: 'ABCDEFGHIJKLMNOPRSTVWYZ',
   },
   jobTitle: {
     lengths: [[4, 25]],
     chars: ' ABCDEFGHIJLMNOPQRSTUVWXabcdefghijklmnoprstuvwxy',
     required: '',
-    examples: ['Content Writer', 'Pilot', 'Product Manager'],
+    leading: 'ABCDEFGHIJLMNOPQRSTUVW',
   },
   lastName: {
     lengths: [[2, 10]],
     chars: 'ABCDEFGHIJKLMNOPRSTWYZabcdefghiklmnoprstuvwxyz',
     required: '',
-    examples: ['Hansen', 'Chang', 'Okafor'],
+    leading: 'ABCDEFGHIJKLMNOPRSTWYZ',
   },
   loremIpsum: {
     lengths: [[2, 520]],
     chars: ' .ABCDEFGHIJLMNOPQRSTUVabcdefghijlmnopqrstuv',
     required: '.',
-    examples: ['Aliquam mi fames lobortis.', 'Tempus viverra tortor turpis.', 'Varius sagittis turpis facilisis.'],
+    leading: 'ABCDEFGHIJLMNOPQRSTUV',
   },
   phoneCountryCode: {
     lengths: [[2, 4]],
     chars: '+0123456789',
     required: '+',
-    examples: ['+44', '+880', '+1'],
+    leading: '+',
   },
   phoneNumber: {
     lengths: [[11, 14]],
     chars: '+0123456789',
     required: '+',
-    examples: ['+4535673723', '+66675782114', '+12025550143'],
+    leading: '+',
   },
   phoneNumberLocal: {
     lengths: [[8, 11]],
     chars: '0123456789',
     required: '',
-    examples: ['980162747', '2025550143', '49696735'],
+    leading: '123456789',
   },
   postcode: {
     lengths: [
@@ -116,18 +117,18 @@ export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, Moc
     ],
     chars: '-0123456789',
     required: '',
-    examples: ['60122', '15499-0755', '52956'],
+    leading: '0123456789',
   },
   state: {
     lengths: [[4, 14]],
     chars: ' ACDFGHIJKLMNOPRSTUVWYabcdefghiklmnoprstuvwxyz',
     required: '',
-    examples: ['Minnesota', 'Colorado', 'North Carolina'],
+    leading: 'ACDFGHIKLMNOPRSTUVW',
   },
   streetAddress: {
     lengths: [[8, 26]],
     chars: ' 0123456789ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnopqrstuvwxyz',
     required: ' ',
-    examples: ['8777 Yara View', '648 Edward Parkway', '12 Bryant Park'],
+    leading: '123456789',
   },
 };

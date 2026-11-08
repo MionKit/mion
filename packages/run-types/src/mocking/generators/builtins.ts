@@ -2,13 +2,12 @@
 // shape that can fit the context's length bounds and builds it to fit. Character and pattern rules are filtered
 // afterwards by mockFromGenerator.
 
-import {compose, digitsPart, fits, listPart, literalPart, numberPart, type Part} from './compose.ts';
-import type {GeneratorContext, GeneratorFn} from './types.ts';
+import type {BuiltinMockGenerators} from '../../go-generated/mockGeneratorMeta.generated.ts';
+import {compose, digitsPart, fits, listPart, literalPart, numberPart} from './compose.ts';
+import type {GeneratorContext, GeneratorFn, Part, Shapes} from './types.ts';
 import {FIRST_NAMES, LAST_NAMES} from './words/names.ts';
-import {CITIES, COUNTRIES, STREET_SUFFIXES, type CountryRow} from './words/places.ts';
+import {CITIES, COUNTRIES, STREET_SUFFIXES} from './words/places.ts';
 import {COMPANY_SUFFIXES, EMAIL_ADJECTIVES, EMAIL_DOMAINS, JOB_TITLES, LOREM_WORDS} from './words/text.ts';
-
-type Shapes = readonly (readonly Part[])[];
 
 /** The most words a lorem sentence holds, so its longest form stays bounded. **/
 const LOREM_MAX_WORDS = 40;
@@ -19,9 +18,6 @@ const last = listPart(LAST_NAMES);
 const space = literalPart(' ');
 const loremWord = listPart(LOREM_WORDS);
 const loremOpening = listPart(LOREM_WORDS.map((word) => word.charAt(0).toUpperCase() + word.slice(1)));
-
-// One shape per country row, so the phone generators are uniform by country and agree on its calling code.
-const phoneShapes = (build: (row: CountryRow) => Part[]): Shapes => COUNTRIES.map(build);
 
 /** Every shape each built-in can produce; the metadata test derives the length and character table from these. **/
 export const BUILTIN_SHAPES = {
@@ -37,9 +33,10 @@ export const BUILTIN_SHAPES = {
       listPart(EMAIL_DOMAINS),
     ],
   ],
-  phoneCountryCode: phoneShapes((row) => [literalPart('+' + row.callingCode)]),
-  phoneNumber: phoneShapes((row) => [literalPart('+' + row.callingCode), digitsPart(row.nationalDigits)]),
-  phoneNumberLocal: phoneShapes((row) => [digitsPart(row.nationalDigits)]),
+  // One shape per country row, so the phone generators are uniform by country and agree on its calling code.
+  phoneCountryCode: COUNTRIES.map((row) => [literalPart('+' + row.callingCode)]),
+  phoneNumber: COUNTRIES.map((row) => [literalPart('+' + row.callingCode), digitsPart(row.nationalDigits)]),
+  phoneNumberLocal: COUNTRIES.map((row) => [digitsPart(row.nationalDigits)]),
   country: [[listPart(COUNTRIES.map((row) => row.name))]],
   city: [[listPart(CITIES)]],
   state: COUNTRIES.flatMap((row) => (row.states ? [[listPart(row.states)]] : [])),
@@ -53,14 +50,12 @@ export const BUILTIN_SHAPES = {
     [last, literalPart(', '), last, literalPart(' and '), last],
   ],
   loremIpsum: Array.from({length: LOREM_MAX_WORDS}, (_, index) => loremShape(index + 1)),
-} satisfies Record<string, Shapes>;
+} satisfies Record<keyof BuiltinMockGenerators, Shapes>;
 
-export type BuiltinGeneratorName = keyof typeof BUILTIN_SHAPES;
-
-export const BUILTIN_GENERATORS: Record<BuiltinGeneratorName, GeneratorFn> = {
+export const BUILTIN_GENERATORS: Record<keyof BuiltinMockGenerators, GeneratorFn> = {
   ...(Object.fromEntries(
     Object.entries(BUILTIN_SHAPES).map(([name, shapes]) => [name, (ctx: GeneratorContext) => pickShape(name, shapes, ctx)])
-  ) as Record<BuiltinGeneratorName, GeneratorFn>),
+  ) as Record<keyof BuiltinMockGenerators, GeneratorFn>),
   loremIpsum,
 };
 

@@ -40,7 +40,8 @@ import "encoding/json"
 // v22 reshapes pure-fn ids (`_rt:<10-char hash>`, comment-free bodies): a v21 entry bakes ids nothing registers.
 // v23 changes strict, clone and class accessor mutate code under unmoved ids: a v22 entry rejects a real instance.
 // v24 trims a short clone tuple with a hoisted fn under unmoved ids: a v23 entry differs from a cold walk.
-const FormatVersion = 24
+// v25 checks a string format's mock `generator`: a v24 entry for a type that spelled one replays without that finding.
+const FormatVersion = 25
 
 // StructuralText is a structural id stored as base64: a JSON string cannot carry tsgo's raw 0xFE symbol-key byte.
 type StructuralText string

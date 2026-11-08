@@ -34,9 +34,10 @@ describe('mock generator table', () => {
 
     it(`${name}: lengths and characters match the data`, () => {
       expect(meta.lengths).toEqual(spansOf(shapes.flatMap((shape) => reachableLengths(shape))));
-      const {chars, required} = shapeChars(shapes);
+      const {chars, required, leading} = shapeChars(shapes);
       expect(meta.chars).toBe(chars);
       expect(meta.required).toBe(required);
+      expect(meta.leading).toBe(leading);
     });
 
     it(`${name}: draws stay inside the table, at every span edge too`, () => {
@@ -53,6 +54,7 @@ describe('mock generator table', () => {
           expect(meta.lengths.some(([min, max]) => size >= min && size <= max)).toBe(true);
           for (const char of value) expect(meta.chars).toContain(char);
           for (const char of meta.required) expect(value).toContain(char);
+          expect(meta.leading).toContain(value.charAt(0));
         }
       }
     });

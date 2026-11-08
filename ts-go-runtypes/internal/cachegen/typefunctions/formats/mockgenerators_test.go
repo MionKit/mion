@@ -5,11 +5,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 func TestMockGenerators_RowsSelfConsistent(t *testing.T) {
-	rows := MockGenerators()
+	rows := MockGenerators
 	if !sort.SliceIsSorted(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name }) {
 		t.Fatal("rows must be sorted by name, LookupMockGenerator binary-searches them")
 	}
@@ -32,17 +31,12 @@ func TestMockGenerators_RowsSelfConsistent(t *testing.T) {
 				t.Fatalf("%s: required %q is not in Chars", row.Name, char)
 			}
 		}
-		if len(row.Examples) == 0 || row.Summary == "" {
-			t.Fatalf("%s: needs a summary and examples", row.Name)
+		if row.Summary == "" || row.Leading == "" || !isSorted(row.Leading) {
+			t.Fatalf("%s: needs a summary and a sorted Leading set", row.Name)
 		}
-		for _, example := range row.Examples {
-			if !spansOverlap(row.Lengths, utf8.RuneCountInString(example), utf8.RuneCountInString(example)) {
-				t.Fatalf("%s: example %q has a length outside %v", row.Name, example, row.Lengths)
-			}
-			for _, char := range example {
-				if !strings.ContainsRune(row.Chars, char) {
-					t.Fatalf("%s: example %q has %q, not in Chars", row.Name, example, char)
-				}
+		for _, char := range row.Leading {
+			if !strings.ContainsRune(row.Chars, char) {
+				t.Fatalf("%s: leading %q is not in Chars", row.Name, char)
 			}
 		}
 	}
@@ -78,6 +72,10 @@ func TestGeneratorProblems(t *testing.T) {
 		{"required char not allowed", "fullName", map[string]any{"allowedChars": map[string]any{"val": letters()}}, false, []string{"` `"}},
 		{"required char allowed ignoring case", "email", map[string]any{"allowedChars": map[string]any{"val": "ABCDEFGHIJKLMNOPQRSTUVWXYZ@._", "ignoreCase": true}}, false, nil},
 		{"required char disallowed", "email", map[string]any{"disallowedChars": map[string]any{"val": "@"}}, false, []string{"`@`", "forbids"}},
+		{"required char disallowed ignoring case", "email", map[string]any{"disallowedChars": map[string]any{"val": "M", "ignoreCase": true}}, false, []string{"`m`", "forbids"}},
+		{"no allowed first char", "lastName", map[string]any{"allowedChars": map[string]any{"val": "abcdefghijklmnopqrstuvwxyz"}}, false, []string{"starts every value"}},
+		{"first char allowed ignoring case", "lastName", map[string]any{"allowedChars": map[string]any{"val": "abcdefghijklmnopqrstuvwxyz", "ignoreCase": true}}, false, nil},
+		{"every first char disallowed", "phoneNumber", map[string]any{"disallowedChars": map[string]any{"val": "+"}}, false, []string{"forbids them all"}},
 		{"custom skips the table", "myCode", map[string]any{"maxLength": 1.0}, false, nil},
 		{"custom still checks combos", "myCode", map[string]any{"allowedValues": map[string]any{"val": []any{"x"}}}, false, []string{"`allowedValues`"}},
 	}

@@ -68,3 +68,20 @@ func ReadBoolParam(params map[string]any, key string) (value, present bool) {
 	}
 	return boolVal, true
 }
+
+// ReadCharParam reads a `{val: string, ignoreCase?}` param object, returning the char set and the regex flags ("i"
+// for ignoreCase). An empty or missing set answers ok=false: no check.
+func ReadCharParam(params map[string]any, key string) (val, flags string, ok bool) {
+	obj, isMap := params[key].(map[string]any)
+	if !isMap {
+		return "", "", false
+	}
+	val, isString := obj["val"].(string)
+	if !isString || val == "" {
+		return "", "", false
+	}
+	if ignore, _ := obj["ignoreCase"].(bool); ignore {
+		flags = "i"
+	}
+	return val, flags, true
+}
