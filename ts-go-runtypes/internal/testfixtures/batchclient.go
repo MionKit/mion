@@ -11,8 +11,8 @@ const BatchClientDTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, ` + "`${Prefix}${K}`" + `, Root>
       : ClientRoutes<RA[K], ` + "`${Prefix}${K}/`" + `, Root>;
   };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
+  export function initClient<RA>(options?: unknown): {client: unknown; routes: ClientRoutes<RA>};
+  export interface InputFromRef<F extends (...args: any) => any> { asArg(): ReturnType<F> }
   export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
   export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
