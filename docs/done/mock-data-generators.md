@@ -166,6 +166,12 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   generator skips a named-format union arm (it mocks itself) and the enrich check needs every plain / String arm to
   accept it; `isRegex` joins the rejected combinations; an `allowedChars` value never shrinks below one char;
   registering a custom name again replaces it (Vite HMR re-runs setup modules).
+- One or the other (user decision): a format takes a `generator` or `mockSamples` (top level or nested in `pattern`,
+  `allowedChars`, `allowedValues`, `disallowedChars`, `disallowedValues`), never both, enforced by the TS type
+  `GeneratorOrSamples<P>` on `String<P>`, the string presets and their builders; `disallowedChars` /
+  `disallowedValues` need one of the two. So Go dropped the "beside `mockSamples`" reason and `GeneratorProblems`
+  its `fromData` flag, and `disallowedValues` works with a generator. A `MockData` string leaf likewise takes
+  `{pool}` or `{generator}`, never both, and the scaffold writes `{generator: '<name>'}`.
 
 ## Plan
 

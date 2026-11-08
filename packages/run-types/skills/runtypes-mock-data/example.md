@@ -25,7 +25,7 @@ import type {MockData} from '@mionjs/run-types';
 
 export const mockUser: MockData<User> = {
   name: {pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', 'Diego Ramirez']},
-  city: {pool: [], generator: 'city'}, // empty pool: draw from the built-in city generator
+  city: {generator: 'city'}, // no pool: draw from the built-in city generator
   age: {pool: [], min: 18, max: 95}, // empty pool: draw from the range
   tags: {
     rt$items: {pool: ['urgent', 'beta', 'vip']}, // element node
