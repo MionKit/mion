@@ -55,21 +55,23 @@ describe('the skip-defaults label', () => {
 
   it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
-    // Jobs that wait in a step start from the gate alone; go-suite and smoke read their waiter job first.
-    const gate = 'fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)';
+    // Every heavy job reads its waiter job's verdict first, falling back to the gate's.
     const waited = (job: string) => `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`;
     const guarded = (condition: string) =>
       new RegExp(`^\\$\\{\\{ !cancelled\\(\\) && needs\\.lanes\\.result == 'success' && ${condition} && !contains`);
     expect(jobCondition('go-checks')).toMatch(
-      guarded(`\\(${gate}\\['go-static'\\]\\.run \\|\\| ${gate}\\['go-tools'\\]\\.run\\)`)
+      guarded(`\\(${waited('go-checks')}\\['go-static'\\]\\.run \\|\\| ${waited('go-checks')}\\['go-tools'\\]\\.run\\)`)
     );
     expect(jobCondition('go-suite')).toMatch(guarded(`${waited('go-suite')}\\.go\\.run`));
     for (const item of ['sweep', 'timeboxed'])
       expect(jobCondition(`js-fuzz-${item}`)).toMatch(
-        guarded(`\\(${gate}\\['js-fuzz'\\]\\.run && contains\\(${gate}\\['js-fuzz'\\]\\.runItems, '${item}'\\)\\)`)
+        guarded(
+          `\\(${waited('js-fuzz')}\\['js-fuzz'\\]\\.run && contains\\(${waited('js-fuzz')}\\['js-fuzz'\\]\\.runItems, '${item}'\\)\\)`
+        )
       );
-    expect(jobCondition('js-static')).toMatch(guarded(`\\(${gate}\\['js-static'\\]\\.run\\)`));
-    for (const job of ['js-suite', 'js-serial']) expect(jobCondition(job)).toMatch(guarded(`\\(${gate}\\.js\\.run\\)`));
+    expect(jobCondition('js-static')).toMatch(guarded(`\\(${waited('js-static')}\\['js-static'\\]\\.run\\)`));
+    for (const job of ['js-suite', 'js-serial'])
+      expect(jobCondition(job)).toMatch(guarded(`\\(${waited('js-suite')}\\.js\\.run\\)`));
     expect(jobCondition('smoke')).toMatch(guarded(`${waited('smoke')}\\.smoke\\.run`));
   });
 });

@@ -1,11 +1,20 @@
 // Which older CI runs a new run keeps (scripts/ci/supersede.mjs). A wrong keep is harmless (waiters re-decide);
 // a wrong defer waits on work nobody does, a wrong cancel throws away work the commit never touched.
-import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-// @ts-expect-error — a plain .mjs repo script, no types.
-import {deferredKeys, liveKeys, main, supersede, waitForRun} from '../../../scripts/ci/supersede.mjs';
+import {
+  deferredKeys,
+  liveKeys,
+  main,
+  newerDecisions,
+  supersede,
+  takenOver,
+  waitForRun,
+  watchStep,
+  // @ts-expect-error — a plain .mjs repo script, no types.
+} from '../../../scripts/ci/supersede.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {greenKey} from '../../../scripts/ci/lanes.mjs';
 
@@ -320,6 +329,197 @@ describe('waitForRun', () => {
   });
 });
 
+// A kept older run's raw-lane step stops once a newer run re-runs the lane itself, never on a lane it waits for.
+describe('takenOver', () => {
+  const raw = (hashes: Record<string, string>, labels: string[] = []): Decision => ({
+    lanes: Object.fromEntries(Object.entries(hashes).map(([lane, hash]) => [lane, {run: true, hash}])),
+    labels,
+  });
+  const ours = raw({'go-static': 'g1', 'go-tools': 't1', 'js-static': 's1'}).lanes;
+  const names = ['go-static', 'go-tools'];
+
+  it('takes a lane over when a newer run runs it under another hash', () => {
+    const taken = takenOver({ours, newer: [{runId: 9, decision: raw({'go-tools': 't2', 'go-static': 'g1'})}], names});
+    expect([...taken]).toEqual([['go-tools', 9]]);
+  });
+
+  it('never takes over a lane the newer run runs under our hash, has off by label, or never decided', () => {
+    const newer: Older[] = [
+      {runId: 8, decision: raw({'go-static': 'g1', 'go-tools': 't1'})},
+      {runId: 9, decision: raw({'go-static': 'g2', 'go-tools': 't2'}, ['skip-defaults'])},
+      {runId: 10, decision: null},
+      {runId: 11, decision: {lanes: {'go-tools': {run: false, hash: 't3'}}, labels: []}},
+    ];
+    expect(takenOver({ours, newer, names}).size).toBe(0);
+  });
+
+  it('counts only the lanes the step proves', () => {
+    expect(takenOver({ours, newer: [{runId: 9, decision: raw({'js-static': 's2'})}], names}).size).toBe(0);
+  });
+
+  it('names the first newer run that took each lane', () => {
+    const newer: Older[] = [
+      {runId: 9, decision: raw({'go-static': 'g2'})},
+      {runId: 12, decision: raw({'go-static': 'g3', 'go-tools': 't3'})},
+    ];
+    expect(Object.fromEntries(takenOver({ours, newer, names}))).toEqual({'go-static': 9, 'go-tools': 12});
+  });
+
+  // A deferred lane always hashes the same, so a takeover always means the newer run really runs the lane.
+  it('takes a lane over only when some newer run runs it live under another hash (seeded sweep)', () => {
+    let seed = 7;
+    const random = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    const pick = <Value>(values: Value[]): Value => values[Math.floor(random() * values.length)];
+    const lanes = ['go-static', 'go-tools', 'js-static'];
+    for (let round = 0; round < 300; round++) {
+      const mine = Object.fromEntries(lanes.map((lane) => [lane, {run: true, hash: pick(['a', 'b'])}]));
+      const newer: Older[] = [1, 2, 3].map((runId) => ({
+        runId,
+        decision:
+          random() < 0.2
+            ? null
+            : {
+                lanes: Object.fromEntries(lanes.map((lane) => [lane, {run: random() < 0.7, hash: pick(['a', 'b'])}])),
+                labels: random() < 0.1 ? ['skip-defaults'] : [],
+              },
+      }));
+      const wanted = lanes.filter(() => random() < 0.6);
+      const taken = takenOver({ours: mine, newer, names: wanted});
+      for (const lane of lanes) {
+        const claim = newer.find(
+          ({decision}) => decision && liveKeys(decision).has(lane) && liveKeys(decision).get(lane) !== mine[lane].hash
+        );
+        expect(taken.get(lane)).toBe(wanted.includes(lane) ? claim?.runId : undefined);
+      }
+    }
+  });
+});
+
+describe('newerDecisions', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'takeover-'));
+  });
+  afterEach(() => rmSync(dir, {recursive: true, force: true}));
+  const env = {
+    GITHUB_REF: 'refs/pull/42/merge',
+    GITHUB_WORKFLOW_REF: 'MionKit/mion/.github/workflows/ci.yml@refs/pull/42/merge',
+    GITHUB_REPOSITORY: 'MionKit/mion',
+    GITHUB_HEAD_REF: 'feature',
+    GITHUB_RUN_ID: '100',
+  };
+  const run = (id: number, extra: Record<string, unknown> = {}) => ({
+    id,
+    status: 'in_progress',
+    conclusion: null,
+    head_repository: {full_name: 'MionKit/mion'},
+    pull_requests: [{number: 42}],
+    ...extra,
+  });
+  const decision = {lanes: {'go-tools': {run: true, hash: 't2'}}, labels: []};
+  const fakeGh = (runs: unknown[], uploaded: (id: string) => boolean = () => true) => {
+    const calls: string[][] = [];
+    const gh = (args: string[]) => {
+      calls.push(args);
+      if (args[0] === 'api') return {status: 0, stdout: JSON.stringify({workflow_runs: runs})};
+      const target = args[args.indexOf('--dir') + 1];
+      if (!uploaded(args[2])) return {status: 1, stdout: ''};
+      mkdirSync(target, {recursive: true});
+      writeFileSync(path.join(target, 'decision.json'), JSON.stringify(decision));
+      return {status: 0, stdout: ''};
+    };
+    return {gh, calls};
+  };
+
+  it('lists this workflow and branch, and keeps only newer runs of this pull request from this repository', () => {
+    const {gh, calls} = fakeGh([
+      run(99),
+      run(101),
+      run(102, {pull_requests: [{number: 7}]}),
+      run(103, {head_repository: {full_name: 'fork/mion'}}),
+      run(104, {status: 'completed', conclusion: 'cancelled'}),
+      run(105, {status: 'completed', conclusion: 'success'}),
+    ]);
+    const newer = newerDecisions({gh, env, dir, seen: new Map()});
+    expect(newer.map(({runId}: Older) => runId)).toEqual([101, 105]);
+    expect(calls[0]).toEqual(expect.arrayContaining(['repos/MionKit/mion/actions/workflows/ci.yml/runs', 'branch=feature']));
+  });
+
+  it('downloads each decision once, and retries one not uploaded yet', () => {
+    let ready = false;
+    const {gh, calls} = fakeGh([run(101)], () => ready);
+    const seen = new Map();
+    expect(newerDecisions({gh, env, dir, seen})).toEqual([{runId: 101, decision: null}]);
+    ready = true;
+    expect(newerDecisions({gh, env, dir, seen})).toEqual([{runId: 101, decision}]);
+    newerDecisions({gh, env, dir, seen});
+    expect(calls.filter((args) => args[1] === 'download').length).toBe(2);
+  });
+
+  it('reads nothing off a pull request or from an unreadable listing', () => {
+    expect(
+      newerDecisions({gh: fakeGh([run(101)]).gh, env: {...env, GITHUB_REF: 'refs/heads/main'}, dir, seen: new Map()})
+    ).toEqual([]);
+    expect(newerDecisions({gh: () => ({status: 0, stdout: 'not json'}), env, dir, seen: new Map()})).toEqual([]);
+  });
+});
+
+describe('watchStep', () => {
+  const node = (code: string) => [process.execPath, '-e', code];
+  const taken = new Map([['go-tools', 9]]);
+
+  it('passes the command exit code through when nothing takes its lanes over', async () => {
+    const result = await watchStep({
+      command: node('process.exit(3)'),
+      names: ['go-tools'],
+      check: () => new Map(),
+      firstMs: 5,
+      everyMs: 5,
+    });
+    expect(result).toEqual({code: 3, signal: null, taken: null});
+  });
+
+  it('stops the command, and everything it started, once every lane is taken over', async () => {
+    const started = Date.now();
+    const result = await watchStep({
+      command: node(
+        "require('child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {stdio: 'inherit'}); setTimeout(() => {}, 60000)"
+      ),
+      names: ['go-tools'],
+      check: () => taken,
+      firstMs: 50,
+      everyMs: 50,
+    });
+    expect(result.taken).toBe(taken);
+    expect(Date.now() - started).toBeLessThan(20_000);
+  });
+
+  it('keeps running while only some lanes are taken over, or the check throws', async () => {
+    let polls = 0;
+    const result = await watchStep({
+      command: node('setTimeout(() => process.exit(0), 400)'),
+      names: ['go-static', 'go-tools'],
+      check: () => {
+        polls += 1;
+        if (polls % 2) throw new Error('gh down');
+        return taken;
+      },
+      firstMs: 20,
+      everyMs: 20,
+    });
+    expect(result).toEqual({code: 0, signal: null, taken: null});
+    expect(polls).toBeGreaterThan(2);
+  });
+
+  it('never polls without a check, and reports a command that cannot start', async () => {
+    expect(
+      await watchStep({command: ['no-such-command-here'], names: ['go-tools'], check: null, firstMs: 5, everyMs: 5})
+    ).toMatchObject({
+      code: 127,
+    });
+  });
+});
+
 describe('the supersede CLI', () => {
   let dir: string;
   const env = {...process.env};
@@ -371,5 +571,20 @@ describe('the supersede CLI', () => {
     process.env.PATH = '';
     main(['--wait', '--decision', file('lanes.json', ci().lanes), '--lanes', 'go', 'js', '--jobs', 'x', '--timeout', '60']);
     expect(console.log).toHaveBeenCalledWith('no lane of go js waits on an older run');
+  });
+
+  it('skips a watched step whose lanes a newer run already took over', async () => {
+    process.env.MION_TAKEN_OVER = 'go-static go-tools';
+    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)']);
+    expect(console.log).toHaveBeenCalledWith('skipped: a newer run re-runs go-tools');
+    expect(process.exitCode ?? 0).toBe(0);
+  });
+
+  it('runs a watched step as is off a pull request, exit code included', async () => {
+    process.env.GITHUB_EVENT_NAME = 'push';
+    delete process.env.MION_TAKEN_OVER;
+    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)']);
+    expect(process.exitCode).toBe(5);
+    process.exitCode = 0;
   });
 });

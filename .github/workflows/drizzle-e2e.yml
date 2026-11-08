@@ -74,6 +74,8 @@ jobs:
   decide:
     name: should the lane run
     needs: lanes
+    # A proven lane needs no answer; a deferred one keeps `run`, so its waiter's verdict still finds one.
+    if: fromJSON(needs.lanes.outputs.lanes).drizzle.run
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}

@@ -1,7 +1,10 @@
 // GitHub's concurrency cancel kills an older run even when the new commit changes nothing it reads. Instead, an
 // older run whose live lanes all hash the same is kept and our jobs for those lanes wait for its markers.
-// CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow.
-import {appendFileSync, readFileSync, writeFileSync} from 'node:fs';
+// CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow, --watch around a kept run's raw-lane steps.
+import {spawn} from 'node:child_process';
+import {appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {LANES, PR_PROOF, flagValues, greenKey, laneLive} from './lanes.mjs';
 import {capture, die, noteErr, reportCliError} from '../lib/proc.mjs';
 
@@ -114,10 +117,128 @@ export function waitForRun({groups, jobs, gh, sleep, now, deadline}) {
   }
 }
 
+// A newer run takes a lane over when it runs the lane itself under another hash: a lane it defers to us hashes the same.
+export function takenOver({ours, newer, names}) {
+  const taken = new Map();
+  for (const {runId, decision} of newer) {
+    if (!decision) continue;
+    for (const [key, hash] of liveKeys(decision)) {
+      const name = key.split('.')[0];
+      if (names.includes(name) && !taken.has(name) && hashOf(ours, key) !== hash) taken.set(name, runId);
+    }
+  }
+  return taken;
+}
+
+// The newer runs of this workflow and pull request, filtered like the ci-lanes listing. A cancelled one took nothing over.
+export function newerDecisions({gh, env, dir, seen}) {
+  const pr = /^refs\/pull\/(\d+)\//.exec(env.GITHUB_REF ?? '')?.[1];
+  const workflow = (env.GITHUB_WORKFLOW_REF ?? '').split('@')[0].split('/').pop();
+  if (!pr || !workflow) return [];
+  const listed = gh(['api', '-X', 'GET', `repos/${env.GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs`, '-f', `branch=${env.GITHUB_HEAD_REF}`, '-f', 'event=pull_request', '-F', 'per_page=30']);
+  let runs = [];
+  try {
+    if (listed.status === 0) runs = JSON.parse(listed.stdout).workflow_runs ?? [];
+  } catch {
+    // An unreadable listing is one more poll.
+  }
+  const newer = runs.filter(
+    (run) =>
+      run.id > Number(env.GITHUB_RUN_ID) &&
+      run.head_repository?.full_name === env.GITHUB_REPOSITORY &&
+      run.pull_requests?.some((pull) => String(pull.number) === pr) &&
+      !(run.status === 'completed' && run.conclusion === 'cancelled')
+  );
+  return newer.map((run) => {
+    if (!seen.has(run.id)) {
+      const target = join(dir, String(run.id));
+      rmSync(target, {recursive: true, force: true});
+      const downloaded = gh(['run', 'download', String(run.id), '--repo', env.GITHUB_REPOSITORY, '--name', 'lane-decision', '--dir', target]);
+      try {
+        const decision = downloaded.status === 0 ? JSON.parse(readFileSync(join(target, 'decision.json'), 'utf8')) : null;
+        // Not uploaded yet is read again next poll.
+        if (typeof decision?.lanes === 'object' && decision.lanes !== null) seen.set(run.id, decision);
+      } catch {
+        // An unreadable decision is read again next poll.
+      }
+    }
+    return {runId: run.id, decision: seen.get(run.id) ?? null};
+  });
+}
+
+// Runs one step's command in its own process group, so a takeover can stop everything it started.
+// `check` returns the lanes taken over so far; a throw is one more poll, never a stop.
+export function watchStep({command, names, check, firstMs, everyMs}) {
+  return new Promise((resolve) => {
+    const child = spawn(command[0], command.slice(1), {stdio: 'inherit', detached: true});
+    let timer = null;
+    let taken = null;
+    const signalGroup = (signal) => {
+      try {
+        process.kill(-child.pid, signal);
+      } catch {
+        // The group already exited.
+      }
+    };
+    const forward = (signal) => signalGroup(signal);
+    process.on('SIGINT', forward).on('SIGTERM', forward);
+    const poll = () => {
+      let now = new Map();
+      try {
+        now = check();
+      } catch {
+        // Keep running: an unknown is never a takeover.
+      }
+      if (names.every((name) => now.has(name))) {
+        taken = now;
+        signalGroup('SIGTERM');
+        setTimeout(() => signalGroup('SIGKILL'), 10_000).unref();
+        return;
+      }
+      timer = setTimeout(poll, everyMs);
+    };
+    if (check) timer = setTimeout(poll, firstMs);
+    const finish = (code, signal) => {
+      clearTimeout(timer);
+      process.off('SIGINT', forward).off('SIGTERM', forward);
+      resolve({code, signal, taken});
+    };
+    child.on('error', () => finish(127, null));
+    child.on('exit', finish);
+  });
+}
+
+// `--watch <lane…> -- <command…>`: a step that proves those lanes. Off a pull request it only runs the command.
+async function watchMain(args, env) {
+  const names = flagValues(args, '--watch');
+  const command = args.slice(args.indexOf('--') + 1);
+  if (names.length === 0 || !args.includes('--') || command.length === 0) die('--watch needs <lane…> -- <command…>');
+  const already = (env.MION_TAKEN_OVER ?? '').split(' ').filter(Boolean);
+  if (names.every((name) => already.includes(name))) return console.log(`skipped: a newer run re-runs ${names.join(', ')}`);
+  let check = null;
+  if (env.GITHUB_EVENT_NAME === 'pull_request') {
+    const ours = JSON.parse(env.MION_LANES ?? '{}');
+    const dir = mkdtempSync(join(env.RUNNER_TEMP ?? tmpdir(), 'lane-takeover-'));
+    const seen = new Map();
+    check = () => takenOver({ours, newer: newerDecisions({gh, env, dir, seen}), names});
+  }
+  const {code, signal, taken} = await watchStep({command, names, check, firstMs: 60_000, everyMs: 60_000});
+  if (!taken) {
+    process.exitCode = code ?? (signal ? 1 : 0);
+    return;
+  }
+  const runs = [...new Set(taken.values())].join(', ');
+  const note = `stopped: newer run ${runs} re-runs ${names.join(', ')}, so this run saves no marker for it`;
+  console.log(note);
+  if (env.GITHUB_ENV) appendFileSync(env.GITHUB_ENV, `MION_TAKEN_OVER=${[...already, ...names].join(' ')}\n`);
+  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${note}\n`);
+}
+
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const gh = (args) => capture('gh', args);
 
-export function main(args) {
+export function main(args, env = process.env) {
+  if (args.includes('--watch')) return watchMain(args, env);
   const decisionFile = flagValues(args, '--decision')[0];
   if (!decisionFile) die('--decision <file> is required');
   if (args.includes('--wait')) {
@@ -149,7 +270,7 @@ export function main(args) {
 
 if (import.meta.main) {
   try {
-    main(process.argv.slice(2));
+    await main(process.argv.slice(2));
   } catch (err) {
     reportCliError(err);
   }
