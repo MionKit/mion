@@ -1,5 +1,4 @@
-// The Go generator table (GEN and BuiltinMockGenerators) must name exactly the TS built-ins, and a built-in draw built
-// to fit a natural length must land on it.
+// GEN comes from the Go generator table, so this pins that table to the TS built-ins.
 
 import {describe, it, expect} from 'vitest';
 import {GEN} from '@mionjs/run-types/formats';

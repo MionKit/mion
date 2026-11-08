@@ -1,7 +1,6 @@
-// Property fuzz for the mock generators, unit lane (pure TS, no Go binary). Every draw checks R1 a format the build
-// check (Go formats.GeneratorProblems) passes never throws, R2 a Set-based reference independent of the validator's
-// regexes, R3 stringParamsAccept, R4 only the named error throws, R5 one seed draws one value. Negative controls make
-// each rule fire.
+// Unit lane, no Go binary. Each draw checks R1 a format Go formats.GeneratorProblems passes never throws, R2 a
+// Set-based reference independent of the validator's regexes, R3 stringParamsAccept, R4 only the named error throws,
+// R5 one seed draws one value.
 
 import {describe, it, expect} from 'vitest';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
@@ -18,7 +17,6 @@ type Name = keyof typeof BUILTIN_SHAPES;
 const NAMES = Object.keys(BUILTIN_SHAPES) as Name[];
 const upTo = (limit: number): number => Math.floor(Math.random() * limit);
 
-// Natural lengths per generator, ascending.
 const LENGTHS = Object.fromEntries(
   NAMES.map((name) => [
     name,
@@ -80,7 +78,7 @@ function lengthBounds(params: StringParams): [number, number] {
 const inSet = (set: string, char: string, ignoreCase?: boolean): boolean =>
   ignoreCase ? set.toLowerCase().includes(char.toLowerCase()) : set.includes(char);
 
-// Mirrors formats.GeneratorProblems for these params: true when the build would reject the format.
+// Mirrors Go formats.GeneratorProblems for these params.
 function buildRejects(params: StringParams): boolean {
   const [, hi] = lengthBounds(params);
   if (params.allowedChars && hi === 0) return true;

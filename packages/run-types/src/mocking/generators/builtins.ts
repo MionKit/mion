@@ -61,7 +61,7 @@ function pickShape(shapes: Shapes, ctx: GeneratorContext): string {
   const lo = ctx.lo ?? 0;
   const hi = ctx.hi ?? Infinity;
   const feasible = shapes.filter((shape) => fits(shape, lo, hi));
-  // No shape fits: a natural value, which mockFromGenerator pads or cuts to the bounds.
+  // mockFromGenerator pads or cuts a value no shape fits to the bounds.
   if (feasible.length === 0) return compose(shapes[ctx.random.int(0, shapes.length - 1)], ctx.random) as string;
   return compose(feasible[ctx.random.int(0, feasible.length - 1)], ctx.random, lo, hi) as string;
 }
@@ -80,7 +80,7 @@ function loremIpsum(ctx: GeneratorContext): string {
       bestDistance = distance;
     }
   });
-  // No sentence fits: the longest or shortest one, which mockFromGenerator pads or cuts to the bounds.
+  // The nearest end; mockFromGenerator pads or cuts it to the bounds.
   if (!best) {
     const shortest = BUILTIN_SHAPES.loremIpsum[0];
     return compose(fits(shortest, 0, hi) ? BUILTIN_SHAPES.loremIpsum[LOREM_MAX_WORDS - 1] : shortest, ctx.random) as string;

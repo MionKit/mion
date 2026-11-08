@@ -87,7 +87,7 @@ describe('custom mock generators', () => {
       /^[xyz]{2}i[xyz]{2}$/
     );
     expect(createMockDataFn<TF.String<{allowedChars: {val: '0123'}; generator: 'fixedSmith'}>>()()).toMatch(/^[0-3]{5}$/);
-    // Same case first: the capital S becomes a capital consonant, the small ones small consonants.
+    // Same case first.
     const sameCase = createMockDataFn<TF.String<{allowedChars: {val: 'ixXyY'}; generator: 'fixedSmith'}>>();
     for (let seed = 1; seed <= 20; seed++) expect(sameCase({mock: {seed}})).toMatch(/^[XY][xy]i[xy]{2}$/);
     expect(createMockDataFn<TF.String<{disallowedChars: {val: 'S'; mockSamples: 'x'}; generator: 'fixedSmith'}>>()()).toBe(

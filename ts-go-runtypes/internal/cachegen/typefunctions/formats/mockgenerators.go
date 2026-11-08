@@ -61,9 +61,8 @@ func GeneratorProblems(name any, params map[string]any, fromData bool) []string 
 	if _, present := params["mockSamples"]; present && !fromData {
 		problems = append(problems, "`generator` cannot be combined with `mockSamples`: both pick the mock value")
 	}
-	// The mock fits any length and replaces each char a char set rejects, so only a format that leaves it nothing to
-	// build from fails: `length: 0` (only '', which `allowedChars` rejects, while `disallowedChars` accepts it) or no
-	// replacement char left.
+	// The mock fits any length and replaces rejected chars, so only a format leaving it nothing to build from fails.
+	// `length: 0` serves '', which `allowedChars` rejects and `disallowedChars` accepts.
 	hi, bounded := ReadNumberParam(params, "length")
 	if !bounded {
 		hi, bounded = ReadNumberParam(params, "maxLength")
@@ -92,8 +91,7 @@ func containsChar(set string, char rune, ignoreCase bool) bool {
 	return false
 }
 
-// jsCanonical folds a char the way a JS regex `i` flag without `u` does: to upper case, unless that would turn a
-// non-ASCII char into an ASCII one (the Kelvin sign stays itself, never `k`).
+// jsCanonical folds like a JS regex `i` flag without `u`: upper case, never non-ASCII to ASCII (Kelvin sign is not `k`).
 func jsCanonical(char rune) rune {
 	upper := unicode.ToUpper(char)
 	if char >= utf8.RuneSelf && upper < utf8.RuneSelf {

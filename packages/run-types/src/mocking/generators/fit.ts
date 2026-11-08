@@ -1,4 +1,4 @@
-// Fits a drawn value to the format: lengths by cutting or padding, then each char a char set rejects by a replacement.
+// Cuts or pads a drawn value to the length bounds, then replaces each char a char set rejects.
 // Mirrors Go formats.GeneratorProblems, which only rejects a format that leaves the replacement nothing to use.
 
 import type {StringParams} from '../../formats/string/stringFormats.ts';
@@ -30,9 +30,7 @@ export function fitContext(params: StringParams, ctx: Pick<GeneratorContext, 'lo
   return {lo: ctx.lo ?? 0, hi: ctx.hi ?? Infinity, random: ctx.random, keepChar, pool, padPool};
 }
 
-/** The candidates in order, the caller keeps the first the format accepts. A value outside the length bounds is cut,
- *  or padded with more draws: digits after digits, words joined by a space, joined as is, then pool letters. Last, the
- *  fitted value with each rejected char replaced. **/
+/** Candidates most natural first: the caller keeps the first the format accepts. **/
 export function* fitCandidates(value: string, fit: FitContext, more: () => string): Generator<string> {
   if (codePointLength(value) < fit.lo) {
     if (/^\+?\d+$/.test(value)) yield padTo(value, fit, () => more().replace(/\D/g, ''), '');
@@ -63,7 +61,7 @@ function withLetters(value: string, fit: FitContext): string {
   return cut(padded, fit.hi);
 }
 
-// A cut never ends on the space a word pad added: that last char becomes a pad letter.
+// A cut never ends on the space a word pad added.
 function cut(value: string, hi: number): string {
   const chars = [...value];
   if (chars.length <= hi) return value;
@@ -72,8 +70,6 @@ function cut(value: string, hi: number): string {
   return kept.join('');
 }
 
-// A rejected char becomes its other case, else a vowel for a vowel or a consonant for a consonant (same case first),
-// else any pool char.
 function replaceRejected(value: string, fit: FitContext): string {
   let out = '';
   for (const char of value) out += fit.keepChar(char) ? char : replacement(char, fit);

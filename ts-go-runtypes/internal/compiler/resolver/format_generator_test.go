@@ -122,8 +122,7 @@ func TestFormatGenerator_WidenedNameValue(t *testing.T) {
 	}
 }
 
-// Any length bounds or char set stay clean (the mock fits the value); a custom name is not checked against the table
-// (TypeScript catches typos via MockGeneratorName).
+// A custom name passes unchecked: TypeScript catches typos via MockGeneratorName.
 var cleanGeneratorCases = map[string]string{
 	"fits":                            `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
 	"too short is cut":                `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`,
