@@ -686,6 +686,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				if request.IncludeEntryModules {
 					response.EntryModules = modules
 				}
+				rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(scoped.Sites)...)
 			}
 		}
 		// The Vite reception loop reads only response.Diagnostics.
@@ -729,6 +730,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			return protocol.Response{Error: modulesErr.Error()}
 		}
 		response.EntryModules = modules
+		rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(fullDump.Sites)...)
 		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
 		// Missing registrations must also fail batchcompile, which uses OpDump.
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
@@ -823,6 +825,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkDrizzleFiles(sess.programSourceFiles())...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.mockSiteFormatDiagnostics(genDump.Sites)...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.validateProgramPureFnDeps(genPureFnDeps)...)
 		return genResponse
 	case protocol.OpSetSources:

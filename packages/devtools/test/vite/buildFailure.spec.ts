@@ -93,6 +93,14 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-sample-out-of-bounds/index.ts'), line: expect.any(Number)});
   }, 60_000);
 
+  it('format-sample-out-of-bounds: reported at a mock-only site', async () => {
+    // No validator is compiled for the type, so the check must reach the createMockDataFn call itself.
+    const result = await buildFixture('format-sample-out-of-bounds-mock-only');
+    expect(result.codes).toContain('format-sample-out-of-bounds');
+    expect(result.ok).toBe(false);
+    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-sample-out-of-bounds-mock-only/index.ts'), line: 9});
+  }, 60_000);
+
   it('format-sample-generation-failed: a pattern the sample generator cannot handle', async () => {
     // Lookarounds, which format-sample-generation-failed names as the usual case, and no declared samples to fall back on.
     const result = await buildFixture('format-sample-generation-failed');

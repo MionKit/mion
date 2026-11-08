@@ -85,6 +85,8 @@ describe('mock soundness — validate(mock()) holds or fails loudly', () => {
     }
 
     type Impossible = StringFormat<{minLength: 5; pattern: {source: '^b+$'; flags: ''; mockSamples: ['b', 'bb']}}>;
+    // The build reports this at the mock site too; downgraded to pin the run-time throw behind it.
+    // @mion-downgrade-error format-sample-out-of-bounds
     const mockImpossible = createMockDataFn<Impossible>();
     expect(() => mockImpossible()).toThrow(/`mockSamples` compatible with the length bounds/);
   });
