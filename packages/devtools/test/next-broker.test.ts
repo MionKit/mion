@@ -305,6 +305,28 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   );
 
   register(
+    'leaves the stamp alone when a transform generates nothing new',
+    async () => {
+      // The stamp once counted its own file, so the first loader request moved it and re-ran every rewritten file.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      const stampPath = path.join(root, '.mion/types/.rt-stamp');
+      try {
+        await handle.ready;
+        const before = fs.readFileSync(stampPath, 'utf8');
+        const entry = path.join(root, 'src/entry.ts');
+        expect((await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'))).ok).toBe(true);
+        expect(fs.readFileSync(stampPath, 'utf8')).toBe(before);
+      } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
+  register(
     'moves the invalidation stamp when a type changes',
     async () => {
       // The stamp is what re-runs a file whose rewrite depends on a type the

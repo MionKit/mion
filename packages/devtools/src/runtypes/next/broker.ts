@@ -21,6 +21,7 @@ import {RUNTYPES_FILE_MODULE_DIR} from '../../core/go-generated/runtypes-constan
 // The check is a cheap readdir, but on a large project it would still run once per file without a throttle.
 const STAMP_THROTTLE_MS = 100;
 const FILE_MODULE_PREFIX = `types/${RUNTYPES_FILE_MODULE_DIR}/`;
+const STAMP_ENTRY = 'types/.rt-stamp';
 
 // How long an edit may settle before absorbing it: several files saved at once (a formatter) are ONE batch.
 const WATCH_DEBOUNCE_MS = 30;
@@ -160,7 +161,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     await built.buildStart?.call(context);
     genDirAbs = built.rtGenDir?.() ?? '';
     if (!genDirAbs) throw new Error('@mionjs/devtools: the resolver did not report its output directory (genDir)');
-    stampPath = path.join(genDirAbs, 'types', '.rt-stamp');
+    stampPath = path.join(genDirAbs, STAMP_ENTRY);
     debug(`genDir ${genDirAbs}`);
   })()
     .then(() => {
@@ -203,6 +204,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     for (const name of names) {
       // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
       const entry = `types/${name.split(path.sep).join('/')}`;
+      // Counting its own file moved the stamp on the first request, mid-build.
+      if (entry === STAMP_ENTRY) continue;
       listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
     }
     return listing.sort();
