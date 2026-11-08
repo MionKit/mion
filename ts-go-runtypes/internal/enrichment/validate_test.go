@@ -264,6 +264,30 @@ func TestCheckMock_MetaKeysNotFlagged(t *testing.T) {
 	}
 }
 
+func TestCheckMock_LeafKeyNamedFieldIsAField(t *testing.T) {
+	// An object-literal value under `pool` / `min` / `max` is a field node, never leaf settings: a map naming a
+	// `pool` field the type lacks is an unknown field, and a real `pool` field is descended like any other.
+	t.Run("unknown", func(t *testing.T) {
+		rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
+		view := newFakeView().obj("name", newFakeView()).obj("pool", newFakeView())
+		findings := enrichment.CheckMock(rt, view, nil)
+		if len(findings) != 1 || findings[0].Code != "enrich-mock-unknown-field" || findings[0].Path != "pool" {
+			t.Fatalf("want enrich-mock-unknown-field at pool; got %v", findings)
+		}
+	})
+	t.Run("descended", func(t *testing.T) {
+		inner := objectRT(map[string]*reflection.RunType{"x": stringRT()})
+		rt := objectRT(map[string]*reflection.RunType{"pool": inner, "min": inner})
+		view := newFakeView().
+			obj("pool", newFakeView().obj("y", newFakeView())).
+			obj("min", newFakeView().obj("x", newFakeView()))
+		findings := enrichment.CheckMock(rt, view, nil)
+		if len(findings) != 1 || findings[0].Code != "enrich-mock-unknown-field" || findings[0].Path != "pool.y" {
+			t.Fatalf("want enrich-mock-unknown-field at pool.y; got %v", findings)
+		}
+	})
+}
+
 func TestCheckFriendly_NestedAndArray(t *testing.T) {
 	// Nested object + array element: an unknown key at depth flags enrich-text-unknown-field with a
 	// dotted path through `rt$items`.

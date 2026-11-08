@@ -344,6 +344,26 @@ func TestMerge_AuthoredReservedKey_Survives(t *testing.T) {
 	assertReparses(t, got)
 }
 
+// TestMerge_LeafKeyNamedFieldMerges: an object-literal value under `pool` / `min` is a real field of the type, so
+// `--update` merges it like any field: a dropped one is orphaned and a new one is added, never skipped as settings.
+func TestMerge_LeafKeyNamedFieldMerges(t *testing.T) {
+	existing := "{pool: {pool: ['a']}, name: {pool: []}}"
+	desired := "{name: {pool: []}, min: {pool: []}}"
+	ctx := mergeCtx{
+		metaKeys:      mockReservedKeys,
+		existingChild: map[string]string{"pool": "strA", "name": "strB"},
+		desiredChild:  map[string]string{"name": "strB", "min": "numC"},
+	}
+	got := mergeWithCtx(t, existing, desired, ctx)
+	if !strings.Contains(got, "@rtOrphanChild") {
+		t.Errorf("the dropped `pool` field must be orphaned:\n%s", got)
+	}
+	if !strings.Contains(got, "min: {pool: []}") {
+		t.Errorf("the new `min` field must be added:\n%s", got)
+	}
+	assertReparses(t, got)
+}
+
 // TestMerge_ShapeMismatchObjectToReference: a kept key that was an inline object
 // but is now a named-type REFERENCE (e.g. `address: {…}` → `address:
 // friendlyAddress`) switches to the reference; the old object is orphaned. This
