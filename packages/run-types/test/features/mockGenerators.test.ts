@@ -108,3 +108,19 @@ describe('mock generators: type-first, both call shapes', () => {
     expect(lastNameLooksLikeFirst).toBeLessThan(DRAWS / 4);
   });
 });
+
+describe('mock generators: the three phone generators agree', () => {
+  // One seed draws one country row: the full number starts with that row's calling code, and the local number has
+  // the national length the full number carries after it.
+  it('for the same seed', () => {
+    const code = createMockDataFn(TF.string({generator: GEN.phoneCountryCode}));
+    const full = createMockDataFn(TF.string({generator: GEN.phoneNumber}));
+    const local = createMockDataFn(TF.string({generator: GEN.phoneNumberLocal}));
+    for (let seed = 1; seed <= 200; seed++) {
+      const options = {mock: {seed}};
+      const [countryCode, number, national] = [code(options), full(options), local(options)];
+      expect(number.startsWith(countryCode), `${number} vs ${countryCode}`).toBe(true);
+      expect(national).toHaveLength(number.length - countryCode.length);
+    }
+  });
+});

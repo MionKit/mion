@@ -142,8 +142,8 @@ function childDataNodeByName(node: MockDataNode | undefined, name: string | numb
   return asDataNode(node[name as string]);
 }
 
-/** The string params a MockData generator must satisfy: none for a plain string, the stringFormat's otherwise. A
- *  named family (email, url, …) has rules a generator cannot be checked against, so it throws instead. **/
+/** The string params a MockData generator must satisfy: none for a plain string, the stringFormat's otherwise (its
+ *  own generator and samples have no check of their own). A named family (email, url, …) mocks itself, so it throws. **/
 function dataGeneratorParams(runType: RunType): StringParams {
   const annotation = runType.formatAnnotation;
   if (!annotation) return {};
@@ -152,10 +152,7 @@ function dataGeneratorParams(runType: RunType): StringParams {
       `MockData generator: the \`${annotation.name}\` format mocks itself; a generator works on a plain string or a String format.`
     );
   }
-  const params: StringParams = {...(annotation.params as StringParams)};
-  delete params.generator;
-  delete params.mockSamples;
-  return params;
+  return annotation.params as StringParams;
 }
 
 /** Non-empty value pool from the current data node, or undefined. **/

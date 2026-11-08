@@ -6,7 +6,7 @@
 //   R3 acceptor: every output passes stringParamsAccept, the validator mirror.
 //   R4 no crash: a throw is only ever the named "cannot fit" or "values failed" error.
 //   R5 determinism: the same seed draws the same value.
-// Negative control: an output with a char outside its table breaks R2.
+// Negative controls: a broken draw makes each rule fire.
 
 import {describe, it, expect} from 'vitest';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
@@ -18,7 +18,7 @@ import type {StringParams} from '../../../src/formats/string/stringFormats.ts';
 
 const RUNS = 3000;
 const NAMES = Object.keys(mockGeneratorMeta) as (keyof typeof mockGeneratorMeta)[];
-const upTo = (n: number): number => Math.floor(Math.random() * n);
+const upTo = (limit: number): number => Math.floor(Math.random() * limit);
 
 interface Case {
   name: keyof typeof mockGeneratorMeta;
@@ -83,12 +83,16 @@ function referenceViolation(value: string, meta: MockGeneratorMeta, params: Stri
 
 const KNOWN_THROW = /no value fits|no sentence fits|makes values of|values failed the format/;
 
-function checkCase(testCase: Case): string | null {
+type Draw = (testCase: Case) => string;
+const realDraw: Draw = (testCase) => mockFromGenerator(testCase.name, testCase.params, new MockRandom(testCase.seed));
+
+// `draw` is swapped only by the negative controls, to prove each rule fires.
+function checkCase(testCase: Case, draw: Draw = realDraw): string | null {
   const meta = mockGeneratorMeta[testCase.name];
   const charsOnly = !testCase.params.allowedChars && !testCase.params.disallowedChars;
   let value: string;
   try {
-    value = mockFromGenerator(testCase.name, testCase.params, new MockRandom(testCase.seed));
+    value = draw(testCase);
   } catch (error) {
     const message = (error as Error).message;
     if (!KNOWN_THROW.test(message)) return `R4 unexpected throw: ${message}`;
@@ -99,8 +103,7 @@ function checkCase(testCase: Case): string | null {
   if (reference) return `R2 ${reference} in ${JSON.stringify(value)}`;
   if (!stringParamsAccept(value, testCase.params as Record<string, unknown>, () => true))
     return `R3 rejected ${JSON.stringify(value)}`;
-  if (mockFromGenerator(testCase.name, testCase.params, new MockRandom(testCase.seed)) !== value)
-    return 'R5 the same seed drew another value';
+  if (draw(testCase) !== value) return 'R5 the same seed drew another value';
   return null;
 }
 
@@ -114,11 +117,37 @@ describe('mock generators: property fuzz', () => {
     }
   });
 
-  it('negative control: a char outside the table breaks the reference rule', () => {
-    const meta = mockGeneratorMeta.lastName;
-    const value = mockFromGenerator('lastName', {}, new MockRandom(1));
-    expect(referenceViolation(value, meta, {})).toBeNull();
-    expect(referenceViolation(value + '\u{1F4A9}', meta, {})).toMatch(/not in the table/);
-    expect(referenceViolation('Smith', meta, {maxLength: 3})).toMatch(/length/);
+  it('negative control: each rule fires on a broken draw', () => {
+    const base: Case = {name: 'lastName', params: {}, seed: 1};
+    const fixed =
+      (value: string): Draw =>
+      () =>
+        value;
+    // R1: a "cannot fit" throw where the bounds do overlap.
+    expect(
+      checkCase(base, () => {
+        throw new Error('values failed the format');
+      })
+    ).toMatch(/^R1/);
+    // R2: a char outside the table, a length outside the bounds, a char the allowed set lacks.
+    expect(checkCase(base, fixed('Smith\u{1F4A9}'))).toMatch(/^R2 .*not in the table/);
+    expect(checkCase({...base, params: {maxLength: 3}}, fixed('Smith'))).toMatch(/^R2 length/);
+    expect(checkCase({...base, params: {allowedChars: {val: 'Smit'}}}, fixed('Smith'))).toMatch(/^R2 char h not allowed/);
+    expect(checkCase({...base, params: {disallowedChars: {val: 'h', mockSamples: 'x'}}}, fixed('Smith'))).toMatch(
+      /^R2 char h disallowed/
+    );
+    // R3: a value the reference accepts but the validator mirror rejects (a pattern the reference does not read).
+    expect(checkCase({...base, params: {pattern: {source: '^Lee$'}}}, fixed('Smith'))).toMatch(/^R3/);
+    // R4: any other throw.
+    expect(
+      checkCase(base, () => {
+        throw new Error('boom');
+      })
+    ).toMatch(/^R4/);
+    // R5: a draw that changes between two calls with one seed.
+    let calls = 0;
+    expect(checkCase(base, () => (calls++ === 0 ? 'Smith' : 'Lee'))).toMatch(/^R5/);
+    // The real draw passes.
+    expect(checkCase(base)).toBeNull();
   });
 });
