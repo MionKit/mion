@@ -99,6 +99,8 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.codes).toContain('format-sample-out-of-bounds');
     expect(result.ok).toBe(false);
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-sample-out-of-bounds-mock-only/index.ts'), line: 9});
+    // Both call shapes, static then value, report it at their own line.
+    expect(result.messages.join('\n')).toMatch(/error format-sample-out-of-bounds \(2\)[\s\S]*index\.ts:13:\d+/);
   }, 60_000);
 
   it('format-generator-invalid: a generator the format leaves nothing to produce', async () => {
@@ -106,6 +108,8 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.codes).toContain('format-generator-invalid');
     expect(result.ok).toBe(false);
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-generator-invalid/index.ts'), line: 8});
+    // Both call shapes, static then value, report it at their own line.
+    expect(result.messages.join('\n')).toMatch(/error format-generator-invalid \(2\)[\s\S]*index\.ts:12:\d+/);
   }, 60_000);
 
   it('format-generator-invalid: reported at a mock-only site', async () => {
@@ -113,6 +117,8 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.codes).toContain('format-generator-invalid');
     expect(result.ok).toBe(false);
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-generator-invalid-mock-only/index.ts'), line: 8});
+    // Both call shapes, static then value, report it at their own line.
+    expect(result.messages.join('\n')).toMatch(/error format-generator-invalid \(2\)[\s\S]*index\.ts:12:\d+/);
   }, 60_000);
 
   it('format-sample-generation-failed: a pattern the sample generator cannot handle', async () => {

@@ -74,13 +74,27 @@ func TestGeneratorID_ValueFirstBuilder(t *testing.T) {
 export const last = getRunTypeId<LastLiteral>();
 const built = TF.string({maxLength: 120, generator: GEN.lastName});
 export const builtID = getRunTypeId(built);
+const nested = TF.string({maxLength: 120, generator: TF.GEN.lastName});
+export const nestedID = getRunTypeId(nested);
 `)
 	for _, diag := range diags {
 		if strings.HasPrefix(diag.Code, "marker-comptime-arg-") {
 			t.Fatalf("GEN.lastName must be read as a literal, got %+v", diag)
 		}
 	}
-	if len(ids) < 2 || ids[0] != ids[len(ids)-1] {
-		t.Fatalf("the builder must converge on the type-first id, got %v", ids)
+	if len(ids) < 3 || ids[0] != ids[len(ids)-2] || ids[0] != ids[len(ids)-1] {
+		t.Fatalf("both builder spellings must converge on the type-first id, got %v", ids)
+	}
+}
+
+// TestGeneratorID_StaticEqualsValue: the two getRunTypeId call shapes give one id for the same generator type.
+func TestGeneratorID_StaticEqualsValue(t *testing.T) {
+	ids, _ := scanGeneratorIDs(t, generatorTypes+`
+declare const lastValue: Last;
+export const static_ = getRunTypeId<Last>();
+export const value = getRunTypeId(lastValue);
+`)
+	if len(ids) != 2 || ids[0] != ids[1] {
+		t.Fatalf("both call shapes must give one id, got %v", ids)
 	}
 }
