@@ -27,7 +27,7 @@ export const valueShape = {mock: createMockDataFn(seed), isValid: createValidate
 `;
 
 type Shape = {mock: () => unknown; isValid: (value: unknown) => boolean};
-type Chunk = {type: string; code?: string; fileName: string; isEntry?: boolean};
+type BuildOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 
 let root: string;
 let app: {staticShape: Shape; valueShape: Shape};
@@ -53,9 +53,9 @@ beforeAll(async () => {
     ],
     build: {write: false, minify: false, lib: {entry: path.join(root, 'app.ts'), formats: ['es'], fileName: 'app'}},
   });
-  const outputs = (Array.isArray(result) ? result : [result]) as {output: Chunk[]}[];
+  const outputs = (Array.isArray(result) ? result : [result]) as BuildOutput[];
   const chunks = outputs.flatMap((out) => out.output).filter((chunk) => chunk.type === 'chunk');
-  for (const chunk of chunks) writeFileSync(path.join(root, chunk.fileName), chunk.code ?? '');
+  for (const chunk of chunks) writeFileSync(path.join(root, chunk.fileName), chunk.code);
   const entry = chunks.find((chunk) => chunk.isEntry);
   if (!entry) throw new Error('build produced no entry chunk');
   app = await import(pathToFileURL(path.join(root, entry.fileName)).href);
@@ -74,8 +74,8 @@ describe('format mocks in a production bundle', () => {
 });
 
 describe('package.json sideEffects', () => {
+  const {sideEffects} = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as {sideEffects: string[]};
   it('keeps every file src reaches through a bare import', () => {
-    const {sideEffects} = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as {sideEffects: string[]};
     const kept = (file: string) => sideEffects.some((glob) => path.matchesGlob(`./${file}`, glob));
     const dropped: string[] = [];
     for (const file of globSync('src/**/*.ts', {cwd: packageRoot})) {
@@ -89,7 +89,6 @@ describe('package.json sideEffects', () => {
   });
 
   it('every src glob has its dist twin', () => {
-    const {sideEffects} = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as {sideEffects: string[]};
     const twins = sideEffects
       .filter((glob) => glob.startsWith('./src/'))
       .map((glob) => glob.replace('./src/', './dist/').replace(/\.ts$/, '.js'));
