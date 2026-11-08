@@ -1,6 +1,5 @@
-// Exact runtime mirror of the stringFormat validator (Go `stringConditions`): the mock walker uses it to keep only
-// candidates the emitted validator accepts. Lengths count code points and every char / value set rebuilds the
-// validator's own regex, so a mock this accepts always re-passes `validate`.
+// Exact mirror of the stringFormat validator (Go `stringConditions`), rebuilding its regexes, so a mock candidate
+// this accepts always re-passes `validate`.
 
 /** Code points, the unit JSON Schema length bounds and the emitted validator count in. **/
 export function codePointLength(value: string): number {
@@ -9,7 +8,7 @@ export function codePointLength(value: string): number {
   return count;
 }
 
-/** True when `value` passes every stringFormat param; `unknownParam` answers (or throws) for a key this cannot test. **/
+/** `unknownParam` answers (or throws) for a key this cannot test. **/
 export function stringParamsAccept(
   value: string,
   params: Record<string, unknown>,
@@ -64,7 +63,7 @@ function paramAccepts(
   }
 }
 
-// `^[…]+$` must match (allowed) or `[…]` must not (disallowed); an empty set is no check, as in Go `readCharParam`.
+// An empty set is no check, as in Go `readCharParam`.
 function charSetAccepts(param: unknown, value: string, source: (escaped: string) => string, mustMatch: boolean): boolean {
   const set = param as {val?: unknown; ignoreCase?: unknown} | undefined;
   if (!set || typeof set.val !== 'string' || set.val === '') return true;
@@ -72,7 +71,6 @@ function charSetAccepts(param: unknown, value: string, source: (escaped: string)
   return matched === mustMatch;
 }
 
-// `^(?:v1|v2…)$`, asserted for allowedValues and negated for disallowedValues; an empty list is no check.
 function valueSetAccepts(param: unknown, value: string, mustMatch: boolean): boolean {
   const set = param as {val?: unknown; ignoreCase?: unknown} | undefined;
   const values = Array.isArray(set?.val) ? set.val.filter((entry): entry is string => typeof entry === 'string') : [];

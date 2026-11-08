@@ -1,6 +1,3 @@
-// Custom mock generators: a name declared on CustomMockGenerators and registered once mocks like a built-in,
-// standalone, nested, from a MockData node and under a seed. An unregistered name and a reused name throw.
-
 import {describe, it, expect} from 'vitest';
 import {createValidateFn} from '@mionjs/run-types';
 import {createMockDataFn, registerMockGenerator, type GeneratorContext} from '@mionjs/run-types/mocking';

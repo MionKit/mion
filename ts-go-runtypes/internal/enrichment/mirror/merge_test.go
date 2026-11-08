@@ -344,8 +344,7 @@ func TestMerge_AuthoredReservedKey_Survives(t *testing.T) {
 	assertReparses(t, got)
 }
 
-// TestMerge_LeafKeyNamedFieldMerges: an object-literal value under `pool` / `min` is a real field of the type, so
-// `--update` merges it like any field: a dropped one is orphaned and a new one is added, never skipped as settings.
+// TestMerge_LeafKeyNamedFieldMerges: an object under `pool` / `min` is a real field, so `--update` merges it like any.
 func TestMerge_LeafKeyNamedFieldMerges(t *testing.T) {
 	existing := "{pool: {pool: ['a']}, name: {pool: []}}"
 	desired := "{name: {pool: []}, min: {pool: []}}"

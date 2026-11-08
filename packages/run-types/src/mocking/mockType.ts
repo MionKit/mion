@@ -142,8 +142,7 @@ function childDataNodeByName(node: MockDataNode | undefined, name: string | numb
   return asDataNode(node[name as string]);
 }
 
-/** The string params a MockData generator must satisfy: none for a plain string, the stringFormat's otherwise (its
- *  own generator and samples have no check of their own). A named family (email, url, …) mocks itself, so it throws. **/
+/** The string params a MockData generator must satisfy; the format's own generator and samples check nothing. **/
 function dataGeneratorParams(runType: RunType): StringParams {
   const annotation = runType.formatAnnotation;
   if (!annotation) return {};

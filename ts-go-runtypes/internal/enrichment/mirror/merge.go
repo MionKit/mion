@@ -96,8 +96,7 @@ func newObjectView(text string, sourceFile *ast.SourceFile, node *ast.Node) *obj
 }
 
 // fieldKeys returns the DATA-field keys in declaration order; a meta key belongs to the node and is never merged as a field.
-// An rt$ key is always meta, the prefix being RESERVED; a bare meta key (mock `pool` / `min` / `max`) is meta only when
-// its value is not an object literal, since every field value is an object node and a type may declare a `pool` field.
+// An rt$ key is always meta; a bare one (mock `pool` / `min` / `max`) only when its value is not an object literal.
 func (view *objectView) fieldKeys(metaKeys map[string]bool) []string {
 	out := make([]string, 0, len(view.order))
 	for _, key := range view.order {

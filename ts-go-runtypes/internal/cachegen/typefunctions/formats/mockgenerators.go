@@ -9,18 +9,15 @@ import (
 // lenSpan is an inclusive range of lengths, in code points.
 type lenSpan struct{ Min, Max int }
 
-// MockGenerator is one built-in mock generator: a string format's `generator` param names it, and the mock draws
-// a realistic value from it. The lengths and characters describe its data exactly, so the build can tell when a
-// format's own rules leave the generator nothing to produce. A TS test derives the same table from the data and
-// fails when the two disagree.
+// MockGenerator describes a built-in generator's data exactly, so the build can reject a format it cannot satisfy.
+// mockGeneratorMeta.test.ts derives the same table from the TS data and fails when the two disagree.
 type MockGenerator struct {
 	// Name is the drizzle-seed name, also the TS const / type and the GEN member.
 	Name    string
 	Summary string
 	// Lengths are the exact achievable lengths, ascending and disjoint.
 	Lengths []lenSpan
-	// Chars holds every character an output can contain, Required the ones every output contains and Leading the
-	// ones an output can start with, all sorted.
+	// Chars: every char an output can contain; Required: in every output; Leading: can start one. All sorted.
 	Chars    string
 	Required string
 	Leading  string
@@ -71,10 +68,8 @@ func lookupMockGenerator(name string) (MockGenerator, bool) {
 	return MockGenerator{}, false
 }
 
-// GeneratorProblems explains why a string format's `generator` cannot mock it, one message per reason; nil when it
-// can. fromData marks a MockData generator, which wins over the format's own mockSamples, so those do not clash.
-// A name that is not built in is a custom generator registered at run time: the build has no table for it, so only
-// the param combinations are checked and the mock throws when nothing registered it.
+// GeneratorProblems lists why `generator` cannot mock a format; a MockData one (fromData) overrides mockSamples.
+// A name not built in is a custom run-time generator: no table, so only param combinations are checked.
 func GeneratorProblems(name any, params map[string]any, fromData bool) []string {
 	generator, isString := name.(string)
 	if !isString || generator == "" {

@@ -1,6 +1,5 @@
-// Mock generators by name: the built-ins, plus the ones a team registers with registerMockGenerator.
-// mockFromGenerator draws a value that fits the format's lengths (a built-in throws when none can), then keeps it only if the format's other string
-// rules (pattern, allowedChars, disallowedChars) accept it, so the mock always re-passes its own validator.
+// mockFromGenerator keeps a drawn value only if the format's pattern and char rules accept it, so the mock always
+// re-passes its own validator.
 
 import type {CustomMockGenerators} from '../../formats/index.ts';
 import type {BuiltinMockGenerators} from '../../go-generated/mockGeneratorMeta.generated.ts';
@@ -17,8 +16,7 @@ const MAX_ATTEMPTS = 64;
 
 const customGenerators = new Map<string, GeneratorFn>();
 
-/** Registers a generator so a string format's `generator: name` mocks with it. Declare the name on
- *  CustomMockGenerators first. A built-in name, or a name registered twice, throws. **/
+/** Declare the name on CustomMockGenerators first; a built-in or already registered name throws. **/
 export function registerMockGenerator(customName: Extract<keyof CustomMockGenerators, string>, generator: GeneratorFn): void {
   const name: string = customName;
   if (isBuiltin(name)) throw new Error(`registerMockGenerator: \`${name}\` is a built-in generator; pick another name.`);
@@ -27,7 +25,6 @@ export function registerMockGenerator(customName: Extract<keyof CustomMockGenera
   customGenerators.set(name, generator);
 }
 
-/** A value from the named generator that the string format's own params accept. **/
 export function mockFromGenerator(name: string, params: StringParams, random: MockRandom): string {
   const generator = isBuiltin(name) ? BUILTIN_GENERATORS[name] : customGenerators.get(name);
   if (!generator) {

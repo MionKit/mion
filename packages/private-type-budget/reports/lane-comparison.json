@@ -83,8 +83,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 553,
-              "budget": 553
+              "delta": 558,
+              "budget": 558
             },
             {
               "step": 2,
@@ -111,7 +111,7 @@
               "budget": 3346
             }
           ],
-          "total": 5001
+          "total": 5006
         }
       ]
     },
@@ -196,8 +196,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 553,
-              "budget": 553
+              "delta": 558,
+              "budget": 558
             },
             {
               "step": 2,
@@ -224,7 +224,7 @@
               "budget": 3346
             }
           ],
-          "total": 5001
+          "total": 5006
         }
       ]
     },
@@ -309,8 +309,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 549,
-              "budget": 549
+              "delta": 554,
+              "budget": 554
             },
             {
               "step": 2,
@@ -337,7 +337,7 @@
               "budget": 3346
             }
           ],
-          "total": 4992
+          "total": 4997
         }
       ]
     }

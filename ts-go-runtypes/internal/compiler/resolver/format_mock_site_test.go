@@ -9,8 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// A mock-only site compiles no validator for its type, so the format checks must still reach the mock site, or the
-// build passes and the mock throws at run time. These use scanGenerator (format_generator_test.go).
+// A mock-only site compiles no validator, so without these checks the build passes and the mock throws at run time.
+// These use scanGenerator (format_generator_test.go).
 
 // Every sample is longer than maxLength, so the mock filters them all out and throws.
 const tooLongSamples = `type Code = TF.String<{maxLength: 2; mockSamples: ['abcd', 'xyz']}>;`

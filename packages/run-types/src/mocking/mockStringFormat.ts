@@ -107,10 +107,8 @@ function patternSampleList(pattern: PatternParam | undefined): readonly string[]
   return toSampleList(samples);
 }
 
-// filterSamplesByLength drops samples violating length / minLength / maxLength, counted in code points as the
-// validator counts them. When EVERY sample violates them the result is EMPTY, never the unfiltered list: an
-// out-of-bounds sample would fail the format's own validator, so the caller falls through to a bounded synthesizer
-// or throws instead.
+// Counts code points, as the validator does. All samples out of bounds → EMPTY, never the unfiltered list: they would
+// fail the validator, so the caller falls through to a bounded synthesizer or throws.
 function filterSamplesByLength(samples: readonly string[] | undefined, params: StringParams): readonly string[] | undefined {
   if (!samples || samples.length === 0) return samples;
   if (params.length === undefined && params.minLength === undefined && params.maxLength === undefined) return samples;

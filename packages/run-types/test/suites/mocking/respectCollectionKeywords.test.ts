@@ -182,8 +182,7 @@ describe('mock: an unsatisfiable combination throws instead of shipping a bad va
 });
 
 describe('mock: a contains child whose matcher reads the string value sets', () => {
-  // The matcher must read `{val}` exactly as the validator does: skipping the check over-counts matches, so the
-  // filler entries would also satisfy `contains` and blow `maxContains`.
+  // The matcher must read `{val}` as the validator does, or filler entries also match and blow `maxContains`.
   it('allowedValues: exactly the asked count of matching entries', () => {
     const schema = RT.array(TF.string(), {
       minItems: 3,

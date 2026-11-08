@@ -97,8 +97,7 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, polic
 	case ast.KindIdentifier:
 		return traceIdentifier(typeChecker, unwrapped, depth, policy)
 	case ast.KindPropertyAccessExpression:
-		// A const exported by a namespace import (`GEN.lastName`, `TF.GEN.lastName`) is traced like the bare imported
-		// name. Any other member (a function like `RT.boolean`, a property of an object const) stays refused.
+		// A const exported by a namespace import (`GEN.lastName`) traces like the bare name; any other member is refused.
 		if name := unwrapped.AsPropertyAccessExpression().Name(); isModuleMember(typeChecker, unwrapped) {
 			if _, isConst := resolveConstInitializerCrossModule(typeChecker, name); isConst {
 				return traceIdentifier(typeChecker, name, depth, policy)
@@ -471,8 +470,7 @@ func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, po
 	return CheckLiteral(typeChecker, initializer, depth+1, policy)
 }
 
-// isModuleMember reports whether a property access reads an export of a module: its left side resolves, through
-// import aliases, to a module symbol (`import * as GEN`, or a chain like `TF.GEN` over `export * as GEN`).
+// isModuleMember reports whether the left side resolves through import aliases to a module (`GEN`, or `TF.GEN`).
 func isModuleMember(typeChecker *checker.Checker, access *ast.Node) bool {
 	if typeChecker == nil {
 		return false

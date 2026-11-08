@@ -1,6 +1,5 @@
-// Builds a generated value to fit [lo, hi] code points: a value is a row of parts, and each part's length is chosen
-// left to right among the lengths from which the remaining parts can still reach the bounds. So whenever any
-// combination fits, one is returned, and every draw goes through the shared MockRandom.
+// Picks each part's length left to right among those that let the rest still reach [lo, hi] code points, so a value
+// is returned whenever any combination fits. Every draw goes through the shared MockRandom.
 
 import type {MockRandom} from '../mockRandom.ts';
 import type {Part, Shapes} from './types.ts';
@@ -14,7 +13,7 @@ export function literalPart(text: string): Part {
   return {lengths: [text.length], chars: text, common: text, leading: text.charAt(0), count: () => 1, draw: () => text};
 }
 
-/** One entry of a list, uniform among the entries of the chosen length. ASCII lists only, so `.length` counts code points. **/
+/** ASCII lists only, so `.length` counts code points. **/
 export function listPart(list: readonly string[]): Part {
   const byLength = new Map<number, string[]>();
   for (const entry of list) {
@@ -67,8 +66,7 @@ export function digitsPart(digits: number, leadingZero = false): Part {
   };
 }
 
-/** Every character a value of any shape can contain, the ones every value contains, and the ones a value can start
- *  with, all sorted. **/
+/** chars: in any value; required: in every value; leading: can start a value. All sorted. **/
 export function shapeChars(shapes: Shapes): {chars: string; required: string; leading: string} {
   const chars = new Set<string>();
   const leading = new Set<string>();
@@ -99,8 +97,7 @@ export function fits(parts: readonly Part[], lo: number, hi: number): boolean {
   return anyIn(suffixReach(parts)[0], lo, hi);
 }
 
-/** A value of the parts within [lo, hi], or undefined when none fits. Lengths are weighted by how many values they
- *  hold, so an unbounded draw is uniform over the whole list. **/
+/** Weights lengths by how many values they hold, so an unbounded draw is uniform over the whole list. **/
 export function compose(parts: readonly Part[], random: MockRandom, lo = 0, hi = Infinity): string | undefined {
   const reach = suffixReach(parts);
   if (!anyIn(reach[0], lo, hi)) return undefined;

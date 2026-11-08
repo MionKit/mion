@@ -6,8 +6,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// TestLeafFormat_GeneratorKeepsTheGenericSpelling: `generator` is a public String param, so a format carrying one
-// still prints through TF.String, while a key outside the public surface demotes to the exact constructor.
+// TestLeafFormat_GeneratorKeepsTheGenericSpelling: public `generator` prints via TF.String; a non-public key demotes.
 func TestLeafFormat_GeneratorKeepsTheGenericSpelling(t *testing.T) {
 	withGenerator, _, ok := LeafFormat(&reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"generator": "lastName"}})
 	if !ok || withGenerator.Exact {

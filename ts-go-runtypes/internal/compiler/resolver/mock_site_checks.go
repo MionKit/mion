@@ -12,9 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// mockRelevantFormatCodes are the format findings that make a mock throw or come out invalid. The validate walk
-// raises them at validate sites; a createMockDataFn site demands no validator, so it gets them here instead.
-// Validator-only findings (an unsafe or unreadable pattern) stay with the sites that compile a validator.
+// mockRelevantFormatCodes make a mock throw or come out invalid; a mock-only site has no validator to raise them.
 var mockRelevantFormatCodes = map[string]bool{
 	diagnostics.CodeFMTInvalidParams:    true,
 	diagnostics.CodeFMTSampleBounds:     true,
@@ -25,11 +23,8 @@ var mockRelevantFormatCodes = map[string]bool{
 	diagnostics.CodeFMTGeneratorInvalid: true,
 }
 
-// mockSiteFormatDiagnostics checks every format reachable from each createMockDataFn-only site, at any depth (union
-// members, Map / Set entries included), with the same emitter checks a validate walk runs. Must run after
-// enrichPatternSamples, so a generated sample pool counts. One diagnostic per site per distinct finding.
-// Built here rather than through a family walker: a mock-only site demands no family that checks formats, and the
-// mock walks the whole graph at run time, so every reachable format is one the mock really uses.
+// mockSiteFormatDiagnostics must run after enrichPatternSamples, so a generated sample pool counts.
+// No family walker covers a mock-only site, and the mock walks the whole graph, so every reachable format is checked.
 func (sess *Session) mockSiteFormatDiagnostics(sites []protocol.Site) []diagnostics.Diagnostic {
 	if sess == nil || sess.cache == nil {
 		return nil
@@ -60,8 +55,7 @@ func (sess *Session) mockSiteFormatDiagnostics(sites []protocol.Site) []diagnost
 	return out
 }
 
-// isMockOnlySite is a site whose only demand is the fmt entry a mock-shaped signature adds (scan.go
-// mockFormatTransformDemand): no fnId, so no validator is compiled for it.
+// isMockOnlySite is a site demanding only scan.go's mockFormatTransformDemand: no validator is compiled for it.
 func isMockOnlySite(site protocol.Site) bool {
 	if site.ID == "" || site.FnId != "" || len(site.FnIds) != 0 || len(site.Demand) != 1 {
 		return false
@@ -69,8 +63,7 @@ func isMockOnlySite(site protocol.Site) bool {
 	return site.Demand[0].FamilyTag == mockFormatTransformDemand()[0].FamilyTag
 }
 
-// formatProblemRecorder runs a format's param checks and its validate emit for their diagnostics only: the emitted
-// code and every hoisted declaration are discarded by the embedded scratch context.
+// formatProblemRecorder keeps only diagnostics: the scratch context discards emitted code and hoisted declarations.
 type formatProblemRecorder struct {
 	*formats.ScratchEmitContext
 	sess     *Session

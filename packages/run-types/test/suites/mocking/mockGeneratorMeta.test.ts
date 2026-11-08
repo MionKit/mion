@@ -1,5 +1,4 @@
-// The Go generator table (mirrored in mockGeneratorMeta.generated.ts) must describe the TS data exactly: the
-// lengths and characters each built-in can produce, derived here from its shapes, and the names on every side.
+// The Go generator table (mockGeneratorMeta.generated.ts) must match the lengths, chars and names the TS shapes give.
 
 import {describe, it, expect} from 'vitest';
 import {GEN} from '@mionjs/run-types/formats';

@@ -1,12 +1,6 @@
-// Property fuzz for the mock generators: random generator x random length bounds near its span edges x optional
-// character sets. Pure TS, unit lane (no Go binary). Rules, each checked on every draw:
-//   R1 fit: with length bounds only, when the table says the bounds overlap, the draw never throws.
-//   R2 reference: every output fits its bounds (code points), uses only table chars, holds every required char, and
-//      obeys the char sets by an independent Set check (not the validator's regexes).
-//   R3 acceptor: every output passes stringParamsAccept, the validator mirror.
-//   R4 no crash: a throw is only ever the named "cannot fit" or "values failed" error.
-//   R5 determinism: the same seed draws the same value.
-// Negative controls: a broken draw makes each rule fire.
+// Property fuzz for the mock generators, unit lane (pure TS, no Go binary). Every draw checks R1 overlapping
+// bounds never throw, R2 a Set-based reference independent of the validator's regexes, R3 stringParamsAccept,
+// R4 only the named errors throw, R5 one seed draws one value. Negative controls make each rule fire.
 
 import {describe, it, expect} from 'vitest';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
@@ -61,7 +55,7 @@ function lengthBounds(params: StringParams): [number, number] {
   return [params.minLength ?? 0, params.maxLength ?? Infinity];
 }
 
-// The TS mirror of the build's length rule (formats.GeneratorProblems): some span reaches the bounds.
+// Mirrors the length rule in formats.GeneratorProblems.
 function lengthsOverlap(meta: MockGeneratorMeta, params: StringParams): boolean {
   const [lo, hi] = lengthBounds(params);
   return meta.lengths.some(([min, max]) => max >= lo && min <= hi);
@@ -147,7 +141,6 @@ describe('mock generators: property fuzz', () => {
     // R5: a draw that changes between two calls with one seed.
     let calls = 0;
     expect(checkCase(base, () => (calls++ === 0 ? 'Smith' : 'Lee'))).toMatch(/^R5/);
-    // The real draw passes.
     expect(checkCase(base)).toBeNull();
   });
 });

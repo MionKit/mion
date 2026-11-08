@@ -9,10 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// mockWalkRows gives every reflected kind a row for the MockData walks: a value of that kind built around a child
-// (nil when the kind is never a field value). The coverage test scaffolds each value, puts a generator that cannot
-// fit on every leaf the scaffold writes, and expects the check to report each one: a slot the scaffold writes but
-// the check skips fails it. A new kind fails until it gets a row.
+// mockWalkRows gives every kind a row (nil: never a field value); a new kind fails the coverage test until it has one.
+// A slot the scaffold writes but the check skips fails the coverage test too.
 var mockWalkRows = map[reflection.ReflectionKind]func(child *reflection.RunType) *reflection.RunType{
 	reflection.KindObjectLiteral: func(child *reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{prop("a", child)}}

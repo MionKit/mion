@@ -44,8 +44,7 @@ func ErrorKeysForParams(kind reflection.ReflectionKind, name string, params map[
 	return ScanErrorKeys(emitter.EmitValidationErrorsCheck(annotation, "v", "pth", "er", NewScratchEmitContext()))
 }
 
-// ScratchEmitContext is the EmitContext for a throwaway emit whose code is discarded: hoists and pure-fn uses are
-// dropped, diagnostics ignored. The error-key scan uses it as is; a caller that wants the diagnostics embeds it.
+// ScratchEmitContext discards a throwaway emit's code, hoists and diagnostics; embed it to keep the diagnostics.
 type ScratchEmitContext struct {
 	items    map[string]bool
 	counters map[string]int
