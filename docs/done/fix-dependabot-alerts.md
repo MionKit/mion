@@ -37,8 +37,10 @@ dependency and with it express 4 (`proxy-addr` critical, `body-parser`, `qs`, `u
   name with a one-line comment naming the version it was added for. Every exclude entry AND every `overrides`
   entry this work adds carries the same greppable comment: `# security fix (Dependabot), added <YYYY-MM-DD>`,
   so a later cleanup finds and removes all of them.
-- Always the LOWEST version that clears every alert on that package, never "latest".
-- Benchmark competitors move vite 5.4.21 → 8.1.6 (same as the workspace). Benchmark numbers get rerun.
+- Always the LOWEST version that clears every alert on that package, never "latest". One exception: miniflare
+  (see **What shipped**).
+- Benchmark competitors move vite 5.4.21 → 8.1.6 (same as the workspace). Benchmark numbers are not rerun:
+  vite only builds the bench bundles and no bench measures the build.
 - `@mionjs/platform-gcloud` stops shipping the functions framework as a runtime dependency (step 2).
 
 ## Plan
@@ -185,35 +187,47 @@ Where the build left the plan above:
 
 - **miniflare 4.20260730.0**, the newest release past the 30-day cutoff, not the oldest that fixes the alerts:
   its version is a workerd runtime date, so an older one only tests against an older runtime.
-- **Root overrides** (`pnpm-workspace.yaml`): `tinypool` (oxfmt pins 2.1.0 exactly; bumping oxfmt changes
-  formatting), `body-parser` 2.4.0 and `qs` 6.16.1 (express 5 ranges still allow the bad copies).
+- **vue 3.5.42**, not 3.5.43: the lowest fix, and it clears postcss and source-map-js too.
+- **One root override** (`pnpm-workspace.yaml`): `tinypool` (oxfmt pins 2.1.0 exactly; bumping oxfmt changes
+  formatting). body-parser and qs need none: express 5's ranges already resolve the fixed copies.
   `@types/express` 4.17.25 → 5.0.6 to match framework 5.
+- **Dropped per-package pins:** `packages/private-go-be-sidecar` loses its own `vite` (the root one serves it).
+  devtools keeps `vite` + `@mionjs/bin-compiler` as dev deps (they satisfy its own peers), now named in
+  `packages/AGENTS.md`.
 - **vite 8.1.6 deprecation:** `inlineDynamicImports: true` → `codeSplitting: false` in the four private-package
-  vite configs and `container/pre-publish-e2e/mion-consumer/edge/vite.config.ts` (same output, no warning).
-- **vite-plugin-dts 5:** all 514 emitted `.d.ts` files byte-identical before and after.
+  es-format configs (`private-test-server` cloudflare-storage, `private-examples` cloudflare,
+  `container/pre-publish-e2e/mion-consumer/edge`). The two iife test-server configs drop the line: vite 8 already
+  sets it for iife.
+- **vite-plugin-dts 5:** all 514 emitted `.d.ts` files byte-identical before and after. A repo contract now pins
+  each `outDirs` to the folder its package's `exports['.'].types` points into.
 - **platform-gcloud test:** the contract lives in `packages/devtools/test/repo-contracts.test.ts` beside the
-  platform-bun one (no runtime import of express or the framework in `src/`, framework only as a peer);
-  it fails on the old value import. The built JS mentions express only in comments.
+  platform-bun one (no runtime import of express or the framework in `index.ts` or `src/`, framework only as a
+  peer); it fails on the old value import. The built JS mentions express only in comments. The planned
+  pack-and-`tsc` consumer check was not run: every framework version in the peer range ships `@types/express`
+  as a dependency, so the published `.d.ts` resolves wherever the framework is installed.
 - **`minimatch` 10.2.5 (root) left:** its only parent is `rimraf` 6.1.3 → `glob` 13; the fix needs rimraf 6.1.4 +
   glob 14 + minimatch 11 + `path-scurry` 3 + a brand-new `@isaacs/nonrecursive-glob-match`, all under 30 days old,
   for a dev-only cleanup tool fed our own patterns. minimatch 11 drops APIs glob 13 uses, so no override either.
-- **Website: nuxt 4.5.2, not 4.6.3.** 4.6.x needs vite ^8.3.4 and vue ^3.5.44, about 50 packages under 30 days
-  old. 4.5.2 clears every high nuxt alert with no exceptions; the 4 left are server- or dev-server-only.
+- **Website: nuxt 4.5.1, not 4.6.3.** 4.6.x needs vite ^8.3.4 and vue ^3.5.44, about 50 packages under 30 days
+  old. 4.5.1 clears every high nuxt alert with no exceptions. The 4 left: 3 are server- or dev-server-only;
+  GHSA-jjm6-p2m9-9w4x (low) is a `javascript:` link in `<NuxtLink>` only when `pages` is off, and the site uses pages.
   **docus stays 5.9.0:** `@nuxtjs/mcp-toolkit`'s `^1.29.0` range already reaches the fixed MCP sdk.
   In-range refresh in the container (`pnpm update --lockfile-only --depth Infinity <names>`), exact-version
   exceptions (`@intlify/*` + vue-i18n 11.4.14, `@nuxt/devtools*` 3.4.3, which drops simple-git, body-parser,
   dompurify, fast-uri, ip-address, node-forge, qs, serialize-javascript, zod), overrides for
-  `@ai-sdk/provider-utils`, `vue` (dedupes a 3.5.34 peer copy), `ws`, `zod` 4.x. 243 → 18 open.
+  `@ai-sdk/provider-utils`, `vue` (dedupes a 3.5.34 peer copy), `ws`. The policy also gains the
+  `allowNonRegistryProtocols: false` its `AGENTS.md` already promised. 243 → 18 open.
 - **Benchmarks: not rerun** (maintainer's call). Every lane, mion included, builds and passes
   `pnpm miondevx bench smoke` on vite 8.1.6. The compile-time bench config is already lean
-  (`minify: false`, `reportCompressedSize: false`): no vite option worth tuning. `bench servers` not run.
+  (`minify: false`, `reportCompressedSize: false`): no vite option worth tuning. `bench servers` not run for
+  the same reason.
 - **e2e:** next 16.4.1 needs its 10 lockstep packages (`next`, `@next/env`, 8 `@next/swc-*`) as exact exceptions.
 - **Unplanned test fix:** `packages/run-types/test/features/mockFormatSideEffects.test.ts` built its fixture from
   `os.tmpdir()`, a symlink on macOS, which the devtools plugin rightly refuses; now `realpathSync` first.
 
 Alerts left for dismissal, each with the maintainer's OK: root `uuid` (cloudevents pins `^8` at every major) and
 `minimatch` (above); website `nuxt` / `@nuxt/nitro-server` / `@nuxt/vite-builder` (server or dev server only,
-static site), `@nuxtjs/mdc` (XSS from untrusted markdown; ours is our own; fix is a 0.x minor docus does not
+static site; GHSA-jjm6 needs `pages` off), `@nuxtjs/mdc` (XSS from untrusted markdown; ours is our own; fix is a 0.x minor docus does not
 allow), `zod` 3.25.76 (`@nuxt/content` pins `^3`; fix only in 4.x), `sharp` 0.34.5 (librsvg CVE; ipx only sees
 our own images; 0.35 swaps the native binaries), `esbuild` 0.27.7 (Windows dev server only), `katex` 0.16 (low;
 mermaid pins `^0.16`), `glob` / `minimatch` majors, `deepmerge` (no fix exists).
@@ -221,8 +235,9 @@ mermaid pins `^0.16`), `glob` / `minimatch` majors, `deepmerge` (no fix exists).
 ## Out of scope
 
 - A `.github/dependabot.yml` for automatic update PRs: separate decision.
-- Upgrading anything that has no open alert, or past the lowest fixing version. One exception, step 1b:
-  `vite-plugin-dts` has no alert but is the only parent of two vulnerable `minimatch` copies.
+- Upgrading anything that has no open alert, or past the lowest fixing version. Exceptions: step 1b
+  `vite-plugin-dts` (no alert, but the only parent of two vulnerable `minimatch` copies), `@types/express` 5
+  (matches framework 5), miniflare (newest mature runtime).
 - Moving the container installs to committed lockfiles.
 
 ## Done when
