@@ -52,16 +52,17 @@ export const BUILTIN_SHAPES = {
 
 export const BUILTIN_GENERATORS: Record<keyof BuiltinMockGenerators, GeneratorFn> = {
   ...(Object.fromEntries(
-    Object.entries(BUILTIN_SHAPES).map(([name, shapes]) => [name, (ctx: GeneratorContext) => pickShape(name, shapes, ctx)])
+    Object.entries(BUILTIN_SHAPES).map(([name, shapes]) => [name, (ctx: GeneratorContext) => pickShape(shapes, ctx)])
   ) as Record<keyof BuiltinMockGenerators, GeneratorFn>),
   loremIpsum,
 };
 
-function pickShape(name: string, shapes: Shapes, ctx: GeneratorContext): string {
+function pickShape(shapes: Shapes, ctx: GeneratorContext): string {
   const lo = ctx.lo ?? 0;
   const hi = ctx.hi ?? Infinity;
   const feasible = shapes.filter((shape) => fits(shape, lo, hi));
-  if (feasible.length === 0) throw new Error(`Mock generator \`${name}\`: no value fits ${lo}..${hi} characters.`);
+  // No shape fits: a natural value, which mockFromGenerator pads or cuts to the bounds.
+  if (feasible.length === 0) return compose(shapes[ctx.random.int(0, shapes.length - 1)], ctx.random) as string;
   return compose(feasible[ctx.random.int(0, feasible.length - 1)], ctx.random, lo, hi) as string;
 }
 
@@ -79,7 +80,11 @@ function loremIpsum(ctx: GeneratorContext): string {
       bestDistance = distance;
     }
   });
-  if (!best) throw new Error(`Mock generator \`loremIpsum\`: no sentence fits ${lo}..${hi} characters.`);
+  // No sentence fits: the longest or shortest one, which mockFromGenerator pads or cuts to the bounds.
+  if (!best) {
+    const shortest = BUILTIN_SHAPES.loremIpsum[0];
+    return compose(fits(shortest, 0, hi) ? BUILTIN_SHAPES.loremIpsum[LOREM_MAX_WORDS - 1] : shortest, ctx.random) as string;
+  }
   return compose(best, ctx.random, lo, hi) as string;
 }
 

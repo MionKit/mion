@@ -9,6 +9,9 @@ declare module '@mionjs/run-types/formats' {
     neverRegistered: true;
     returnsNumber: true;
     alwaysUpper: true;
+    tenLetters: true;
+    twoLetters: true;
+    emptyString: true;
   }
 }
 
@@ -61,6 +64,18 @@ describe('custom mock generators', () => {
     registerMockGenerator('alwaysUpper', () => 'ABC');
     const mock = createMockDataFn<TF.String<{allowedChars: {val: 'abc'}; generator: 'alwaysUpper'}>>();
     expect(() => mock()).toThrow(/`alwaysUpper`: 64 values failed the format's pattern, allowedChars or disallowedChars/);
+  });
+
+  it('cut or pad a value outside the length bounds', () => {
+    registerMockGenerator('tenLetters', () => 'abcdefghij');
+    registerMockGenerator('twoLetters', () => 'ab');
+    registerMockGenerator('emptyString', () => '');
+    expect(createMockDataFn<TF.String<{maxLength: 3; generator: 'tenLetters'}>>()()).toBe('abc');
+    const padded = createMockDataFn<TF.String<{length: 7; generator: 'twoLetters'}>>()();
+    expect(padded).toBe('ab ab a');
+    expect(createValidateFn<TF.String<{length: 7; generator: 'twoLetters'}>>()(padded)).toBe(true);
+    // A pad that never grows the value falls back to letters.
+    expect(createMockDataFn<TF.String<{length: 4; generator: 'emptyString'}>>()()).toMatch(/^[a-z]{4}$/);
   });
 
   it('refuse a registration that is not a function', () => {

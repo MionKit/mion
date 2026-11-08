@@ -2,7 +2,6 @@ package formats
 
 import (
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -88,28 +87,32 @@ func GeneratorProblems(name any, params map[string]any, fromData bool) []string 
 	if !builtin {
 		return problems
 	}
+	// Out of every span the mock fits a value: it pads or cuts it and, last, drops the chars a char set rejects, so a
+	// required char only binds a natural length. `length: 0` leaves only '', which no first char check applies to.
 	lo, hi := lengthBounds(params)
+	required := row.Required
 	if !spansOverlap(row.Lengths, lo, hi) {
-		problems = append(problems, "`"+generator+"` makes values of "+formatSpans(row.Lengths)+
-			" characters, but the format allows "+formatBounds(lo, hi))
+		required = ""
 	}
 	if allowed, flags, ok := ReadCharParam(params, "allowedChars"); ok {
-		for _, char := range row.Required {
+		for _, char := range required {
 			if !containsChar(allowed, char, flags != "") {
 				problems = append(problems, "`"+generator+"` always contains `"+string(char)+"`, which `allowedChars` does not allow")
 			}
 		}
-		if !containsAny(allowed, row.Leading, flags != "") {
+		if hi == 0 {
+			problems = append(problems, "the format allows only '', which `allowedChars` rejects")
+		} else if !containsAny(allowed, row.Leading, flags != "") {
 			problems = append(problems, "`"+generator+"` starts every value with one of `"+row.Leading+"`, and `allowedChars` allows none")
 		}
 	}
 	if disallowed, flags, ok := ReadCharParam(params, "disallowedChars"); ok {
-		for _, char := range row.Required {
+		for _, char := range required {
 			if containsChar(disallowed, char, flags != "") {
 				problems = append(problems, "`"+generator+"` always contains `"+string(char)+"`, which `disallowedChars` forbids")
 			}
 		}
-		if !hasCharOutside(disallowed, row.Leading, flags != "") {
+		if hi != 0 && !hasCharOutside(disallowed, row.Leading, flags != "") {
 			problems = append(problems, "`"+generator+"` starts every value with one of `"+row.Leading+"`, and `disallowedChars` forbids them all")
 		}
 	}
@@ -138,29 +141,6 @@ func spansOverlap(spans []lenSpan, lo, hi int) bool {
 		}
 	}
 	return false
-}
-
-func formatSpans(spans []lenSpan) string {
-	parts := make([]string, len(spans))
-	for i, span := range spans {
-		if span.Min == span.Max {
-			parts[i] = strconv.Itoa(span.Min)
-		} else {
-			parts[i] = strconv.Itoa(span.Min) + " to " + strconv.Itoa(span.Max)
-		}
-	}
-	return strings.Join(parts, " or ")
-}
-
-func formatBounds(lo, hi int) string {
-	switch {
-	case hi < 0:
-		return "at least " + strconv.Itoa(lo)
-	case lo == hi:
-		return "exactly " + strconv.Itoa(lo)
-	default:
-		return strconv.Itoa(lo) + " to " + strconv.Itoa(hi)
-	}
 }
 
 func containsChar(set string, char rune, ignoreCase bool) bool {

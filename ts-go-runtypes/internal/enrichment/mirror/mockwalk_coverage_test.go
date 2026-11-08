@@ -61,25 +61,25 @@ func TestMockWalk_EveryKindHasARow(t *testing.T) {
 }
 
 func TestMockWalk_CheckReachesEveryScaffoldedLeaf(t *testing.T) {
-	tooShort := &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{
-		Name: "stringFormat", Params: map[string]any{"maxLength": 1.0},
+	digitsOnly := &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{
+		Name: "stringFormat", Params: map[string]any{"allowedChars": map[string]any{"val": "0123456789"}},
 	}}
 	param := func(child *reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindParameter, Child: child}
 	}
 	values := map[string]*reflection.RunType{
-		"map": {Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(tooShort), param(tooShort)}},
-		"set": {Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(tooShort)}},
+		"map": {Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(digitsOnly), param(digitsOnly)}},
+		"set": {Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(digitsOnly)}},
 	}
 	for kind, row := range mockWalkRows {
 		if row == nil {
 			continue
 		}
-		value := row(tooShort)
+		value := row(digitsOnly)
 		switch {
 		case value != nil:
 		case kind == reflection.KindString:
-			value = tooShort // a plain string takes any generator, the too-short one takes none
+			value = digitsOnly // a plain string takes any generator, the digits-only one takes none
 		default:
 			value = &reflection.RunType{Kind: kind}
 		}

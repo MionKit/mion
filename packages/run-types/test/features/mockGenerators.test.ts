@@ -74,6 +74,58 @@ describe('mock generators: under the format rules', () => {
   });
 });
 
+// Bounds no built-in value fits: the mock cuts or pads instead of throwing.
+describe('mock generators: out of their natural lengths', () => {
+  const fitted: Record<string, [RunType<string>, RegExp]> = {
+    'lastName cut to 1': [TF.string({generator: GEN.lastName, maxLength: 1}), /^[A-Z]$/],
+    'fullName padded to 60..70': [
+      TF.string({generator: GEN.fullName, minLength: 60, maxLength: 70}),
+      /^[A-Z][a-z]+( [A-Za-z]+)+$/,
+    ],
+    'Alpha firstName padded without spaces': [TF.alpha({generator: GEN.firstName, minLength: 30}), /^[A-Za-z]{30,}$/],
+    'phoneNumberLocal padded with digits': [TF.string({generator: GEN.phoneNumberLocal, length: 20}), /^[1-9]\d{19}$/],
+    'phoneCountryCode padded to 8': [TF.string({generator: GEN.phoneCountryCode, length: 8}), /^\+\d{7}$/],
+    'postcode in the gap at 7': [TF.string({generator: GEN.postcode, length: 7}), /^\d{5}[-\d]\d$/],
+    'loremIpsum padded to 1000': [
+      TF.string({generator: GEN.loremIpsum, minLength: 1000}),
+      /^[A-Z][a-z]*( [a-z]+)*\.( [A-Z].*)?$/,
+    ],
+    'loremIpsum cut to 1': [TF.string({generator: GEN.loremIpsum, length: 1}), /^[A-Z]$/],
+    'email cut to 10 without _': [
+      TF.string({generator: GEN.email, maxLength: 10, disallowedChars: {val: '_', mockSamples: 'x'}}),
+      /^[a-z@.]{1,10}$/,
+    ],
+    'streetAddress cut to 7 without spaces': [
+      TF.string({
+        generator: GEN.streetAddress,
+        maxLength: 7,
+        allowedChars: {val: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'},
+      }),
+      /^\d[A-Za-z\d]{0,6}$/,
+    ],
+  };
+  for (const [label, [schema, shape]] of Object.entries(fitted)) {
+    it(`${label}: every draw validates and keeps its kind`, () => {
+      const validate = createValidateFn(schema);
+      const mock = createMockDataFn(schema);
+      for (let i = 0; i < DRAWS; i++) {
+        const value = mock();
+        expect(validate(value), value).toBe(true);
+        expect(value).toMatch(shape);
+      }
+    });
+  }
+
+  it('type-first: a too-short format is cut, both call shapes', () => {
+    type Initials = TF.String<{maxLength: 2; generator: 'fullName'}>;
+    const validate = createValidateFn<Initials>();
+    const sample = 'AB' as Initials;
+    for (const mock of [createMockDataFn<Initials>(), createMockDataFn(sample)]) {
+      for (let i = 0; i < DRAWS; i++) expect(validate(mock()), 'cut fullName').toBe(true);
+    }
+  });
+});
+
 type User = {
   firstName: TF.String<{maxLength: 120; generator: GEN.firstName}>;
   lastName: TF.String<{maxLength: 120; generator: 'lastName'}>;
