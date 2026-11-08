@@ -10,7 +10,7 @@
 // DELIBERATELY NARROW — and NOT a hand-built twin of the resolver's projection.
 // It covers the serialisable-data shapes only: object / array / tuple /
 // discriminated union / index-signature record, over number / string / bigint /
-// boolean / literal / Date / uuid. For the FULL shape space (map / set / promise
+// boolean / literal / Date / uuid / a mock-generator String. For the FULL shape space (map / set / promise
 // / class / enum / intersection / recursive / formats / non-data), emit SOURCE
 // with `typeGen.ts` and compile it through the binary (`typeFuzzHarness.ts`) —
 // that path runs the REAL projection, so its runtypes match production exactly.
@@ -20,6 +20,9 @@
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
+import {mockGeneratorMeta} from '../../../src/go-generated/mockGeneratorMeta.generated.ts';
+
+const GENERATOR_NAMES = Object.keys(mockGeneratorMeta);
 
 /** Tuning knobs for `randomRunType` (mirrors typeGen's `GenOptions` shape). **/
 export interface RunTypeGenOptions {
@@ -49,6 +52,12 @@ const LEAVES: Array<() => RunType> = [
   () => rt({kind: RunTypeKind.class, subKind: RunTypeSubKind.date}),
   () => rt({kind: RunTypeKind.string, formatAnnotation: {name: 'uuid', params: {version: '4'}}}),
   () => rt({kind: RunTypeKind.string, formatAnnotation: {name: 'uuid', params: {version: '7'}}}),
+  // A String format naming a mock generator, so the seeded walk covers every generator's draws.
+  () =>
+    rt({
+      kind: RunTypeKind.string,
+      formatAnnotation: {name: 'stringFormat', params: {generator: GENERATOR_NAMES[upTo(GENERATOR_NAMES.length)]}},
+    }),
 ];
 
 const FIELD_NAMES = ['a', 'b', 'c', 'd', 'e', 'f'];
