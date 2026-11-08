@@ -27,6 +27,7 @@ import type {
 } from '../formats/string/stringFormats.ts';
 import type {DateParams, DateTimeParams, TimeParams} from '../formats/datetime/stringDateTimeFormats.ts';
 import {mockBoundedDate, mockBoundedTime, mockBoundedDateTime} from './mockDateTimeBounds.ts';
+import {codePointLength} from './stringParamsAccept.ts';
 
 // Returns undefined for an unrecognised name so the walker falls back to the kind-default (a plain random string).
 // `random` defaults to the shared native instance so a call without one still works.
@@ -104,16 +105,18 @@ function patternSampleList(pattern: PatternParam | undefined): readonly string[]
   return toSampleList(samples);
 }
 
-// filterSamplesByLength drops samples violating length / minLength / maxLength.
-// When EVERY sample violates them the result is EMPTY, never the unfiltered list: an out-of-bounds sample would
-// fail the format's own validator, so the caller falls through to a bounded synthesizer or throws instead.
+// filterSamplesByLength drops samples violating length / minLength / maxLength, counted in code points as the
+// validator counts them. When EVERY sample violates them the result is EMPTY, never the unfiltered list: an
+// out-of-bounds sample would fail the format's own validator, so the caller falls through to a bounded synthesizer
+// or throws instead.
 function filterSamplesByLength(samples: readonly string[] | undefined, params: StringParams): readonly string[] | undefined {
   if (!samples || samples.length === 0) return samples;
   if (params.length === undefined && params.minLength === undefined && params.maxLength === undefined) return samples;
   return samples.filter((sample) => {
-    if (params.length !== undefined && sample.length !== params.length) return false;
-    if (params.minLength !== undefined && sample.length < params.minLength) return false;
-    if (params.maxLength !== undefined && sample.length > params.maxLength) return false;
+    const size = codePointLength(sample);
+    if (params.length !== undefined && size !== params.length) return false;
+    if (params.minLength !== undefined && size < params.minLength) return false;
+    if (params.maxLength !== undefined && size > params.maxLength) return false;
     return true;
   });
 }
@@ -133,10 +136,12 @@ function asCharString(samples: Samples | undefined): string | undefined {
   return typeof samples === 'string' ? samples : undefined;
 }
 
+// Draws whole code points, so an astral char in the set is never split into a lone surrogate.
 function randomStringFrom(chars: string, length: number, random: MockRandom): string {
-  if (chars.length === 0) return '';
+  const set = [...chars];
+  if (set.length === 0) return '';
   let out = '';
-  for (let i = 0; i < length; i++) out += chars[random.int(0, chars.length - 1)];
+  for (let i = 0; i < length; i++) out += set[random.int(0, set.length - 1)];
   return out;
 }
 
@@ -293,7 +298,7 @@ function lengthFiltered(params: object, draw: () => string): string {
     const candidate = draw();
     // Code points, matching the emitted validator's bounds: an astral character must not be filtered out over a
     // `.length` the validator never looks at.
-    const size = [...candidate].length;
+    const size = codePointLength(candidate);
     if ((minLength === undefined || size >= minLength) && (maxLength === undefined || size <= maxLength)) {
       return candidate;
     }

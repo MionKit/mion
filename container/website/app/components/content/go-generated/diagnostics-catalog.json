@@ -947,7 +947,7 @@
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "TypeFormat mockSample violates a sibling constraint: {reason}",
-      "summary": "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count UTF-16 code units, the same as the validator's `.length` check. Change the sample or relax the setting.",
+      "summary": "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count code points, the same as the validator: `💩` is one. Change the sample or relax the setting.",
       "fix": "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
       "example": null
     },

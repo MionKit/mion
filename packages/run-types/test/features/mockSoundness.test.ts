@@ -134,3 +134,33 @@ describe('mock data never draws a stripped union member', () => {
     for (let i = 0; i < 30; i++) expect(isValid(mock())).toBe(true);
   });
 });
+
+describe('mock sample lengths count code points, as the validator does', () => {
+  // `💩💩` is two code points but four UTF-16 units: the build keeps it under maxLength 2, so the mock must too.
+  type Emoji = StringFormat<{maxLength: 2; mockSamples: ['💩💩', '✓']}>;
+
+  it('keeps an astral sample inside the bounds (static)', () => {
+    const isValid = createValidateFn<Emoji>();
+    const mock = createMockDataFn<Emoji>();
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const value = mock();
+      expect(isValid(value)).toBe(true);
+      seen.add(value);
+    }
+    expect(seen.has('💩💩')).toBe(true);
+  });
+
+  it('keeps an astral sample inside the bounds (value)', () => {
+    const sample = '✓' as Emoji;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const value = mock();
+      expect(isValid(value)).toBe(true);
+      seen.add(value);
+    }
+    expect(seen.has('💩💩')).toBe(true);
+  });
+});
