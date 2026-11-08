@@ -810,7 +810,21 @@ describe('batch runtime behaviour', () => {
   it('batch-missing-id when the id lookup has no entry for the routes it got (a cast that named other routes)', () => {
     let caught: unknown;
     try {
-      batch([routes.sayHello(someUser)], {'flow/getUser': 'b_other'} as never);
+      batch([routes.sayHello(someUser)], {'flow/getUser': 'b_other'});
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RpcError);
+    expect((caught as RpcError<string>).type).toBe('batch-missing-id');
+  });
+
+  it('batch-missing-id when an out-of-sight route call carries a mapping the build could not read', () => {
+    const user = routes.flow.getUser(1);
+    // the mapping sits in the helper's body, where the build does not look
+    const orgOf = () => routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg());
+    let caught: unknown;
+    try {
+      batch([user, orgOf()]);
     } catch (error) {
       caught = error;
     }

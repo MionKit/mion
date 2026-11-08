@@ -9,21 +9,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// Replacements splices each call's batch id literal into the empty trailing slot of its call, once per call
-// however many combination sites it has; no ImportFrom, the injected value is a plain literal.
+// Replacements splices each call's batch id literal into the empty trailing slot of its call; no ImportFrom,
+// the injected value is a plain literal.
 func Replacements(sites []Site) []protocol.Replacement {
 	var out []protocol.Replacement
-	type callKey struct {
-		file string
-		pos  int
-	}
-	spliced := map[callKey]bool{}
 	for _, site := range sites {
-		key := callKey{site.FilePath, site.InjectPos}
-		if site.InjectText == "" || site.FilePath == "" || spliced[key] {
+		if site.InjectText == "" || site.FilePath == "" {
 			continue
 		}
-		spliced[key] = true
 		out = append(out, protocol.Replacement{
 			File:  site.FilePath,
 			Start: site.InjectPos,

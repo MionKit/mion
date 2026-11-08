@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionjs/core';
+import {RpcError, BATCH_KEY_MAPPED_ARG_MARK, BATCH_KEY_ROUTE_SEPARATOR} from '@mionjs/core';
 import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
 import type {CallSetup, RouteSubRequest, BatchBuilder, SubRequest} from './types.ts';
 import type {InjectedApiMetadata} from './types.ts';
@@ -32,7 +32,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
       publicMessage:
         'batch() needs the mion build plugin (the vite preset or the mion CLI) to inject the batch id. ' +
         'Batches are compiled into the server at build time, from the routes each item is typed with, so a client ' +
-        'without the build, or a route its types did not name, cannot send one.',
+        'without the build, or a route or inputFrom() mapping the build could not read, cannot send one.',
     });
   }
 
@@ -65,12 +65,15 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
   };
 }
 
-/** An item that may be one of several routes gets one id per route combination, keyed by the route ids joined with `,`. */
+/** The build injects one id per route combination when an item may be several routes, or its route call is out of
+ * the build's sight. The key names each route and the arguments mapped into it, so a mapping the build could not
+ * see finds no entry. */
 function pickBatchId(routes: RouteSubRequest<any>[], batchId: InjectBatchId<unknown> | undefined): string | undefined {
-  if (typeof batchId !== 'object' || batchId === null) return batchId;
-  const ids = batchId as unknown as Record<string, string>;
-  const key = routes.map((route) => route.id).join(',');
-  return Object.hasOwn(ids, key) ? ids[key] : undefined;
+  if (typeof batchId !== 'object') return batchId;
+  const key = routes
+    .map((route) => route.id + (route.mappings ?? []).map((ref) => BATCH_KEY_MAPPED_ARG_MARK + ref.paramIndex).join(''))
+    .join(BATCH_KEY_ROUTE_SEPARATOR);
+  return Object.hasOwn(batchId, key) ? batchId[key] : undefined;
 }
 
 const inputFromSymbol = Symbol('InputFromRef');
