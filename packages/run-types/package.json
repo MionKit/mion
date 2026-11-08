@@ -10,6 +10,8 @@
         "./dist/runtypes/**",
         "./src/builders/**",
         "./dist/builders/**",
+        "./src/mocking/mock*Format.ts",
+        "./dist/mocking/mock*Format.js",
         "./src/createRTFunctions.ts",
         "./dist/createRTFunctions.js"
     ],
