@@ -381,7 +381,7 @@ per-property overrides — `MockData<T>` is just the typed, validated form of th
 const mockUser: MockData<User> = {
   name:  { pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', /* …50+ */ ] },
   age:   { min: 18, max: 95 },
-  city:  { pool: [], generator: 'city' },   // a built-in mock generator instead of a pool
+  city:  {generator: 'city'},   // a built-in mock generator instead of a pool
   tags:  { rt$items: { pool: ['urgent', 'beta', 'vip'] }, rt$length: [1, 4] },
   profile: {
     email: { pool: ['alice@example.com', 'liang@corp.io', /* … */ ] },

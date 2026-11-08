@@ -77,8 +77,8 @@ One recursive node, uniform at every depth. Shape per field kind:
 - Map goes in the **definition's mock mirror file** (`<genDir>/enriched/mock/<rel>.ts`), not the consumer's file.
 - Type it `MockData<T>` so structure is checked against `T`.
 - `pool` for your own values (product names, tags, your domains). `min`/`max` for numeric and `Date` ranges.
-- `generator` for generic realistic strings (people, places, phones) instead of writing a pool.
-- A field whose type already names a `generator` scaffolds as `{pool: [], generator: '<name>'}`: already filled.
+- `generator` for generic realistic strings (people, places, phones) instead of a pool: one or the other, never both.
+- A field whose type already names a `generator` scaffolds as `{generator: '<name>'}`: already filled.
 - enrich-mock-invalid-generator (Error, `enrich --no-emit`): generator unknown, on a non-string field or a
   named format, or sits beside `allowedValues` / `mockSamples`.
   Length limits and char sets never fail: the mock pads, cuts and replaces chars to fit.
