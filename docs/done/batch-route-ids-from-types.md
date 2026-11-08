@@ -91,7 +91,8 @@ Check time stays in the noise. Go side, 300 batches of 3 items extracted on a fr
   of the routes it got. Each combination is its own site and its own server table entry. A combination listing a
   route twice, or a mapping source after its target, fails the whole call.
 - **Helpers and mappings**: an inferred helper keeps the literal and reads. A route call is a call whose signature
-  is declared in `@mionjs/client`. A mapping is read only from a route call written inline or bound to a const / let.
+  is a function type `@mionjs/client` declares. A mapping is read only from a route call written inline or bound to a
+  const / let / var.
   An `inputFrom` anywhere else in an item (helper arguments, a ternary arm, a later assignment) is
   `rpc-batch-mapper-unreadable`. A mapping source reads its id from its own type and must have exactly one.
   A target with several possible routes cannot carry a mapping.
@@ -107,13 +108,18 @@ Check time stays in the noise. Go side, 300 batches of 3 items extracted on a fr
   the union.
 - A cast is read as written: `as RouteSubRequest<any>` now drops the id (it read before), `as RouteSubRequest<H, 'a'>`
   is trusted.
-- A route call the build cannot see (a helper's result, a property, a parameter, a reassigned variable) still
-  reads its id from its type, but the build cannot read its mappings. Such a call always gets the id lookup, keyed
-  by each route id plus `#<index>` per argument the build mapped (`users/getById,orders/list#0`). `batch()` builds
-  the key from the mappings the routes really carry, so a mapping the build missed finds no entry and throws
-  `batch-missing-id`, never a `null` argument. The key format lives in `internal/constants` and is generated into
-  `@mionjs/core`. A mapping the build can see but not read (in a helper's arguments, a ternary arm, a destructured
-  initializer, any write to a reassigned variable) is still `rpc-batch-mapper-unreadable`.
-- `InjectBatchId` is typed as the string or the lookup object it holds.
+- Every batch call gets the id lookup, even a single combination: `{'<key>': '<batch id>'}`, keyed by each route id
+  plus `#<index>` per argument the build mapped into it (`users/getById,orders/list#0`). `batch()` builds the key from
+  the routes and mappings it really got, so a route or a mapping the build did not read (a lying cast, a mapped call
+  in an object property, a mapping passed as a parameter) finds no entry and throws `batch-missing-id`, never a
+  `null` argument or another route. The key format lives in `internal/constants`, is generated into `@mionjs/core`,
+  and the router refuses `,` and `#` in route names. `batch()` still takes a hand-written string id.
+- A mapping the build can see but not read is `rpc-batch-mapper-unreadable`: in a helper's arguments or body, a
+  ternary branch or argument, a spread, a destructured initializer, any write to a reassigned variable.
+- A route call or a mapping bound to a `var` reads like a `const`; a redeclared `var` reads no mapping (the runtime
+  key checks the one that ran).
+- `InjectBatchId` is typed as the lookup object or a hand-written string id.
+- The route id is read by the same `apimeta.ReadIds` the client-bundle lane uses, so the two agree on every call.
+- The id-collision check (`report.go`) is unchanged: it compares sites, and a call's combinations are distinct plans.
 - The three Go and four JS copies of the fake client collapsed into `testfixtures.BatchClientDTS` and
   `packages/devtools/test/helpers/batchFixture.ts`.
