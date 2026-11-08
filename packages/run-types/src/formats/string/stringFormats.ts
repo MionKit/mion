@@ -76,14 +76,14 @@ export interface AllowedCharsParam {
   mockSamples?: Samples;
 }
 
-// disallowedChars: the value must contain NONE of `val`'s characters. A
-// negative constraint can't be reversed, so `mockSamples` is required.
+// disallowedChars: the value must contain NONE of `val`'s characters. A negative constraint can't be
+// reversed, so the format needs `mockSamples` here or a `generator` (GeneratorOrSamples enforces it).
 export interface DisallowedCharsParam {
   val: string;
   ignoreCase?: boolean;
   errorMessage?: string;
   desc?: string;
-  mockSamples: string;
+  mockSamples?: string;
 }
 
 // allowedValues: the value must be exactly one of `val` (enum-like).
@@ -95,13 +95,13 @@ export interface AllowedValuesParam {
   mockSamples?: Samples;
 }
 
-// disallowedValues: the value must be none of `val`. mockSamples required.
+// disallowedValues: the value must be none of `val`; `mockSamples` or a `generator`, as for disallowedChars.
 export interface DisallowedValuesParam {
   val: readonly string[];
   ignoreCase?: boolean;
   errorMessage?: string;
   desc?: string;
-  mockSamples: Samples;
+  mockSamples?: Samples;
 }
 
 // ─────────────────────────── Transforms ────────────────────────────
@@ -180,9 +180,39 @@ export interface StringParams {
 // the same id as the type-first `String<{pattern: typeof x}>` form.
 export type StringParamsValueFirst = Omit<StringParams, 'pattern'> & {pattern?: StringPatternArgs};
 
+/** A format names a `generator` or gives `mockSamples`, never both: with both, one of them is unused. Without a
+ *  generator, a disallowed set still needs samples, since a negative rule cannot be mocked from. Mapped per key so
+ *  it can bound `P` itself (`P extends StringParams & GeneratorOrSamples<P>`). **/
+export type GeneratorOrSamples<P> = {
+  [K in keyof P]: P extends {generator: unknown}
+    ? K extends keyof WithoutSamples
+      ? NonNullable<WithoutSamples[K]>
+      : unknown
+    : K extends keyof DisallowedSamples
+      ? NonNullable<DisallowedSamples[K]>
+      : unknown;
+};
+
+/** GeneratorOrSamples for a builder argument, where one conditional is cheaper than a mapped type. **/
+export type GeneratorOrSamplesArg<P> = P extends {generator: unknown} ? WithoutSamples : DisallowedSamples;
+
+interface WithoutSamples {
+  mockSamples?: never;
+  pattern?: {mockSamples?: never};
+  allowedChars?: {mockSamples?: never};
+  allowedValues?: {mockSamples?: never};
+  disallowedChars?: {mockSamples?: never};
+  disallowedValues?: {mockSamples?: never};
+}
+
+interface DisallowedSamples {
+  disallowedChars?: {mockSamples: string};
+  disallowedValues?: {mockSamples: Samples};
+}
+
 // The branded string alias users annotate with, e.g. `String<{maxLength: 32}>`.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type String<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
+export type String<P extends StringParams & GeneratorOrSamples<P> = {}, BrandName extends string = never> = TypeFormat<
   string,
   'stringFormat',
   P,
@@ -192,51 +222,51 @@ export type String<P extends StringParams = {}, BrandName extends string = never
 // Alpha / AlphaNumeric / Numeric reference the registered char-class patterns by `typeof`
 // (see ./string-patterns.ts).
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-export type Alpha<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type Alpha<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof ALPHA_PATTERN},
   P
 >;
-export type AlphaNumeric<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type AlphaNumeric<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof ALPHANUMERIC_PATTERN},
   P
 >;
-export type Numeric<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type Numeric<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof NUMERIC_PATTERN},
   P
 >;
 // The case presets pin `transform`: a caller's `transform` would REPLACE the whole block (params merge
 // key by key), so a combined rewrite is spelled `String<{transform: {lowercase: true; trim: true}}>`.
-export type Lowercase<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+export type Lowercase<P extends Override<StringParams, 'transform'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {transform: {lowercase: true}},
   P
 >;
-export type Uppercase<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+export type Uppercase<P extends Override<StringParams, 'transform'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {transform: {uppercase: true}},
   P
 >;
-export type Capitalize<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
+export type Capitalize<P extends Override<StringParams, 'transform'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {transform: {capitalize: true}},
   P
 >;
 // The type-first spelling of JSON Schema `contentEncoding`: each rides the registered RFC 4648 pattern
 // so the door's `contentEncoding: 'base64'` and `TF.base64()` converge.
-export type Base64<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type Base64<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof BASE64_PATTERN},
   P
 >;
-export type Base32<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type Base32<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof BASE32_PATTERN},
   P
 >;
-export type Base16<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type Base16<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof BASE16_PATTERN},
   P
@@ -278,8 +308,12 @@ type DEFAULT_JSON_CONTENT_BASE64_PARAMS = {
   ];
 };
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-export type JsonContent<P extends Override<StringParams> = {}> = PresetFormat<'stringFormat', DEFAULT_JSON_CONTENT_PARAMS, P>;
-export type JsonContentBase64<P extends Override<StringParams> = {}> = PresetFormat<
+export type JsonContent<P extends Override<StringParams> & GeneratorOrSamples<P> = {}> = PresetFormat<
+  'stringFormat',
+  DEFAULT_JSON_CONTENT_PARAMS,
+  P
+>;
+export type JsonContentBase64<P extends Override<StringParams> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   DEFAULT_JSON_CONTENT_BASE64_PARAMS,
   P
@@ -629,7 +663,7 @@ export type IdnHostname<P extends Override<DomainParams, 'pattern'> = {}> = Pres
 /** RFC 3339 duration string (`P4DT12H30M5S`). A LENGTH of time, so it is not
  *  one of the Date/Time formats and takes no min/max bounds; those describe an
  *  instant. Note this grammar is stricter than the `now±P…` bound specs. **/
-export type StringDuration<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type StringDuration<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   DEFAULT_STRING_DURATION_PARAMS,
   P
@@ -637,17 +671,21 @@ export type StringDuration<P extends Override<StringParams, 'pattern'> = {}> = P
 /** A string that is itself a usable ECMA-262 regular expression — what
  *  `format: 'regex'` asserts. Not to be confused with the `pattern` param,
  *  which is a regex the VALUE must match; here the value IS the regex. **/
-export type RegexString<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<'stringFormat', DEFAULT_REGEX_PARAMS, P>;
+export type RegexString<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
+  'stringFormat',
+  DEFAULT_REGEX_PARAMS,
+  P
+>;
 /** RFC 6901 JSON pointer (`/store/book/0/title`). The empty string is the
  *  whole document, and so is valid. **/
-export type JsonPointer<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type JsonPointer<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   DEFAULT_JSON_POINTER_PARAMS,
   P
 >;
 /** RFC 6901 relative JSON pointer (`1/foo`, `2#`) — a hop count, then either a
  *  pointer or `#` for the key it landed on. **/
-export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> & GeneratorOrSamples<P> = {}> = PresetFormat<
   'stringFormat',
   DEFAULT_RELATIVE_JSON_POINTER_PARAMS,
   P
@@ -668,6 +706,23 @@ export interface PresetFormatBuilder<Tag extends string, Defaults extends object
   ): RunType<PresetFormat<Tag, Defaults, P>>;
 }
 
+/** The string presets' call shape: PresetFormatBuilder plus the generator-or-samples rule. **/
+export interface StringPresetFormatBuilder<Defaults extends object, Params> {
+  (id?: InjectRunTypeId<PresetFormat<'stringFormat', Defaults>>): RunType<PresetFormat<'stringFormat', Defaults>>;
+  <const P extends Params>(
+    formatParams: CompTimeArgs<ExactParams<P, Params> & GeneratorOrSamplesArg<P>>,
+    id?: InjectRunTypeId<PresetFormat<'stringFormat', Defaults, P>>
+  ): RunType<PresetFormat<'stringFormat', Defaults, P>>;
+}
+
+/** A string preset builder: the shared implementation, typed with the string rule. **/
+function stringPresetBuilder<Defaults extends object, Params>(): StringPresetFormatBuilder<Defaults, Params> {
+  return presetFormatBuilder<'stringFormat', Defaults, Params>('stringFormat') as unknown as StringPresetFormatBuilder<
+    Defaults,
+    Params
+  >;
+}
+
 /** One implementation behind all of them. The first argument is a params bag only when it is a
  *  non-array object: an ARRAY there is an injected entry-module id, the same line compose.ts draws. **/
 export function presetFormatBuilder<Tag extends string, Defaults extends object, Params>(
@@ -681,56 +736,30 @@ export function presetFormatBuilder<Tag extends string, Defaults extends object,
 }
 
 /** Alphabetic-only string (`Alpha`); `alpha({maxLength: 3})` adds bounds. **/
-export const alpha = presetFormatBuilder<'stringFormat', {pattern: typeof ALPHA_PATTERN}, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const alpha = stringPresetBuilder<{pattern: typeof ALPHA_PATTERN}, Override<StringParams, 'pattern'>>();
 /** Alphanumeric-only string (`AlphaNumeric`). **/
-export const alphaNumeric = presetFormatBuilder<
-  'stringFormat',
-  {pattern: typeof ALPHANUMERIC_PATTERN},
-  Override<StringParams, 'pattern'>
->('stringFormat');
+export const alphaNumeric = stringPresetBuilder<{pattern: typeof ALPHANUMERIC_PATTERN}, Override<StringParams, 'pattern'>>();
 /** Digits-only string (`Numeric`). **/
-export const numeric = presetFormatBuilder<'stringFormat', {pattern: typeof NUMERIC_PATTERN}, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const numeric = stringPresetBuilder<{pattern: typeof NUMERIC_PATTERN}, Override<StringParams, 'pattern'>>();
 /** Base64-encoded string (`Base64`) — JSON Schema `contentEncoding: 'base64'`. **/
-export const base64 = presetFormatBuilder<'stringFormat', {pattern: typeof BASE64_PATTERN}, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const base64 = stringPresetBuilder<{pattern: typeof BASE64_PATTERN}, Override<StringParams, 'pattern'>>();
 /** Base32-encoded string (`Base32`) — JSON Schema `contentEncoding: 'base32'`. **/
-export const base32 = presetFormatBuilder<'stringFormat', {pattern: typeof BASE32_PATTERN}, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const base32 = stringPresetBuilder<{pattern: typeof BASE32_PATTERN}, Override<StringParams, 'pattern'>>();
 /** Base16 / hex-encoded string (`Base16`) — JSON Schema `contentEncoding: 'base16'`. **/
-export const base16 = presetFormatBuilder<'stringFormat', {pattern: typeof BASE16_PATTERN}, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const base16 = stringPresetBuilder<{pattern: typeof BASE16_PATTERN}, Override<StringParams, 'pattern'>>();
 /** A JSON-parseable string (`JsonContent`) — JSON Schema
  *  `contentMediaType: 'application/json'`. **/
-export const jsonContent = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_PARAMS, Override<StringParams>>(
-  'stringFormat'
-);
+export const jsonContent = stringPresetBuilder<DEFAULT_JSON_CONTENT_PARAMS, Override<StringParams>>();
 /** A base64-encoded JSON-parseable string (`JsonContentBase64`) — JSON Schema
  *  `contentMediaType: 'application/json'` + `contentEncoding: 'base64'`. **/
-export const jsonContentBase64 = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>(
-  'stringFormat'
-);
+export const jsonContentBase64 = stringPresetBuilder<DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>();
 /** Lowercase string (`Lowercase`). The rewrite is applied only by `createFormatTransformFn` and mion's
  *  `sanitizeParams`; validate accepts any case. **/
-export const lowercase = presetFormatBuilder<'stringFormat', {transform: {lowercase: true}}, Override<StringParams, 'transform'>>(
-  'stringFormat'
-);
+export const lowercase = stringPresetBuilder<{transform: {lowercase: true}}, Override<StringParams, 'transform'>>();
 /** Uppercase string (`Uppercase`). **/
-export const uppercase = presetFormatBuilder<'stringFormat', {transform: {uppercase: true}}, Override<StringParams, 'transform'>>(
-  'stringFormat'
-);
+export const uppercase = stringPresetBuilder<{transform: {uppercase: true}}, Override<StringParams, 'transform'>>();
 /** Capitalized string (`Capitalize`). **/
-export const capitalize = presetFormatBuilder<
-  'stringFormat',
-  {transform: {capitalize: true}},
-  Override<StringParams, 'transform'>
->('stringFormat');
+export const capitalize = stringPresetBuilder<{transform: {capitalize: true}}, Override<StringParams, 'transform'>>();
 
 /** Value-first twin of `Transform<T, P>`, converging on the type-first id; over `TF.string()` it is a
  *  `String<{transform: P}>`. Only this outer call resolves an id, the inner builder is the leaf. **/
@@ -786,25 +815,13 @@ export const idnHostname = presetFormatBuilder<'domain', DEFAULT_IDN_HOSTNAME_PA
   'domain'
 );
 /** RFC 3339 duration string (`StringDuration`). **/
-export const stringDuration = presetFormatBuilder<
-  'stringFormat',
-  DEFAULT_STRING_DURATION_PARAMS,
-  Override<StringParams, 'pattern'>
->('stringFormat');
+export const stringDuration = stringPresetBuilder<DEFAULT_STRING_DURATION_PARAMS, Override<StringParams, 'pattern'>>();
 /** A string that compiles as an ECMA-262 regular expression (`RegexString`). **/
-export const regexString = presetFormatBuilder<'stringFormat', DEFAULT_REGEX_PARAMS, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const regexString = stringPresetBuilder<DEFAULT_REGEX_PARAMS, Override<StringParams, 'pattern'>>();
 /** RFC 6901 JSON pointer (`JsonPointer`). **/
-export const jsonPointer = presetFormatBuilder<'stringFormat', DEFAULT_JSON_POINTER_PARAMS, Override<StringParams, 'pattern'>>(
-  'stringFormat'
-);
+export const jsonPointer = stringPresetBuilder<DEFAULT_JSON_POINTER_PARAMS, Override<StringParams, 'pattern'>>();
 /** RFC 6901 relative JSON pointer (`RelativeJsonPointer`). **/
-export const relativeJsonPointer = presetFormatBuilder<
-  'stringFormat',
-  DEFAULT_RELATIVE_JSON_POINTER_PARAMS,
-  Override<StringParams, 'pattern'>
->('stringFormat');
+export const relativeJsonPointer = stringPresetBuilder<DEFAULT_RELATIVE_JSON_POINTER_PARAMS, Override<StringParams, 'pattern'>>();
 
 /** Domain name (`Domain`); `domain({maxLength: 100})` overrides bounds, keeping
  *  the built-in pattern. **/

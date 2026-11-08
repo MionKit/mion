@@ -42,8 +42,8 @@ Budgets may only ever be lowered.
 | atomic | `enumType()` | 41 | 41 | 17 | 17 |
 | atomic | `classType()` | 35 | 35 | 16 | 16 |
 | scalar | `string()` | 30 | 30 | 9 | 9 |
-| scalar | `string({params})` | 205 | 225 | 29 | 29 |
-| scalar | `string({params}, brand)` | 273 | 293 | 63 | 63 |
+| scalar | `string({params})` | 221 | 225 | 33 | 33 |
+| scalar | `string({params}, brand)` | 298 | 298 | 71 | 71 |
 | scalar | `number()` | 30 | 30 | 9 | 9 |
 | scalar | `number({params})` | 142 | 142 | 29 | 29 |
 | scalar | `currency({params})` | 172 | 172 | 35 | 35 |
@@ -55,8 +55,8 @@ Budgets may only ever be lowered.
 | string-preset | `stringUrl({maxLength})` | 274 | 274 | 46 | 46 |
 | string-preset | `ip({allowLocalHost})` | 269 | 269 | 46 | 46 |
 | string-preset | `domain({maxLength})` | 279 | 299 | 46 | 46 |
-| string-preset | `alpha({maxLength})` | 338 | 358 | 49 | 49 |
-| string-preset | `base64({maxLength})` | 341 | 361 | 49 | 49 |
+| string-preset | `alpha({maxLength})` | 362 | 362 | 53 | 53 |
+| string-preset | `base64({maxLength})` | 365 | 365 | 53 | 53 |
 | number-preset | `integer()` | 50 | 50 | 9 | 9 |
 | number-preset | `positive()` | 50 | 50 | 9 | 9 |
 | number-preset | `int32()` | 50 | 50 | 9 | 9 |

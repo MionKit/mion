@@ -89,7 +89,7 @@ func TestMockWalk_CheckReachesEveryScaffoldedLeaf(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			skeleton := enrichment.MockSkeleton(value, nil)
 			leaves := strings.Count(skeleton, "{pool: []}")
-			filled := strings.ReplaceAll(skeleton, "{pool: []}", "{pool: [], generator: 'lastName'}")
+			filled := strings.ReplaceAll(skeleton, "{pool: []}", "{generator: 'lastName'}")
 			view := parseDesiredObject(filled)
 			if view == nil || leaves == 0 {
 				t.Fatalf("scaffold %q has no leaf to check", skeleton)

@@ -28,6 +28,23 @@ type _customAccepted = Str<{maxLength: 16; generator: 'testCode'}>;
 // Refinement merges a generator like any other string param.
 type _refines = Expect<Equal<MergeFormat<Str<{maxLength: 120}>, {generator: 'city'}>, Str<{maxLength: 120; generator: 'city'}>>>;
 
+// A generator or mockSamples, never both, at the top level or nested; a disallowed set needs one of them.
+// @ts-expect-error both pick the mock value
+type _bothTop = Str<{generator: 'city'; mockSamples: ['Rome']}>;
+// @ts-expect-error both pick the mock value
+type _bothNested = Str<{generator: 'city'; disallowedChars: {val: '@'; mockSamples: 'x'}}>;
+type _generatorOnly = Str<{generator: 'city'; disallowedValues: {val: ['Rome']}}>;
+type _samplesOnly = Str<{disallowedChars: {val: '@'; mockSamples: 'x'}}>;
+// @ts-expect-error a disallowed set needs mockSamples or a generator
+type _neither = Str<{disallowedChars: {val: '@'}}>;
+// @ts-expect-error the preset types follow the rule too
+type _presetBoth = TF.Alpha<{generator: 'firstName'; mockSamples: ['Ann']}>;
+// @ts-expect-error and so do the builders
+const _builderBoth = TF.string({generator: 'city', mockSamples: ['Rome']});
+// @ts-expect-error a string preset builder too
+const _presetBuilderBoth = TF.alpha({generator: 'firstName', mockSamples: ['Ann']});
+const _builderGeneratorOnly = TF.string({generator: 'city', disallowedChars: {val: '@'}});
+
 // @ts-expect-error a typo is not a generator name
 type _typo = Str<{generator: 'lastname'}>;
 // @ts-expect-error only string formats take a generator

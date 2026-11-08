@@ -40,7 +40,7 @@ export const FORMAT = {
       };
       // ##### mock #####
       // The scaffold starts this leaf filled from the format's own generator.
-      const mockTarget: MockData<Target> = {name: {pool: [], generator: 'lastName'}};
+      const mockTarget: MockData<Target> = {name: {generator: 'lastName'}};
       // ##### result #####
       return {friendlyTarget, mockTarget};
     },

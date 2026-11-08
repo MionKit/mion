@@ -875,7 +875,7 @@
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "TypeFormat mock generator `{generator}` cannot mock this format: {reason}",
-      "summary": "A `generator` picks realistic mock values, so it must be one generator name and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or `contentMediaType`, which already decide the value. The mock fits each value to the format: it pads or cuts it to the length limits and replaces a char `allowedChars` or `disallowedChars` rejects. So the build only fails when that leaves nothing to build from, like `length: 0` with `allowedChars`. The message names the problem.",
+      "summary": "A `generator` picks realistic mock values, so it must be one generator name and not sit next to `allowedValues`, `contentMediaType` or `isRegex`, which already decide the value or that no generated value meets (beside `mockSamples` the types refuse it). The mock fits each value to the format: it pads or cuts it to the length limits and replaces a char `allowedChars`, `disallowedChars` or a preset like `Alpha` rejects. So the build only fails when that leaves nothing to build from, like `length: 0` with `allowedChars`. The message names the problem.",
       "fix": "type LastName = TF.String<{maxLength: 40; generator: 'lastName'}>;",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nimport * as TF from '@mionjs/run-types/formats';\nexport const isCode = createValidateFn<TF.String<{allowedValues: {val: ['Lee']}; generator: 'lastName'}>>();"
     },
@@ -884,7 +884,7 @@
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "Invalid type-format params: {reason}",
-      "summary": "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
+      "summary": "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples` or a `generator`. Change the settings the message names.",
       "fix": null,
       "example": null
     },
@@ -1470,7 +1470,7 @@
       "level": "runtimeError",
       "headline": "MockData generator `{generator}` cannot mock field `{field}`: {reason}",
       "summary": "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format: its length limits and characters, with no `allowedValues` beside it. A named format such as `Email` mocks itself and takes no generator. Otherwise `createMockDataFn` throws at that field.",
-      "fix": "name: {pool: [], generator: 'fullName'}",
+      "fix": "name: {generator: 'fullName'}",
       "example": null
     },
     {

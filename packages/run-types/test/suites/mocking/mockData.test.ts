@@ -217,18 +217,18 @@ describe('MockData consumption — generators', () => {
 
   it('a data generator mocks a plain string field', () => {
     const mock = createMockDataFn<Person>(undefined, {
-      data: {name: {pool: [], generator: 'fullName'}, city: {pool: []}, code: {pool: []}},
+      data: {name: {generator: 'fullName'}, city: {pool: []}, code: {pool: []}},
     });
     for (let i = 0; i < 50; i++) expect(mock().name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
   });
 
-  it('a pool beats the data generator, which beats the format generator', () => {
+  it('a pool or a data generator beats the format generator', () => {
     const pooled = createMockDataFn<Person>(undefined, {
-      data: {name: {pool: ['Ann'], generator: 'fullName'}, city: {pool: []}, code: {pool: []}},
+      data: {name: {pool: ['Ann']}, city: {pool: ['Rome']}, code: {pool: []}},
     });
-    expect(pooled().name).toBe('Ann');
+    expect(pooled().city).toBe('Rome');
     const overridden = createMockDataFn<Person>(undefined, {
-      data: {name: {pool: []}, city: {pool: [], generator: 'state'}, code: {pool: []}},
+      data: {name: {pool: []}, city: {generator: 'state'}, code: {pool: []}},
     });
     const states = new Set([
       'Ohio',
@@ -268,13 +268,13 @@ describe('MockData consumption — generators', () => {
 
   it("keeps the field format's own bounds", () => {
     const mock = createMockDataFn<Person>(undefined, {
-      data: {name: {pool: []}, city: {pool: []}, code: {pool: [], generator: 'lastName'}},
+      data: {name: {pool: []}, city: {pool: []}, code: {generator: 'lastName'}},
     });
     for (let i = 0; i < 50; i++) expect([...mock().code].length).toBeLessThanOrEqual(6);
   });
 
   it('a named family format ignores it and mocks itself (enrich --no-emit reports the generator)', () => {
-    const mock = createMockDataFn<{email: TF.Email}>(undefined, {data: {email: {pool: [], generator: 'lastName'}}});
+    const mock = createMockDataFn<{email: TF.Email}>(undefined, {data: {email: {generator: 'lastName'}}});
     for (let seed = 1; seed <= 10; seed++) expect(mock({mock: {seed}}).email).toMatch(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
   });
 });

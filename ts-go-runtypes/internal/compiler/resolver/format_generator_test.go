@@ -64,16 +64,16 @@ declare const order: Order;`, `export const isOrder = createValidateFn(order);`)
 
 // An email's localPart takes a generator too; spelled with the exact TypeFormat, since TF.EmailParts cannot set it.
 const emailLocalPart = `import type {TypeFormat} from '@mionjs/run-types';
-type Work = TypeFormat<string, 'email', {localPart: {generator: 'fullName'; mockSamples: ['ann']}}>;`
+type Work = TypeFormat<string, 'email', {localPart: {generator: 'fullName'; allowedValues: {val: ['ann']}}}>;`
 
 func TestFormatGenerator_EmailLocalPartStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, emailLocalPart, `export const isWork = createValidateFn<Work>();`), "mockSamples")
+	expectGeneratorInvalid(t, scanGenerator(t, emailLocalPart, `export const isWork = createValidateFn<Work>();`), "allowedValues")
 }
 
 func TestFormatGenerator_EmailLocalPartValue(t *testing.T) {
 	resp := scanGenerator(t, emailLocalPart+`
 declare const work: Work;`, `export const isWork = createValidateFn(work);`)
-	expectGeneratorInvalid(t, resp, "mockSamples")
+	expectGeneratorInvalid(t, resp, "allowedValues")
 }
 
 // A type only mocked still gets the check, at the mock call.
@@ -85,18 +85,6 @@ func TestFormatGenerator_MockOnlySiteValue(t *testing.T) {
 	resp := scanGenerator(t, besideAllowedValues+`
 declare const code: Code;`, `export const mock = createMockDataFn(code);`)
 	expectGeneratorInvalid(t, resp, "allowedValues")
-}
-
-const besideMockSamples = `type Code = TF.String<{generator: 'city'; mockSamples: ['Rome']}>;`
-
-func TestFormatGenerator_BesideMockSamplesStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, besideMockSamples, `export const isCode = createValidateFn<Code>();`), "mockSamples")
-}
-
-func TestFormatGenerator_BesideMockSamplesValue(t *testing.T) {
-	resp := scanGenerator(t, besideMockSamples+`
-declare const code: Code;`, `export const isCode = createValidateFn(code);`)
-	expectGeneratorInvalid(t, resp, "mockSamples")
 }
 
 // A widened `generator: string` or a union of names is no single generator: the typeid arm marks it unreadable.
@@ -124,14 +112,15 @@ func TestFormatGenerator_WidenedNameValue(t *testing.T) {
 
 // A custom name passes unchecked: TypeScript catches typos via MockGeneratorName.
 var cleanGeneratorCases = map[string]string{
-	"fits":                            `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
-	"too short is cut":                `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`,
-	"too long is padded":              `type Code = TF.String<{minLength: 200; generator: 'fullName'}>;`,
-	"rejected chars are replaced":     `type Code = TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;`,
-	"alpha preset":                    `type Code = TF.Alpha<{maxLength: 3; generator: 'firstName'}>;`,
-	"disallowedChars without samples": `type Code = TF.String<{disallowedChars: {val: '@'; mockSamples: ''}; generator: 'city'}>;`,
-	"sample-less pattern":             `type Code = TF.String<{pattern: {source: '^[A-Z][a-z]+$'}; generator: 'firstName'}>;`,
-	"custom name":                     `type Code = TF.String<{maxLength: 1; generator: 'testCode'}>;`,
+	"fits":                             `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
+	"too short is cut":                 `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`,
+	"too long is padded":               `type Code = TF.String<{minLength: 200; generator: 'fullName'}>;`,
+	"rejected chars are replaced":      `type Code = TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;`,
+	"alpha preset":                     `type Code = TF.Alpha<{maxLength: 3; generator: 'firstName'}>;`,
+	"disallowedChars without samples":  `type Code = TF.String<{disallowedChars: {val: '@'}; generator: 'city'}>;`,
+	"disallowedValues without samples": `type Code = TF.String<{disallowedValues: {val: ['Rome']}; generator: 'city'}>;`,
+	"sample-less pattern":              `type Code = TF.String<{pattern: {source: '^[A-Z][a-z]+$'}; generator: 'firstName'}>;`,
+	"custom name":                      `type Code = TF.String<{maxLength: 1; generator: 'testCode'}>;`,
 }
 
 func TestFormatGenerator_CleanCasesStatic(t *testing.T) {

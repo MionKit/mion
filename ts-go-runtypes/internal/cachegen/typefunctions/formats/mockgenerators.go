@@ -45,22 +45,19 @@ func lookupMockGenerator(name string) (MockGenerator, bool) {
 	return MockGenerator{}, false
 }
 
-// GeneratorProblems lists why `generator` cannot mock a format; a MockData one (fromData) overrides mockSamples.
+// GeneratorProblems lists why `generator` cannot mock a format. Beside `mockSamples` the TS types already refuse it.
 // A custom name (not built in) skips the replacement-char check: its values are unknown.
-func GeneratorProblems(name any, params map[string]any, fromData bool) []string {
+func GeneratorProblems(name any, params map[string]any) []string {
 	generator, isString := name.(string)
 	if !isString || generator == "" {
 		return []string{"`generator` must be one generator name written as a string literal"}
 	}
 	var problems []string
 	// `isRegex` too: a generated value is never a regex (`+44…` does not even compile).
-	for _, key := range []string{"allowedValues", "disallowedValues", "contentMediaType", "isRegex"} {
+	for _, key := range []string{"allowedValues", "contentMediaType", "isRegex"} {
 		if _, present := params[key]; present {
 			problems = append(problems, "`generator` cannot be combined with `"+key+"`")
 		}
-	}
-	if _, present := params["mockSamples"]; present && !fromData {
-		problems = append(problems, "`generator` cannot be combined with `mockSamples`: both pick the mock value")
 	}
 	// The mock fits any length and replaces rejected chars, so only a format leaving it nothing to build from fails.
 	// `length: 0` serves '', which `allowedChars` rejects and `disallowedChars` accepts.

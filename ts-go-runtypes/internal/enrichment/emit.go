@@ -212,7 +212,7 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, dept
 	}
 	// A String format that names a mock generator already mocks realistically, so its leaf starts filled.
 	if generator := formatGenerator(rt); generator != "" {
-		b.WriteString("{pool: [], generator: " + jsquote.Single(generator) + "}")
+		b.WriteString("{generator: " + jsquote.Single(generator) + "}")
 		return
 	}
 	b.WriteString("{pool: []}")
