@@ -15,17 +15,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// batchClientDTS mirrors the real client types, shared with the requestbatch tests.
-const batchClientDTS = testfixtures.BatchClientDTS
-
 const routerDTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
 }
 `
 
 const clientRoutesTS = `import {initClient} from '@mionjs/client';
-type Route<H> = {type: 1; handler: H};
-export type Routes = {
+` + testfixtures.BatchRouteLeaf + `export type Routes = {
   users: {getById: Route<(id: number) => {id: number; name: string}>};
   orders: {getById: Route<(id: number) => {id: number}>};
 };
@@ -108,7 +104,7 @@ func readEmitted(t *testing.T, dir, name string) string {
 // TestCompile_FullstackGeneratesBatchTransport: rpc/ comes from the program's own batches, imported relatively
 // by the emitted router-init module.
 func TestCompile_FullstackGeneratesBatchTransport(t *testing.T) {
-	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS, "client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
+	serverDir := writeProject(t, map[string]string{"router.d.ts": routerDTS, "server.ts": serverTS, "client.d.ts": testfixtures.BatchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
 
 	compileProject(t, serverDir, nil)
 
@@ -149,7 +145,7 @@ func TestCompile_FullstackGeneratesBatchTransport(t *testing.T) {
 // batch id and the inline mapper's own id into the emitted `.js`, even though
 // the file has no reflection marker of its own.
 func TestCompile_ClientCarriesBatchIdAndMapperID(t *testing.T) {
-	clientDir := writeProject(t, map[string]string{"client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
+	clientDir := writeProject(t, map[string]string{"client.d.ts": testfixtures.BatchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
 	compileProject(t, clientDir, nil)
 	emitted := readEmitted(t, clientDir, "a.js")
 	if !regexp.MustCompile(`'b_[A-Za-z0-9_-]+'`).MatchString(emitted) {
