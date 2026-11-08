@@ -188,7 +188,7 @@ function pickFactorySite(sites: ScanResult['site'][]): ScanResult['site'] {
   return best;
 }
 
-// A scan is a whole-program WASM check (~350 ms) and a pure function of its sources, so a repeat returns the stored one.
+// A scan is a ~350 ms whole-program WASM check, pure in its sources, so a repeat returns the stored one.
 // mockInvalid scans twice per click, then validates the same snippet.
 const SCAN_MEMO_SIZE = 64;
 const scanMemo = new WeakMap<Resolver['dispatch'], {overlay: PackageSourcesOverlay; results: Map<string, ScanResult>}>();
