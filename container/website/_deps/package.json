@@ -27,7 +27,7 @@
     "eslint": "9.39.4",
     "mermaid": "11.16.1",
     "monaco-editor": "0.52.2",
-    "nuxt": "4.5.2",
+    "nuxt": "4.5.1",
     "prettier": "3.8.2",
     "shiki": "3.23.0",
     "twoslash-vue": "0.3.7",
