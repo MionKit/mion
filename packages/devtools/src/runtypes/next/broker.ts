@@ -154,8 +154,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   };
 
   let startupError: unknown;
-  // withRunTypes awaits `ready` while the resolver and socket are unref'd: with no live handle Node quits
-  // mid-await and `next build` exits 0 having built nothing. Held until the scan settles, never after.
+  // Resolver and socket are unref'd: without this handle Node quits while withRunTypes awaits `ready`.
+  // `next build` then exits 0 having built nothing. Held only until the scan settles.
   const holdOpen = setInterval(() => {}, 60_000);
   const ready = (async () => {
     await built.buildStart?.call(context);
