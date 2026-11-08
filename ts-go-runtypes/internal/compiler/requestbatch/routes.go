@@ -96,8 +96,8 @@ func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	return declaration != nil && declaration.Kind == ast.KindFunctionType && marker.DeclaringModuleOfNode(declaration, scope.markerOpts.FS) == ClientModule
 }
 
-// mappingCall finds the route call holding an item's mappings: the item itself or the variable it names. A non-empty
-// reason marks a mapping the build can see but not read. A mapping it cannot see is caught at runtime (batchIdLiteral).
+// mappingCall finds the route call holding an item's mappings; a reason marks a mapping seen but unreadable.
+// A mapping it cannot see fails at runtime instead (batchIdLiteral).
 func (scope *fileScope) mappingCall(item *ast.Node) (*ast.Node, string) {
 	unwrapped := unwrap(item)
 	if unwrapped == nil {
@@ -165,8 +165,7 @@ func (scope *fileScope) writesMapper(symbol *ast.Symbol, declaration *ast.Node) 
 	return false
 }
 
-// reachesMapperCall is containsMapperCall over an expression plus, for a call to a function this program
-// declares, that function's body: a helper returning a mapped route call.
+// reachesMapperCall is containsMapperCall that also looks one call deep, into a declared helper's body.
 func (scope *fileScope) reachesMapperCall(node *ast.Node) bool {
 	if scope.containsMapperCall(node) {
 		return true
@@ -210,7 +209,6 @@ func (finder *mapperCallFinder) visit(node *ast.Node) bool {
 	return finder.found
 }
 
-// variableInitializer returns the unwrapped initializer of a variable declaration, nil when it has none.
 func variableInitializer(declaration *ast.Node) *ast.Node {
 	if declaration == nil || declaration.Kind != ast.KindVariableDeclaration {
 		return nil
@@ -222,8 +220,7 @@ func variableInitializer(declaration *ast.Node) *ast.Node {
 	return unwrap(variableDecl.Initializer)
 }
 
-// bindingInitializer resolves a mapper written as a name to its variable's initializer; reassigned means that
-// initializer may not be what runs, and nil without reassigned is a name the build cannot read.
+// bindingInitializer: reassigned means the initializer may not be what runs; nil and not reassigned is unreadable.
 func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *ast.Node, reassigned bool) {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {

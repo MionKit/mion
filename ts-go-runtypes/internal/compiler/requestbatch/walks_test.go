@@ -73,8 +73,7 @@ func TestMapperCallFinder_ReachesEveryNode(t *testing.T) {
 	}
 }
 
-// TestMapperCallFinder_FindsAMapperUnderEveryContainer runs the real walk on a mapper nested under each expression
-// shape a route argument or helper body holds it in.
+// TestMapperCallFinder_FindsAMapperUnderEveryContainer runs the real walk over each expression shape a mapper hides in.
 func TestMapperCallFinder_FindsAMapperUnderEveryContainer(t *testing.T) {
 	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"
 	containers := map[string]string{
@@ -107,8 +106,7 @@ func TestMapperCallFinder_FindsAMapperUnderEveryContainer(t *testing.T) {
 	}
 }
 
-// TestCollectAssignments_RecordsEveryWriteForm runs the real walk on each way a file can write a variable, and pins
-// the value writtenValue reads from it.
+// TestCollectAssignments_RecordsEveryWriteForm runs the real walk on each write form, pinning what writtenValue reads.
 func TestCollectAssignments_RecordsEveryWriteForm(t *testing.T) {
 	forms := map[string]struct{ write, value string }{
 		"assignment":        {"target = 1;", "1"},
@@ -139,7 +137,6 @@ func TestCollectAssignments_RecordsEveryWriteForm(t *testing.T) {
 	}
 }
 
-// findVariable returns the variable declaration named name in sourceFile.
 func findVariable(t *testing.T, sourceFile *ast.SourceFile, name string) *ast.Node {
 	t.Helper()
 	var found *ast.Node
