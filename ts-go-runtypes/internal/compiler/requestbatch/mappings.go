@@ -35,12 +35,14 @@ type pendingMapping struct {
 	written *ast.Node
 }
 
-// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route call.
+// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route call,
+// and marks each item whose route call the build cannot see.
 func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []diagnostics.Diagnostic) {
 	var pending []pendingMapping
 	var diags []diagnostics.Diagnostic
 	for targetIndex, item := range items {
-		routeCall, reason := scope.mappingCall(item.node)
+		routeCall, opaque, reason := scope.mappingCall(item.node)
+		items[targetIndex].opaque = opaque
 		if reason != "" {
 			diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, item.node, reason))
 			continue
@@ -127,15 +129,15 @@ func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall 
 		}
 		return nil, false, ""
 	case ast.KindIdentifier:
-		initializer, bindReason := scope.bindingInitializer(unwrapped)
-		if bindReason == reasonReassigned {
+		initializer, reassigned := scope.bindingInitializer(unwrapped)
+		if reassigned {
 			// Only a binding whose initializer IS a mapping was misread; any other reassigned let is a plain argument.
 			if scope.initialMapperRef(unwrapped, depth) {
 				return nil, false, reasonMapperReassigned
 			}
 			return nil, false, ""
 		}
-		if bindReason != "" {
+		if initializer == nil {
 			return nil, false, ""
 		}
 		return scope.resolveMapperRef(initializer, depth+1)

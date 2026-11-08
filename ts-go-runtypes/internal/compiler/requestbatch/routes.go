@@ -15,8 +15,6 @@ const (
 	reasonNotRoute     = "its type is not the `RouteSubRequest` a route call returns"
 	reasonAnyType      = "its type is `any` (a bare `let x;` is `any` when `noImplicitAny` is off)"
 	reasonIdNotLiteral = "its route id type is not a string literal (`string`, `any`, or an annotation that dropped it)"
-	reasonNotBound     = "binding is not a const/let with an initializer"
-	reasonReassigned   = "binding is reassigned after its initializer"
 )
 
 // routeSubRequestName is the interface every route call returns; its Id type argument is the route id.
@@ -95,7 +93,8 @@ func (scope *fileScope) routeSubRequestIds(routeType *checker.Type) ([]string, s
 	return ids, ""
 }
 
-// isRouteCall tells a route call from a helper returning one: only the routes proxy's signature is declared by the client package.
+// isRouteCall tells a route call from a helper returning one: the routes proxy types each route as a function type
+// the client package declares (a helper is a function, and inside the client package's own files it is declared there too).
 func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	if call == nil || call.Kind != ast.KindCallExpression {
 		return false
@@ -104,125 +103,97 @@ func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	if signature == nil {
 		return false
 	}
-	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), scope.markerOpts.FS) == ClientModule
+	declaration := checker.Signature_declaration(signature)
+	return declaration != nil && declaration.Kind == ast.KindFunctionType && marker.DeclaringModuleOfNode(declaration, scope.markerOpts.FS) == ClientModule
 }
 
 // mappingCall finds the route call whose arguments hold a batch item's `inputFrom()` mappings: the item itself or
-// the const / let it names. A non-empty reason marks a mapping the build would otherwise drop (in a helper's
-// arguments, a ternary arm, a later assignment), the rpc-batch-mapper-unreadable argument.
-func (scope *fileScope) mappingCall(item *ast.Node) (*ast.Node, string) {
+// the variable it names. opaque marks an item whose route call the build cannot see (a helper's result, a
+// property, a parameter, a reassigned variable): its mappings are checked at runtime instead (batchIdLiteral).
+// A non-empty reason marks a mapping the build can see but not read, the rpc-batch-mapper-unreadable argument.
+func (scope *fileScope) mappingCall(item *ast.Node) (call *ast.Node, opaque bool, reason string) {
 	unwrapped := unwrap(item)
 	if unwrapped == nil {
-		return nil, ""
+		return nil, true, ""
 	}
 	if scope.isRouteCall(unwrapped) {
-		return unwrapped, ""
+		return unwrapped, false, ""
 	}
 	if unwrapped.Kind == ast.KindIdentifier {
 		return scope.boundMappingCall(unwrapped)
 	}
 	if scope.containsMapperCall(unwrapped) {
-		return nil, reasonMapperOutsideRouteCall
+		return nil, true, reasonMapperOutsideRouteCall
 	}
-	return nil, ""
+	return nil, true, ""
 }
 
-// boundMappingCall is mappingCall for an item written as a name. A value the file cannot see (a parameter,
-// a destructured binding) carries no mappings the build can read; a reassigned variable is checked at every write.
-func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, string) {
+// boundMappingCall is mappingCall for an item written as a name.
+func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, bool, string) {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
-		return nil, ""
+		return nil, true, ""
 	}
 	for _, declaration := range symbol.Declarations {
-		if declaration == nil || declaration.Kind != ast.KindVariableDeclaration {
+		variable := declaration
+		for variable != nil && (variable.Kind == ast.KindBindingElement || variable.Kind == ast.KindObjectBindingPattern || variable.Kind == ast.KindArrayBindingPattern) {
+			variable = variable.Parent
+		}
+		if variable == nil || variable.Kind != ast.KindVariableDeclaration {
 			continue
 		}
 		var initializer *ast.Node
-		if variableDecl := declaration.AsVariableDeclaration(); variableDecl != nil && variableDecl.Initializer != nil {
+		if variableDecl := variable.AsVariableDeclaration(); variableDecl.Initializer != nil {
 			initializer = unwrap(variableDecl.Initializer)
 		}
-		if scope.isAssigned(symbol, declaration) {
-			if (initializer != nil && scope.containsMapperCall(initializer)) || scope.assignsMapper(symbol, ast.GetSourceFileOfNode(declaration)) {
-				return nil, reasonMappedRouteReassigned
+		if writes := scope.assignedValues(symbol, variable); len(writes) > 0 {
+			for _, value := range append(writes, initializer) {
+				if value != nil && scope.containsMapperCall(value) {
+					return nil, true, reasonMappedRouteReassigned
+				}
 			}
-			return nil, ""
+			return nil, true, ""
 		}
 		if initializer == nil {
-			return nil, ""
+			return nil, true, ""
 		}
-		if scope.isRouteCall(initializer) {
-			return initializer, ""
+		if variable == declaration && scope.isRouteCall(initializer) {
+			return initializer, false, ""
 		}
 		if scope.containsMapperCall(initializer) {
-			return nil, reasonMapperOutsideRouteCall
+			return nil, true, reasonMapperOutsideRouteCall
 		}
-		return nil, ""
+		return nil, true, ""
 	}
-	return nil, ""
+	return nil, true, ""
 }
 
 // containsMapperCall reports whether a branded mapper-factory call sits anywhere under node.
 func (scope *fileScope) containsMapperCall(node *ast.Node) bool {
-	found := false
-	var visit ast.Visitor
-	visit = func(child *ast.Node) bool {
-		if found || child == nil {
-			return found
-		}
-		if child.Kind == ast.KindCallExpression && scope.isMapperFactoryCall(child) {
-			found = true
-			return true
-		}
-		child.ForEachChild(visit)
-		return found
-	}
-	visit(node)
-	return found
+	finder := &mapperCallFinder{scope: scope}
+	finder.visit(node)
+	return finder.found
 }
 
-// assignsMapper reports whether any assignment to symbol in its declaring file writes a mapper-factory call.
-func (scope *fileScope) assignsMapper(symbol *ast.Symbol, declaringFile *ast.SourceFile) bool {
-	if declaringFile == nil {
-		return false
-	}
-	found := false
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if found || node == nil {
-			return found
-		}
-		if ast.IsAssignmentExpression(node, false) {
-			binary := node.AsBinaryExpression()
-			if scope.namesSymbol(binary.Left, symbol) && scope.containsMapperCall(binary.Right) {
-				found = true
-				return true
-			}
-		}
-		node.ForEachChild(visit)
-		return found
-	}
-	declaringFile.AsNode().ForEachChild(visit)
-	return found
+// mapperCallFinder is containsMapperCall's walk.
+type mapperCallFinder struct {
+	scope *fileScope
+	found bool
 }
 
-// namesSymbol reports whether an assignment target (a name or a destructuring pattern) writes symbol.
-func (scope *fileScope) namesSymbol(target *ast.Node, symbol *ast.Symbol) bool {
-	found := false
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if found || node == nil {
-			return found
-		}
-		if node.Kind == ast.KindIdentifier && scope.typeChecker.GetSymbolAtLocation(node) == symbol {
-			found = true
+func (finder *mapperCallFinder) visit(node *ast.Node) bool {
+	if finder.found || node == nil {
+		return finder.found
+	}
+	switch node.Kind {
+	case ast.KindCallExpression:
+		if finder.scope.isMapperFactoryCall(node) {
+			finder.found = true
 			return true
 		}
-		node.ForEachChild(visit)
-		return found
 	}
-	visit(target)
-	return found
+	node.ForEachChild(finder.visit)
+	return finder.found
 }
 
 // blockScopedInitializer returns the unwrapped initializer of a `const` / `let` declaration, nil for `var`.
@@ -242,49 +213,49 @@ func blockScopedInitializer(declaration *ast.Node) *ast.Node {
 }
 
 // bindingInitializer resolves an identifier to the initializer of the const / let binding it names, the road an
-// `inputFrom()` mapper written as a name takes. A non-empty reason says why it cannot be read: no const / let
-// initializer, or a later-reassigned `let`, whose initializer is not what runs.
-func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, string) {
-	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
-	symbol = comptimeargs.ResolveImportAlias(scope.typeChecker, symbol)
+// `inputFrom()` mapper written as a name takes. reassigned marks a binding written after its initializer, whose
+// initializer is not what runs; a nil initializer with reassigned false is a name the build cannot read.
+func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *ast.Node, reassigned bool) {
+	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
-		return nil, reasonNotBound
+		return nil, false
 	}
 	for _, declaration := range symbol.Declarations {
 		initializer := blockScopedInitializer(declaration)
 		if initializer == nil {
 			continue
 		}
-		if scope.isAssigned(symbol, declaration) {
-			return nil, reasonReassigned
+		if len(scope.assignedValues(symbol, declaration)) > 0 {
+			return nil, true
 		}
-		return initializer, ""
+		return initializer, false
 	}
-	return nil, reasonNotBound
+	return nil, false
 }
 
-// isAssigned guards a silent misread: the extractor only ever reads the initializer. A `const` cannot be
-// reassigned and a variable can only be written by its own module, so the declaring file is the whole search
-// space, and its target set is collected once and memoised for the scope's lifetime.
-func (scope *fileScope) isAssigned(symbol *ast.Symbol, declaration *ast.Node) bool {
+// assignedValues guards a silent misread: the extractor only ever reads the initializer. It lists every write to a
+// non-const variable after its declaration (an increment or a destructuring write lists the expression it is
+// part of). A variable can only be written by its own module, so the declaring file is the whole search space,
+// collected once and memoised for the scope's lifetime.
+func (scope *fileScope) assignedValues(symbol *ast.Symbol, declaration *ast.Node) []*ast.Node {
 	if declaration.Parent != nil && declaration.Parent.Flags&ast.NodeFlagsConst != 0 {
-		return false
+		return nil
 	}
 	declaringFile := ast.GetSourceFileOfNode(declaration)
 	if declaringFile == nil {
-		return false
+		return nil
 	}
-	targets, ok := scope.assignedSymbols[declaringFile]
+	writes, ok := scope.assignedSymbols[declaringFile]
 	if !ok {
-		targets = scope.collectAssignedSymbols(declaringFile)
-		scope.assignedSymbols[declaringFile] = targets
+		writes = scope.collectAssignments(declaringFile)
+		scope.assignedSymbols[declaringFile] = writes
 	}
-	return targets[symbol]
+	return writes[symbol]
 }
 
-// collectAssignedSymbols returns every symbol a file assigns, increments, or heads a for-in / for-of with.
-func (scope *fileScope) collectAssignedSymbols(sourceFile *ast.SourceFile) map[*ast.Symbol]bool {
-	targets := map[*ast.Symbol]bool{}
+// collectAssignments maps every symbol a file assigns, increments, or heads a for-in / for-of with to the written values.
+func (scope *fileScope) collectAssignments(sourceFile *ast.SourceFile) map[*ast.Symbol][]*ast.Node {
+	writes := map[*ast.Symbol][]*ast.Node{}
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
 		if node == nil {
@@ -298,14 +269,32 @@ func (scope *fileScope) collectAssignedSymbols(sourceFile *ast.SourceFile) map[*
 				symbol = scope.typeChecker.GetSymbolAtLocation(node)
 			}
 			if symbol != nil {
-				targets[symbol] = true
+				writes[symbol] = append(writes[symbol], writtenValue(node))
 			}
 		}
 		node.ForEachChild(visit)
 		return false
 	}
 	sourceFile.AsNode().ForEachChild(visit)
-	return targets
+	return writes
+}
+
+// writtenValue is the expression a write to target stores: an assignment's right side, a for-in / for-of's
+// iterated expression, or the increment itself.
+func writtenValue(target *ast.Node) *ast.Node {
+	write := ast.GetAssignmentTarget(target)
+	if write == nil {
+		return target
+	}
+	switch write.Kind {
+	case ast.KindBinaryExpression:
+		return write.AsBinaryExpression().Right
+	case ast.KindForInStatement:
+		return write.AsForInOrOfStatement().Expression
+	case ast.KindForOfStatement:
+		return write.AsForInOrOfStatement().Expression
+	}
+	return write
 }
 
 // calleeSymbol resolves `f` or `ns.f` to the symbol it ultimately names, import aliases skipped.

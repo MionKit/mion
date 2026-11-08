@@ -314,6 +314,8 @@ describe('request-batch diagnostics and readable shapes', () => {
         routeIds: ['users/getById', 'orders/list'],
       },
     };
+    // The build cannot see these route calls, so it injects the id lookup that checks their mappings at runtime.
+    const outOfSight = new Set(['a helper whose inferred return keeps the id', 'a let reassigned to the same route']);
     for (const [name, {body, routeIds}] of Object.entries(legit)) {
       register(name, async () => {
         const source = IMPORTS + body;
@@ -321,7 +323,8 @@ describe('request-batch diagnostics and readable shapes', () => {
           const [site] = expectClean(run, 'case.ts');
           expect(site.routeIds).toEqual(routeIds);
           expect(site.mappings ?? []).toEqual([]);
-          await expectInjected(run, 'case.ts', [site]);
+          if (!outOfSight.has(name)) await expectInjected(run, 'case.ts', [site]);
+          else expect(await run.transform('case.ts')).toContain(`{'${routeIds.join(',')}': '${site.batchId}'})`);
         });
       });
     }

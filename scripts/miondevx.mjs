@@ -150,7 +150,7 @@ const FUZZ = {
 // so the drift gate and this registry can never disagree.
 const GO_RUN = ['go', '-C', 'ts-go-runtypes', 'run'];
 const CODEGEN = {
-  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts']},
+  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts', 'packages/core/src/go-generated/batchKey.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts', 'packages/core/src/go-generated/batchKey.generated.ts']},
   // Writes BOTH mirrors itself (marker RunTypeKind + devtools ReflectionKind enum)
   // from one protocol parse, so they can't drift; no stdoutTo (multi-file output).
   kind: {run: [...GO_RUN, './cmd/gen-run-type-kind'], outputs: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts'], fmt: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts']},

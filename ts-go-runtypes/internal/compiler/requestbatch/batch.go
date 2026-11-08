@@ -15,6 +15,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -34,7 +35,7 @@ type Mapping struct {
 }
 
 // Site is one batch a successfully read `batch([...])` call may run; a call with an item of several possible
-// routes yields one Site per combination, all sharing the call's span and InjectText.
+// routes yields one Site per combination, all sharing the call's span, the first carrying the splice.
 type Site struct {
 	// The call expression's span, in byte offsets.
 	FilePath string
@@ -134,14 +135,15 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 	return sites, diags
 }
 
-// MaxCombinations caps the batches one call may compile: each union item multiplies them, and each is a
+// maxCombinations caps the batches one call may compile: each union item multiplies them, and each is a
 // server table entry plus a key in the client bundle.
-const MaxCombinations = 64
+const maxCombinations = 64
 
-// batchItem is one element of the routes argument and the routes it may run.
+// batchItem is one element of the routes argument, the routes it may run, and whether its route call is out of sight.
 type batchItem struct {
-	node *ast.Node
-	ids  []string
+	node   *ast.Node
+	ids    []string
+	opaque bool
 }
 
 // extractOne reads a single branded batch call into one Site per route combination it may run.
@@ -182,15 +184,15 @@ func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Di
 			continue
 		}
 		items = append(items, batchItem{node: element, ids: ids})
-		if combinationCount <= MaxCombinations {
+		if combinationCount <= maxCombinations {
 			combinationCount *= len(ids)
 		}
 	}
 	if len(diags) > 0 {
 		return nil, diags
 	}
-	if combinationCount > MaxCombinations {
-		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchTooManyCombinations, routesArg, strconv.Itoa(MaxCombinations))}
+	if combinationCount > maxCombinations {
+		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchTooManyCombinations, routesArg, strconv.Itoa(maxCombinations))}
 	}
 	pending, mappingDiags := fileScope.resolveMappings(items)
 	if len(mappingDiags) > 0 {
@@ -198,21 +200,13 @@ func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Di
 	}
 	combinations := routeCombinations(items)
 	sites := make([]Site, 0, len(combinations))
-	seenDiags := map[string]bool{}
 	for _, routeIds := range combinations {
 		comboDiags := fileScope.duplicateRoutes(items, routeIds)
 		var mappings []Mapping
 		if len(comboDiags) == 0 {
 			mappings, comboDiags = fileScope.placeMappings(pending, routeIds)
 		}
-		// Combinations repeat the same finding at the same place: report it once.
-		for _, diag := range comboDiags {
-			key := diagnostics.FormatDebug(diag)
-			if !seenDiags[key] {
-				seenDiags[key] = true
-				diags = append(diags, diag)
-			}
-		}
+		diags = append(diags, comboDiags...)
 		sites = append(sites, Site{
 			FilePath:   sourceFile.FileName(),
 			Start:      call.Pos(),
@@ -226,19 +220,29 @@ func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Di
 		})
 	}
 	if len(diags) > 0 {
-		return nil, diags
+		// Combinations repeat the same finding at the same place.
+		return nil, diagnostics.Dedupe(diags)
 	}
-	injectText := purefunctions.TrailingArgLiteral(batchIdLiteral(sites), callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
 	calleeModule := ""
 	if signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0); signature != nil {
 		calleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), fileScope.markerOpts.FS)
 	}
 	for i := range sites {
-		sites[i].InjectPos = call.End() - 1
-		sites[i].InjectText = injectText
 		sites[i].CalleeModule = calleeModule
 	}
+	// One splice per call, carried by its first site.
+	sites[0].InjectPos = call.End() - 1
+	sites[0].InjectText = purefunctions.TrailingArgLiteral(batchIdLiteral(sites, anyOpaque(items)), callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
 	return sites, nil
+}
+
+func anyOpaque(items []batchItem) bool {
+	for _, item := range items {
+		if item.opaque {
+			return true
+		}
+	}
+	return false
 }
 
 // routeCombinations lists every ordered route list the items may run, the first item varying slowest.
@@ -270,25 +274,49 @@ func (fileScope *fileScope) duplicateRoutes(items []batchItem, routeIds []string
 	return diags
 }
 
-// batchIdLiteral is the id slot's value: the id itself, or, when an item may run several routes, an object
-// keyed by each combination's route ids joined with routeIdSeparator, which `batch()` picks from at runtime.
-func batchIdLiteral(sites []Site) string {
-	if len(sites) == 1 {
+// batchIdLiteral is the id slot's value: the id itself, or an object of one id per combination that `batch()`
+// picks from at runtime, keyed by batchLookupKey. The object is also written when an item's route call is out of
+// the build's sight: the key then holds the arguments the build mapped, so a mapping it could not see makes
+// `batch()` throw `batch-missing-id` instead of sending a null argument.
+func batchIdLiteral(sites []Site, opaque bool) string {
+	if len(sites) == 1 && !opaque {
 		return jsquote.Single(sites[0].BatchId)
 	}
 	entries := make([]string, 0, len(sites))
 	for _, site := range sites {
-		entries = append(entries, jsquote.Single(strings.Join(site.RouteIds, routeIdSeparator))+": "+jsquote.Single(site.BatchId))
+		entries = append(entries, jsquote.Single(batchLookupKey(site))+": "+jsquote.Single(site.BatchId))
 	}
 	return "{" + strings.Join(entries, ", ") + "}"
 }
 
-// fileScope also memoises, per declaring file, the assignment targets the reassignment guard reads.
+// batchLookupKey names a combination as `batch()` does from the routes it got: each route id followed by
+// BatchKeyMappedArgMark and the index of each argument mapped into it, joined by BatchKeyRouteSeparator.
+func batchLookupKey(site Site) string {
+	parts := make([]string, len(site.RouteIds))
+	for i, routeId := range site.RouteIds {
+		var part strings.Builder
+		part.WriteString(routeId)
+		var mapped []int
+		for _, mapping := range site.Mappings {
+			if mapping.ToId == routeId {
+				mapped = append(mapped, mapping.ParamIndex)
+			}
+		}
+		sort.Ints(mapped)
+		for _, paramIndex := range mapped {
+			part.WriteString(constants.BatchKeyMappedArgMark + strconv.Itoa(paramIndex))
+		}
+		parts[i] = part.String()
+	}
+	return strings.Join(parts, constants.BatchKeyRouteSeparator)
+}
+
+// fileScope also memoises, per declaring file, the writes the reassignment guard reads.
 type fileScope struct {
 	typeChecker     *checker.Checker
 	markerOpts      marker.Options
 	sourceFile      *ast.SourceFile
-	assignedSymbols map[*ast.SourceFile]map[*ast.Symbol]bool
+	assignedSymbols map[*ast.SourceFile]map[*ast.Symbol][]*ast.Node
 	pureFns         *purefunctions.FileCache
 }
 
@@ -297,7 +325,7 @@ func newFileScope(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 		typeChecker:     typeChecker,
 		markerOpts:      marker.WithDefaults(markerOpts),
 		sourceFile:      sourceFile,
-		assignedSymbols: map[*ast.SourceFile]map[*ast.Symbol]bool{},
+		assignedSymbols: map[*ast.SourceFile]map[*ast.Symbol][]*ast.Node{},
 		pureFns:         purefunctions.NewFileCache(),
 	}
 }

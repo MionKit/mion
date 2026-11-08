@@ -222,10 +222,10 @@ export type InjectPureFnId<F> = string & {
  * needs nothing but the id.
  *
  * `Routes` is phantom, linking the marker to the routes argument; the runtime value is the injected
- * string, or an object of one id per route combination when an item may be several routes. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner resolves the
- * alias identically.
+ * id, or an object of one id per route combination, the shape `batch()` reads. The scanner matches a marker by
+ * name, module and brand property, never by what it wraps.
  */
-export type InjectBatchId<Routes> = string & {
+export type InjectBatchId<Routes> = (string | Readonly<Record<string, string>>) & {
   readonly __rtInjectBatchIdBrand?: Routes;
 };
 
