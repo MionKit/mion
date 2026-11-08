@@ -507,7 +507,7 @@ batch([user, routes.orders.list()]);`,
 	// ───────────────────── build-time arguments (marker-comptime-arg-*) ─────────────────────
 
 	CodeCompTimeArgsNonLiteral: {
-		Summary: "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported. Function calls, property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (marker-comptime-arg-widened-const). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+		Summary: "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported, or a namespace import's member (`GEN.lastName`). Function calls, other property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (marker-comptime-arg-widened-const). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
 		Fix: `const isUser = createValidateFn<User>(undefined, {mode: 'unsafe'});
 
 // or a const of literals, here or in another module
@@ -518,7 +518,7 @@ const isUserToo = createValidateFn<User>(undefined, opts);`,
 		Summary: "A `CompTimeArgs<T>` literal can nest at most 16 levels deep. Flatten it, or split it into several smaller `CompTimeArgs<T>` arguments.",
 	},
 	CodeCompTimeArgsForbiddenConstruct: {
-		Summary: "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+		Summary: "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, a `const` that points to one, or a namespace import's member (`GEN.lastName`, an exported `const`). Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
 		Fix: `const base = {strict: true} as const;
 const options = {...base, mode: 'unsafe'} as const;`,
 	},
