@@ -997,7 +997,7 @@ describe('the gate keeps or cancels older runs', () => {
   const scriptOf = (name: string) =>
     (/run: \|\n((?: {8}.*\n?)+)/.exec(action.slice(action.indexOf(`- name: ${name}`)))?.[1] ?? '').replace(/^ {8}/gm, '');
 
-  // The listing and its filters live in supersede.mjs, shared with the watcher; pasting the branch into bash would let it run code.
+  // The listing lives in supersede.mjs, shared with the watcher; a branch name pasted into bash could run code.
   it('lists, downloads and plans in supersede.mjs, with the token and no branch name in the script', () => {
     const step = action.slice(
       action.indexOf('- name: Keep or cancel the older runs'),
