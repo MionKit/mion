@@ -251,6 +251,10 @@ func sampleDrawPool(params map[string]any) []string {
 	if vals, _, ok := readValuesParam(params, "allowedValues"); ok {
 		return vals
 	}
+	// A generator draws instead of any sample pool, so no pool's lengths matter.
+	if hasGenerator(params) {
+		return nil
+	}
 	if samples := samplesFromValue(params["mockSamples"]); len(samples) > 0 {
 		return samples
 	}

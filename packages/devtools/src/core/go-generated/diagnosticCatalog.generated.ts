@@ -253,6 +253,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'enrich',
     slots: ['arm'],
   },
+  'format-generator-invalid': {
+    headline: 'TypeFormat mock generator `{generator}` cannot mock this format: {reason}',
+    level: 'runtimeError',
+    family: 'runtype',
+    slots: ['generator', 'reason'],
+  },
   'format-invalid-params': {
     headline: 'Invalid type-format params: {reason}',
     level: 'runtimeError',

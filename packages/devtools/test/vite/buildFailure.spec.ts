@@ -101,6 +101,20 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-sample-out-of-bounds-mock-only/index.ts'), line: 9});
   }, 60_000);
 
+  it('format-generator-invalid: a generator the format leaves nothing to produce', async () => {
+    const result = await buildFixture('format-generator-invalid');
+    expect(result.codes).toContain('format-generator-invalid');
+    expect(result.ok).toBe(false);
+    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-generator-invalid/index.ts'), line: 8});
+  }, 60_000);
+
+  it('format-generator-invalid: reported at a mock-only site', async () => {
+    const result = await buildFixture('format-generator-invalid-mock-only');
+    expect(result.codes).toContain('format-generator-invalid');
+    expect(result.ok).toBe(false);
+    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-generator-invalid-mock-only/index.ts'), line: 8});
+  }, 60_000);
+
   it('format-sample-generation-failed: a pattern the sample generator cannot handle', async () => {
     // Lookarounds, which format-sample-generation-failed names as the usual case, and no declared samples to fall back on.
     const result = await buildFixture('format-sample-generation-failed');

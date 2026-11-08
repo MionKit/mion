@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -73,6 +74,7 @@ func wantsJSONContent(params map[string]any) bool {
 func stringConditions(ctx formats.EmitContext, params map[string]any, vλl string) []string {
 	// Checked against the statically knowable sibling bounds, whether or not a pattern is present.
 	validateSampleBounds(ctx, params)
+	checkGenerator(ctx, params)
 	var conditions []string
 	// The content check leads: parse first, then the sibling string keywords.
 	if wantsJSONContent(params) {
@@ -86,7 +88,10 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	// `pattern` backs FormatAlpha / FormatNumeric and any FormatString carrying a registerFormatPattern result.
 	if source, flags, ok := recoverPattern(params); ok {
 		validatePatternSafety(ctx, params, source, flags)
-		validateSamples(ctx, source, flags, recoverSamples(params))
+		// A generator draws the mock instead of the pattern's samples, so only declared ones need checking.
+		if samples := recoverSamples(params); len(samples) > 0 || !hasGenerator(params) {
+			validateSamples(ctx, source, flags, samples)
+		}
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
 	} else {
 		reportUnrecoveredPattern(ctx, params)
@@ -328,7 +333,8 @@ func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	if complexCount > 1 {
 		errs = append(errs, "StringFormat: only one of [pattern, allowedChars, disallowedChars, allowedValues, disallowedValues] can be used at once")
 	}
-	if _, present := params["disallowedChars"]; present && !paramHasMockSamples(params, "disallowedChars") {
+	// A generator builds the mock, so disallowedChars needs no samples beside it.
+	if _, present := params["disallowedChars"]; present && !hasGenerator(params) && !paramHasMockSamples(params, "disallowedChars") {
 		errs = append(errs, "StringFormat: `disallowedChars` requires `mockSamples`")
 	}
 	if _, present := params["disallowedValues"]; present && !paramHasMockSamples(params, "disallowedValues") {
@@ -351,4 +357,34 @@ func paramHasMockSamples(params map[string]any, key string) bool {
 		return len(samples) > 0
 	}
 	return false
+}
+
+// hasGenerator reports a mock `generator` param: the mock then draws from it, not from samples.
+func hasGenerator(params map[string]any) bool {
+	_, present := params["generator"]
+	return present
+}
+
+// checkGenerator reports a mock generator the format's own rules leave nothing to produce.
+func checkGenerator(ctx formats.EmitContext, params map[string]any) {
+	name, present := params["generator"]
+	if !present {
+		return
+	}
+	if problems := formats.GeneratorProblems(name, params, false); len(problems) > 0 {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTGeneratorInvalid, generatorLabel(name), strings.Join(problems, "; "))
+	}
+}
+
+// generatorLabel names a generator param in a message: the name, or the type text of an unreadable one.
+func generatorLabel(name any) string {
+	if text, ok := name.(string); ok {
+		return text
+	}
+	if unrecovered, ok := name.(map[string]any); ok {
+		if text, ok := unrecovered["unrecovered"].(string); ok {
+			return text
+		}
+	}
+	return "?"
 }

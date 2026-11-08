@@ -19,6 +19,7 @@ var headlineByCode = map[string]string{
 	"format-invalid-params":                        "Invalid type-format params: {reason}",
 	"data-non-enumerable-required":                 "Property `{property}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{property}?`) or remove the tag.",
 	"format-sample-out-of-bounds":                  "TypeFormat mockSample violates a sibling constraint: {reason}",
+	"format-generator-invalid":                     "TypeFormat mock generator `{generator}` cannot mock this format: {reason}",
 	"format-no-js-runtime":                         "TypeFormat pattern /{pattern}/ cannot be checked: {reason}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
 	"format-sample-generation-failed":              "Cannot auto-generate mockSamples for pattern /{pattern}/: {reason}; declare mockSamples explicitly.",
 	"format-pattern-timeout":                       "TypeFormat pattern /{pattern}/ could not be evaluated in time: {reason}; the build was not able to tell whether the pattern is safe.",

@@ -36,6 +36,9 @@
   "data-proto-property-dropped": [
     "property"
   ],
+  "drizzle-type-not-allowed": [
+    "position"
+  ],
   "enrich-mirror-moved": [
     "expected",
     "actual"
@@ -77,6 +80,10 @@
   ],
   "enrich-text-unknown-plural-arm": [
     "arm"
+  ],
+  "format-generator-invalid": [
+    "generator",
+    "reason"
   ],
   "format-invalid-params": [
     "reason"
@@ -372,9 +379,6 @@
   "rpc-client-version-mismatch": [
     "clientVersion",
     "apiVersion"
-  ],
-  "drizzle-type-not-allowed": [
-    "position"
   ],
   "rpc-handler-missing-param-type": [
     "handler",
