@@ -40,6 +40,7 @@ export * as GEN from '../go-generated/mockGenerators.generated.ts';
 import type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
 export type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
 
+// #region mockgenerator-names-extract — sliced verbatim by test/types/enrichHarness.ts beside the generated meta file.
 /** Extend it to name your own mock generators, registered with `registerMockGenerator`:
  *  `declare module '@mionjs/run-types/formats' { interface CustomMockGenerators { phoneNumberUk: true } }`.
  *  Declared here, not re-exported, so that augmentation of this subpath merges into it. **/
@@ -48,6 +49,7 @@ export interface CustomMockGenerators {}
 
 /** A string format's `generator`: a built-in name or one declared on CustomMockGenerators. **/
 export type MockGeneratorName = keyof BuiltinMockGenerators | keyof CustomMockGenerators;
+// #endregion mockgenerator-names-extract
 
 // Temporal builders are NOT re-exported here: they live on the `@mionjs/run-types/formats/temporal`
 // subpath, so non-Temporal consumers never pull in the Temporal lib.

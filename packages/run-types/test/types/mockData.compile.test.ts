@@ -32,6 +32,10 @@ describe('MockData<T> — per-branch correctness (total contract)', () => {
       type _05 = ExpectFalse<Assignable<{min: 0; max: 9}, MockData<number>>>;
       // number must not accept a string pool
       type _06 = ExpectFalse<Assignable<{pool: ['x']}, MockData<number>>>;
+      // a string leaf may name a mock generator beside an empty pool, never an unknown one
+      type _07 = Expect<Assignable<{pool: []; generator: 'fullName'}, MockData<string>>>;
+      type _08 = ExpectFalse<Assignable<{pool: []; generator: 'nope'}, MockData<string>>>;
+      type _09 = ExpectFalse<'generator' extends keyof MockData<number> ? true : false>;
       `,
       0
     );

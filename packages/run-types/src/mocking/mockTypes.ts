@@ -82,6 +82,8 @@ export interface MockOptions {
 export interface MockDataNode {
   /** Value pool — leaf kinds draw `randomItem(pool)`. **/
   pool?: unknown[];
+  /** A string leaf's mock generator by name, used when the pool is empty. **/
+  generator?: string;
   /** Inclusive numeric / Date range bounds. **/
   min?: number | Date;
   max?: number | Date;
