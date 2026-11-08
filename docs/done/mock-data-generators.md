@@ -149,6 +149,12 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   `rt$items` against every slot and reads `GEN.x` members; the mock walker reads a fixed tuple's `rt$slots`; the
   mock-only site check is built outside the family walkers on purpose (no family that checks formats reaches a
   mock-only site); the disk cache format moved to v25.
+- Length bounds never fail the build or throw (user decision after review). Out of every span, `mockFromGenerator`
+  cuts a value to `hi` or pads it to `lo` with more draws (digits after digits, then words joined by a space, then
+  joined as is, then plain letters), last without the chars the format's char sets reject, and keeps the first one
+  the format accepts; custom generators get the same. `GeneratorProblems` dropped the span-overlap reason, checks
+  `Required` chars only at a natural length (no fitting), and at `length: 0` reports `allowedChars` (it rejects '')
+  instead of the `Leading` check. The sections below still describe the length error as planned.
 
 ## Plan
 
