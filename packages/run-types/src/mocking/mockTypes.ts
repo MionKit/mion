@@ -89,6 +89,8 @@ export interface MockDataNode {
   max?: number | Date;
   /** Array element data node. **/
   rt$items?: MockDataNode;
+  /** Fixed-tuple slot data nodes, one per position. **/
+  rt$slots?: MockDataNode[];
   /** Array element count — fixed `n` or `[min, max]` range. **/
   rt$length?: number | [number, number];
   /** Present-probability for optional object members (reserved; not yet read). **/
