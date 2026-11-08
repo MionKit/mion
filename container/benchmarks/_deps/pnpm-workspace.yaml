@@ -11,7 +11,9 @@ allowBuilds:
 # Refuse to resolve package versions younger than 30 days (defeats
 # fast-spreading malicious releases). Applies on fresh resolve.
 minimumReleaseAge: 43200
-minimumReleaseAgeExclude: []
+minimumReleaseAgeExclude:
+  # security fix (Dependabot), added 2026-11-08
+  - 'zod@4.6.6'
 
 # Block exotic transitive sources; direct deps may declare any source.
 blockExoticSubdeps: true
