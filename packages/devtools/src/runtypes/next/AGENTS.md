@@ -28,6 +28,7 @@
 ## ⚠️ Invariants that look like cleanups and are not
 
 Each was a real failure before it was a rule. Tests cite them by number: keep the numbering.
+
 1. **Socket key includes the process id** (`socketPathFor`).
    - Root-only key = global rendezvous any process evaluating `next.config` can claim. Incl. Next's detached
      telemetry flush: loads config, outlives dev server, reparented to init.
