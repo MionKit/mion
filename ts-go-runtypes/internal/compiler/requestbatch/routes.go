@@ -1,7 +1,7 @@
 package requestbatch
 
 import (
-	"strings"
+	"sort"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -11,253 +11,218 @@ import (
 
 // Rejection reasons: rpc-batch-element-unreadable's `{0}` argument, and, prefixed, rpc-batch-mapper-unreadable's.
 const (
-	reasonSpread         = "spread element"
-	reasonNotRouteCall   = "not a route call"
-	reasonNotRoutesProxy = "root is not the client routes proxy"
-	reasonNotBound       = "binding is not a const/let with a route-call initializer"
-	reasonReassigned     = "binding is reassigned after its initializer"
-	reasonChainRoot      = "route path does not start at an identifier (`this`, `new X()`, …)"
-	reasonCallResult     = "client comes from a function call the build cannot follow (`inject()`, a composable, …)"
-	reasonComputedMember = "computed member in the route path"
-	reasonOptionalChain  = "optional chaining in the route path"
-	reasonDepthCap       = "depth cap"
+	reasonSpread       = "spread element"
+	reasonNotRoute     = "its type is not the `RouteSubRequest` a route call returns"
+	reasonAnyType      = "its type is `any` (a bare `let x;` is `any` when `noImplicitAny` is off)"
+	reasonIdNotLiteral = "its route id type is not a string literal (`string`, `any`, or an annotation that dropped it)"
+	reasonNotBound     = "binding is not a const/let with an initializer"
+	reasonReassigned   = "binding is reassigned after its initializer"
 )
 
-// routeSubRequestName is the interface every route call returns, the gate that tells a route call from any
-// other call whose callee hangs off a property chain.
+// routeSubRequestName is the interface every route call returns; its Id type argument is the route id.
 const routeSubRequestName = "RouteSubRequest"
 
-// initClientName produces the client object whose RoutesProperty is the routes proxy.
-const initClientName = "initClient"
+// routeIdTypeArgument is the `Id` slot of `RouteSubRequest<PH, Id, RA>`.
+const routeIdTypeArgument = 1
 
-// resolveRouteRef resolves a batch element (or an `inputFrom()` source) to the route call it names and that
-// call's route id, through const / let bindings, imports and wrappers. A non-empty reason is rpc-batch-element-unreadable's argument.
-func (scope *fileScope) resolveRouteRef(node *ast.Node, depth int) (routeCall *ast.Node, routeId string, reason string) {
-	if depth > comptimeargs.DepthCap {
-		return nil, "", reasonDepthCap
+// itemRouteIds reads the routes a batch item may run from its type, sorted: one id, or one per union member.
+// The type is read at the item as written, so a cast is trusted: the server only runs the batches it compiled.
+func (scope *fileScope) itemRouteIds(node *ast.Node) ([]string, string) {
+	if node == nil {
+		return nil, reasonNotRoute
 	}
-	unwrapped := unwrap(node)
-	if unwrapped == nil {
-		return nil, "", reasonNotRouteCall
+	if node.Kind == ast.KindSpreadElement {
+		return nil, reasonSpread
 	}
-	switch unwrapped.Kind {
-	case ast.KindSpreadElement:
-		return nil, "", reasonSpread
-	case ast.KindCallExpression:
-		routeId, reason = scope.resolveRouteCall(unwrapped, depth)
-		return unwrapped, routeId, reason
-	case ast.KindIdentifier:
-		initializer, bindReason := scope.bindingInitializer(unwrapped)
-		if bindReason != "" {
-			return nil, "", bindReason
+	itemType := scope.typeChecker.GetTypeAtLocation(node)
+	if itemType == nil {
+		return nil, reasonNotRoute
+	}
+	members := []*checker.Type{itemType}
+	if checker.Type_flags(itemType)&checker.TypeFlagsUnion != 0 {
+		members = itemType.Types()
+	}
+	seen := map[string]bool{}
+	var ids []string
+	for _, member := range members {
+		memberIds, reason := scope.routeSubRequestIds(member)
+		if reason != "" {
+			return nil, reason
 		}
-		return scope.resolveRouteRef(initializer, depth+1)
+		for _, id := range memberIds {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
 	}
-	return nil, "", reasonNotRouteCall
+	sort.Strings(ids)
+	return ids, ""
 }
 
-// resolveRouteCall reads a route call into its id, the `/`-joined chain after the routes proxy. Two gates:
-// the call returns the client package's RouteSubRequest, and its callee chain roots at that proxy.
-func (scope *fileScope) resolveRouteCall(call *ast.Node, depth int) (routeId string, reason string) {
-	if !scope.returnsRouteSubRequest(call) {
-		return "", reasonNotRouteCall
+// routeSubRequestIds reads the Id type argument of the client package's RouteSubRequest: a literal or a union of them.
+func (scope *fileScope) routeSubRequestIds(routeType *checker.Type) ([]string, string) {
+	if checker.Type_flags(routeType)&checker.TypeFlagsAny != 0 {
+		return nil, reasonAnyType
 	}
-	segments, root, chainReason := accessChain(call.AsCallExpression().Expression)
-	if chainReason != "" {
-		return "", chainReason
+	if routeType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
+		return nil, reasonNotRoute
 	}
-	full, rootReason := scope.resolveRootPath(root, segments, depth)
-	if rootReason != "" {
-		return "", rootReason
+	symbol := routeType.Symbol()
+	if symbol == nil || symbol.Name != routeSubRequestName || !marker.DeclaredInModule(symbol, ClientModule, scope.markerOpts.FS) {
+		return nil, reasonNotRoute
 	}
-	if len(full) < 2 || full[0] != RoutesProperty {
-		return "", reasonNotRoutesProxy
+	arguments := scope.typeChecker.GetTypeArguments(routeType)
+	if len(arguments) <= routeIdTypeArgument {
+		return nil, reasonIdNotLiteral
 	}
-	return strings.Join(full[1:], "/"), ""
+	idType := arguments[routeIdTypeArgument]
+	idTypes := []*checker.Type{idType}
+	if checker.Type_flags(idType)&checker.TypeFlagsUnion != 0 {
+		idTypes = idType.Types()
+	}
+	ids := make([]string, 0, len(idTypes))
+	for _, member := range idTypes {
+		if checker.Type_flags(member)&checker.TypeFlagsStringLiteral == 0 {
+			return nil, reasonIdNotLiteral
+		}
+		id, ok := member.AsLiteralType().Value().(string)
+		if !ok {
+			return nil, reasonIdNotLiteral
+		}
+		ids = append(ids, id)
+	}
+	return ids, ""
 }
 
-// returnsRouteSubRequest accepts any instantiation of the client package's RouteSubRequest; the `undefined`
-// arm an optional-chained call adds is dropped here so the chain walk can name the `?.` as the reason.
-func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
+// isRouteCall tells a route call from a helper returning one: only the routes proxy's signature is declared by the client package.
+func (scope *fileScope) isRouteCall(call *ast.Node) bool {
+	if call == nil || call.Kind != ast.KindCallExpression {
+		return false
+	}
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, call, nil, 0)
 	if signature == nil {
 		return false
 	}
-	returnType := checker.Checker_getReturnTypeOfSignature(scope.typeChecker, signature)
-	if returnType == nil {
-		return false
+	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), scope.markerOpts.FS) == ClientModule
+}
+
+// mappingCall finds the route call whose arguments hold a batch item's `inputFrom()` mappings: the item itself or
+// the const / let it names. A non-empty reason marks a mapping the build would otherwise drop (in a helper's
+// arguments, a ternary arm, a later assignment), the rpc-batch-mapper-unreadable argument.
+func (scope *fileScope) mappingCall(item *ast.Node) (*ast.Node, string) {
+	unwrapped := unwrap(item)
+	if unwrapped == nil {
+		return nil, ""
 	}
-	returnType = scope.typeChecker.GetNonNullableType(returnType)
-	symbol := checker.Type_symbol(returnType)
+	if scope.isRouteCall(unwrapped) {
+		return unwrapped, ""
+	}
+	if unwrapped.Kind == ast.KindIdentifier {
+		return scope.boundMappingCall(unwrapped)
+	}
+	if scope.containsMapperCall(unwrapped) {
+		return nil, reasonMapperOutsideRouteCall
+	}
+	return nil, ""
+}
+
+// boundMappingCall is mappingCall for an item written as a name. A value the file cannot see (a parameter,
+// a destructured binding) carries no mappings the build can read; a reassigned variable is checked at every write.
+func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, string) {
+	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
-		if alias := checker.Type_alias(returnType); alias != nil {
-			symbol = alias.Symbol()
-		}
-	}
-	return symbol != nil && symbol.Name == routeSubRequestName && marker.DeclaredInModule(symbol, ClientModule, scope.markerOpts.FS)
-}
-
-// accessChain gives `a.b['c'].d` as ([b c d], a), rooted at an identifier or a call; any other shape gives a reason.
-func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason string) {
-	for {
-		expr = unwrap(expr)
-		if expr == nil {
-			return nil, nil, reasonChainRoot
-		}
-		if expr.Kind == ast.KindPropertyAccessExpression || expr.Kind == ast.KindElementAccessExpression {
-			if expr.QuestionDotToken() != nil {
-				return nil, nil, reasonOptionalChain
-			}
-		}
-		switch expr.Kind {
-		case ast.KindPropertyAccessExpression:
-			access := expr.AsPropertyAccessExpression()
-			name := access.Name()
-			if name == nil {
-				return nil, nil, reasonChainRoot
-			}
-			segments = append(segments, name.Text())
-			expr = access.Expression
-		case ast.KindElementAccessExpression:
-			access := expr.AsElementAccessExpression()
-			key, ok := comptimeargs.StringLiteralValue(access.ArgumentExpression)
-			if !ok {
-				return nil, nil, reasonComputedMember
-			}
-			segments = append(segments, key)
-			expr = access.Expression
-		case ast.KindIdentifier, ast.KindCallExpression:
-			for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
-				segments[i], segments[j] = segments[j], segments[i]
-			}
-			return segments, expr, ""
-		default:
-			return nil, nil, reasonChainRoot
-		}
-	}
-}
-
-// resolveRootPath resolves a chain root to its path from `initClient()`'s result; no other call can be followed.
-// A non-empty reason is the rpc-batch-element-unreadable argument.
-func (scope *fileScope) resolveRootPath(root *ast.Node, segments []string, depth int) (path []string, reason string) {
-	if root.Kind == ast.KindCallExpression {
-		if scope.isInitClientCall(root) {
-			return segments, ""
-		}
-		return nil, reasonCallResult
-	}
-	symbol := scope.typeChecker.GetSymbolAtLocation(root)
-	return scope.resolveSymbolPath(symbol, segments, depth)
-}
-
-// resolveSymbolPath is resolveRootPath over an already-looked-up symbol; a module symbol consumes the first
-// segment as an export name.
-func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string, depth int) (path []string, reason string) {
-	if depth > comptimeargs.DepthCap {
-		return nil, reasonDepthCap
-	}
-	symbol = comptimeargs.ResolveImportAlias(scope.typeChecker, symbol)
-	if symbol == nil {
-		return nil, reasonNotRoutesProxy
-	}
-	if symbol.Flags&ast.SymbolFlagsModule != 0 {
-		if len(segments) == 0 {
-			return nil, reasonNotRoutesProxy
-		}
-		export := scope.moduleExport(symbol, segments[0])
-		if export == nil {
-			return nil, reasonNotRoutesProxy
-		}
-		return scope.resolveSymbolPath(export, segments[1:], depth+1)
+		return nil, ""
 	}
 	for _, declaration := range symbol.Declarations {
-		if declaration == nil {
+		if declaration == nil || declaration.Kind != ast.KindVariableDeclaration {
 			continue
 		}
-		switch declaration.Kind {
-		case ast.KindBindingElement:
-			bindingPath, initializer := bindingElementPath(declaration)
-			if initializer == nil {
-				continue
-			}
-			if scope.isReassigned(symbol, declaration) {
-				return nil, reasonReassigned
-			}
-			prefix, initReason := scope.initializerPath(initializer, depth)
-			if initReason != "" {
-				return nil, initReason
-			}
-			return append(append(prefix, bindingPath...), segments...), ""
-		case ast.KindVariableDeclaration:
-			initializer := blockScopedInitializer(declaration)
-			if initializer == nil {
-				continue
-			}
-			if scope.isReassigned(symbol, declaration) {
-				return nil, reasonReassigned
-			}
-			prefix, initReason := scope.initializerPath(initializer, depth)
-			if initReason != "" {
-				return nil, initReason
-			}
-			return append(prefix, segments...), ""
+		var initializer *ast.Node
+		if variableDecl := declaration.AsVariableDeclaration(); variableDecl != nil && variableDecl.Initializer != nil {
+			initializer = unwrap(variableDecl.Initializer)
 		}
+		if scope.isAssigned(symbol, declaration) {
+			if (initializer != nil && scope.containsMapperCall(initializer)) || scope.assignsMapper(symbol, ast.GetSourceFileOfNode(declaration)) {
+				return nil, reasonMappedRouteReassigned
+			}
+			return nil, ""
+		}
+		if initializer == nil {
+			return nil, ""
+		}
+		if scope.isRouteCall(initializer) {
+			return initializer, ""
+		}
+		if scope.containsMapperCall(initializer) {
+			return nil, reasonMapperOutsideRouteCall
+		}
+		return nil, ""
 	}
-	return nil, reasonNotRoutesProxy
+	return nil, ""
 }
 
-// initializerPath resolves a binding's initializer to its path from the client object.
-func (scope *fileScope) initializerPath(initializer *ast.Node, depth int) ([]string, string) {
-	segments, root, chainReason := accessChain(initializer)
-	if chainReason != "" {
-		return nil, reasonNotRoutesProxy
+// containsMapperCall reports whether a branded mapper-factory call sits anywhere under node.
+func (scope *fileScope) containsMapperCall(node *ast.Node) bool {
+	found := false
+	var visit ast.Visitor
+	visit = func(child *ast.Node) bool {
+		if found || child == nil {
+			return found
+		}
+		if child.Kind == ast.KindCallExpression && scope.isMapperFactoryCall(child) {
+			found = true
+			return true
+		}
+		child.ForEachChild(visit)
+		return found
 	}
-	return scope.resolveRootPath(root, segments, depth+1)
+	visit(node)
+	return found
 }
 
-// moduleExport looks an export up by name on a module symbol, including the ones `export * from` forwards.
-func (scope *fileScope) moduleExport(moduleSymbol *ast.Symbol, name string) *ast.Symbol {
-	for _, export := range scope.typeChecker.GetExportsOfModule(moduleSymbol) {
-		if export != nil && export.Name == name {
-			return export
-		}
+// assignsMapper reports whether any assignment to symbol in its declaring file writes a mapper-factory call.
+func (scope *fileScope) assignsMapper(symbol *ast.Symbol, declaringFile *ast.SourceFile) bool {
+	if declaringFile == nil {
+		return false
 	}
-	return nil
+	found := false
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if found || node == nil {
+			return found
+		}
+		if ast.IsAssignmentExpression(node, false) {
+			binary := node.AsBinaryExpression()
+			if scope.namesSymbol(binary.Left, symbol) && scope.containsMapperCall(binary.Right) {
+				found = true
+				return true
+			}
+		}
+		node.ForEachChild(visit)
+		return found
+	}
+	declaringFile.AsNode().ForEachChild(visit)
+	return found
 }
 
-// bindingElementPath gives `const {routes} = client` as ([routes], client).
-// A nil initializer means no path: a rest element, an array pattern, a `var`, or no initializer.
-func bindingElementPath(declaration *ast.Node) ([]string, *ast.Node) {
-	var path []string
-	node := declaration
-	for node != nil && node.Kind == ast.KindBindingElement {
-		element := node.AsBindingElement()
-		if element.DotDotDotToken != nil {
-			return nil, nil
+// namesSymbol reports whether an assignment target (a name or a destructuring pattern) writes symbol.
+func (scope *fileScope) namesSymbol(target *ast.Node, symbol *ast.Symbol) bool {
+	found := false
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if found || node == nil {
+			return found
 		}
-		nameNode := element.PropertyName
-		if nameNode == nil {
-			nameNode = element.Name()
+		if node.Kind == ast.KindIdentifier && scope.typeChecker.GetSymbolAtLocation(node) == symbol {
+			found = true
+			return true
 		}
-		if nameNode == nil {
-			return nil, nil
-		}
-		switch nameNode.Kind {
-		case ast.KindIdentifier, ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
-			path = append(path, nameNode.Text())
-		default:
-			return nil, nil
-		}
-		pattern := node.Parent
-		if pattern == nil || pattern.Kind != ast.KindObjectBindingPattern {
-			return nil, nil
-		}
-		node = pattern.Parent
+		node.ForEachChild(visit)
+		return found
 	}
-	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
-		path[i], path[j] = path[j], path[i]
-	}
-	return path, blockScopedInitializer(node)
+	visit(target)
+	return found
 }
 
 // blockScopedInitializer returns the unwrapped initializer of a `const` / `let` declaration, nil for `var`.
@@ -276,9 +241,9 @@ func blockScopedInitializer(declaration *ast.Node) *ast.Node {
 	return unwrap(variableDecl.Initializer)
 }
 
-// bindingInitializer resolves an identifier to the initializer of the const / let binding it names, the road
-// a batch element or an `inputFrom()` reference written as a name takes. A non-empty reason says why it
-// cannot be read: no const / let initializer, or a later-reassigned `let`, whose initializer is not what runs.
+// bindingInitializer resolves an identifier to the initializer of the const / let binding it names, the road an
+// `inputFrom()` mapper written as a name takes. A non-empty reason says why it cannot be read: no const / let
+// initializer, or a later-reassigned `let`, whose initializer is not what runs.
 func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, string) {
 	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
 	symbol = comptimeargs.ResolveImportAlias(scope.typeChecker, symbol)
@@ -290,7 +255,7 @@ func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, str
 		if initializer == nil {
 			continue
 		}
-		if scope.isReassigned(symbol, declaration) {
+		if scope.isAssigned(symbol, declaration) {
 			return nil, reasonReassigned
 		}
 		return initializer, ""
@@ -298,11 +263,11 @@ func (scope *fileScope) bindingInitializer(identifier *ast.Node) (*ast.Node, str
 	return nil, reasonNotBound
 }
 
-// isReassigned guards a silent misread: the extractor only ever reads the initializer. A `const` cannot be
-// reassigned and an exported `let` can only be written by its own module, so the declaring file is the whole
-// search space, and its target set is collected once and memoised for the scope's lifetime.
-func (scope *fileScope) isReassigned(symbol *ast.Symbol, declaration *ast.Node) bool {
-	if !isLetDeclaration(declaration) {
+// isAssigned guards a silent misread: the extractor only ever reads the initializer. A `const` cannot be
+// reassigned and a variable can only be written by its own module, so the declaring file is the whole search
+// space, and its target set is collected once and memoised for the scope's lifetime.
+func (scope *fileScope) isAssigned(symbol *ast.Symbol, declaration *ast.Node) bool {
+	if declaration.Parent != nil && declaration.Parent.Flags&ast.NodeFlagsConst != 0 {
 		return false
 	}
 	declaringFile := ast.GetSourceFileOfNode(declaration)
@@ -315,20 +280,6 @@ func (scope *fileScope) isReassigned(symbol *ast.Symbol, declaration *ast.Node) 
 		scope.assignedSymbols[declaringFile] = targets
 	}
 	return targets[symbol]
-}
-
-// isLetDeclaration reports whether a declaration or a nested BindingElement belongs to a `let` list.
-func isLetDeclaration(declaration *ast.Node) bool {
-	node := declaration
-	for node != nil && node.Kind != ast.KindVariableDeclaration {
-		switch node.Kind {
-		case ast.KindBindingElement, ast.KindObjectBindingPattern, ast.KindArrayBindingPattern:
-			node = node.Parent
-		default:
-			return false
-		}
-	}
-	return node != nil && node.Parent != nil && node.Parent.Flags&ast.NodeFlagsLet != 0
 }
 
 // collectAssignedSymbols returns every symbol a file assigns, increments, or heads a for-in / for-of with.
@@ -355,15 +306,6 @@ func (scope *fileScope) collectAssignedSymbols(sourceFile *ast.SourceFile) map[*
 	}
 	sourceFile.AsNode().ForEachChild(visit)
 	return targets
-}
-
-// isInitClientCall accepts the client package's initClient directly, renamed, or as `ns.initClient`.
-func (scope *fileScope) isInitClientCall(node *ast.Node) bool {
-	if node == nil || node.Kind != ast.KindCallExpression {
-		return false
-	}
-	symbol := scope.calleeSymbol(node.AsCallExpression().Expression)
-	return symbol != nil && symbol.Name == initClientName && marker.DeclaredInModule(symbol, ClientModule, scope.markerOpts.FS)
 }
 
 // calleeSymbol resolves `f` or `ns.f` to the symbol it ultimately names, import aliases skipped.

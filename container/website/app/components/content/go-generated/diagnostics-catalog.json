@@ -1197,7 +1197,7 @@
     {
       "code": "rpc-batch-argument-out-of-range",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.",
       "summary": "The server passes a mapped input at the argument position where you wrote `inputFrom()`, so that position (counted from zero) must be one of the route handler's parameters. Otherwise the server would reject the request at runtime.",
       "fix": "// getById(id) takes 1 argument\nroutes.orders.getById(inputFrom(user, 'toUserId'));",
@@ -1206,7 +1206,7 @@
     {
       "code": "rpc-batch-duplicate-route",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
       "summary": "One batch cannot call the same route twice. Results come back by route, so the second call would replace the first. Keep one call per route, or split the calls into two batches.",
       "fix": "batch([routes.users.getById(1)]);\nbatch([routes.users.getById(2)]);",
@@ -1215,10 +1215,10 @@
     {
       "code": "rpc-batch-element-unreadable",
       "subsystem": "batches",
-      "level": "error",
-      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.",
-      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
-      "fix": "const user = routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
+      "level": "runtimeError",
+      "headline": "The type of this `batch()` element does not name its route ({reason}); pass a route call, or a value typed by one, without an annotation that widens its id.",
+      "summary": "The build reads which route each item in `batch([...])` runs from its type: a route call like `routes.users.getById(1)` is typed with its route id, wherever the client comes from (`initClient()`, `inject()`, a composable, `useNuxtApp()`, a helper). It cannot read a spread, a value that is not a route call, or a type that lost the id, such as `RouteSubRequest<any>` or an annotation with a `string` id. Without the id the batch is never compiled, so the call throws `batch-missing-id`.",
+      "fix": "function getUser(id: number) {\n  return routes.users.getById(id); // inferred: keeps the route id\n}\nbatch([getUser(1), routes.orders.list()]);",
       "example": null
     },
     {
@@ -1242,9 +1242,9 @@
     {
       "code": "rpc-batch-mapper-unreadable",
       "subsystem": "batches",
-      "level": "error",
-      "headline": "`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.",
-      "summary": "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time.",
+      "level": "runtimeError",
+      "headline": "`inputFrom()` mapping is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name, as an argument of a route call written in the batch or held in a variable.",
+      "summary": "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time. The build reads a mapping only as an argument of a route call written in the batch or held in a variable, and only when its source and the route it feeds are each one route: one passed through a helper's arguments or written in a ternary arm would be lost.",
       "fix": "inputFrom(user, (u) => u.id);\n// or the name of a mapper registered on the server\ninputFrom(user, 'toUserId');",
       "example": null
     },
@@ -1260,10 +1260,19 @@
     {
       "code": "rpc-batch-source-not-before",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
       "summary": "Routes in a batch run in the order you list them, and `inputFrom()` can only read a route that already ran. Put the source route in the same `batch([...])` call, before the route it feeds.",
       "fix": "batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
+      "example": null
+    },
+    {
+      "code": "rpc-batch-too-many-combinations",
+      "subsystem": "batches",
+      "level": "runtimeError",
+      "headline": "This `batch()` may run more than {max} route combinations; split it, or narrow the items that may be more than one route.",
+      "summary": "An item whose type may be more than one route (a ternary, an `if`, a helper with several returns) makes one batch per combination, and the combinations multiply. Past the limit the batch is not compiled, so the call throws `batch-missing-id`. Split the call into smaller batches, or narrow the items.",
+      "fix": "const user = isAdmin ? routes.admins.getById(id) : routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
       "example": null
     },
     {

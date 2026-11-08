@@ -26,7 +26,7 @@ type Level uint8
 const (
 	// LevelError: the build produced NO code for the thing this is about: a config that will not
 	// load (config-tsconfig-not-loaded, the one whole-run stop), a marker whose id could not be computed (marker-in-generic-function,
-	// marker-unresolved-type-parameter, marker-type-id-collision), an unreadable `batch()` (rpc-batch-element-unreadable), a refused output path (config-output-outside-out-dir).
+	// marker-unresolved-type-parameter, marker-type-id-collision), a refused output path (config-output-outside-out-dir).
 	// NEVER downgradeable and NEVER silenceable: not halting would only ship a call that throws.
 	LevelError Level = 1
 	// LevelRuntimeError: output IS produced and it throws (an alwaysThrow factory, validate-symbol-root) or is

@@ -21,16 +21,35 @@ const mapperSourceParamIndex = 0
 const (
 	reasonMapperAfterSpread = "mapping follows a spread argument, so its parameter position cannot be read"
 	reasonMapperReassigned  = "mapping binding is reassigned after its initializer"
+	// The build reads mappings only off a route call it can see; anywhere else they would be dropped.
+	reasonMapperOutsideRouteCall = "mapping is not an argument of a route call written inline or bound to a variable (a helper's argument, a ternary arm)"
+	reasonMappedRouteReassigned  = "the variable holding this route call is reassigned, so the mappings that run cannot be read"
+	reasonMapperTargetUnion      = "the route this mapping feeds may be more than one route"
+	reasonMapperSourceUnion      = "source may be more than one route"
 )
 
-// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route
-// call; routeCalls[i] is the call behind routeIds[i], and mappings come back sorted by (ToId, ParamIndex).
-func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Node) ([]Mapping, []diagnostics.Diagnostic) {
-	var mappings []Mapping
+// pendingMapping is one `inputFrom()` link read off batch item `target`, before a combination places its source.
+type pendingMapping struct {
+	mapping Mapping
+	target  int
+	written *ast.Node
+}
+
+// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route call.
+func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []diagnostics.Diagnostic) {
+	var pending []pendingMapping
 	var diags []diagnostics.Diagnostic
-	for targetIndex, routeCall := range routeCalls {
+	for targetIndex, item := range items {
+		routeCall, reason := scope.mappingCall(item.node)
+		if reason != "" {
+			diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, item.node, reason))
+			continue
+		}
+		if routeCall == nil {
+			continue
+		}
 		callExpr := routeCall.AsCallExpression()
-		if callExpr == nil || callExpr.Arguments == nil {
+		if callExpr.Arguments == nil {
 			continue
 		}
 		spreadSeen := false
@@ -52,12 +71,32 @@ func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Nod
 				diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperAfterSpread))
 				continue
 			}
-			mapping, mappingDiags := scope.readMapping(mapperCall, arg, routeIds, routeCall, targetIndex, paramIndex)
+			if len(item.ids) != 1 {
+				diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperTargetUnion))
+				continue
+			}
+			mapping, mappingDiags := scope.readMapping(mapperCall, arg, routeCall, item.ids[0], paramIndex)
 			diags = append(diags, mappingDiags...)
 			if len(mappingDiags) == 0 {
-				mappings = append(mappings, mapping)
+				pending = append(pending, pendingMapping{mapping: mapping, target: targetIndex, written: arg})
 			}
 		}
+	}
+	return pending, diags
+}
+
+// placeMappings checks one combination's mappings: a source must run before the route it feeds
+// (rpc-batch-source-not-before, reported at the argument written in the batched call, where the fix goes).
+func (scope *fileScope) placeMappings(pending []pendingMapping, routeIds []string) ([]Mapping, []diagnostics.Diagnostic) {
+	var mappings []Mapping
+	var diags []diagnostics.Diagnostic
+	for _, link := range pending {
+		fromIndex := indexOf(routeIds, link.mapping.FromId)
+		if fromIndex < 0 || fromIndex >= link.target {
+			diags = append(diags, scope.diag(diagnostics.CodeBatchSourceNotInBatch, link.written, link.mapping.FromId, link.mapping.ToId))
+			continue
+		}
+		mappings = append(mappings, link.mapping)
 	}
 	sortMappings(mappings)
 	return mappings, diags
@@ -150,10 +189,9 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 	return false
 }
 
-// readMapping reads one branded mapper-factory call into a Mapping for the route at targetIndex. The source
-// must sit before the target (rpc-batch-source-not-before) and the argument position must be one the target route declares
-// (rpc-batch-argument-out-of-range); both report at `written`, the argument in the batched call, since that is where the fix goes.
-func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []string, targetCall *ast.Node, targetIndex, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
+// readMapping reads one branded mapper-factory call into a Mapping for route toId. The argument position must be
+// one the target route declares (rpc-batch-argument-out-of-range), reported at `written`, the argument in the batched call.
+func (scope *fileScope) readMapping(mapperCall, written, targetCall *ast.Node, toId string, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
 	callExpr := mapperCall.AsCallExpression()
 	var args []*ast.Node
 	if callExpr.Arguments != nil {
@@ -162,23 +200,22 @@ func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []st
 	if len(args) <= mapperSourceParamIndex {
 		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMapperNotReadable, mapperCall, "mapper call has no source argument")}
 	}
-	_, fromId, reason := scope.resolveRouteRef(args[mapperSourceParamIndex], 0)
+	source := args[mapperSourceParamIndex]
+	fromIds, reason := scope.itemRouteIds(source)
 	if reason != "" {
-		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMapperNotReadable, args[mapperSourceParamIndex], "source is not a route call the build can read: "+reason)}
+		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMapperNotReadable, source, "source is not a route call the build can read: "+reason)}
+	}
+	if len(fromIds) != 1 {
+		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMapperNotReadable, source, reasonMapperSourceUnion)}
 	}
 	mapperKey, keyDiag, keyOk := scope.mapperKey(mapperCall, args)
 	if !keyOk {
 		return Mapping{}, []diagnostics.Diagnostic{keyDiag}
 	}
-	toId := routeIds[targetIndex]
-	fromIndex := indexOf(routeIds, fromId)
-	if fromIndex < 0 || fromIndex >= targetIndex {
-		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchSourceNotInBatch, written, fromId, toId)}
-	}
 	if count, bounded := scope.parameterCount(targetCall); bounded && paramIndex >= count {
 		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMappingParamOutOfRange, written, strconv.Itoa(paramIndex), toId, strconv.Itoa(count))}
 	}
-	return Mapping{FromId: fromId, ToId: toId, ParamIndex: paramIndex, MapperKey: mapperKey}, nil
+	return Mapping{FromId: fromIds[0], ToId: toId, ParamIndex: paramIndex, MapperKey: mapperKey}, nil
 }
 
 // parameterCount is the handler's own parameter list: the client proxy types a route as

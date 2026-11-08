@@ -63,7 +63,6 @@ func TestResolveDowngrade_WildcardSparesFatal(t *testing.T) {
 	for _, code := range []string{
 		CodeDestructuredParam,       // purefn: no entry, no rewrite
 		CodeMarkerFreeTypeParameter, // marker: no site, no injected id
-		CodeBatchElementNotReadable, // batch: no batch id spliced
 		CodeTsconfigLoadFailed,      // config: nothing runs at all
 	} {
 		if set.Downgraded(errorDiag(code)) {
@@ -72,6 +71,9 @@ func TestResolveDowngrade_WildcardSparesFatal(t *testing.T) {
 	}
 	if !set.Downgraded(errorDiag(CodePurityThis)) {
 		t.Fatal("a purity violation ships the compiled body, so it is downgradeable")
+	}
+	if !set.Downgraded(errorDiag(CodeBatchElementNotReadable)) {
+		t.Fatal("a dropped batch still compiles and throws batch-missing-id, so it is downgradeable")
 	}
 }
 
@@ -121,7 +123,7 @@ func TestSuppressible(t *testing.T) {
 		CodeTypeIdCollision:         false, // no site, no injected id
 		CodeMarkerFreeTypeParameter: false, // same
 		CodeDestructuredParam:       false, // no pure-fn entry, no rewrite
-		CodeBatchElementNotReadable: false, // no batch id spliced
+		CodeBatchElementNotReadable: true,  // `batch()` ships and throws batch-missing-id
 		CodeExpectErrorUnused:       false, // the check that keeps directives honest
 		"VL2":                       false, // not a code at all
 	} {

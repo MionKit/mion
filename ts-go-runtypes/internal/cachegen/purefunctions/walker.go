@@ -386,7 +386,12 @@ func (ctx *resolveCtx) extractRegistration(sourceFile *ast.SourceFile, call *ast
 // ends with a trailing comma, where one more would produce an empty `f(a,, …)` argument.
 // Exported so every lane splicing a trailing id renders byte-identical text.
 func TrailingArgText(id string, trailingComma bool, undefinedPadding int) string {
-	text := strings.Repeat("undefined, ", undefinedPadding) + jsquote.Single(id)
+	return TrailingArgLiteral(jsquote.Single(id), trailingComma, undefinedPadding)
+}
+
+// TrailingArgLiteral is TrailingArgText for an already-rendered JS literal.
+func TrailingArgLiteral(literal string, trailingComma bool, undefinedPadding int) string {
+	text := strings.Repeat("undefined, ", undefinedPadding) + literal
 	if trailingComma {
 		return text
 	}

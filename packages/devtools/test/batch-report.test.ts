@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import type {BatchSite} from '../src/core/protocol.ts';
 import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {CLIENT_DTS, ROUTE_LEAF} from './helpers/batchFixture.ts';
 
 let FIXTURE_DIR = '';
 
@@ -32,24 +33,10 @@ const TSCONFIG = JSON.stringify({
   include: ['*.ts'],
 });
 
-// An ambient stand-in for the `@mionjs/client` surface the batches lane reads;
-// the markers it forwards come from the real `@mionjs/run-types` package the
-// fixture mounts, so the brand checks run against the shipped declarations.
-const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`;
-
 const CONSUMER = `import {initClient, batch, inputFrom} from '@mionjs/client';
-type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}};
-  orders: {list: (userId: number) => string[]; getById: (id: number) => {id: number}};
+${ROUTE_LEAF}type Routes = {
+  users: {getById: Route<(id: number) => {id: number; name: string}>};
+  orders: {list: Route<(userId: number) => string[]>; getById: Route<(id: number) => {id: number}>};
 };
 const {routes} = initClient<Routes>();
 const user = routes.users.getById(1);

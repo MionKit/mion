@@ -1,5 +1,5 @@
 // Request-batch call-site reading, end to end through the build: every shape
-// of `batch([...])` the build can read (the report carries the ordered route
+// of `batch([...])` the build can read from its items' types (the report carries the ordered route
 // ids, the `inputFrom()` mappings and the injected `b_` id, and the transform
 // splices that id into the call) and every shape it cannot (the build halts
 // with an rpc-batch-* diagnostic that names the file and the line of the offending
@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import type {BatchMapping, BatchSite} from '../src/core/protocol.ts';
 import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {CLIENT_DTS, ROUTE_LEAF} from './helpers/batchFixture.ts';
 
 let FIXTURE_DIR = '';
 
@@ -37,31 +38,19 @@ const TSCONFIG = JSON.stringify({
   include: ['*.ts'],
 });
 
-// The same ambient `@mionjs/client` surface batch-report.test.ts declares.
-const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`;
-
 // The route map plus the clients the case files import their routes from.
 const API = `import {initClient} from '@mionjs/client';
-export type Api = {
+${ROUTE_LEAF}export type Api = {
   users: {
-    getById: (id: number) => {id: number; name: string};
-    list: () => {id: number}[];
+    getById: Route<(id: number) => {id: number; name: string}>;
+    list: Route<() => {id: number}[]>;
   };
   orders: {
-    list: (userId: number) => string[];
-    getById: (id: number) => {id: number; userId: number};
-    between: (from: number, to: number) => string[];
+    list: Route<(userId: number) => string[]>;
+    getById: Route<(id: number) => {id: number; userId: number}>;
+    between: Route<(from: number, to: number) => string[]>;
   };
-  reports: {summary: (orderIds: string[]) => string};
+  reports: {summary: Route<(orderIds: string[]) => string>};
 };
 export const {routes} = initClient<Api>();
 export const client = initClient<Api>();
@@ -293,7 +282,31 @@ describe('request-batch diagnostics and readable shapes', () => {
         routeIds: ['users/getById', 'orders/list'],
       },
       'parenthesised and `as`-wrapped elements': {
-        body: `const user = routes.users.getById(1);\nexport const b = batch([(user), routes.orders.list(1) as RouteSubRequest<any>]);\n`,
+        body: `const user = routes.users.getById(1);\nexport const b = batch([(user), routes.orders.list(1) as RouteSubRequest<any, 'orders/list'>]);\n`,
+        routeIds: ['users/getById', 'orders/list'],
+      },
+      'routes from a client inject() returns': {
+        body: `declare function inject<T>(key: string): T;\nconst {routes: api} = inject<ReturnType<typeof initClient<Api>>>('api');\nexport const b = batch([api.users.getById(1)]);\n`,
+        routeIds: ['users/getById'],
+      },
+      'routes from a composable': {
+        body: `function useApi() { return initClient<Api>(); }\nexport const b = batch([useApi().routes.users.getById(1)]);\n`,
+        routeIds: ['users/getById'],
+      },
+      'routes from a function parameter': {
+        body: `export function load(api: typeof routes) { return batch([api.users.getById(1)]); }\n`,
+        routeIds: ['users/getById'],
+      },
+      'a helper whose inferred return keeps the id': {
+        body: `function makeUser(id: number) { return routes.users.getById(id); }\nexport const b = batch([makeUser(1), routes.orders.list(1)]);\n`,
+        routeIds: ['users/getById', 'orders/list'],
+      },
+      'this.routes, optional chaining and a computed member': {
+        body: `const key = 'users';\nexport class Loader {\n  routes = routes;\n  load() { return batch([this.routes.users.getById(1), routes.orders?.list(1)!, routes[key].list()]); }\n}\n`,
+        routeIds: ['users/getById', 'orders/list', 'users/list'],
+      },
+      'a let reassigned to the same route': {
+        body: `let user = routes.users.getById(1);\nuser = routes.users.getById(2);\nexport const b = batch([user, routes.orders.list(1)]);\n`,
         routeIds: ['users/getById', 'orders/list'],
       },
       'non-null-asserted and `satisfies`-wrapped elements': {
@@ -319,6 +332,22 @@ describe('request-batch diagnostics and readable shapes', () => {
         const [site] = expectClean(run, 'case.ts');
         expect(site.routeIds).toEqual(['users/getById', 'orders/list']);
         await expectInjected(run, 'case.ts', [site]);
+      });
+    });
+
+    register('an item that may be two routes reports one batch per route and injects an id lookup', async () => {
+      const source =
+        IMPORTS +
+        `declare const flag: boolean;\nexport const b = batch([flag ? routes.users.getById(1) : routes.users.list(), routes.orders.list(1)]);\n`;
+      await withBuild({'case.ts': source}, {}, async (run) => {
+        const sites = expectClean(run, 'case.ts', 2);
+        expect(sites.map((site) => site.routeIds)).toEqual([
+          ['users/getById', 'orders/list'],
+          ['users/list', 'orders/list'],
+        ]);
+        const code = await run.transform('case.ts');
+        const lookup = sites.map((site) => `'${site.routeIds.join(',')}': '${site.batchId}'`).join(', ');
+        expect(code).toContain(`routes.orders.list(1)], {${lookup}})`);
       });
     });
 
@@ -489,65 +518,20 @@ describe('request-batch diagnostics and readable shapes', () => {
         needle: 'ids.map',
         reason: 'not an inline array literal',
       },
-      'ternary element': {
-        body: `declare const flag: boolean;\nexport const b = batch([flag ? routes.users.getById(1) : routes.users.getById(2)]);\n`,
-        needle: 'flag ?',
-        reason: 'not a route call',
+      'an annotation that widens the id': {
+        body: `const user: RouteSubRequest<any> = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(1)]);\n`,
+        needle: 'user, routes.orders',
+        reason: 'route id type is not a string literal',
       },
-      'helper call returning a route sub-request': {
-        body: `function makeUser(id: number) { return routes.users.getById(id); }\nexport const b = batch([makeUser(1), routes.orders.list(1)]);\n`,
+      'a helper annotated with a widened return': {
+        body: `function makeUser(id: number): RouteSubRequest<any> { return routes.users.getById(id); }\nexport const b = batch([makeUser(1), routes.orders.list(1)]);\n`,
         needle: 'makeUser(1)',
+        reason: 'route id type is not a string literal',
       },
-      'element taken out of a .map result': {
-        body: `export const b = batch([[1, 2].map((id) => routes.users.getById(id))[0]]);\n`,
-        needle: '[1, 2].map',
-        reason: 'not a route call',
-      },
-      'let assigned after its declaration': {
-        body: `let user: RouteSubRequest<any>;\nuser = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(1)]);\n`,
-        needle: 'user, routes.orders',
-        reason: /binding is not a const\/let|reassigned/,
-      },
-      'let reassigned after its route-call initializer': {
-        // The initializer is not what the batch sees at runtime.
-        body: `let user = routes.users.getById(1);\nuser = routes.users.getById(2);\nexport const b = batch([user, routes.orders.list(1)]);\n`,
-        needle: 'user, routes.orders',
-        reason: /reassigned|binding is not a const\/let/,
-      },
-      'object property': {
-        body: `const holder = {user: routes.users.getById(1)};\nexport const b = batch([holder.user]);\n`,
-        needle: 'holder.user]',
-        reason: 'not a route call',
-      },
-      'routes from a function parameter': {
-        body: `export function load(api: typeof routes) { return batch([api.users.getById(1)]); }\n`,
-        needle: 'api.users.getById(1)',
-        reason: 'not the client routes proxy',
-      },
-      'this.routes inside a class': {
-        body: `export class Loader {\n  routes = routes;\n  load() { return batch([this.routes.users.getById(1)]); }\n}\n`,
-        needle: 'this.routes.users',
-        reason: /not a route call|does not start at an identifier/,
-      },
-      'computed member with a const key': {
-        body: `const key = 'users';\nexport const b = batch([routes[key].getById(1)]);\n`,
-        needle: 'routes[key]',
-        reason: /not a route call|computed member/,
-      },
-      'a same-shaped object that is not the client': {
-        body: `const fake = {routes: {users: {getById: (id: number): RouteSubRequest<any> => ({id: String(id)})}}};\nexport const b = batch([fake.routes.users.getById(1)]);\n`,
-        needle: 'fake.routes.users.getById(1)',
-        reason: 'not the client routes proxy',
-      },
-      'routes destructured from a client a function returns (inject(), a composable)': {
-        body: `declare function inject<T>(key: string): T;\nconst {routes: api} = inject<ReturnType<typeof initClient<Api>>>('api');\nexport const b = batch([api.users.getById(1)]);\n`,
-        needle: 'api.users.getById(1)',
-        reason: 'function call the build cannot follow',
-      },
-      'var binding': {
-        body: `var user = routes.users.getById(1);\nexport const b = batch([user]);\n`,
-        needle: 'user]);',
-        reason: 'binding is not a const/let',
+      'a value that is not a route call': {
+        body: `declare const anything: any;\nexport const b = batch([anything, routes.orders.list(1)]);\n`,
+        needle: 'anything, routes',
+        reason: 'its type is `any`',
       },
     };
     for (const [name, {body, needle, reason}] of Object.entries(rejected)) {
@@ -559,31 +543,17 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     }
 
-    register('optional chaining on the routes proxy', async () => {
-      const source = IMPORTS + `export const b = batch([routes.users?.getById(1), routes.orders.list(1)]);\n`;
-      await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(
-          run,
-          'rpc-batch-element-unreadable',
-          'case.ts',
-          source,
-          'routes.users?.getById(1)',
-          /optional chaining|not a route call/
-        );
-      });
-    });
-
     register('one rpc-batch-element-unreadable per unreadable element, all reported before the halt', async () => {
       const source =
         IMPORTS +
-        `const prepared = [routes.users.getById(1)];\ndeclare const flag: boolean;\nexport const b = batch([...prepared, flag ? routes.users.getById(1) : routes.users.getById(2), routes.orders.list(1)]);\n`;
+        `const prepared = [routes.users.getById(1)];\ndeclare const anything: any;\nexport const b = batch([...prepared, anything, routes.orders.list(1)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expect(run.error).not.toBeNull();
         expect(run.error!.message).toMatch(/build stopped on 2 mion errors/);
         const hits = run.warns.filter((w) => w.includes('error rpc-batch-element-unreadable:'));
         expect(hits.length).toBe(2);
         expect(hits[0]).toContain('spread element');
-        expect(hits[1]).toContain('not a route call');
+        expect(hits[1]).toContain('its type is `any`');
         expect(run.sites).toEqual([]);
       });
     });
@@ -678,13 +648,31 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     });
 
-    register('mapping source that is not a readable route (a parameter)', async () => {
+    register('mapping source whose type widened the id (a parameter)', async () => {
       const source =
         IMPORTS +
         `export function load(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.list(inputFrom(u, (v: {id: number}) => v.id))]); }\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const hit = expectHalted(run, 'rpc-batch-mapper-unreadable', 'case.ts', source, 'u, (v: {id: number}) => v.id');
         expect(hit).toContain('source is not a route call');
+      });
+    });
+  });
+
+  describe('rpc-batch-mapper-unreadable: a mapping the build would drop', () => {
+    register('a mapping passed through a helper is reported, never lost', async () => {
+      const source =
+        IMPORTS +
+        `const user = routes.users.getById(1);\nfunction listFor(id: number) { return routes.orders.list(id); }\nexport const b = batch([user, listFor(inputFrom(user, (u: {id: number}) => u.id).asArg())]);\n`;
+      await withBuild({'case.ts': source}, {}, async (run) => {
+        expectHalted(
+          run,
+          'rpc-batch-mapper-unreadable',
+          'case.ts',
+          source,
+          'listFor(inputFrom',
+          'not an argument of a route call'
+        );
       });
     });
   });
@@ -708,18 +696,13 @@ describe('request-batch diagnostics and readable shapes', () => {
   });
 
   describe('downgradeErrors: [rpc-batch-element-unreadable]', () => {
-    // A downgrade would ship the batch without its id, and `batch()` then throws `batch-missing-id` at call
-    // time, so the config is refused at the host boundary, where the user can read what to do.
-    it('is refused: the batch ships with no id, so not halting buys nothing', () => {
-      expect(() =>
-        runtypesRollup({
-          binary: BIN,
-          cwd: FIXTURE_DIR,
-          tsconfig: 'tsconfig.json',
-          genDir: path.join(FIXTURE_DIR, '.mion'),
-          downgradeErrors: ['rpc-batch-element-unreadable'],
-        })
-      ).toThrow(/cannot downgrade rpc-batch-element-unreadable/);
+    // A dropped batch still compiles: `batch()` runs and throws `batch-missing-id`, so a project may lower it.
+    register('is downgradeable: the build passes and the call throws batch-missing-id', async () => {
+      const source = IMPORTS + `declare const anything: any;\nexport const b = batch([anything]);\n`;
+      await withBuild({'case.ts': source}, {downgradeErrors: ['rpc-batch-element-unreadable']}, async (run) => {
+        expect(run.error, 'a downgraded rpc-batch-element-unreadable must not halt the build').toBeNull();
+        expect(run.sites).toEqual([]);
+      });
     });
 
     register('rpc-batch-id-collision IS downgradeable: both ids are injected, they just collide', async () => {
