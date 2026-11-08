@@ -43,7 +43,8 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
         : T extends number
           ? {pool: number[]; min?: number; max?: number}
           : T extends string
-            ? {pool: string[]; generator?: MockGeneratorName}
+            ? // A pool OR a mock generator, never both: with both, one of them is unused.
+                {pool: string[]; generator?: never} | {generator: MockGeneratorName; pool?: never}
             : T extends Date
               ? {pool: Date[]; min?: Date; max?: Date}
               : T extends MockDataUrl

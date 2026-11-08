@@ -365,7 +365,7 @@ func TestMerge_LeafKeyNamedFieldMerges(t *testing.T) {
 
 // TestMerge_AuthoredGeneratorSurvives: a generator the author added beside the pool is node settings, kept by --update.
 func TestMerge_AuthoredGeneratorSurvives(t *testing.T) {
-	existing := "{name: {pool: [], generator: 'fullName'}}"
+	existing := "{name: {generator: 'fullName'}}"
 	desired := "{name: {pool: []}, age: {pool: []}}"
 	ctx := mergeCtx{
 		metaKeys:      mockReservedKeys,

@@ -229,15 +229,18 @@ const CALL_CASES: CallCase[] = [
     group: 'scalar',
     label: 'string({params})',
     fixed: 225,
-    marginal: 29,
+    // 29 -> 33: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    marginal: 33,
     mk: (i) =>
       `const s${i} = TF.string({minLength: ${i + 1}, maxLength: 20}); type S${i} = InferType<typeof s${i}>; const vs${i}: S${i} = 'x';`,
   },
   {
     group: 'scalar',
     label: 'string({params}, brand)',
-    fixed: 293,
-    marginal: 63,
+    // 293 -> 298: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    fixed: 298,
+    // 63 -> 71: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    marginal: 71,
     mk: (i) => `const s${i} = TF.string({minLength: ${i + 1}}, TF.brand('Id${i}')); type S${i} = InferType<typeof s${i}>;`,
   },
   {
@@ -325,15 +328,19 @@ const CALL_CASES: CallCase[] = [
   {
     group: 'string-preset',
     label: 'alpha({maxLength})',
-    fixed: 358,
-    marginal: 49,
+    // 358 -> 362: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    fixed: 362,
+    // 49 -> 53: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    marginal: 53,
     mk: (i) => `const s${i} = TF.alpha({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
   },
   {
     group: 'string-preset',
     label: 'base64({maxLength})',
-    fixed: 361,
-    marginal: 49,
+    // 361 -> 365: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    fixed: 365,
+    // 49 -> 53: reviewed rise, the generator-or-mockSamples rule (GeneratorOrSamplesArg) on the params.
+    marginal: 53,
     mk: (i) => `const s${i} = TF.base64({maxLength: ${i + 10}}); type S${i} = InferType<typeof s${i}>;`,
   },
 

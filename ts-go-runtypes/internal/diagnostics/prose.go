@@ -535,14 +535,14 @@ createJsonEncoderFn(undefined, preset);`,
 		Fix:     "type Slug = String<{pattern: {source: '^[a-z]+$'; mockSamples: ['abc', 'xyz']}}>;",
 	},
 	CodeFMTInvalidParams: {
-		Summary: "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
+		Summary: "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples` or a `generator`. Change the settings the message names.",
 	},
 	CodeFMTSampleBounds: {
 		Summary: "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count code points, the same as the validator: `💩` is one. Change the sample or relax the setting.",
 		Fix:     "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
 	},
 	CodeFMTGeneratorInvalid: {
-		Summary: "A `generator` picks realistic mock values, so it must be one generator name and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or `contentMediaType`, which already decide the value. The mock fits each value to the format: it pads or cuts it to the length limits and replaces a char `allowedChars` or `disallowedChars` rejects. So the build only fails when that leaves nothing to build from, like `length: 0` with `allowedChars`. The message names the problem.",
+		Summary: "A `generator` picks realistic mock values, so it must be one generator name and not sit next to `allowedValues`, `contentMediaType` or `isRegex`, which already decide the value or that no generated value meets (beside `mockSamples` the types refuse it). The mock fits each value to the format: it pads or cuts it to the length limits and replaces a char `allowedChars`, `disallowedChars` or a preset like `Alpha` rejects. So the build only fails when that leaves nothing to build from, like `length: 0` with `allowedChars`. The message names the problem.",
 		Fix:     "type LastName = TF.String<{maxLength: 40; generator: 'lastName'}>;",
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 import * as TF from '@mionjs/run-types/formats';
@@ -715,7 +715,7 @@ mion enrich --prune`,
 	},
 	CodeMockInvalidGenerator: {
 		Summary: "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format: its length limits and characters, with no `allowedValues` beside it. A named format such as `Email` mocks itself and takes no generator. Otherwise `createMockDataFn` throws at that field.",
-		Fix:     "name: {pool: [], generator: 'fullName'}",
+		Fix:     "name: {generator: 'fullName'}",
 	},
 	CodeMockReservedProp: {
 		Summary: "Keys starting with `rt$` (`rt$items`, `rt$length`, `rt$optional`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no MockData file. Rename the property; a plain `$` prefix is fine.",

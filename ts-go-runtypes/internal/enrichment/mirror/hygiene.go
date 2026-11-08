@@ -197,8 +197,8 @@ func (scan *Scan) BlankValues() []TagFinding {
 	return findings
 }
 
-// mockPoolSiblingKeys fill a leaf beside an empty pool: a number or Date range, or a string `generator`.
-var mockPoolSiblingKeys = map[string]bool{"min": true, "max": true, "generator": true}
+// mockPoolSiblingKeys fill a leaf beside an empty pool: a number or Date range.
+var mockPoolSiblingKeys = map[string]bool{"min": true, "max": true}
 
 // rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a named pool sibling.
 func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
@@ -220,8 +220,6 @@ func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 				}
 				key, value := property.Name().Text(), property.AsPropertyAssignment().Initializer
 				switch {
-				case key == "generator":
-					hasRange = hasRange || namesGenerator(value)
 				case mockPoolSiblingKeys[key]:
 					hasRange = true
 				case key == "pool" && isEmptyArrayLiteral(value):
@@ -237,17 +235,6 @@ func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 	}
 	sourceFile.AsNode().ForEachChild(visit)
 	return offsets
-}
-
-// namesGenerator is a `generator` value that names one: a non-empty string literal or a property access.
-func namesGenerator(value *ast.Node) bool {
-	if value == nil {
-		return false
-	}
-	if ast.IsStringLiteral(value) {
-		return value.Text() != ""
-	}
-	return ast.IsPropertyAccessExpression(value)
 }
 
 func isEmptyArrayLiteral(node *ast.Node) bool {

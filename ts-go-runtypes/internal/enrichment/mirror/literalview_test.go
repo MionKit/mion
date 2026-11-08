@@ -8,7 +8,7 @@ import (
 
 // TestASTLiteralView_ItemsAndMemberName: rt$slots elements (a non-object one is a nil view) and a `GEN.x` member's name.
 func TestASTLiteralView_ItemsAndMemberName(t *testing.T) {
-	view := parseDesiredObject("{rt$slots: [{pool: []}, 3, {pool: [], generator: GEN.lastName}], city: {generator: 'city'}}")
+	view := parseDesiredObject("{rt$slots: [{pool: []}, 3, {generator: GEN.lastName}], city: {generator: 'city'}}")
 	if view == nil {
 		t.Fatal("failed to parse")
 	}

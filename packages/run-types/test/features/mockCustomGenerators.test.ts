@@ -40,7 +40,7 @@ describe('custom mock generators', () => {
   });
 
   it('a MockData node names the generator for a plain string field', () => {
-    const mock = createMockDataFn<{phone: string}>(undefined, {data: {phone: {pool: [], generator: 'phoneNumberUk'}}});
+    const mock = createMockDataFn<{phone: string}>(undefined, {data: {phone: {generator: 'phoneNumberUk'}}});
     expect(mock().phone).toMatch(UK);
   });
 
@@ -64,7 +64,7 @@ describe('custom mock generators', () => {
   it("throw after 64 values the format's pattern rejects", () => {
     registerMockGenerator('alwaysUpper', () => 'ABC');
     // `^ab$` accepts no single char, so no replacement can rescue the value.
-    const mock = createMockDataFn<TF.String<{pattern: {source: '^ab$'; mockSamples: ['ab']}; generator: 'alwaysUpper'}>>();
+    const mock = createMockDataFn<TF.String<{pattern: {source: '^ab$'}; generator: 'alwaysUpper'}>>();
     expect(() => mock()).toThrow(/`alwaysUpper`: 64 values failed the format's pattern, allowedChars or disallowedChars/);
   });
 
@@ -91,9 +91,7 @@ describe('custom mock generators', () => {
     // Same case first.
     const sameCase = createMockDataFn<TF.String<{allowedChars: {val: 'ixXyY'}; generator: 'fixedSmith'}>>();
     for (let seed = 1; seed <= 20; seed++) expect(sameCase({mock: {seed}})).toMatch(/^[XY][xy]i[xy]{2}$/);
-    expect(createMockDataFn<TF.String<{disallowedChars: {val: 'S'; mockSamples: 'x'}; generator: 'fixedSmith'}>>()()).toBe(
-      'smith'
-    );
+    expect(createMockDataFn<TF.String<{disallowedChars: {val: 'S'}; generator: 'fixedSmith'}>>()()).toBe('smith');
   });
 
   it('refuse a registration that is not a function', () => {
@@ -108,9 +106,7 @@ describe('custom mock generators', () => {
   });
 
   it('a union falls through to a sibling arm when the generator runs out of draws', () => {
-    const mock = createMockDataFn<
-      TF.String<{pattern: {source: '^ab$'; mockSamples: ['ab']}; generator: 'alwaysUpper'}> | number
-    >();
+    const mock = createMockDataFn<TF.String<{pattern: {source: '^ab$'}; generator: 'alwaysUpper'}> | number>();
     for (let seed = 1; seed <= 10; seed++) expect(typeof mock({mock: {seed}})).toBe('number');
   });
 

@@ -10,7 +10,7 @@ import {builderResult, lastInjectedId, brand} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 import type {LeafType, BrandArg, ExactParams} from '../runtypes/builderTypes.ts';
-import type {StringParams, StringParamsValueFirst} from './string/stringFormats.ts';
+import type {GeneratorOrSamplesArg, StringParams, StringParamsValueFirst} from './string/stringFormats.ts';
 import type {NumberParams, Currency} from './numberFormats.ts';
 import type {BigIntParams} from './bigintFormats.ts';
 import type {NativeDateParams} from './datetime/dateFormats.ts';
@@ -24,11 +24,11 @@ export {brand};
  *  value-first id stays faithful. **/
 export function string(id?: InjectRunTypeId<string>): RunType<string>;
 export function string<const P extends StringParamsValueFirst>(
-  formatParams: CompTimeArgs<ExactParams<P, StringParamsValueFirst>>,
+  formatParams: CompTimeArgs<ExactParams<P, StringParamsValueFirst> & GeneratorOrSamplesArg<P>>,
   id?: InjectRunTypeId<LeafType<'stringFormat', P>>
 ): RunType<LeafType<'stringFormat', P>>;
 export function string<const P extends StringParamsValueFirst, const B extends string>(
-  formatParams: CompTimeArgs<ExactParams<P, StringParamsValueFirst>>,
+  formatParams: CompTimeArgs<ExactParams<P, StringParamsValueFirst> & GeneratorOrSamplesArg<P>>,
   brandTag: BrandArg<B>,
   id?: InjectRunTypeId<LeafType<'stringFormat', P, B>>
 ): RunType<LeafType<'stringFormat', P, B>>;

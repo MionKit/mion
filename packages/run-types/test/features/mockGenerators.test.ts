@@ -52,7 +52,7 @@ describe('mock generators: under the format rules', () => {
     'phoneNumber exactly 11': TF.string({generator: GEN.phoneNumber, length: 11}),
     'streetAddress up to 10': TF.string({generator: GEN.streetAddress, maxLength: 10}),
     'firstName lowercase only': TF.string({generator: GEN.firstName, transform: {lowercase: true}}),
-    'city without spaces': TF.string({generator: GEN.city, disallowedChars: {val: ' ', mockSamples: 'x'}}),
+    'city without spaces': TF.string({generator: GEN.city, disallowedChars: {val: ' '}}),
     'Alpha firstName up to 4': TF.alpha({generator: GEN.firstName, maxLength: 4}),
   };
   for (const [label, schema] of Object.entries(bounded)) {
@@ -92,7 +92,7 @@ describe('mock generators: out of their natural lengths', () => {
     ],
     'loremIpsum cut to 1': [TF.string({generator: GEN.loremIpsum, length: 1}), /^[A-Z]$/],
     'email cut to 10, its _ replaced': [
-      TF.string({generator: GEN.email, maxLength: 10, disallowedChars: {val: '_', mockSamples: 'x'}}),
+      TF.string({generator: GEN.email, maxLength: 10, disallowedChars: {val: '_'}}),
       /^[a-z]+[A-Za-z\d ]?[a-z@.]*$/,
     ],
     'fullName in capitals only': [
@@ -137,7 +137,7 @@ describe('mock generators: MockData on a union', () => {
   it('a named format arm mocks itself, the string arm takes the generator', () => {
     type Contact = {id: string | TF.Email};
     const validate = createValidateFn<Contact>();
-    const mock = createMockDataFn<Contact>(undefined, {data: {id: {pool: [], generator: 'lastName'}}});
+    const mock = createMockDataFn<Contact>(undefined, {data: {id: {generator: 'lastName'}}});
     for (let seed = 1; seed <= 40; seed++) expect(validate(mock({mock: {seed}}))).toBe(true);
   });
 });

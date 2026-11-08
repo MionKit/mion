@@ -294,7 +294,7 @@ func TestEmitMock_FormatGeneratorPrefilled(t *testing.T) {
 		{Kind: reflection.KindPropertySignature, Name: "last", IsSafeName: true, Child: named},
 		{Kind: reflection.KindPropertySignature, Name: "nick", IsSafeName: true, Child: plain},
 	}}
-	want := "{\n  last: {pool: [], generator: 'lastName'},\n  nick: {pool: []},\n}"
+	want := "{\n  last: {generator: 'lastName'},\n  nick: {pool: []},\n}"
 	if got := MockSkeleton(rt, nil); got != want {
 		t.Errorf("MockSkeleton mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}

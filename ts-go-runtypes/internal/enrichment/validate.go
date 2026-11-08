@@ -529,12 +529,12 @@ func stringCandidates(ctx *walkCtx, candidates []*reflection.RunType, depth int)
 // generatorFieldProblems is why generator cannot mock one string field, nil when it can.
 func generatorFieldProblems(field *reflection.RunType, generator string) []string {
 	if field.FormatAnnotation == nil {
-		return formats.GeneratorProblems(generator, map[string]any{}, true)
+		return formats.GeneratorProblems(generator, map[string]any{})
 	}
 	if field.FormatAnnotation.Name != "stringFormat" {
 		return []string{"the `" + field.FormatAnnotation.Name + "` format mocks itself; a generator works on a plain string or a String format"}
 	}
-	return formats.GeneratorProblems(generator, field.FormatAnnotation.Params, true)
+	return formats.GeneratorProblems(generator, field.FormatAnnotation.Params)
 }
 
 // variadicItemTypes are the types a variadic tuple's shared `rt$items` feeds: each fixed slot and the rest element.

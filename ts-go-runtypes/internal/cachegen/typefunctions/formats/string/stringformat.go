@@ -317,12 +317,12 @@ func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	if complexCount > 1 {
 		errs = append(errs, "StringFormat: only one of [pattern, allowedChars, disallowedChars, allowedValues, disallowedValues] can be used at once")
 	}
-	// A generator builds the mock, so disallowedChars needs no samples beside it.
-	if _, present := params["disallowedChars"]; present && !hasGenerator(params) && !paramHasMockSamples(params, "disallowedChars") {
-		errs = append(errs, "StringFormat: `disallowedChars` requires `mockSamples`")
-	}
-	if _, present := params["disallowedValues"]; present && !paramHasMockSamples(params, "disallowedValues") {
-		errs = append(errs, "StringFormat: `disallowedValues` requires `mockSamples`")
+	// A disallowed set cannot be mocked from: it takes `mockSamples`, or a generator builds the mock instead
+	// (formats.GeneratorProblems rejects having both).
+	for _, key := range []string{"disallowedChars", "disallowedValues"} {
+		if _, present := params[key]; present && !hasGenerator(params) && !paramHasMockSamples(params, key) {
+			errs = append(errs, "StringFormat: `"+key+"` requires `mockSamples` or a `generator`")
+		}
 	}
 	errs = append(errs, formats.ValidateTransformParams(params, "StringFormat")...)
 	return errs
@@ -355,7 +355,7 @@ func checkGenerator(ctx formats.EmitContext, params map[string]any) {
 	if !present {
 		return
 	}
-	if problems := formats.GeneratorProblems(name, params, false); len(problems) > 0 {
+	if problems := formats.GeneratorProblems(name, params); len(problems) > 0 {
 		ctx.EmitDiagnostic(diagnostics.CodeFMTGeneratorInvalid, generatorLabel(name), strings.Join(problems, "; "))
 	}
 }
