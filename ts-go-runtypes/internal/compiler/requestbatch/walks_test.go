@@ -5,6 +5,8 @@ import (
 	"go/parser"
 	"go/token"
 	"testing"
+
+	"github.com/microsoft/typescript-go/shim/ast"
 )
 
 // TestMapperCallFinder_ReachesEveryNode pins the visitor rule for this package's syntax walk: one switch, one arm
@@ -69,4 +71,101 @@ func TestMapperCallFinder_ReachesEveryNode(t *testing.T) {
 	if !walksChildren {
 		t.Error("every other kind must be walked through ForEachChild(finder.visit)")
 	}
+}
+
+// TestMapperCallFinder_FindsAMapperUnderEveryContainer runs the real walk on a mapper nested under each expression
+// shape a route argument or helper body holds it in.
+func TestMapperCallFinder_FindsAMapperUnderEveryContainer(t *testing.T) {
+	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"
+	containers := map[string]string{
+		"ternary":        "flag ? " + mapper + " : 0",
+		"array":          "[0, " + mapper + "]",
+		"object":         "({id: " + mapper + "})",
+		"call argument":  "String(" + mapper + ")",
+		"method chain":   mapper + ".asArg()",
+		"arrow body":     "(() => " + mapper + ")",
+		"function body":  "(function () { return " + mapper + "; })",
+		"binary":         "0 || " + mapper,
+		"template":       "`${" + mapper + "}`",
+		"spread":         "[..." + "[" + mapper + "]]",
+		"await":          "(async () => await " + mapper + ")",
+		"parenthesized":  "(" + mapper + ")",
+		"as cast":        mapper + " as unknown",
+		"non-null":       mapper + "!",
+		"element access": "[" + mapper + "][0]",
+	}
+	for name, container := range containers {
+		t.Run(name, func(t *testing.T) {
+			overlay := setupOverlay(t, map[string]string{"a.ts": fixture(routesBound + "declare const flag: boolean;\nconst user = routes.users.getById(1);\nexport const probe = " + container + ";\n")})
+			sourceFile := overlay.prog.SourceFile(overlay.files[0])
+			scope := newFileScope(overlay.typeChecker, overlay.markerOpts, sourceFile)
+			probe := variableInitializer(findVariable(t, sourceFile, "probe"))
+			if !scope.containsMapperCall(probe) {
+				t.Errorf("containsMapperCall missed the mapper under %s", name)
+			}
+		})
+	}
+}
+
+// TestCollectAssignments_RecordsEveryWriteForm runs the real walk on each way a file can write a variable, and pins
+// the value writtenValue reads from it.
+func TestCollectAssignments_RecordsEveryWriteForm(t *testing.T) {
+	forms := map[string]struct{ write, value string }{
+		"assignment":        {"target = 1;", "1"},
+		"compound":          {"target += 1;", "1"},
+		"logical":           {"target ??= 1;", "1"},
+		"array destructure": {"[target] = [1];", "[1]"},
+		"object shorthand":  {"({target} = {target: 1});", "{target: 1}"},
+		"for-of head":       {"for (target of [1]) {}", "[1]"},
+		"for-in head":       {"for (target in {a: 1}) {}", "{a: 1}"},
+		"postfix increment": {"target++;", "target++"},
+		"prefix increment":  {"++target;", "++target"},
+	}
+	for name, form := range forms {
+		t.Run(name, func(t *testing.T) {
+			overlay := setupOverlay(t, map[string]string{"a.ts": "export {};\nlet target: any = 0;\n" + form.write + "\n"})
+			sourceFile := overlay.prog.SourceFile(overlay.files[0])
+			scope := newFileScope(overlay.typeChecker, overlay.markerOpts, sourceFile)
+			declaration := findVariable(t, sourceFile, "target")
+			writes := scope.assignedValues(declaration.Symbol(), declaration)
+			if len(writes) != 1 {
+				t.Fatalf("%s: %d writes recorded, want 1", name, len(writes))
+			}
+			text := sourceFile.Text()
+			if got := text[scanStart(text, writes[0].Pos()):writes[0].End()]; got != form.value {
+				t.Errorf("%s: written value %q, want %q", name, got, form.value)
+			}
+		})
+	}
+}
+
+// findVariable returns the variable declaration named name in sourceFile.
+func findVariable(t *testing.T, sourceFile *ast.SourceFile, name string) *ast.Node {
+	t.Helper()
+	var found *ast.Node
+	var visit ast.Visitor
+	visit = func(node *ast.Node) bool {
+		if found != nil || node == nil {
+			return found != nil
+		}
+		if node.Kind == ast.KindVariableDeclaration && node.Name() != nil && node.Name().Kind == ast.KindIdentifier && node.Name().Text() == name {
+			found = node
+			return true
+		}
+		node.ForEachChild(visit)
+		return found != nil
+	}
+	sourceFile.AsNode().ForEachChild(visit)
+	if found == nil {
+		t.Fatalf("no variable %s", name)
+	}
+	return found
+}
+
+// scanStart skips the leading trivia a node's Pos includes.
+func scanStart(text string, pos int) int {
+	for pos < len(text) && (text[pos] == ' ' || text[pos] == '\n' || text[pos] == '\t') {
+		pos++
+	}
+	return pos
 }
