@@ -67,7 +67,6 @@ overrides:
   '@ai-sdk/provider-utils@<4.0.33': '4.0.33'
   'vue@<3.5.42': '3.5.43'
   'ws@>=8.0.0 <8.21.0': '8.21.0'
-  'zod@>=4.0.0 <4.6.6': '4.6.6'
 
 # ── Lifecycle scripts ────────────────────────────────────
 # Allowlist-based: only packages set to `true` in `allowBuilds` run scripts.
@@ -79,6 +78,10 @@ overrides:
 # from a trusted source. pnpm has no per-package allowlist for direct-dep
 # sources — PR review covers that surface.
 blockExoticSubdeps: true
+
+# ── Block non-registry sources ───────────────────────────
+# Refuse git/github/file/http specifiers from dependencies.
+allowNonRegistryProtocols: false
 
 # ── Peer / hoisting ──────────────────────────────────────
 strictPeerDependencies: false
