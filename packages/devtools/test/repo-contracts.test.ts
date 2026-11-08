@@ -2247,6 +2247,20 @@ describe('platform-gcloud leaves the functions framework to the user', () => {
   });
 });
 
+// A peer floor promises what CI proves: the oldest vite any lane installs is the e2e matrix's rolldown-vite.
+describe('devtools vite peer floor matches the oldest tested vite', () => {
+  it('floor major equals the lowest vite major a lane pins', () => {
+    const major = (spec: string): number => Number(/(\d+)\./.exec(spec)?.[1]);
+    const lanes = globSync('container/**/package.json', {cwd: REPO_ROOT, exclude: (name) => name === 'node_modules'})
+      .map((file) => JSON.parse(readFileSync(join(REPO_ROOT, file), 'utf8')))
+      .map((pkg) => pkg.dependencies?.vite ?? pkg.devDependencies?.vite)
+      .filter((spec): spec is string => typeof spec === 'string');
+    const devtools = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/devtools/package.json'), 'utf8'));
+    expect(lanes.length).toBeGreaterThan(0);
+    expect(major(devtools.peerDependencies.vite)).toBe(Math.min(...lanes.map(major)));
+  });
+});
+
 // vite-plugin-dts falls back to the vite outDir when outDirs is missing, so every types entry would break.
 describe('vite-built packages emit their .d.ts where exports point', () => {
   const configs = globSync('packages/*/vite.config.ts', {cwd: REPO_ROOT}).filter((config) =>
