@@ -73,9 +73,13 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
   const artifactDir =
     options.artifactDir ?? path.resolve(root, typeof nextConfig.distDir === 'string' ? nextConfig.distDir : '.next');
   // A process that loads the config without bundling (Next's detached telemetry flush) never calls a loader.
-  const socketPath = ownsBroker()
-    ? (await startBroker(root, {...options, artifactDir})).socketPath
-    : (options.socketPath ?? socketPathFor(root));
+  let socketPath = options.socketPath ?? socketPathFor(root);
+  if (ownsBroker()) {
+    const broker = await startBroker(root, {...options, artifactDir});
+    // Invariant 11 in ./AGENTS.md: Turbopack must not see genDir before the cache modules exist.
+    await broker.ready;
+    socketPath = broker.socketPath;
+  }
 
   return {
     ...nextConfig,

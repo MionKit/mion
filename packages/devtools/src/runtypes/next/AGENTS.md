@@ -89,6 +89,14 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
     - Symptom (e2e, next 16.4.1): `Export __rt_<id> doesn't exist in target module` after a type edit, and
       `Can't resolve '.rt/types/<hash>.ts'` on a build after `next dev`.
 
+11. **`withRunTypes` returns only after `broker.ready`** (buildStart done, cache modules on disk).
+    - Returning earlier lets Turbopack start compiling first. It remembers a missing genDir all build long.
+    - Symptom (e2e `smoke-next-ts`, next 16.4, clean build): `Can't resolve '.rt/types/<hash>.ts'`, plus
+      `a component does not exist`. Seen only when compiling started before `buildStart done` in the
+      `MION_NEXT_DEBUG` trace.
+    - `ready` holds the process open until it settles. Resolver and socket are unref'd, so without the hold
+      Node quits mid-await and `next build` exits 0 having built nothing.
+
 ## Gotchas when testing by hand
 
 - `turbopack.root` must contain `node_modules` **and** any shared source the app imports.
