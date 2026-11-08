@@ -85,7 +85,8 @@ type Contact = {phone: TF.String<{maxLength: 16; generator: 'phoneNumberUk'}>};
 - A custom generator gets the same context object as a built-in (`random: MockRandom`, `lo` / `hi` length bounds, the
   format params), so a seeded mock stays reproducible when it draws through `random`.
 - A built-in name cannot be registered again (`registerMockGenerator` throws): the build checks rely on the built-in
-  length / character table. Teams pick their own name (`phoneNumberUk`). Registering the same custom name twice throws.
+  length / character table. Teams pick their own name (`phoneNumberUk`). Registering the same custom name twice throws
+  (shipped: it replaces the old one instead, so a reloaded setup module can register again).
 - Mocking a name nobody registered throws: "mock generator `x` is not registered; call registerMockGenerator('x', fn)
   before creating the mock".
 
@@ -159,6 +160,12 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   `Lengths`, `Chars`, `Required` and `Leading` are gone, and the generated `mockGeneratorMeta.generated.ts` became
   `builtinMockGenerators.generated.ts` (names and `MOCK_REPLACEMENT_CHARS`, the one replacement set). The
   sections below still describe the planned length and char checks.
+- Architecture review follow-ups: the replacement also tests each char against the format's `pattern` on its own, so
+  a char-class preset (`Alpha`, `Numeric`) gets `fullName` / `phoneNumber` values (`OliviaxGarcia`); a generator
+  out of draws throws `MockGeneratorExhaustedError`, a sampling error, so a union tries a sibling arm; a MockData
+  generator skips a named-format union arm (it mocks itself) and the enrich check needs every plain / String arm to
+  accept it; `isRegex` joins the rejected combinations; an `allowedChars` value never shrinks below one char;
+  registering a custom name again replaces it (Vite HMR re-runs setup modules).
 
 ## Plan
 
