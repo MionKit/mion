@@ -83,7 +83,7 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
 
   return {
     ...nextConfig,
-    // Invariant 10 in ./AGENTS.md: a cached build reuses rewrites that import pruned modules. A caller's own value wins.
+    // Invariant 10 in ./AGENTS.md: a cached build reuses rewrites that import pruned modules.
     experimental: {turbopackFileSystemCacheForBuild: false, ...nextConfig.experimental},
     turbopack: {
       ...nextConfig.turbopack,
