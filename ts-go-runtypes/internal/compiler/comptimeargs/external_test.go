@@ -121,6 +121,53 @@ func TestWholeConst_WidenedRejected(t *testing.T) {
 	}
 }
 
+// TestModuleMember_Accepted: a member of a namespace import reads that module's exported const, so it traces like
+// the bare imported name, through an `export * as` re-export and from a published declaration file, which keeps
+// the literal initializer (`export declare const lastName = 'lastName'`).
+func TestModuleMember_Accepted(t *testing.T) {
+	cases := map[string]map[string]string{
+		"namespace import": {
+			"gen.ts":   `export const lastName = 'lastName';`,
+			"entry.ts": `import * as GEN from './gen'; const target = {generator: GEN.lastName};`,
+		},
+		"re-exported namespace": {
+			"gen.ts":   `export const lastName = 'lastName';`,
+			"tf.ts":    `export * as GEN from './gen';`,
+			"entry.ts": `import * as TF from './tf'; const target = {generator: TF.GEN.lastName};`,
+		},
+		"declaration file": {
+			"gen.d.ts": `export declare const lastName = 'lastName';`,
+			"entry.ts": `import * as GEN from './gen'; const target = {generator: GEN.lastName};`,
+		},
+	}
+	for name, files := range cases {
+		t.Run(name, func(t *testing.T) {
+			assertResultOk(t, checkConst(t, files, "target"), name)
+		})
+	}
+}
+
+// TestModuleMember_FunctionRefused: a function exported by a namespace import is not a literal and stays refused.
+func TestModuleMember_FunctionRefused(t *testing.T) {
+	files := map[string]string{
+		"lib.ts":   `export function make() { return 1; }`,
+		"entry.ts": `import * as LIB from './lib'; const target = {fn: LIB.make};`,
+	}
+	result := checkConst(t, files, "target")
+	if result.Ok || result.Kind != comptimeargs.FailForbiddenConstruct {
+		t.Fatalf("expected FailForbiddenConstruct, got kind=%d reason=%q", result.Kind, result.Reason)
+	}
+}
+
+// TestModuleMember_ObjectConstRefused: a property of an object const is not a module export and stays refused.
+func TestModuleMember_ObjectConstRefused(t *testing.T) {
+	body := `const GEN = {lastName: 'lastName'} as const; const target = {generator: GEN.lastName};`
+	result := checkConst(t, map[string]string{"entry.ts": body}, "target")
+	if result.Ok || result.Kind != comptimeargs.FailForbiddenConstruct {
+		t.Fatalf("expected FailForbiddenConstruct, got kind=%d reason=%q", result.Kind, result.Reason)
+	}
+}
+
 // --- Part 2: PureFunction<F> "no external handle" rule ---
 
 // TestPureFn_InlineAccepted: under literal-only the accepted forms are an inline
