@@ -103,10 +103,17 @@ Check time stays in the noise. Go side, 300 batches of 3 items extracted on a fr
 ### What shipped beyond the plan
 
 - An `any` item gets its own reason: with `noImplicitAny` off (this repo's setting), a bare `let x;` assigned in
-  branches is `any`, so it must be typed. With `strict` on it reads as the union.
+  branches is `any`, so it must be typed. With `noImplicitAny` on (`strict` sets it unless overridden) it reads as
+  the union.
 - A cast is read as written: `as RouteSubRequest<any>` now drops the id (it read before), `as RouteSubRequest<H, 'a'>`
   is trusted.
-- A route call reached through a value the file cannot see (a parameter, a destructured binding) carries no
-  mappings the build can read; its id still reads from its type.
+- A route call the build cannot see (a helper's result, a property, a parameter, a reassigned variable) still
+  reads its id from its type, but the build cannot read its mappings. Such a call always gets the id lookup, keyed
+  by each route id plus `#<index>` per argument the build mapped (`users/getById,orders/list#0`). `batch()` builds
+  the key from the mappings the routes really carry, so a mapping the build missed finds no entry and throws
+  `batch-missing-id`, never a `null` argument. The key format lives in `internal/constants` and is generated into
+  `@mionjs/core`. A mapping the build can see but not read (in a helper's arguments, a ternary arm, a destructured
+  initializer, any write to a reassigned variable) is still `rpc-batch-mapper-unreadable`.
+- `InjectBatchId` is typed as the string or the lookup object it holds.
 - The three Go and four JS copies of the fake client collapsed into `testfixtures.BatchClientDTS` and
   `packages/devtools/test/helpers/batchFixture.ts`.
