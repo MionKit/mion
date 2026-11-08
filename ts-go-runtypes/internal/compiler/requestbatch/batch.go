@@ -1,27 +1,28 @@
 // Package requestbatch extracts `batch([...routes], batchId?)` call sites whose resolved signature carries
-// the InjectBatchId marker, reads the ORDERED route ids and the `inputFrom` links between them, and splices
-// the deterministic batch id into the call's empty trailing slot. The mapper keys come from the pure-fn
+// the InjectBatchId marker, reads the ORDERED route ids from each item's type and the `inputFrom` links between
+// them, and splices the deterministic batch id (one per route combination, as a lookup) into the call's empty
+// trailing slot. The mapper keys come from the pure-fn
 // extractor itself, so this report and the hash the pure-fn lane injects at the same call cannot disagree.
 // A batch with any diagnostic yields NO site: a half-read plan must not ship under an id the server trusts.
 package requestbatch
 
 import (
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// ClientModule declares the surface a batch is read against, `RouteSubRequest` and `initClient`; both gates
-// accept the ambient `declare module '@mionjs/client'` form and the real installed package.
+// ClientModule declares the surface a batch is read against, `RouteSubRequest` and the routes proxy's call
+// signatures; both gates accept the ambient `declare module '@mionjs/client'` form and the real installed package.
 const ClientModule = "@mionjs/client"
-
-// RoutesProperty holds the routes proxy on the `initClient()` result; a route id is the property chain AFTER it.
-const RoutesProperty = "routes"
 
 // Mapping is one `inputFrom(source, mapper | name)` link: the server feeds route FromId's output through
 // the mapper keyed MapperKey into argument ParamIndex of route ToId.
@@ -32,7 +33,8 @@ type Mapping struct {
 	MapperKey  string
 }
 
-// Site is one successfully read `batch([...])` call.
+// Site is one batch a successfully read `batch([...])` call may run; a call with an item of several possible
+// routes yields one Site per combination, all sharing the call's span and InjectText.
 type Site struct {
 	// The call expression's span, in byte offsets.
 	FilePath string
@@ -44,7 +46,7 @@ type Site struct {
 	RouteIds []string
 	// Mappings are the `inputFrom()` links, sorted by (ToId, ParamIndex).
 	Mappings []Mapping
-	// InjectPos is the closing `)` offset and InjectText the literal to splice; empty InjectText marks
+	// InjectPos is the closing `)` offset and InjectText the literal to splice (batchIdLiteral); empty InjectText marks
 	// a call whose id slot was already written (a pass-through).
 	InjectPos  int
 	InjectText string
@@ -121,11 +123,9 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			site, callDiags := scope.extractOne(node)
+			callSites, callDiags := scope.extractOne(node)
 			diags = append(diags, callDiags...)
-			if site != nil {
-				sites = append(sites, *site)
-			}
+			sites = append(sites, callSites...)
 		}
 		node.ForEachChild(visit)
 		return false
@@ -134,8 +134,18 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 	return sites, diags
 }
 
-// extractOne reads a single branded batch call into a Site.
-func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnostic) {
+// MaxCombinations caps the batches one call may compile: each union item multiplies them, and each is a
+// server table entry plus a key in the client bundle.
+const MaxCombinations = 64
+
+// batchItem is one element of the routes argument and the routes it may run.
+type batchItem struct {
+	node *ast.Node
+	ids  []string
+}
+
+// extractOne reads a single branded batch call into one Site per route combination it may run.
+func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Diagnostic) {
 	typeChecker, sourceFile := fileScope.typeChecker, fileScope.sourceFile
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
@@ -163,48 +173,114 @@ func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Dia
 		return nil, nil
 	}
 	var diags []diagnostics.Diagnostic
-	routeIds := make([]string, 0, len(elements.Nodes))
-	routeCalls := make([]*ast.Node, 0, len(elements.Nodes))
-	seen := map[string]bool{}
+	items := make([]batchItem, 0, len(elements.Nodes))
+	combinationCount := 1
 	for _, element := range elements.Nodes {
-		routeCall, routeId, reason := fileScope.resolveRouteRef(element, 0)
+		ids, reason := fileScope.itemRouteIds(element)
 		if reason != "" {
 			diags = append(diags, fileScope.diag(diagnostics.CodeBatchElementNotReadable, element, reason))
 			continue
 		}
-		// The server keys the request and its results by route id, so one batch cannot run a route twice.
-		if seen[routeId] {
-			diags = append(diags, fileScope.diag(diagnostics.CodeBatchDuplicateRoute, element, routeId))
-			continue
+		items = append(items, batchItem{node: element, ids: ids})
+		if combinationCount <= MaxCombinations {
+			combinationCount *= len(ids)
 		}
-		seen[routeId] = true
-		routeIds = append(routeIds, routeId)
-		routeCalls = append(routeCalls, routeCall)
 	}
 	if len(diags) > 0 {
 		return nil, diags
 	}
-	mappings, mappingDiags := fileScope.resolveMappings(routeIds, routeCalls)
+	if combinationCount > MaxCombinations {
+		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchTooManyCombinations, routesArg, strconv.Itoa(MaxCombinations))}
+	}
+	pending, mappingDiags := fileScope.resolveMappings(items)
 	if len(mappingDiags) > 0 {
 		return nil, mappingDiags
 	}
-	site := &Site{
-		FilePath:   sourceFile.FileName(),
-		Start:      call.Pos(),
-		End:        call.End(),
-		BatchId:    BatchId(routeIds, mappings),
-		RouteIds:   routeIds,
-		Mappings:   mappings,
-		CalleeName: calleeIdentifierName(callExpr),
-		sourceFile: sourceFile,
-		callNode:   call,
+	combinations := routeCombinations(items)
+	sites := make([]Site, 0, len(combinations))
+	seenDiags := map[string]bool{}
+	for _, routeIds := range combinations {
+		comboDiags := fileScope.duplicateRoutes(items, routeIds)
+		var mappings []Mapping
+		if len(comboDiags) == 0 {
+			mappings, comboDiags = fileScope.placeMappings(pending, routeIds)
+		}
+		// Combinations repeat the same finding at the same place: report it once.
+		for _, diag := range comboDiags {
+			key := diagnostics.FormatDebug(diag)
+			if !seenDiags[key] {
+				seenDiags[key] = true
+				diags = append(diags, diag)
+			}
+		}
+		sites = append(sites, Site{
+			FilePath:   sourceFile.FileName(),
+			Start:      call.Pos(),
+			End:        call.End(),
+			BatchId:    BatchId(routeIds, mappings),
+			RouteIds:   routeIds,
+			Mappings:   mappings,
+			CalleeName: calleeIdentifierName(callExpr),
+			sourceFile: sourceFile,
+			callNode:   call,
+		})
 	}
-	site.InjectPos = call.End() - 1
-	site.InjectText = purefunctions.TrailingArgText(site.BatchId, callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
+	if len(diags) > 0 {
+		return nil, diags
+	}
+	injectText := purefunctions.TrailingArgLiteral(batchIdLiteral(sites), callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
+	calleeModule := ""
 	if signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0); signature != nil {
-		site.CalleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), fileScope.markerOpts.FS)
+		calleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), fileScope.markerOpts.FS)
 	}
-	return site, nil
+	for i := range sites {
+		sites[i].InjectPos = call.End() - 1
+		sites[i].InjectText = injectText
+		sites[i].CalleeModule = calleeModule
+	}
+	return sites, nil
+}
+
+// routeCombinations lists every ordered route list the items may run, the first item varying slowest.
+func routeCombinations(items []batchItem) [][]string {
+	combinations := [][]string{{}}
+	for _, item := range items {
+		next := make([][]string, 0, len(combinations)*len(item.ids))
+		for _, prefix := range combinations {
+			for _, id := range item.ids {
+				next = append(next, append(append(make([]string, 0, len(items)), prefix...), id))
+			}
+		}
+		combinations = next
+	}
+	return combinations
+}
+
+// duplicateRoutes reports a route listed twice: the server keys the request and its results by route id.
+func (fileScope *fileScope) duplicateRoutes(items []batchItem, routeIds []string) []diagnostics.Diagnostic {
+	var diags []diagnostics.Diagnostic
+	seen := map[string]bool{}
+	for i, routeId := range routeIds {
+		if seen[routeId] {
+			diags = append(diags, fileScope.diag(diagnostics.CodeBatchDuplicateRoute, items[i].node, routeId))
+			continue
+		}
+		seen[routeId] = true
+	}
+	return diags
+}
+
+// batchIdLiteral is the id slot's value: the id itself, or, when an item may run several routes, an object
+// keyed by each combination's route ids joined with routeIdSeparator, which `batch()` picks from at runtime.
+func batchIdLiteral(sites []Site) string {
+	if len(sites) == 1 {
+		return jsquote.Single(sites[0].BatchId)
+	}
+	entries := make([]string, 0, len(sites))
+	for _, site := range sites {
+		entries = append(entries, jsquote.Single(strings.Join(site.RouteIds, routeIdSeparator))+": "+jsquote.Single(site.BatchId))
+	}
+	return "{" + strings.Join(entries, ", ") + "}"
 }
 
 // fileScope also memoises, per declaring file, the assignment targets the reassignment guard reads.

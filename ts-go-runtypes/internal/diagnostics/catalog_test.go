@@ -404,8 +404,14 @@ func TestLevelsThatMoved(t *testing.T) {
 		// Error, and staying there: no code was produced for the thing.
 		CodeMarkerFreeTypeParameter: LevelError,
 		CodeTypeIdCollision:         LevelError,
-		CodeBatchElementNotReadable: LevelError,
 		CodeEmitOutsideRootDir:      LevelError,
+		// A dropped batch still compiles: `batch()` runs and throws `batch-missing-id`.
+		CodeBatchElementNotReadable:     LevelRuntimeError,
+		CodeBatchSourceNotInBatch:       LevelRuntimeError,
+		CodeBatchMapperNotReadable:      LevelRuntimeError,
+		CodeBatchDuplicateRoute:         LevelRuntimeError,
+		CodeBatchMappingParamOutOfRange: LevelRuntimeError,
+		CodeBatchTooManyCombinations:    LevelRuntimeError,
 	} {
 		if got := Definitions[code].Level; got != want {
 			t.Errorf("%s: level %d, want %d", code, got, want)

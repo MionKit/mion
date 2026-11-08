@@ -631,9 +631,10 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['marker-type-id-collision']})).toThrow(
       /cannot downgrade marker-type-id-collision/
     );
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['rpc-batch-element-unreadable']})).toThrow(
-      /cannot downgrade rpc-batch-element-unreadable/
-    );
+  });
+
+  it('accepts an unreadable batch item: the batch() call still ships and throws batch-missing-id', () => {
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['rpc-batch-element-unreadable']})).not.toThrow();
   });
 
   it('accepts a pure-function purity code: the impure body still ships', () => {

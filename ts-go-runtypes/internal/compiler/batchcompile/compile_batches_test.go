@@ -15,20 +15,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// batchClientDTS is the ambient stand-in for the `@mionjs/client` surface the
-// batches lane reads (the markers come from the real package under
-// node_modules, so the brands are the shipped declarations).
-const batchClientDTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`
+// batchClientDTS mirrors the real client types, shared with the requestbatch tests.
+const batchClientDTS = testfixtures.BatchClientDTS
 
 const routerDTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
@@ -36,9 +24,10 @@ const routerDTS = `declare module '@mionjs/router' {
 `
 
 const clientRoutesTS = `import {initClient} from '@mionjs/client';
+type Route<H> = {type: 1; handler: H};
 export type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}};
-  orders: {getById: (id: number) => {id: number}};
+  users: {getById: Route<(id: number) => {id: number; name: string}>};
+  orders: {getById: Route<(id: number) => {id: number}>};
 };
 export const {routes} = initClient<Routes>();
 `

@@ -18,32 +18,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// clientDts is an ambient stand-in for the `@mionjs/client` surface a batch is
-// read against: the routes proxy `initClient()` returns, the `RouteSubRequest`
-// every route call yields, the two-overload `inputFrom` mapper factory (name
-// lane + branded inline lane) and the branded `batch`. The markers it forwards
-// come from the REAL `@mionjs/run-types` package (realMarkerFiles), so the
-// brand checks run against the shipped declarations.
-const clientDts = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`
-
 // routesType is the route map every fixture instantiates the client with.
-const routesType = `type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}; search: (name: string, limit?: number) => string[]};
+const routesType = testfixtures.BatchRouteLeaf + `type Routes = {
+  users: {getById: Route<(id: number) => {id: number; name: string}>; search: Route<(name: string, limit?: number) => string[]>};
   orders: {
-    list: (userId: number) => string[];
-    getById: (id: number) => {id: number};
-    report: (userId: number, status: string, limit: number) => string[];
-    tail: (userId: number, ...ids: number[]) => string[];
+    list: Route<(userId: number) => string[]>;
+    getById: Route<(id: number) => {id: number}>;
+    report: Route<(userId: number, status: string, limit: number) => string[]>;
+    tail: Route<(userId: number, ...ids: number[]) => string[]>;
   };
 };
 `
@@ -84,7 +66,7 @@ func setupOverlay(t *testing.T, files map[string]string) overlayProgram {
 		abs = append(abs, path)
 	}
 	clientPath := tspath.ResolvePath(cwd, "client.d.ts")
-	overlay[clientPath] = clientDts
+	overlay[clientPath] = testfixtures.BatchClientDTS
 	abs = append(abs, clientPath)
 	for rel, content := range realMarker {
 		overlay[tspath.ResolvePath(cwd, rel)] = content
@@ -380,23 +362,55 @@ func TestShapes_ImportedRoutes(t *testing.T) {
 	}
 }
 
-// Shape 4: parentheses, `as`, `satisfies` and `!` wrap an element, the array
-// argument or the chain root without changing what is read.
-func TestShapes_Wrappers(t *testing.T) {
+// Shape 3b: the id rides the type, so any client a typed value hands over reads, however it was reached.
+func TestShapes_AnyTypedClient(t *testing.T) {
+	const client = "type Client = ReturnType<typeof initClient<Routes>>;\n"
 	cases := map[string]string{
-		"parenthesized element": routesBound + "export const b = batch([(routes.users.getById(1))]);",
-		"as cast element":       routesBound + "export const b = batch([routes.users.getById(1) as RouteSubRequest<any>]);",
-		"satisfies element":     routesBound + "export const b = batch([routes.users.getById(1) satisfies RouteSubRequest<any>]);",
-		"non-null element":      routesBound + "export const b = batch([routes.users.getById(1)!]);",
-		"stacked wrappers":      routesBound + "export const b = batch([((routes.users.getById(1)!) as RouteSubRequest<any>) satisfies RouteSubRequest<any>]);",
-		"wrapped array":         routesBound + "export const b = batch(([routes.users.getById(1)]));",
-		"non-null chain root":   routesBound + "export const b = batch([routes!.users.getById(1)]);",
-		"parenthesized chain":   routesBound + "export const b = batch([(routes.users).getById(1)]);",
-		"wrapped bound element": routesBound + "const user = (routes.users.getById(1) as RouteSubRequest<any>)!;\nexport const b = batch([user!]);",
+		"vue inject()":               client + "declare function inject<T>(key: string): T;\nconst {routes} = inject<Client>('api');\nexport const b = batch([routes.users.getById(1)]);",
+		"composable":                 "function useApi() { return initClient<Routes>(); }\nconst {routes} = useApi();\nexport const b = batch([routes.users.getById(1)]);",
+		"nuxt useNuxtApp()":          client + "declare function useNuxtApp(): {$client: Client};\nexport const b = batch([useNuxtApp().$client.routes.users.getById(1)]);",
+		"client from a parameter":    client + "export function f(client: Client) { const {routes} = client; return batch([routes.users.getById(1)]); }",
+		"this.routes in a class":     "export class Store {\n  routes = initClient<Routes>().routes;\n  plan() { return batch([this.routes.users.getById(1)]); }\n}",
+		"optional chaining":          client + "const c = initClient<Routes>() as Client | undefined;\nexport const b = batch([c?.routes.users.getById(1)!]);",
+		"computed member":            routesBound + "declare const name: 'users';\nexport const b = batch([routes[name].getById(1)]);",
+		"inferred helper":            routesBound + "function getUser(id: number) { return routes.users.getById(id); }\nexport const b = batch([getUser(1)]);",
+		"route from a parameter":     routesBound + "export function f(u: RouteSubRequest<any, 'users/getById'>) { return batch([u]); }",
+		"object property":            routesBound + "const obj = {req: routes.users.getById(1)};\nexport const b = batch([obj.req]);",
+		"array index":                routesBound + "const arr = [routes.users.getById(1)];\nexport const b = batch([arr[0]]);",
+		"element from map":           routesBound + "const ids = [1, 2];\nexport const b = batch([ids.map((id) => routes.users.getById(id))[0]]);",
+		"await element":              routesBound + "export async function f() { return batch([await routes.users.getById(1)]); }",
+		"var binding":                routesBound + "var r = routes.users.getById(1);\nexport const b = batch([r]);",
+		"let reassigned":             routesBound + "let r = routes.users.getById(1);\nr = routes.users.getById(2);\nexport const b = batch([r]);",
+		"let assigned later":         routesBound + "let r;\nr = routes.users.getById(1);\nexport const b = batch([r]);",
+		"routes reassigned":          "let {routes} = initClient<Routes>();\nroutes = initClient<Routes>().routes;\nexport const b = batch([routes.users.getById(1)]);",
+		"ternary on the same route":  routesBound + "declare const cond: boolean;\nexport const b = batch([cond ? routes.users.getById(1) : routes.users.getById(2)]);",
+		"destructured from ternary":  "const client = initClient<Routes>();\ndeclare const flag: boolean;\nconst {routes} = flag ? client : client;\nexport const b = batch([routes.users.getById(1)]);",
+		"destructured past old caps": depthChain(comptimeargs.DepthCap) + "const {routes} = alias0;\nexport const b = batch([routes.users.getById(1)]);",
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
 			assertSite(t, oneSite(t, body), "users/getById", "", "")
+		})
+	}
+}
+
+// Shape 4: parentheses, `satisfies` and `!` wrap an element, the array argument or the chain root without
+// changing what is read; a cast is read as written, so a lying cast is trusted.
+func TestShapes_Wrappers(t *testing.T) {
+	cases := map[string]struct{ body, routes string }{
+		"parenthesized element": {routesBound + "export const b = batch([(routes.users.getById(1))]);", "users/getById"},
+		"satisfies element":     {routesBound + "export const b = batch([routes.users.getById(1) satisfies RouteSubRequest<any>]);", "users/getById"},
+		"non-null element":      {routesBound + "export const b = batch([routes.users.getById(1)!]);", "users/getById"},
+		"stacked wrappers":      {routesBound + "export const b = batch([((routes.users.getById(1)!)) satisfies RouteSubRequest<any>]);", "users/getById"},
+		"wrapped array":         {routesBound + "export const b = batch(([routes.users.getById(1)]));", "users/getById"},
+		"non-null chain root":   {routesBound + "export const b = batch([routes!.users.getById(1)]);", "users/getById"},
+		"parenthesized chain":   {routesBound + "export const b = batch([(routes.users).getById(1)]);", "users/getById"},
+		"wrapped bound element": {routesBound + "const user = (routes.users.getById(1))!;\nexport const b = batch([user!]);", "users/getById"},
+		"cast keeping an id":    {routesBound + "export const b = batch([routes.orders.list(1) as unknown as RouteSubRequest<any, 'users/getById'>]);", "users/getById"},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			assertSite(t, oneSite(t, testCase.body), testCase.routes, "", "")
 		})
 	}
 }
@@ -621,47 +635,114 @@ func depthChain(n int) string {
 	return chain
 }
 
-// Shape 9: rpc-batch-element-unreadable, every unreadable element with its reason and the element it points at.
+// Shape 9: rpc-batch-element-unreadable, every element whose type does not name its route.
 func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 	cases := map[string]struct{ body, at, reason string }{
-		"spread":                          {routesBound + "const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);", "...prepared", reasonSpread},
-		"routes argument identifier":      {routesBound + "const list = [routes.users.getById(1)];\nexport const b = batch(list);", "batch(list", "routes argument is not an inline array literal"},
-		"routes argument concat":          {routesBound + "export const b = batch([].concat(routes.users.getById(1) as never));", "as never)", "routes argument is not an inline array literal"},
-		"ternary element":                 {routesBound + "declare const cond: boolean;\nexport const b = batch([cond ? routes.users.getById(1) : routes.users.getById(2)]);", "getById(2)", reasonNotRouteCall},
-		"let without initializer":         {routesBound + "let r: RouteSubRequest<any>;\nr = routes.users.getById(1);\nexport const b = batch([r]);", "batch([r", reasonNotBound},
-		"var binding":                     {routesBound + "var r = routes.users.getById(1);\nexport const b = batch([r]);", "batch([r", reasonNotBound},
-		"let reassigned":                  {routesBound + "let r = routes.users.getById(1);\nr = routes.users.getById(2);\nexport const b = batch([r]);", "batch([r", reasonReassigned},
-		"let reassigned destructuring":    {routesBound + "let r = routes.users.getById(1);\n[r] = [routes.users.getById(2)];\nexport const b = batch([r]);", "batch([r", reasonReassigned},
-		"let nullish-assigned":            {routesBound + "let r = routes.users.getById(1);\nr ??= routes.users.getById(2);\nexport const b = batch([r]);", "batch([r", reasonReassigned},
-		"object property":                 {routesBound + "const obj = {req: routes.users.getById(1)};\nexport const b = batch([obj.req]);", "obj.req", reasonNotRouteCall},
-		"array index":                     {routesBound + "const arr = [routes.users.getById(1)];\nexport const b = batch([arr[0]]);", "arr[0]", reasonNotRouteCall},
-		"helper call":                     {routesBound + "function makeReq() { return routes.users.getById(1); }\nexport const b = batch([makeReq()]);", "makeReq()]", reasonNotRoutesProxy},
-		"element from map":                {routesBound + "const ids = [1, 2];\nexport const b = batch([ids.map((id) => routes.users.getById(id))[0]]);", "[0]]", reasonNotRouteCall},
-		"routes reassigned":               {"let {routes} = initClient<Routes>();\nroutes = initClient<Routes>().routes;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonReassigned},
-		"routes let reassigned":           {"let routes = initClient<Routes>().routes;\nroutes = initClient<Routes>().routes;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonReassigned},
-		"routes from a parameter":         {"export function f(routes: ReturnType<typeof initClient<Routes>>['routes']) { return batch([routes.users.getById(1)]); }", "getById(1)]", reasonNotRoutesProxy},
-		"this.routes in a class":          {"export class Store {\n  routes = initClient<Routes>().routes;\n  plan() { return batch([this.routes.users.getById(1)]); }\n}", "getById(1)]", reasonChainRoot},
-		"optional chaining":               {"const c = initClient<Routes>() as ReturnType<typeof initClient<Routes>> | undefined;\nexport const b = batch([c?.routes.users.getById(1)!]);", "getById(1)!", reasonOptionalChain},
-		"computed member":                 {routesBound + "declare const name: 'users';\nexport const b = batch([routes[name].getById(1)]);", "getById(1)]", reasonComputedMember},
-		"await element":                   {routesBound + "export async function f() { return batch([await routes.users.getById(1)]); }", "getById(1)]", reasonNotRouteCall},
-		"parameter binding":               {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([u, routes.users.getById(1)]); }", "batch([u", reasonNotBound},
-		"same-shaped object":              {"const fake = {routes: {users: {getById: (id: number): RouteSubRequest<any> => ({id: 'x'})}}};\nexport const b = batch([fake.routes.users.getById(1)]);", "getById(1)]", reasonNotRoutesProxy},
-		"arbitrary expression":            {routesBound + "export const b = batch([routes.users.getById(1), Promise.resolve(1) as unknown as RouteSubRequest<any>]);", "RouteSubRequest<any>]", reasonNotRouteCall},
-		"destructured from a helper call": {"function useApi() { return initClient<Routes>(); }\nconst {routes} = useApi();\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"destructured from inject()":      {"declare function inject<T>(key: string): T;\nconst {routes} = inject<ReturnType<typeof initClient<Routes>>>('api');\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"client bound to a call result":   {"declare function inject<T>(key: string): T;\nconst client = inject<ReturnType<typeof initClient<Routes>>>('api')!;\nexport const b = batch([client.routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"routes read off a call result":   {"declare function useApp(): {$client: ReturnType<typeof initClient<Routes>>};\nexport const b = batch([useApp().$client.routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"destructured from a parameter":   {"export function f(client: ReturnType<typeof initClient<Routes>>) { const {routes} = client; return batch([routes.users.getById(1)]); }", "getById(1)]", reasonNotRoutesProxy},
-		"destructured let reassigned":     {"const client = initClient<Routes>();\nlet {routes} = client;\nroutes = client.routes;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonReassigned},
-		"destructured from a ternary":     {"const client = initClient<Routes>();\ndeclare const flag: boolean;\nconst {routes} = flag ? client : client;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonNotRoutesProxy},
-		"destructured past the depth cap": {depthChain(comptimeargs.DepthCap) + "const {routes} = alias0;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonDepthCap},
+		"spread":                       {routesBound + "const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);", "...prepared", reasonSpread},
+		"routes argument identifier":   {routesBound + "const list = [routes.users.getById(1)];\nexport const b = batch(list);", "batch(list", "routes argument is not an inline array literal"},
+		"routes argument concat":       {routesBound + "export const b = batch([].concat(routes.users.getById(1) as never));", "as never)", "routes argument is not an inline array literal"},
+		"annotation widens the id":     {routesBound + "const r: RouteSubRequest<any> = routes.users.getById(1);\nexport const b = batch([r]);", "batch([r", reasonIdNotLiteral},
+		"cast widens the id":           {routesBound + "export const b = batch([routes.users.getById(1) as RouteSubRequest<any>]);", "RouteSubRequest<any>]", reasonIdNotLiteral},
+		"widened parameter":            {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([u, routes.users.getById(1)]); }", "batch([u", reasonIdNotLiteral},
+		"widened helper":               {routesBound + "function makeReq(): RouteSubRequest<any> { return routes.users.getById(1); }\nexport const b = batch([makeReq()]);", "makeReq()]", reasonIdNotLiteral},
+		"arbitrary expression":         {routesBound + "export const b = batch([routes.users.getById(1), Promise.resolve(1) as unknown as RouteSubRequest<any>]);", "RouteSubRequest<any>]", reasonIdNotLiteral},
+		"any value":                    {routesBound + "declare const anything: any;\nexport const b = batch([anything]);", "batch([anything", reasonAnyType},
+		"lookalike outside the client": {"interface RouteSubRequest<P, Id extends string = string> { id: Id }\ndeclare const fake: RouteSubRequest<unknown, 'users/getById'>;\nexport const b = batch([fake]);", "batch([fake", reasonNotRoute},
+		"one union member widened":     {routesBound + "declare const cond: boolean;\ndeclare const other: RouteSubRequest<any>;\nexport const b = batch([cond ? routes.users.getById(1) : other]);", "other]", reasonIdNotLiteral},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
-			diag := singleDiag(t, testCase.body, diagnostics.CodeBatchElementNotReadable)
-			assertDiagAt(t, diag, fixture(testCase.body), testCase.at, testCase.reason)
+			source := fixture(testCase.body)
+			if strings.HasPrefix(testCase.body, "interface ") {
+				source = "import {batch} from '@mionjs/client';\n" + testCase.body
+			}
+			sites, diags := extractFromOverlay(t, map[string]string{"a.ts": source})
+			if len(sites) != 0 || len(diags) != 1 || diags[0].Code != diagnostics.CodeBatchElementNotReadable {
+				t.Fatalf("expected exactly one %s, got sites=%+v diags=%s", diagnostics.CodeBatchElementNotReadable, sites, diagnosticsDebug(diags))
+			}
+			assertDiagAt(t, diags[0], source, testCase.at, testCase.reason)
 		})
 	}
+}
+
+// Shape 9b: an item whose type is a union of routes (whatever wrote it) compiles one batch per combination,
+// and the call carries a lookup object keyed by each combination's route ids.
+func TestUnions_OneBatchPerCombination(t *testing.T) {
+	const flag = "declare const flag: boolean;\ndeclare const n: number;\n"
+	cases := map[string]struct {
+		body   string
+		routes []string
+	}{
+		"ternary":                 {routesBound + flag + "export const b = batch([flag ? routes.users.getById(1) : routes.users.search('a'), routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"if else into a let":      {routesBound + flag + "let user;\nif (flag) { user = routes.users.getById(1); } else { user = routes.users.search('a'); }\nexport const b = batch([user, routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"switch":                  {routesBound + flag + "let user: ReturnType<typeof routes.users.getById> | ReturnType<typeof routes.users.search>;\nswitch (n) { case 1: user = routes.users.getById(1); break; default: user = routes.users.search('a'); }\nexport const b = batch([user, routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"helper with two returns": {routesBound + flag + "function pick() { if (flag) return routes.users.getById(1); return routes.users.search('a'); }\nexport const b = batch([pick(), routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"array index":             {routesBound + flag + "export const b = batch([[routes.users.getById(1), routes.users.search('a')][n], routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"union id argument":       {routesBound + "declare const user: RouteSubRequest<any, 'users/getById' | 'users/search'>;\nexport const b = batch([user, routes.orders.list(1)]);", []string{"users/getById,orders/list", "users/search,orders/list"}},
+		"two union items": {routesBound + flag + "export const b = batch([flag ? routes.users.getById(1) : routes.users.search('a'), flag ? routes.orders.list(1) : routes.orders.getById(2)]);", []string{
+			"users/getById,orders/getById", "users/getById,orders/list", "users/search,orders/getById", "users/search,orders/list",
+		}},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			sites, diags := extractFromOverlay(t, map[string]string{"a.ts": fixture(testCase.body)})
+			if len(diags) != 0 {
+				t.Fatalf("unexpected diagnostics: %s", diagnosticsDebug(diags))
+			}
+			if len(sites) != len(testCase.routes) {
+				t.Fatalf("expected %d sites, got %d: %+v", len(testCase.routes), len(sites), sites)
+			}
+			var entries []string
+			for i, site := range sites {
+				routes := strings.Join(site.RouteIds, ",")
+				if routes != testCase.routes[i] {
+					t.Errorf("site %d RouteIds = %q, want %q", i, routes, testCase.routes[i])
+				}
+				if site.BatchId != BatchId(site.RouteIds, site.Mappings) || site.Start != sites[0].Start || site.InjectText != sites[0].InjectText {
+					t.Errorf("site %d must share the call span and inject text, with its own id: %+v", i, site)
+				}
+				entries = append(entries, "'"+routes+"': '"+site.BatchId+"'")
+			}
+			if want := ", {" + strings.Join(entries, ", ") + "}"; sites[0].InjectText != want {
+				t.Errorf("InjectText = %q, want %q", sites[0].InjectText, want)
+			}
+			if replacements := Replacements(sites); len(replacements) != 1 {
+				t.Errorf("one call, one splice: got %d replacements", len(replacements))
+			}
+		})
+	}
+}
+
+// unionItems writes `count` items that may each be one of two routes.
+func unionItems(count int) string {
+	var items []string
+	for i := 0; i < count; i++ {
+		items = append(items, "(flag ? routes.users.getById(1) : routes.users.search('a')) as unknown as RouteSubRequest<any, 'r"+strconv.Itoa(i)+"a' | 'r"+strconv.Itoa(i)+"b'>")
+	}
+	return routesBound + "declare const flag: boolean;\nexport const b = batch([" + strings.Join(items, ", ") + "]);"
+}
+
+func TestUnions_CombinationCap_RpcBatchTooManyCombinations(t *testing.T) {
+	sites, diags := extractFromOverlay(t, map[string]string{"a.ts": fixture(unionItems(6))})
+	if len(diags) != 0 || len(sites) != MaxCombinations {
+		t.Fatalf("six two-way items are %d batches: sites=%d diags=%s", MaxCombinations, len(sites), diagnosticsDebug(diags))
+	}
+	body := unionItems(7)
+	diag := singleDiag(t, body, diagnostics.CodeBatchTooManyCombinations)
+	assertDiagAt(t, diag, fixture(body), "'r6a' | 'r6b'>]", strconv.Itoa(MaxCombinations))
+}
+
+func TestUnions_EveryCombinationMustHold(t *testing.T) {
+	t.Run("a combination lists a route twice", func(t *testing.T) {
+		body := routesBound + "declare const flag: boolean;\nconst user = routes.users.getById(1);\nexport const b = batch([flag ? user : routes.users.search('a'), routes.users.getById(2)]);"
+		diag := singleDiag(t, body, diagnostics.CodeBatchDuplicateRoute)
+		assertDiagAt(t, diag, fixture(body), "getById(2)", "users/getById")
+	})
+	t.Run("a combination leaves the source out", func(t *testing.T) {
+		body := routesBound + "declare const flag: boolean;\nconst user = routes.users.getById(1);\nexport const b = batch([flag ? user : routes.users.search('a'), routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);"
+		diag := singleDiag(t, body, diagnostics.CodeBatchSourceNotInBatch)
+		assertDiagAt(t, diag, fixture(body), "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById")
+	})
 }
 
 // Shape 10: rpc-batch-source-not-before, the source must be an earlier element of the same batch.
@@ -669,7 +750,7 @@ func TestMappings_SourceOrder_RpcBatchSourceNotBefore(t *testing.T) {
 	cases := map[string]struct{ body, at, args string }{
 		"source outside the batch": {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.list(1), routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
 		"source after the target":  {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id)), user]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
-		"source is the target":     {routesBound + "const self: RouteSubRequest<any> = routes.orders.getById(inputFrom(self, (u: {id: number}) => u.id));\nexport const b = batch([routes.users.getById(1), self]);", "inputFrom(self, (u: {id: number}) => u.id)", "orders/getById|orders/getById"},
+		"source is the target":     {routesBound + "const self: RouteSubRequest<any, 'orders/getById'> = routes.orders.getById(inputFrom(self, (u: {id: number}) => u.id));\nexport const b = batch([routes.users.getById(1), self]);", "inputFrom(self, (u: {id: number}) => u.id)", "orders/getById|orders/getById"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -688,7 +769,7 @@ func TestMappings_MapperNotReadable_RpcBatchMapperUnreadable(t *testing.T) {
 		"mapper method reference": {user + "const picker = {id(u: {id: number}) { return u.id; }};\nexport const b = batch([user, routes.orders.getById(inputFrom(user, picker.id))]);", "picker.id)", "mapper is not an inline arrow or function expression"},
 		"mapper from a parameter": {user + "export function f(pick: (u: {id: number}) => number) { return batch([user, routes.orders.getById(inputFrom(user, pick))]); }", "pick)", "mapper is not an inline arrow or function expression"},
 		"mapper let reassigned":   {user + "let pick = (u: {id: number}) => u.id;\npick = (u: {id: number}) => u.id + 1;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pick))]);", "pick)", "mapper is not an inline arrow or function expression"},
-		"unreadable source":       {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.getById(inputFrom(u, (u: {id: number}) => u.id))]); }", "inputFrom(u", "source is not a route call the build can read: " + reasonNotBound},
+		"unreadable source":       {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.getById(inputFrom(u, (u: {id: number}) => u.id))]); }", "inputFrom(u", "source is not a route call the build can read: " + reasonIdNotLiteral},
 		"mapping after a spread":  {user + "const ids = [2, 3];\nexport const b = batch([user, routes.orders.tail(...ids, inputFrom(user, (u: {id: number}) => u.id + 3))]);", "inputFrom(user, (u: {id: number}) => u.id + 3)", reasonMapperAfterSpread},
 		"mapping let reassigned":  {user + "let ref = inputFrom(user, (u: {id: number}) => u.id);\nref = inputFrom(user, (o: {id: number}) => o.id + 2);\nexport const b = batch([user, routes.orders.getById(ref)]);", "getById(ref", reasonMapperReassigned},
 	}
@@ -698,6 +779,30 @@ func TestMappings_MapperNotReadable_RpcBatchMapperUnreadable(t *testing.T) {
 			assertDiagAt(t, diag, fixture(testCase.body), testCase.at, testCase.reason)
 		})
 	}
+}
+
+// Shape 11b: a mapping is read only off a route call the build sees; anywhere else it is reported, never dropped.
+func TestMappings_OnlyOffARouteCall_RpcBatchMapperUnreadable(t *testing.T) {
+	const user = routesBound + "declare const flag: boolean;\nconst user = routes.users.getById(1);\n"
+	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"
+	cases := map[string]struct{ body, at, reason string }{
+		"helper argument":             {user + "function getOrder(id: number) { return routes.orders.getById(id); }\nexport const b = batch([user, getOrder(" + mapper + ".asArg())]);", "asArg())]", reasonMapperOutsideRouteCall},
+		"ternary arm":                 {user + "export const b = batch([user, flag ? routes.orders.getById(" + mapper + ") : routes.orders.getById(2)]);", "getById(2)]", reasonMapperOutsideRouteCall},
+		"const bound to a ternary":    {user + "const order = flag ? routes.orders.getById(" + mapper + ") : routes.orders.getById(2);\nexport const b = batch([user, order]);", "batch([user, order", reasonMapperOutsideRouteCall},
+		"let reassigned, initializer": {user + "let order = routes.orders.getById(" + mapper + ");\norder = routes.orders.getById(2);\nexport const b = batch([user, order]);", "batch([user, order", reasonMappedRouteReassigned},
+		"let reassigned, later write": {user + "let order = routes.orders.getById(2);\nif (flag) order = routes.orders.getById(" + mapper + ");\nexport const b = batch([user, order]);", "batch([user, order", reasonMappedRouteReassigned},
+		"let assigned in branches":    {user + "let order;\nif (flag) { order = routes.orders.getById(" + mapper + "); } else { order = routes.orders.getById(2); }\nexport const b = batch([user, order]);", "batch([user, order", reasonMappedRouteReassigned},
+		"target may be two routes":    {user + "export const b = batch([user, routes.orders.getById(" + mapper + ") as unknown as RouteSubRequest<any, 'orders/getById' | 'orders/list'>]);", "u.id)", reasonMapperTargetUnion},
+		"source may be two routes":    {user + "const other = routes.users.search('a');\nexport const b = batch([user, other, routes.orders.getById(inputFrom(flag ? user : other, (u: {id: number}) => u.id))]);", "flag ? user : other", reasonMapperSourceUnion},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			diag := singleDiag(t, testCase.body, diagnostics.CodeBatchMapperNotReadable)
+			assertDiagAt(t, diag, fixture(testCase.body), testCase.at, testCase.reason)
+		})
+	}
+	// A reassigned let with no mapping anywhere stays a plain item.
+	assertSite(t, oneSite(t, user+"let order = routes.orders.getById(2);\norder = routes.orders.getById(3);\nexport const b = batch([user, order]);"), "users/getById,orders/getById", "", "")
 }
 
 // Shape 12: rpc-batch-duplicate-route, one route listed twice; reported at the second element.

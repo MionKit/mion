@@ -3,12 +3,12 @@ package diagnostics
 // Request-batch codes (rpc-batch-*), raised when a `batch([...])` call (recognised by the InjectBatchId
 // brand on its resolved signature) cannot be read statically, or when two batches collide.
 //
-// The levels split on whether the id is spliced. A code that drops the site injects no id, and `batch()`
-// throws `batch-missing-id` before any network work: LevelError. A code that injects an id fails against
-// the server (rpc-batch-router-init-hidden: every request is a 404 `batch-unknown-id`): LevelRuntimeError.
+// Every code is LevelRuntimeError: the `batch()` call still compiles and runs. A code that drops the site
+// injects no id, so `batch()` throws `batch-missing-id` before any network work; a code that injects an id
+// fails against the server (rpc-batch-router-init-hidden: every request is a 404 `batch-unknown-id`).
 const (
-	// CodeBatchElementNotReadable: an element of the routes argument is not a route call the build
-	// can trace to the client routes proxy. Args: [0] the reason.
+	// CodeBatchElementNotReadable: the type of an element of the routes argument does not name its
+	// route: not a `RouteSubRequest`, or a route id type that is not a string literal. Args: [0] the reason.
 	CodeBatchElementNotReadable = "rpc-batch-element-unreadable"
 	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not in the batch, or sits
 	// AFTER the route it feeds (a route only reads the output of one that ran before it). Args:
@@ -36,17 +36,21 @@ const (
 	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
 	// the table was written and nothing imports it. Args: [0] the table module's path.
 	CodeBatchNoRouterInit = "rpc-batch-router-init-hidden"
+	// CodeBatchTooManyCombinations: the items that may run more than one route multiply into more batches
+	// than one call may compile. Args: [0] the cap.
+	CodeBatchTooManyCombinations = "rpc-batch-too-many-combinations"
 )
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`batch()` element is not a route call the build can read"},
-		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
+		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The type of a `batch()` element does not name its route"},
+		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
 		{Code: CodeBatchIdCollision, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "Two different batches produced the same batch id"},
-		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
-		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
-		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
+		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
+		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
+		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
 		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
+		{Code: CodeBatchTooManyCombinations, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A `batch()` may run more route combinations than one call can compile"},
 		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
 	} {
 		register(definition)

@@ -22,7 +22,7 @@ Read before adding a diagnostic code or picking its Level.
 
 ## What each Level means
 
-- `LevelError`: no code produced for the thing (no cache entry, no injected id, no extracted body, no batch id).
+- `LevelError`: no code produced for the thing (no cache entry, no injected id, no extracted body).
   - Consumer: stop. Never downgradeable, never silenceable.
   - A build halts. A dev server prints it + fails the transform of its file, so the overlay shows it.
 - `LevelRuntimeError`: code IS written and it throws, or no longer checks what was asked for.
@@ -41,6 +41,8 @@ Read before adding a diagnostic code or picking its Level.
 - Question 1 is per-SITE, not per-build. Only `config-tsconfig-not-loaded` stops a whole run.
   - Every other fatal code leaves ONE thing unbuilt; the rest of the build proceeds.
   - Still "no output" for that thing → standing it down is meaningless: not halting buys a call that throws anyway.
+  - Exception: `rpc-batch-*` codes are `LevelRuntimeError`. The `batch()` call compiles and runs without its id
+    (throws `batch-missing-id`), so a half-written batch never halts a dev server or a build that lowers it.
 - Read the emit path, not the intent. Answer question 1 from what the code does.
   - Pure-fn family was documented as fatal as a block and mostly is not.
   - Only `purefn-destructured-param` withholds output; a purity violation compiles + ships the offending body.

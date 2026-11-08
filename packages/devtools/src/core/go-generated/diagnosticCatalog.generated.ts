@@ -745,21 +745,21 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   'rpc-batch-argument-out-of-range': {
     headline:
       '`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['index', 'route', 'count'],
   },
   'rpc-batch-duplicate-route': {
     headline:
       'Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['route'],
   },
   'rpc-batch-element-unreadable': {
     headline:
-      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.',
-    level: 'error',
+      'The type of this `batch()` element does not name its route ({reason}); pass a route call, or a value typed by one, without an annotation that widens its id.',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['reason'],
   },
@@ -778,8 +778,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-mapper-unreadable': {
     headline:
-      '`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.',
-    level: 'error',
+      '`inputFrom()` mapping is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name, as an argument of a route call written in the batch or held in a variable.',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['reason'],
   },
@@ -793,9 +793,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   'rpc-batch-source-not-before': {
     headline:
       '`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['source', 'target'],
+  },
+  'rpc-batch-too-many-combinations': {
+    headline:
+      'This `batch()` may run more than {max} route combinations; split it, or narrow the items that may be more than one route.',
+    level: 'runtimeError',
+    family: 'marker',
+    slots: ['max'],
   },
   'rpc-client-api-unreadable': {
     headline:

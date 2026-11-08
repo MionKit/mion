@@ -461,9 +461,11 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ───────────────────────── batch routes (rpc-batch-*) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
-		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
-		Fix: `const user = routes.users.getById(id);
-batch([user, routes.orders.list()]);`,
+		Summary: "The build reads which route each item in `batch([...])` runs from its type: a route call like `routes.users.getById(1)` is typed with its route id, wherever the client comes from (`initClient()`, `inject()`, a composable, `useNuxtApp()`, a helper). It cannot read a spread, a value that is not a route call, or a type that lost the id, such as `RouteSubRequest<any>` or an annotation with a `string` id. Without the id the batch is never compiled, so the call throws `batch-missing-id`.",
+		Fix: `function getUser(id: number) {
+  return routes.users.getById(id); // inferred: keeps the route id
+}
+batch([getUser(1), routes.orders.list()]);`,
 	},
 	CodeBatchSourceNotInBatch: {
 		Summary: "Routes in a batch run in the order you list them, and `inputFrom()` can only read a route that already ran. Put the source route in the same `batch([...])` call, before the route it feeds.",
@@ -473,7 +475,7 @@ batch([user, routes.orders.list()]);`,
 		Summary: "Two different batches got the same id, so the server cannot tell them apart. The id is built from the route order and the input mappings, and this almost never happens. Change the route order of one batch, or split it into two batches.",
 	},
 	CodeBatchMapperNotReadable: {
-		Summary: "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time.",
+		Summary: "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time. The build reads a mapping only as an argument of a route call written in the batch or held in a variable, and only when its source and the route it feeds are each one route: one passed through a helper's arguments or written in a ternary arm would be lost.",
 		Fix: `inputFrom(user, (u) => u.id);
 // or the name of a mapper registered on the server
 inputFrom(user, 'toUserId');`,
@@ -491,6 +493,11 @@ routes.orders.getById(inputFrom(user, 'toUserId'));`,
 	CodeBatchMapperMissing: {
 		Summary: "Each inline `inputFrom(source, (value) => ...)` mapper becomes a pure function the server build copies next to the batch table. This one produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (`purefn-*`) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
 		Fix:     "inputFrom(user, 'toOrgId')",
+	},
+	CodeBatchTooManyCombinations: {
+		Summary: "An item whose type may be more than one route (a ternary, an `if`, a helper with several returns) makes one batch per combination, and the combinations multiply. Past the limit the batch is not compiled, so the call throws `batch-missing-id`. Split the call into smaller batches, or narrow the items.",
+		Fix: `const user = isAdmin ? routes.admins.getById(id) : routes.users.getById(id);
+batch([user, routes.orders.list()]);`,
 	},
 	CodeBatchNoRouterInit: {
 		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
