@@ -138,6 +138,8 @@ export const REGISTRY = [
   {name: 'MION_PR_NUMBER', scope: 'internal', task: '-', desc: "Set by the ci-lanes action from the pull_request event: the PR whose live labels it reads (empty off a PR)"},
   {name: 'MION_PR_LABELS', scope: 'internal', task: '-', desc: "Set by the ci-lanes action: the PR's live labels as JSON, recorded in the decision a newer run compares against"},
   {name: 'MION_LANES', scope: 'internal', task: '-', desc: "Set on each CI job a lane waiter guards: the waiter's re-decided lane verdict when it ran, else the gate's"},
+  {name: 'MION_WATCH', scope: 'internal', task: '-', desc: 'Set on the go-checks and js-static CI jobs: the supersede.mjs --watch prefix that stops a step once a newer run re-runs its lane'},
+  {name: 'MION_TAKEN_OVER', scope: 'internal', task: '-', desc: 'Set by supersede.mjs --watch in a CI job: the lanes a newer run took over, whose steps then skip and save no marker'},
   {name: 'MION_LANE_DECISION', scope: 'internal', task: '-', desc: "Set by the lane-wait workflow: the gate's verdict JSON, whose deferred lanes it waits for"},
   {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
   {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
