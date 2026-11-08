@@ -80,8 +80,8 @@ One recursive node, uniform at every depth. Shape per field kind:
 - `generator` for generic realistic strings (people, places, phones) instead of writing a pool.
 - A field whose type already names a `generator` scaffolds as `{pool: [], generator: '<name>'}`: already filled.
 - enrich-mock-invalid-generator (Error, `enrich --no-emit`): generator unknown, on a non-string field or a
-  named format, or the field's format allows none of its chars (`lastName` under digits-only `allowedChars`).
-  Length limits never fail: the mock pads or cuts the value.
+  named format, or sits beside `allowedValues` / `mockSamples`.
+  Length limits and char sets never fail: the mock pads, cuts and replaces chars to fit.
 - Keep every pool/range value **valid for the field's type + format**.
   enrich-mock-invalid-pool will reject `score: 150` against `TF.Number<{max: 100}>`.
 - Keep mock pools out of production bundles: import them from tests/seeds only (normal tree-shaking handles it).

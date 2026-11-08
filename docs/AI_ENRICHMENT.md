@@ -474,7 +474,7 @@ trigger differs (CLI vs build scan).
 | --------- | -------- | ------ | ----------------------------------------------------------------- |
 | **enrich-mock-unknown-field** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
 | **enrich-mock-reserved-prefix** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
-| **enrich-mock-invalid-generator** | Error    | ✅ `enrich --no-emit` | a `generator` is unknown, sits on a non-string field or a named format, or the field's format rules out its characters (lengths are padded or cut, never an error) |
+| **enrich-mock-invalid-generator** | Error    | ✅ `enrich --no-emit` | a `generator` is unknown, sits on a non-string field or a named format, or sits beside a setting that already picks the value (lengths and rejected chars are fitted, never an error) |
 | **enrich-mock-shape-mismatch** | Error    | deferred (TS catches) | structural mismatch                               |
 | **enrich-mock-invalid-pool** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
 | **enrich-mock-inverted-range** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |
