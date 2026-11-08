@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-03
 ---
 
@@ -69,3 +69,44 @@ this change touched, review its report against the code, and commit it as its ow
 - The code walk is gone.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: route ids from the item type (approved 2026-11-08)
+
+Type cost of the template-literal ids in `ClientRoutes`, measured with `makeMeasurer` against the real packages
+(every route called once, net instantiations over the empty baseline):
+
+| API size     | with ids | without ids | extra |
+| ------------ | -------: | ----------: | ----: |
+| 200 routes   |   39,742 |      39,087 | +1.7% |
+| 1,000 routes |  188,812 |     185,697 | +1.7% |
+
+Check time stays in the noise. Go side, 300 batches of 3 items extracted on a fresh program: the code walk took
+57 to 72 ms, the type read 79 to 84 ms. The difference is the checker typing each item, a cost the editor pays anyway.
+
+- **Reading the id**: item type → `RouteSubRequest` declared in `@mionjs/client` → its `Id` type argument.
+  One string literal is the id. `string`, `any` or not a `RouteSubRequest` cannot be read.
+- **Unions**: whatever TypeScript types as a union (ternary, if / else into a `let`, switch, a helper with several
+  returns, `[a(), b()][i]`) gives one batch per combination, items in order, at most 64. One combination injects the
+  id string as before. Several inject `{'<ids joined by ,>': '<batch id>'}` and `batch()` picks the entry for the ids
+  of the routes it got. Each combination is its own site and its own server table entry. A combination listing a
+  route twice, or a mapping source after its target, fails the whole call.
+- **Helpers and mappings**: an inferred helper keeps the literal and reads. A route call is a call whose signature
+  is declared in `@mionjs/client`. A mapping is read only from a route call written inline or bound to a const / let.
+  An `inputFrom` anywhere else in an item (helper arguments, a ternary arm, a later assignment) is
+  `rpc-batch-mapper-unreadable`. A mapping source reads its id from its own type and must have exactly one.
+  A target with several possible routes cannot carry a mapping.
+- **Levels**: every batch code that drops the id while the call still compiles (and throws `batch-missing-id`)
+  becomes a RuntimeError: element unreadable, duplicate route, source not before, mapper unreadable, argument out of
+  range, and the new `rpc-batch-too-many-combinations`.
+- **The walk goes** with its reasons. Go and JS fixtures mirror the real client types.
+
+### What shipped beyond the plan
+
+- An `any` item gets its own reason: with `noImplicitAny` off (this repo's setting), a bare `let x;` assigned in
+  branches is `any`, so it must be typed. With `strict` on it reads as the union.
+- A cast is read as written: `as RouteSubRequest<any>` now drops the id (it read before), `as RouteSubRequest<H, 'a'>`
+  is trusted.
+- A route call reached through a value the file cannot see (a parameter, a destructured binding) carries no
+  mappings the build can read; its id still reads from its type.
+- The three Go and four JS copies of the fake client collapsed into `testfixtures.BatchClientDTS` and
+  `packages/devtools/test/helpers/batchFixture.ts`.
