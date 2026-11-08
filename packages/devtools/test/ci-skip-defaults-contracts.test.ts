@@ -55,7 +55,6 @@ describe('the skip-defaults label', () => {
 
   it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
-    // Every heavy job reads its waiter job's verdict first, falling back to the gate's.
     const waited = (job: string) => `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`;
     const guarded = (condition: string) =>
       new RegExp(`^\\$\\{\\{ !cancelled\\(\\) && needs\\.lanes\\.result == 'success' && ${condition} && !contains`);

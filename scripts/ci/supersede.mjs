@@ -1,6 +1,6 @@
 // GitHub's concurrency cancel kills an older run even when the new commit changes nothing it reads. Instead, an
 // older run whose live lanes all hash the same is kept and our jobs for those lanes wait for its markers.
-// CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow, --watch around a kept run's raw-lane steps.
+// CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow, --watch wraps the raw-lane steps.
 import {spawn} from 'node:child_process';
 import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -117,7 +117,7 @@ export function waitForRun({groups, jobs, gh, sleep, now, deadline}) {
   }
 }
 
-// A newer run takes a lane over when it runs the lane itself under another hash: a lane it defers to us hashes the same.
+// A newer run takes a lane over by running it under another hash: a lane it defers to us hashes the same.
 export function takenOver({ours, newer, names}) {
   const taken = new Map();
   for (const {runId, decision} of newer) {
@@ -130,8 +130,7 @@ export function takenOver({ours, newer, names}) {
   return taken;
 }
 
-// This workflow's runs on this branch and event, from this repository, and on a pull request of this PR only, so a
-// same-named branch in a fork or another PR is never touched. Null when the listing cannot be read.
+// Filtered by repository and PR so a same-named branch in a fork or another PR is never touched.
 export function listRuns({gh, env}) {
   const workflow = (env.GITHUB_WORKFLOW_REF ?? '').split('@')[0].split('/').pop();
   const pr = /^refs\/pull\/(\d+)\//.exec(env.GITHUB_REF ?? '')?.[1];
@@ -148,8 +147,7 @@ export function listRuns({gh, env}) {
   }
 }
 
-// A run's uploaded lane decision, or null when it has none yet or it is unreadable. A downloaded one stays on disk,
-// so every watched step of a job reads it once.
+// Cached on disk, so the watched steps of a job download each decision once.
 export function readDecision({gh, env, dir, runId}) {
   const target = join(dir, String(runId));
   const file = join(target, 'decision.json');
@@ -166,7 +164,6 @@ export function readDecision({gh, env, dir, runId}) {
   return parse();
 }
 
-// The gate's input: older active runs with their decisions. A failed listing keeps and cancels nothing.
 export function olderRuns({gh, env, dir}) {
   const runs = listRuns({gh, env});
   if (runs === null) {
@@ -178,8 +175,7 @@ export function olderRuns({gh, env, dir}) {
     .map((run) => ({runId: run.id, decision: readDecision({gh, env, dir, runId: run.id})}));
 }
 
-// The watcher's input: newer runs with their decisions. A cancelled run took nothing over, and a finished one that
-// never uploaded a decision never will, so neither is downloaded again.
+// A cancelled run took nothing over, and a finished run without a decision never gets one: skip both.
 export function newerDecisions({gh, env, dir}) {
   const newer = (listRuns({gh, env}) ?? []).filter((run) => run.id > Number(env.GITHUB_RUN_ID) && run.conclusion !== 'cancelled');
   return newer.flatMap((run) => {
@@ -191,8 +187,7 @@ export function newerDecisions({gh, env, dir}) {
   });
 }
 
-// Runs one step's command in its own process group, so a takeover can stop everything it started.
-// `check` returns the lanes taken over so far; a throw is one more poll, never a stop.
+// Own process group, so a takeover can stop everything the command started.
 export function watchStep({command, names, check, pollMs}) {
   return new Promise((resolve) => {
     const child = spawn(command[0], command.slice(1), {stdio: 'inherit', detached: true});
@@ -234,7 +229,7 @@ export function watchStep({command, names, check, pollMs}) {
   });
 }
 
-// `--watch <lane…> -- <command…>`: a step that proves those lanes. Off a pull request it only runs the command.
+// `--watch <lane…> -- <command…>`: the command is a step that proves those lanes.
 async function watchMain(args, {gh, env, pollMs}) {
   const names = flagValues(args, '--watch');
   const command = args.slice(args.indexOf('--') + 1);

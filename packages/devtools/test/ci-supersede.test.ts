@@ -369,7 +369,7 @@ describe('takenOver', () => {
   });
 });
 
-// One listing for the gate (older runs) and the watcher (newer runs), with a fake `gh` that serves runs and decisions.
+// One listing serves the gate (older runs) and the watcher (newer runs).
 const prEnv = {
   GITHUB_REF: 'refs/pull/42/merge',
   GITHUB_WORKFLOW_REF: 'MionKit/mion/.github/workflows/ci.yml@refs/pull/42/merge',
@@ -518,7 +518,7 @@ const waitForFile = async (file: string) => {
   }
   throw new Error(`${file} never appeared`);
 };
-// A command whose own child ignores SIGTERM and writes its pid, so only the group SIGKILL can stop it.
+// Its grandchild ignores SIGTERM, so only the group SIGKILL can stop it.
 const stubbornCommand = (pidFile: string) => {
   const grandchild = `process.on('SIGTERM', () => {}); require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 60000)`;
   const child = `require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], {stdio: 'inherit'}); setTimeout(() => {}, 60000)`;
