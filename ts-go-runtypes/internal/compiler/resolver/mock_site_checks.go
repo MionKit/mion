@@ -1,9 +1,9 @@
 package resolver
 
 import (
-	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
@@ -28,6 +28,8 @@ var mockRelevantFormatCodes = map[string]bool{
 // mockSiteFormatDiagnostics checks every format reachable from each createMockDataFn-only site, at any depth (union
 // members, Map / Set entries included), with the same emitter checks a validate walk runs. Must run after
 // enrichPatternSamples, so a generated sample pool counts. One diagnostic per site per distinct finding.
+// Built here rather than through a family walker: a mock-only site demands no family that checks formats, and the
+// mock walks the whole graph at run time, so every reachable format is one the mock really uses.
 func (sess *Session) mockSiteFormatDiagnostics(sites []protocol.Site) []diagnostics.Diagnostic {
 	if sess == nil || sess.cache == nil {
 		return nil
@@ -35,14 +37,11 @@ func (sess *Session) mockSiteFormatDiagnostics(sites []protocol.Site) []diagnost
 	refTable := sess.cache.NodesView()
 	var out []diagnostics.Diagnostic
 	for _, site := range sites {
-		if !isMockOnlySite(site) {
-			continue
-		}
 		root := refTable[site.ID]
-		if root == nil {
+		if !isMockOnlySite(site) || root == nil {
 			continue
 		}
-		recorder := &formatProblemRecorder{sess: sess}
+		recorder := &formatProblemRecorder{ScratchEmitContext: formats.NewScratchEmitContext(), sess: sess, seen: map[string]bool{}}
 		reflection.WalkGraph(root, refTable, func(node *reflection.RunType) reflection.WalkAction {
 			recorder.check(node)
 			return reflection.WalkContinue
@@ -50,9 +49,12 @@ func (sess *Session) mockSiteFormatDiagnostics(sites []protocol.Site) []diagnost
 		if len(recorder.findings) == 0 {
 			continue
 		}
-		diagSite := sess.mockDiagSite(site)
+		diagSite := diagnostics.Site{FilePath: site.File}
+		if sourceFile, err := sess.sourceFile(site.File); err == nil && sourceFile != nil {
+			diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Pos)
+		}
 		for _, finding := range recorder.findings {
-			out = append(out, diagnostics.New(finding.code, diagSite, finding.args...))
+			out = append(out, diagnostics.New(finding.Code, diagSite, finding.Args...))
 		}
 	}
 	return out
@@ -67,26 +69,13 @@ func isMockOnlySite(site protocol.Site) bool {
 	return site.Demand[0].FamilyTag == mockFormatTransformDemand()[0].FamilyTag
 }
 
-func (sess *Session) mockDiagSite(site protocol.Site) diagnostics.Site {
-	diagSite := diagnostics.Site{FilePath: site.File}
-	if sourceFile, err := sess.sourceFile(site.File); err == nil && sourceFile != nil {
-		diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Pos)
-	}
-	return diagSite
-}
-
-type formatFinding struct {
-	code string
-	args []string
-}
-
 // formatProblemRecorder runs a format's param checks and its validate emit for their diagnostics only: the emitted
-// code and every hoisted declaration are discarded.
+// code and every hoisted declaration are discarded by the embedded scratch context.
 type formatProblemRecorder struct {
+	*formats.ScratchEmitContext
 	sess     *Session
-	findings []formatFinding
+	findings []diskcache.CachedDiagnostic
 	seen     map[string]bool
-	vars     int
 }
 
 func (recorder *formatProblemRecorder) check(node *reflection.RunType) {
@@ -103,24 +92,14 @@ func (recorder *formatProblemRecorder) check(node *reflection.RunType) {
 }
 
 func (recorder *formatProblemRecorder) EmitDiagnostic(code string, args ...string) {
-	if !mockRelevantFormatCodes[code] {
-		return
-	}
 	key := code + "\x00" + strings.Join(args, "\x00")
-	if recorder.seen == nil {
-		recorder.seen = map[string]bool{}
-	}
-	if recorder.seen[key] {
+	if !mockRelevantFormatCodes[code] || recorder.seen[key] {
 		return
 	}
 	recorder.seen[key] = true
-	recorder.findings = append(recorder.findings, formatFinding{code: code, args: args})
+	recorder.findings = append(recorder.findings, diskcache.CachedDiagnostic{Code: code, Args: args})
 }
 
-func (*formatProblemRecorder) AddPureFnDependency(string)         {}
-func (*formatProblemRecorder) UsePureFn(id string) string         { return "pf_" + id }
-func (*formatProblemRecorder) HasContextItem(string) bool         { return false }
-func (*formatProblemRecorder) SetContextItem(string, string)      {}
 func (recorder *formatProblemRecorder) JSEngine() jsengine.Engine { return recorder.sess.opts.JSEngine }
 func (recorder *formatProblemRecorder) PatternSampleCount() int {
 	return recorder.sess.opts.PatternSampleCount
@@ -128,9 +107,4 @@ func (recorder *formatProblemRecorder) PatternSampleCount() int {
 
 func (recorder *formatProblemRecorder) PatternGenFailure(source, flags string) formats.PatternGenFailure {
 	return recorder.sess.patternGenFailures[source+"\x00"+flags]
-}
-
-func (recorder *formatProblemRecorder) NextLocalVar(prefix string) string {
-	recorder.vars++
-	return prefix + "_" + strconv.Itoa(recorder.vars)
 }

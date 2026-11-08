@@ -41,29 +41,33 @@ func ErrorKeysForParams(kind reflection.ReflectionKind, name string, params map[
 		}
 	}()
 	annotation := &reflection.FormatAnnotation{Name: name, Params: params}
-	return ScanErrorKeys(emitter.EmitValidationErrorsCheck(annotation, "v", "pth", "er", newKeyCollectCtx()))
+	return ScanErrorKeys(emitter.EmitValidationErrorsCheck(annotation, "v", "pth", "er", NewScratchEmitContext()))
 }
 
-// keyCollectCtx is the EmitContext for a throwaway emit whose only use is the error keys it names.
-type keyCollectCtx struct {
+// ScratchEmitContext is the EmitContext for a throwaway emit whose code is discarded: hoists and pure-fn uses are
+// dropped, diagnostics ignored. The error-key scan uses it as is; a caller that wants the diagnostics embeds it.
+type ScratchEmitContext struct {
 	items    map[string]bool
 	counters map[string]int
 }
 
-func newKeyCollectCtx() *keyCollectCtx {
-	return &keyCollectCtx{items: map[string]bool{}, counters: map[string]int{}}
+// NewScratchEmitContext returns an empty ScratchEmitContext.
+func NewScratchEmitContext() *ScratchEmitContext {
+	return &ScratchEmitContext{items: map[string]bool{}, counters: map[string]int{}}
 }
 
-func (*keyCollectCtx) AddPureFnDependency(string)                      {}
-func (*keyCollectCtx) UsePureFn(id string) string                      { return "pf_" + id }
-func (ctx *keyCollectCtx) HasContextItem(key string) bool              { return ctx.items[key] }
-func (ctx *keyCollectCtx) SetContextItem(key, _ string)                { ctx.items[key] = true }
-func (*keyCollectCtx) EmitDiagnostic(string, ...string)                {}
-func (*keyCollectCtx) JSEngine() jsengine.Engine                       { return nil }
-func (*keyCollectCtx) PatternSampleCount() int                         { return 0 }
-func (*keyCollectCtx) PatternGenFailure(_, _ string) PatternGenFailure { return PatternGenFailure{} }
+func (*ScratchEmitContext) AddPureFnDependency(string)         {}
+func (*ScratchEmitContext) UsePureFn(id string) string         { return "pf_" + id }
+func (ctx *ScratchEmitContext) HasContextItem(key string) bool { return ctx.items[key] }
+func (ctx *ScratchEmitContext) SetContextItem(key, _ string)   { ctx.items[key] = true }
+func (*ScratchEmitContext) EmitDiagnostic(string, ...string)   {}
+func (*ScratchEmitContext) JSEngine() jsengine.Engine          { return nil }
+func (*ScratchEmitContext) PatternSampleCount() int            { return 0 }
+func (*ScratchEmitContext) PatternGenFailure(_, _ string) PatternGenFailure {
+	return PatternGenFailure{}
+}
 
-func (ctx *keyCollectCtx) NextLocalVar(prefix string) string {
+func (ctx *ScratchEmitContext) NextLocalVar(prefix string) string {
 	ctx.counters[prefix]++
 	return prefix + strconv.Itoa(ctx.counters[prefix])
 }
