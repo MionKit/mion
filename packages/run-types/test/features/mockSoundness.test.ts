@@ -187,3 +187,21 @@ describe('mock soundness: generators', () => {
     for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
   });
 });
+
+describe('mock char sets draw whole code points', () => {
+  // `💩` is two UTF-16 units: indexing the set by unit would emit a lone surrogate the validator rejects.
+  type Emojis = StringFormat<{allowedChars: {val: '💩a'}; length: 3}>;
+
+  it('every draw passes its own validator (static)', () => {
+    const isValid = createValidateFn<Emojis>();
+    const mock = createMockDataFn<Emojis>();
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+
+  it('every draw passes its own validator (value)', () => {
+    const sample = 'aaa' as Emojis;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+});

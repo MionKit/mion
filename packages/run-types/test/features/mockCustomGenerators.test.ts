@@ -10,6 +10,8 @@ declare module '@mionjs/run-types/formats' {
   interface CustomMockGenerators {
     phoneNumberUk: true;
     neverRegistered: true;
+    returnsNumber: true;
+    alwaysUpper: true;
   }
 }
 
@@ -49,6 +51,23 @@ describe('custom mock generators', () => {
   it('throw on a name nobody registered', () => {
     const mock = createMockDataFn<TF.String<{generator: 'neverRegistered'}>>();
     expect(() => mock()).toThrow(/`neverRegistered` is not registered; call registerMockGenerator/);
+  });
+
+  it('throw on a value that is not a string', () => {
+    registerMockGenerator('returnsNumber', () => 42 as unknown as string);
+    expect(() => createMockDataFn<TF.String<{generator: 'returnsNumber'}>>()()).toThrow(
+      /`returnsNumber` returned a number, not a string/
+    );
+  });
+
+  it("throw after 64 values the format's char rules reject", () => {
+    registerMockGenerator('alwaysUpper', () => 'ABC');
+    const mock = createMockDataFn<TF.String<{allowedChars: {val: 'abc'}; generator: 'alwaysUpper'}>>();
+    expect(() => mock()).toThrow(/`alwaysUpper`: 64 values failed the format's pattern, allowedChars or disallowedChars/);
+  });
+
+  it('refuse a registration that is not a function', () => {
+    expect(() => registerMockGenerator('neverRegistered', 'nope' as never)).toThrow(/`neverRegistered` needs a function/);
   });
 
   it('refuse a built-in name and a second registration', () => {
