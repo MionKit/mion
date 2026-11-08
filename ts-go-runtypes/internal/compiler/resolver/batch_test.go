@@ -265,8 +265,8 @@ export const b = batch([...prepared]);
 		t.Fatalf("scanFiles: %s", scan.Error)
 	}
 	diags := batchDiags(scan.Diagnostics)
-	if len(diags) != 1 || diags[0].Code != diagnostics.CodeBatchElementNotReadable || diags[0].Args[0] != "spread element" {
-		t.Fatalf("expected one rpc-batch-element-unreadable (spread element), got %+v", diags)
+	if len(diags) != 1 || diags[0].Code != diagnostics.CodeBatchElementNotReadable || diags[0].Args[0] != "a spread, whose routes are only known at runtime" {
+		t.Fatalf("expected one rpc-batch-element-unreadable (spread), got %+v", diags)
 	}
 	if diags[0].Severity != diagnostics.SeverityError || diags[0].Family != diagnostics.FamilyMarker {
 		t.Errorf("rpc-batch-element-unreadable must be a marker-family error: %+v", diags[0])

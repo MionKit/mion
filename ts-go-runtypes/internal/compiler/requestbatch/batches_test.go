@@ -632,12 +632,12 @@ func depthChain(n int) string {
 	return chain
 }
 
-// Shape 9: rpc-batch-element-unreadable, every element whose type does not name its route.
+// Shape 9: rpc-batch-element-unreadable, every route list the build cannot determine.
 func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 	cases := map[string]struct{ body, at, reason string }{
 		"spread":                       {routesBound + "const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);", "...prepared", reasonSpread},
-		"routes argument identifier":   {routesBound + "const list = [routes.users.getById(1)];\nexport const b = batch(list);", "batch(list", "routes argument is not an inline array literal"},
-		"routes argument concat":       {routesBound + "export const b = batch([].concat(routes.users.getById(1) as never));", "as never)", "routes argument is not an inline array literal"},
+		"routes argument identifier":   {routesBound + "const list = [routes.users.getById(1)];\nexport const b = batch(list);", "batch(list", reasonRuntimeList},
+		"routes argument concat":       {routesBound + "export const b = batch([].concat(routes.users.getById(1) as never));", "as never)", reasonRuntimeList},
 		"annotation widens the id":     {routesBound + "const r: RouteSubRequest<any> = routes.users.getById(1);\nexport const b = batch([r]);", "batch([r", reasonIdNotLiteral},
 		"cast widens the id":           {routesBound + "export const b = batch([routes.users.getById(1) as RouteSubRequest<any>]);", "RouteSubRequest<any>]", reasonIdNotLiteral},
 		"widened parameter":            {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([u, routes.users.getById(1)]); }", "batch([u", reasonIdNotLiteral},

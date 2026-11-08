@@ -758,7 +758,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-element-unreadable': {
     headline:
-      'The type of this `batch()` element does not name its route ({reason}); pass a route call, or a value typed by one, without an annotation that widens its id.',
+      "This `batch()` route list can't be determined at compile time ({reason}); write the route calls in an array literal, each typed with its route id.",
     level: 'runtimeError',
     family: 'marker',
     slots: ['reason'],

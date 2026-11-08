@@ -161,7 +161,7 @@ func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Di
 	}
 	routesArg := unwrap(args[0])
 	if routesArg == nil || routesArg.Kind != ast.KindArrayLiteralExpression {
-		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchElementNotReadable, args[0], "routes argument is not an inline array literal")}
+		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchElementNotReadable, args[0], reasonRuntimeList)}
 	}
 	elements := routesArg.AsArrayLiteralExpression().Elements
 	// `batch([])`: the runtime throws its own empty-routes error before it looks at the id, so nothing to hash.

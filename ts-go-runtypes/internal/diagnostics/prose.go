@@ -461,7 +461,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ───────────────────────── batch routes (rpc-batch-*) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
-		Summary: "The build reads which route each item in `batch([...])` runs from its type: a route call like `routes.users.getById(1)` is typed with its route id, wherever the client comes from (`initClient()`, `inject()`, a composable, `useNuxtApp()`, a helper). It cannot read a spread, a value that is not a route call, or a type that lost the id, such as `RouteSubRequest<any>` or an annotation with a `string` id. Without the id the batch is never compiled, so the call throws `batch-missing-id`.",
+		Summary: "The server only runs batches compiled at build time, so the build must know a `batch()` call's route list. It reads which route each item in `batch([...])` runs from its type: a route call like `routes.users.getById(1)` is typed with its route id, wherever the client comes from (`initClient()`, `inject()`, a composable, `useNuxtApp()`, a helper). It cannot read a list built at runtime (a variable, `.map()`, a spread), a value that is not a route call, or a type that lost the id, such as `RouteSubRequest<any>` or an annotation with a `string` id. Such a batch is never compiled, so the call throws `batch-missing-id`.",
 		Fix: `function getUser(id: number) {
   return routes.users.getById(id); // inferred: keeps the route id
 }
