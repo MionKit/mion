@@ -14,8 +14,8 @@ that guard. A security round on 2026-11-08 added exact-version exceptions (and s
 that were too young. Once those versions are 30 days old the exceptions buy nothing: remove them. Same sweep
 for the older exceptions whose reason has run out. Goal: no exception left that is not needed by design.
 
-Blocked until **2026-12-08** (30 days after the newest version that round could pick). Before starting,
-check every excepted version is older than 30 days (`npm view <name> time --json`); one still young → wait.
+Blocked until **2026-11-26** (30 days after the newest excepted version, node-forge 1.4.1 from 2026-10-27).
+Before starting, check every excepted version is older than 30 days (`npm view <name> time --json`); one still young → wait.
 
 ## Direction
 
