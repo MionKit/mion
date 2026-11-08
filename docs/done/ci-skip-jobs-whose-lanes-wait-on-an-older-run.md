@@ -182,7 +182,7 @@ runs is unchanged, so the only lanes a newer run can re-run while the older one 
 
 ## Live checks on the PR
 
-Open it with the `website` and `pre-publish-e2e` labels. Record each result in the PR body.
+Open it with the `website` and `pre-publish-e2e` labels. Record each result in the PR body. Check 4 needs the older run kept: it must still run a test lane the newer commit leaves alone, or the gate cancels it whole. Push the comment-only commit while its `js lint` is in "Lint + typecheck", which outlasts the one-minute poll.
 1. Push a docs-only commit while the previous `ci` run is still going. Expect only `decide lanes`,
    `commit messages` and the `* · wait for an older run` jobs to run. `go-build`, `js lint`, `go checks`,
    `js suite`, `js suite (one worker)`, both fuzz jobs and the go suite shards should show as skipped.
