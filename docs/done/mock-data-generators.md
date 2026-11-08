@@ -131,6 +131,20 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   `.length`. Replace with one exact shared acceptor (`stringParamsAccept`, Plan step C2).
 - **B4 stale docs:** `packages/run-types/src/go-generated/README.md` lists 2 of 5 generated files.
 
+## Shipped (differences from the plan below)
+
+- Word lists are smaller than planned (about 15KB): ~230 first and ~190 last names, ~150 cities, a 50-row country
+  table (name, calling code, national digits; US rows carry states and ZIP templates) that `country` also draws
+  from, 68 job titles, 140 lorem words, 80 adjectives, 16 email domains, 33 street and 20 company suffixes.
+- `loremIpsum` is capped at 40 words, so its span is `[2, 520]`. Composite generators always build to fit
+  (no natural draws first), and each shape's reachable lengths are cached.
+- Mock-only site checks (C3) run each format emitter's own validate check with a recording context at render time,
+  after sample generation, keeping only the mock-relevant codes. No pure `MockSiteProblems` helper.
+- Namespace members (C4) are read only when they resolve to a const; a function like `RT.boolean` stays refused.
+- Custom generator names: see the Go section. The email `localPart` generator is pinned by a Go test with the exact
+  `TypeFormat` spelling, since `TF.EmailParts` does not let users override `localPart`.
+- The seeded snapshot is an explicit `toEqual`: inline snapshots cannot be written back under the plugin.
+
 ## Plan
 
 ### Public API
@@ -181,12 +195,13 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   func MockGenerators() []MockGenerator
   func LookupMockGenerator(name string) (MockGenerator, bool)
   // fromData: a MockData generator, where format mockSamples / generator lose to it.
-  // custom: the program's CustomMockGenerators keys (they skip the length / char checks).
-  func GeneratorProblems(name any, params map[string]any, fromData bool, custom map[string]bool) []string
+  func GeneratorProblems(name any, params map[string]any, fromData bool) []string
   ```
-  Custom names: the resolver reads the keys of the merged `CustomMockGenerators` interface from the program's checker
-  (declared in the run-types formats module, user augmentations included), once per program, and passes them in. The
-  enrich check does the same with its program. Only built-in names carry a length / char table.
+  Custom names (as shipped): any name that is not built in is treated as a custom generator, so the build checks only
+  its param combinations. TypeScript catches a typo through `MockGeneratorName` (built-ins plus the extended
+  `CustomMockGenerators`), and the mock throws "not registered" at run time. Reading the user's interface
+  augmentation from Go was dropped as fragile. A widened `generator: string` or a union is marked `unrecovered` by
+  typeid (like an unreadable `pattern`) and reported as "must be one generator name".
   `GeneratorProblems` reasons: not one literal name (a widened union arrives as text via `NonLiteralFallback`,
   `typeid/formats.go:480`); unknown name, neither built-in nor custom (list the known ones); beside `allowedValues`, `disallowedValues`,
   a top-level `mockSamples` (when not `fromData`; a pattern's own samples are fine, so `Alpha<{generator}>` is OK) or
@@ -400,9 +415,8 @@ this change touched, review its report against the code, and commit it as its ow
   - Draws go through `ctx.random`, so seeded mocks stay reproducible. Runtime only: no type, id or param change.
 - Locale-specific built-in data (addresses, postcodes, phone formats beyond the small country table).
 - Suggesting a generator from a field name in the scaffold.
-- Unrelated, delegated when this todo was filed: `packages/run-types/package.json:5-14` `sideEffects` omits
-  `src/mocking/**` while `createMockData.ts:11-12` registers the number / bigint mock fns by side-effect import only,
-  so a bundler honouring `sideEffects` may drop them.
+- Unrelated, delegated when this todo was filed and merged before this work: `sideEffects` could drop the mock
+  format registrations.
 
 ## Done when
 

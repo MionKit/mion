@@ -381,6 +381,7 @@ per-property overrides — `MockData<T>` is just the typed, validated form of th
 const mockUser: MockData<User> = {
   name:  { pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', /* …50+ */ ] },
   age:   { min: 18, max: 95 },
+  city:  { pool: [], generator: 'city' },   // a built-in mock generator instead of a pool
   tags:  { rt$items: { pool: ['urgent', 'beta', 'vip'] }, rt$length: [1, 4] },
   profile: {
     email: { pool: ['alice@example.com', 'liang@corp.io', /* … */ ] },
@@ -412,7 +413,7 @@ type MockNode<T, Depth extends number = 8> =
   Depth extends 0                ? { pool?: T[] }                  // budget spent — keep as leaf pool
   : T extends readonly unknown[] ? { rt$items?: MockNode<T[number], _MockDepth[Depth]>; rt$length?: number | [number, number] }
   : T extends number             ? { pool?: number[]; min?: number; max?: number }
-  : T extends string             ? { pool?: string[] }
+  : T extends string             ? { pool?: string[]; generator?: MockGeneratorName }
   : T extends object             ? { [K in keyof T]?: MockNode<T[K], _MockDepth[Depth]>; rt$optional?: number }
   :                                { pool?: T[] };
 
@@ -473,6 +474,7 @@ trigger differs (CLI vs build scan).
 | --------- | -------- | ------ | ----------------------------------------------------------------- |
 | **enrich-mock-unknown-field** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
 | **enrich-mock-reserved-prefix** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
+| **enrich-mock-invalid-generator** | Error    | ✅ `enrich --no-emit` | a `generator` is unknown, sits on a non-string field or a named format, or can never fit the field's format |
 | **enrich-mock-shape-mismatch** | Error    | deferred (TS catches) | structural mismatch                               |
 | **enrich-mock-invalid-pool** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
 | **enrich-mock-inverted-range** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |

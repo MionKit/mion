@@ -15,16 +15,15 @@ description: Author MockData<T> pools/ranges for createMockDataFn<T>(). Use for 
 ## When to use it
 
 - `createMockDataFn<T>()` values unrealistic (random strings for names, out-of-domain numbers).
-- Building test fixtures / seed data: pools of real-looking values, still **guaranteed valid** for the type.
+- Test fixtures / seed data: pools of real-looking values, still **guaranteed valid** for the type.
 - Scaffolding a type's committed mock mirror file.
-- Random-but-valid is fine → no `data`: generator already mocks every shape (incl. `Date`, `Map`, `Set`).
+- Random-but-valid is fine → no `data`: generator mocks every shape mechanically (incl. `Date`, `Map`, `Set`).
 
 ## Shipped vs designed
 
 - **Shipped**, both exported from `@mionjs/run-types`:
-  - `MockData<T>` DSL type ([`mockData.ts`][md]).
-  - `{ data }` option on `createMockDataFn<T>()` ([`createMockData.ts`][cmd]):
-    `createMockDataFn<T>(undefined, { data })` draws values from the authored pools / ranges.
+  - `MockData<T>` DSL type ([`mockData.ts`][md]). Type-checks the map against `T` today.
+  - `{ data }` option ([`createMockData.ts`][cmd]): `createMockDataFn<T>(undefined, { data })` draws from pools/ranges.
   - `enrich` / `enrich --no-emit` CLI: scaffolds the mock mirror file, cross-checks it against the live type
     (enrich-mock-unknown-field: key not a field of `T`, Warning).
 - **Designed (not yet wired into `enrich --no-emit`):**
@@ -33,13 +32,12 @@ description: Author MockData<T> pools/ranges for createMockDataFn<T>(). Use for 
   - enrich-mock-shape-mismatch: structural mismatch, left to the `MockData<T>` mapped type.
   - enrich-mock-inverted-range: `min > max` / inverted `rt$length`.
   - enrich-mock-small-pool: pool below a configured floor, off by default.
-- Map is type-checked against `T` by the `MockData<T>` mapped type today regardless.
 
 ## Node model: per-field pools / ranges
 
 One recursive node, uniform at every depth. Shape per field kind:
 
-- string → `{ pool: string[] }`
+- string → `{ pool: string[]; generator?: MockGeneratorName }`
 - number → `{ pool: number[]; min?: number; max?: number }`
 - `Date` → `{ pool: Date[]; min?: Date; max?: Date }`
 - boolean / bigint → `{ pool: boolean[] }` / `{ pool: bigint[] }`
@@ -48,8 +46,13 @@ One recursive node, uniform at every depth. Shape per field kind:
 - `Map` → `{ rt$keys, rt$values: <node>; rt$size?: number | [number, number] }`
 - `Set` → `{ rt$values: <node>; rt$size?: number | [number, number] }`
 - object → `{ [K in keyof T]-?: <child node> } & { rt$optional?: number }`
-
-- **`pool`**: pick a value at random from this list. Empty (`pool: []`) → draw from `min` / `max` instead.
+- **`pool`**: random pick from this list. Empty (`pool: []`) → draw from `min` / `max` or `generator` instead.
+- **`generator`** (strings): mock generator by name, used when `pool` is empty.
+- Built-in generators: `firstName`, `lastName`, `fullName`, `email`, `phoneNumber`, `phoneNumberLocal`,
+  `phoneCountryCode`, `country`, `city`, `state` (US), `streetAddress`, `postcode` (US), `jobTitle`,
+  `companyName`, `loremIpsum`; plus names registered with `registerMockGenerator`.
+- Order: `pool` > data `generator` > the field format's own `generator` / samples.
+- Field's format still applies (length, chars). Named format (`TF.Email`, …) mocks itself: no generator there.
 - **`min` / `max`**: inclusive bounds (numbers, `Date`s).
 - **`rt$items`**: element node for array (and rest-tuple) members. **`rt$slots`**: one node per fixed-tuple position.
 - **`rt$length`**: array length, fixed (`3`) or `[min, max]` range. **`rt$size`**: the Map/Set equivalent.
@@ -64,32 +67,24 @@ One recursive node, uniform at every depth. Shape per field kind:
 
 ## Feeding it to `createMockDataFn<T>()`
 
-Import the map from the mirror, pass it via `data` (plain, greppable wiring, no injection):
-
-```ts
-import {createMockDataFn} from '@mionjs/run-types/mocking';
-import {mockUser} from '../.mion/enriched/mock/src/models/user';
-import type {User} from '../models/user';
-
-const makeUser = createMockDataFn<User>(undefined, {data: mockUser});
-const sample = makeUser(); // realistic, type-valid User
-```
-
+- Import map from the mirror, pass via `data` (plain, greppable wiring, no injection):
+  `createMockDataFn<User>(undefined, {data: mockUser})` (`@mionjs/run-types/mocking`) → realistic, type-valid `User`.
 - `data` rides the same options bag as `{ mock }`: `createMockDataFn<T>(undefined, { data, mock })`.
-- No `data` → mocks mechanically, exactly as before.
-
-End-to-end example (type, filled mirror, consumer) → [example.md](example.md). Read before filling a first map.
+- End-to-end example (type, filled mirror, consumer + imports) → [example.md](example.md). Read before a first map.
 
 ## Authoring checklist
 
 - Map goes in the **definition's mock mirror file** (`<genDir>/enriched/mock/<rel>.ts`), not the consumer's file.
 - Type it `MockData<T>` so structure is checked against `T`.
-- `pool` for enumerable/realistic values (names, emails, tags). `min`/`max` for numeric and `Date` ranges.
+- `pool` for your own values (product names, tags, your domains). `min`/`max` for numeric and `Date` ranges.
+- `generator` for generic realistic strings (people, places, phones) instead of writing a pool.
+- A field whose type already names a `generator` scaffolds as `{pool: [], generator: '<name>'}`: already filled.
+- enrich-mock-invalid-generator (Error, `enrich --no-emit`): generator unknown, on a non-string field or a
+  named format, or can never fit the field's format (`lastName` under `maxLength: 1`).
 - Keep every pool/range value **valid for the field's type + format**.
   enrich-mock-invalid-pool will reject `score: 150` against `TF.Number<{max: 100}>`.
 - Keep mock pools out of production bundles: import them from tests/seeds only (normal tree-shaking handles it).
-- Aim for a healthy pool size: design notes a floor around 50 for realistic variation.
-  enrich-mock-small-pool is an off-by-default nudge.
+- Healthy pool: design floor around 50 (realistic variation). enrich-mock-small-pool = off-by-default nudge.
 
 [md]: https://github.com/MionKit/mion/blob/main/packages/run-types/src/enrich/mockData.ts
 [cmd]: https://github.com/MionKit/mion/blob/main/packages/run-types/src/mocking/createMockData.ts
