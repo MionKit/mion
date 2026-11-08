@@ -20,6 +20,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // routerDTS is the ambient stand-in for the `@mionjs/router` surface the
@@ -53,7 +54,7 @@ func serverOnlySources() map[string]string {
 	return map[string]string{
 		"router.d.ts": routerDTS,
 		"server.ts":   serverTS,
-		"client.d.ts": batchClientDTS,
+		"client.d.ts": testfixtures.BatchClientDTS,
 		"routes.ts":   batchRoutesTS,
 	}
 }

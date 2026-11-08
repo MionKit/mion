@@ -15,13 +15,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// batchClientDTS mirrors the real client types, shared with the requestbatch tests.
-const batchClientDTS = testfixtures.BatchClientDTS
-
 // batchRoutesTS is the shared client bootstrap every batch fixture imports.
 const batchRoutesTS = `import {initClient} from '@mionjs/client';
-type Route<H> = {type: 1; handler: H};
-export type Routes = {
+` + testfixtures.BatchRouteLeaf + `export type Routes = {
   users: {getById: Route<(id: number) => {id: number; name: string}>};
   orders: {list: Route<(userId: number) => string[]>; getById: Route<(id: number) => {id: number}>};
 };
@@ -32,7 +28,7 @@ export const {routes} = initClient<Routes>();
 // file (no reflection marker at all) with an inline mapper, and a second file
 // batching a different route list.
 var batchSources = map[string]string{
-	"client.d.ts": batchClientDTS,
+	"client.d.ts": testfixtures.BatchClientDTS,
 	"routes.ts":   batchRoutesTS,
 	"a.ts": `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
@@ -218,7 +214,7 @@ func TestBatch_GenerateWholeProgram(t *testing.T) {
 // collision (rpc-batch-id-collision) is a conflict.
 func TestBatch_SameRoutesDifferentMappings_TwoBatches(t *testing.T) {
 	sources := map[string]string{
-		"client.d.ts": batchClientDTS,
+		"client.d.ts": testfixtures.BatchClientDTS,
 		"routes.ts":   batchRoutesTS,
 		"x.ts": `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
@@ -257,7 +253,7 @@ export const b = batch([user, routes.orders.getById(inputFrom(user, (o: {id: num
 // and suppresses the injection for that call.
 func TestBatch_ElementDiagnosticsFlowOnScan(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"client.d.ts": batchClientDTS,
+		"client.d.ts": testfixtures.BatchClientDTS,
 		"routes.ts":   batchRoutesTS,
 		"a.ts": `import {batch} from '@mionjs/client';
 import {routes} from './routes.ts';
@@ -302,7 +298,7 @@ export const userId = getRunTypeId(user);
 export const b = batch([routes.users.getById(1)]);
 `
 	r := setupInline(t, map[string]string{
-		"client.d.ts": batchClientDTS,
+		"client.d.ts": testfixtures.BatchClientDTS,
 		"routes.ts":   batchRoutesTS,
 		"static.ts":   staticForm,
 		"reflect.ts":  reflectForm,
@@ -345,7 +341,7 @@ export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: 
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := setupInline(t, map[string]string{"client.d.ts": batchClientDTS, "routes.ts": batchRoutesTS, "a.ts": testCase.source})
+			r := setupInline(t, map[string]string{"client.d.ts": testfixtures.BatchClientDTS, "routes.ts": batchRoutesTS, "a.ts": testCase.source})
 			scan := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
 			if scan.Error != "" {
 				t.Fatalf("scanFiles: %s", scan.Error)
@@ -372,7 +368,7 @@ export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: 
 // pipeline to the same id the named import gets, and the transform splices it.
 func TestBatch_NamespaceImportAndBarrel_SameId(t *testing.T) {
 	r := setupInline(t, map[string]string{
-		"client.d.ts": batchClientDTS,
+		"client.d.ts": testfixtures.BatchClientDTS,
 		"routes.ts":   batchRoutesTS,
 		"barrel.ts":   "export * from './routes.ts';\n",
 		"named.ts": `import {batch} from '@mionjs/client';
