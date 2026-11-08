@@ -9,6 +9,6 @@
     "better-sqlite3": "13.0.2",
     "drizzle-orm": "0.45.2",
     "typescript": "6.0.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.12"
   }
 }
