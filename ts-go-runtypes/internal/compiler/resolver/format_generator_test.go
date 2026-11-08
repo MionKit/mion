@@ -36,30 +36,30 @@ func expectGeneratorInvalid(t *testing.T, resp protocol.Response, reason string)
 	}
 }
 
-// A last name is never one character long.
-const tooShortForGenerator = `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`
+// A last name never starts with a digit.
+const noFirstChar = `type Code = TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;`
 
-func TestFormatGenerator_TooShortStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, tooShortForGenerator, `export const isCode = createValidateFn<Code>();`), "2 to 10")
+func TestFormatGenerator_NoFirstCharStatic(t *testing.T) {
+	expectGeneratorInvalid(t, scanGenerator(t, noFirstChar, `export const isCode = createValidateFn<Code>();`), "starts every value")
 }
 
-func TestFormatGenerator_TooShortValue(t *testing.T) {
-	resp := scanGenerator(t, tooShortForGenerator+`
+func TestFormatGenerator_NoFirstCharValue(t *testing.T) {
+	resp := scanGenerator(t, noFirstChar+`
 declare const code: Code;`, `export const isCode = createValidateFn(code);`)
-	expectGeneratorInvalid(t, resp, "2 to 10")
+	expectGeneratorInvalid(t, resp, "starts every value")
 }
 
 func TestFormatGenerator_NestedMemberStatic(t *testing.T) {
-	resp := scanGenerator(t, tooShortForGenerator+`
+	resp := scanGenerator(t, noFirstChar+`
 type Order = {item: {code: Code}};`, `export const isOrder = createValidateFn<Order>();`)
-	expectGeneratorInvalid(t, resp, "2 to 10")
+	expectGeneratorInvalid(t, resp, "starts every value")
 }
 
 func TestFormatGenerator_NestedMemberValue(t *testing.T) {
-	resp := scanGenerator(t, tooShortForGenerator+`
+	resp := scanGenerator(t, noFirstChar+`
 type Order = {item: {code: Code}};
 declare const order: Order;`, `export const isOrder = createValidateFn(order);`)
-	expectGeneratorInvalid(t, resp, "2 to 10")
+	expectGeneratorInvalid(t, resp, "starts every value")
 }
 
 // An email's localPart takes a generator too; spelled with the exact TypeFormat, since TF.EmailParts cannot set it.
@@ -78,13 +78,13 @@ declare const work: Work;`, `export const isWork = createValidateFn(work);`)
 
 // A type only mocked still gets the check, at the mock call.
 func TestFormatGenerator_MockOnlySiteStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, tooShortForGenerator, `export const mock = createMockDataFn<Code>();`), "2 to 10")
+	expectGeneratorInvalid(t, scanGenerator(t, noFirstChar, `export const mock = createMockDataFn<Code>();`), "starts every value")
 }
 
 func TestFormatGenerator_MockOnlySiteValue(t *testing.T) {
-	resp := scanGenerator(t, tooShortForGenerator+`
+	resp := scanGenerator(t, noFirstChar+`
 declare const code: Code;`, `export const mock = createMockDataFn(code);`)
-	expectGeneratorInvalid(t, resp, "2 to 10")
+	expectGeneratorInvalid(t, resp, "starts every value")
 }
 
 const besideMockSamples = `type Code = TF.String<{generator: 'city'; mockSamples: ['Rome']}>;`
@@ -122,9 +122,12 @@ func TestFormatGenerator_WidenedNameValue(t *testing.T) {
 	}
 }
 
-// Fitting generators stay clean; a custom name skips the table checks (TypeScript catches typos via MockGeneratorName).
+// Any length bounds stay clean (the mock pads or cuts); a custom name skips the table checks (TypeScript catches
+// typos via MockGeneratorName).
 var cleanGeneratorCases = map[string]string{
 	"fits":                            `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
+	"too short is cut":                `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`,
+	"too long is padded":              `type Code = TF.String<{minLength: 200; generator: 'fullName'}>;`,
 	"alpha preset":                    `type Code = TF.Alpha<{maxLength: 3; generator: 'firstName'}>;`,
 	"disallowedChars without samples": `type Code = TF.String<{disallowedChars: {val: '@'; mockSamples: ''}; generator: 'city'}>;`,
 	"sample-less pattern":             `type Code = TF.String<{pattern: {source: '^[A-Z][a-z]+$'}; generator: 'firstName'}>;`,

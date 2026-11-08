@@ -664,7 +664,8 @@ func TestCheckMock_Generator(t *testing.T) {
 		{"plain string", stringRT(), "fullName", ""},
 		{"fits the format", stringFormatRT(map[string]any{"maxLength": 40.0}), "lastName", ""},
 		{"format samples lose to the data generator", stringFormatRT(map[string]any{"mockSamples": []any{"x"}}), "city", ""},
-		{"too short", stringFormatRT(map[string]any{"maxLength": 1.0}), "lastName", "2 to 10"},
+		{"too short is cut, not an error", stringFormatRT(map[string]any{"maxLength": 1.0}), "lastName", ""},
+		{"no allowed first char", stringFormatRT(map[string]any{"allowedChars": map[string]any{"val": "0123456789"}}), "lastName", "starts every value"},
 		{"beside allowedValues", stringFormatRT(map[string]any{"allowedValues": map[string]any{"val": []any{"a"}}}), "city", "allowedValues"},
 		{"not a string", &reflection.RunType{Kind: reflection.KindNumber}, "city", "not a string"},
 		{"named format", &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "email"}}, "email", "mocks itself"},
@@ -690,16 +691,16 @@ func TestCheckMock_Generator(t *testing.T) {
 
 // TestCheckMock_StructuralSlots: a bad generator or unknown field in a tuple, Map or Set slot is reported too.
 func TestCheckMock_StructuralSlots(t *testing.T) {
-	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
+	digitsOnly := stringFormatRT(map[string]any{"allowedChars": map[string]any{"val": "0123456789"}})
 	param := func(child *reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindParameter, Child: child}
 	}
 	tuple := &reflection.RunType{Kind: reflection.KindTuple, Children: []*reflection.RunType{
 		{Kind: reflection.KindTupleMember, Child: stringRT()},
-		{Kind: reflection.KindTupleMember, Child: tooShort},
+		{Kind: reflection.KindTupleMember, Child: digitsOnly},
 	}}
-	mapRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(stringRT()), param(tooShort)}}
-	setRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(tooShort)}}
+	mapRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(stringRT()), param(digitsOnly)}}
+	setRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(digitsOnly)}}
 	bad := func() *fakeView { return newFakeView().str("generator", "lastName") }
 	cases := map[string]struct {
 		rt   *reflection.RunType
@@ -724,7 +725,7 @@ func TestCheckMock_StructuralSlots(t *testing.T) {
 // TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator, a stringless union does not.
 // A variadic tuple's shared rt$items is checked against every slot, and `GEN.x` like the literal it equals.
 func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
-	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
+	digitsOnly := stringFormatRT(map[string]any{"allowedChars": map[string]any{"val": "0123456789"}})
 	union := func(members ...*reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindUnion, Children: members}
 	}
@@ -742,11 +743,11 @@ func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
 		path  string // "" = clean
 	}{
 		{"nullable string", union(stringRT(), &reflection.RunType{Kind: reflection.KindNull}), bad(), ""},
-		{"nullable too-short string", union(tooShort, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
+		{"nullable digits-only string", union(digitsOnly, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
 		{"union without a string", union(&reflection.RunType{Kind: reflection.KindNumber}, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
 		{"variadic tuple with a string slot", variadic(stringRT()), newFakeView().obj("rt$items", bad()), ""},
-		{"variadic tuple with a too-short slot", variadic(tooShort), newFakeView().obj("rt$items", bad()), "field.rt$items.generator"},
-		{"GEN member", tooShort, newFakeView().mem("generator", "lastName"), "field.generator"},
+		{"variadic tuple with a digits-only slot", variadic(digitsOnly), newFakeView().obj("rt$items", bad()), "field.rt$items.generator"},
+		{"GEN member", digitsOnly, newFakeView().mem("generator", "lastName"), "field.generator"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

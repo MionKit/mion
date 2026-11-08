@@ -875,9 +875,9 @@
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "TypeFormat mock generator `{generator}` cannot mock this format: {reason}",
-      "summary": "A `generator` picks realistic mock values, so it must be one generator name, fit the format's length limits and characters, and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or `contentMediaType`, which already decide the value. Otherwise every mock call throws. The message names the problem. Lengths count code points.",
+      "summary": "A `generator` picks realistic mock values, so it must be one generator name, make values the format's characters allow, and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or `contentMediaType`, which already decide the value. Otherwise every mock call throws. The message names the problem. Length limits never fail: the mock pads or cuts a value to fit them.",
       "fix": "type LastName = TF.String<{maxLength: 40; generator: 'lastName'}>;",
-      "example": "import {createValidateFn} from '@mionjs/run-types';\nimport * as TF from '@mionjs/run-types/formats';\nexport const isCode = createValidateFn<TF.String<{maxLength: 1; generator: 'lastName'}>>();"
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nimport * as TF from '@mionjs/run-types/formats';\nexport const isCode = createValidateFn<TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>>();"
     },
     {
       "code": "format-invalid-params",

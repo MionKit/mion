@@ -3,10 +3,10 @@
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {String} from '@mionjs/run-types/formats';
 
-type Initial = String<{maxLength: 1; generator: 'lastName'}>;
+type DigitName = String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;
 
-export const mockInitial = createMockDataFn<Initial>();
+export const mockDigitName = createMockDataFn<DigitName>();
 
 // The value call shape reports the same error at its own call.
-declare const sample: Initial;
-export const mockInitialValue = createMockDataFn(sample);
+declare const sample: DigitName;
+export const mockDigitNameValue = createMockDataFn(sample);
