@@ -18,10 +18,11 @@ type fakeView struct {
 	strings map[string]string
 	objects map[string]*fakeView
 	items   map[string][]*fakeView
+	members map[string]string
 }
 
 func newFakeView() *fakeView {
-	return &fakeView{strings: map[string]string{}, objects: map[string]*fakeView{}, items: map[string][]*fakeView{}}
+	return &fakeView{strings: map[string]string{}, objects: map[string]*fakeView{}, items: map[string][]*fakeView{}, members: map[string]string{}}
 }
 
 func (view *fakeView) str(key, value string) *fakeView {
@@ -63,6 +64,17 @@ func (view *fakeView) Items(key string) []enrichment.LiteralView {
 		}
 	}
 	return out
+}
+
+func (view *fakeView) MemberName(key string) (string, bool) {
+	value, ok := view.members[key]
+	return value, ok
+}
+
+func (view *fakeView) mem(key, member string) *fakeView {
+	view.order = append(view.order, key)
+	view.members[key] = member
+	return view
 }
 
 func (view *fakeView) arr(key string, items ...*fakeView) *fakeView {
@@ -704,6 +716,51 @@ func TestCheckMock_StructuralSlots(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			rt := objectRT(map[string]*reflection.RunType{"field": tc.rt})
 			findings := enrichment.CheckMock(rt, newFakeView().obj("field", tc.view), nil)
+			if len(findings) != 1 || findings[0].Path != tc.path {
+				t.Fatalf("want one finding at %s, got %v", tc.path, findings)
+			}
+		})
+	}
+}
+
+// TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator (the mock draws it for the
+// string member), a union with no string does not, a variadic tuple's shared rt$items is checked against every slot,
+// and a `GEN.x` member is checked like the string literal it equals.
+func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
+	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
+	union := func(members ...*reflection.RunType) *reflection.RunType {
+		return &reflection.RunType{Kind: reflection.KindUnion, Children: members}
+	}
+	variadic := func(first *reflection.RunType) *reflection.RunType {
+		return &reflection.RunType{Kind: reflection.KindTuple, Children: []*reflection.RunType{
+			{Kind: reflection.KindTupleMember, Child: first},
+			{Kind: reflection.KindTupleMember, Flags: []string{"rest"}, Child: &reflection.RunType{Kind: reflection.KindArray, Child: &reflection.RunType{Kind: reflection.KindNumber}}},
+		}}
+	}
+	bad := func() *fakeView { return newFakeView().str("generator", "lastName") }
+	cases := []struct {
+		name  string
+		field *reflection.RunType
+		view  *fakeView
+		path  string // "" = clean
+	}{
+		{"nullable string", union(stringRT(), &reflection.RunType{Kind: reflection.KindNull}), bad(), ""},
+		{"nullable too-short string", union(tooShort, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
+		{"union without a string", union(&reflection.RunType{Kind: reflection.KindNumber}, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
+		{"variadic tuple with a string slot", variadic(stringRT()), newFakeView().obj("rt$items", bad()), ""},
+		{"variadic tuple with a too-short slot", variadic(tooShort), newFakeView().obj("rt$items", bad()), "field.rt$items.generator"},
+		{"GEN member", tooShort, newFakeView().mem("generator", "lastName"), "field.generator"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rt := objectRT(map[string]*reflection.RunType{"field": tc.field})
+			findings := enrichment.CheckMock(rt, newFakeView().obj("field", tc.view), nil)
+			if tc.path == "" {
+				if len(findings) != 0 {
+					t.Fatalf("want clean, got %v", findings)
+				}
+				return
+			}
 			if len(findings) != 1 || findings[0].Path != tc.path {
 				t.Fatalf("want one finding at %s, got %v", tc.path, findings)
 			}
