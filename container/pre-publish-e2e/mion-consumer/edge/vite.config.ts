@@ -21,7 +21,7 @@ export default defineConfig({
         },
         rollupOptions: {
             // Workers do not support dynamic code splitting
-            output: {inlineDynamicImports: true},
+            output: {codeSplitting: false},
         },
     },
 });

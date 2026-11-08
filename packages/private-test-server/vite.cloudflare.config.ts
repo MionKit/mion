@@ -60,7 +60,7 @@ export default defineConfig({
         intro: "'use strict';",
         extend: true,
         // Inline all dynamic imports (IIFE doesn't support code splitting)
-        inlineDynamicImports: true,
+        codeSplitting: false,
       },
       // Bundle ALL dependencies — no externals
       external: [],
