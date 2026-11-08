@@ -20,9 +20,10 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
     drizzle minor line. Exact pin would force a dialect republish on every core patch.
     `pnpm miondevx release check-drizzle-versions` enforces all three dialect peers.
 - Cross-package deps: `workspace:*`. Every `@mionjs/*` dep on `RunTypes/*` too → mion tests need the Go toolchain.
-- devDependencies live root-level, never per package. TWO exceptions (dev deps never reach a consumer):
+- devDependencies live root-level, never per package. THREE exceptions (dev deps never reach a consumer):
   - each drizzle dialect package carries `@mionjs/run-types` + `@mionjs/drizzle-orm` as `workspace:*`
     (satisfies its own peers in the workspace);
+  - `@mionjs/devtools` carries `@mionjs/bin-compiler` + `vite` (same reason: its own peers);
   - `@mionjs/run-types` carries `@mionjs/devtools` + `@mionjs/bin-compiler` (the `mion` CLI its build runs).
 - ⚠️ One way only: `@mionjs/devtools` NEVER depends on or imports `@mionjs/run-types` (else workspace cycle).
   Why + how its tests cope: [devtools/AGENTS.md](devtools/AGENTS.md). `pnpm run check:tree` fails on any cycle.

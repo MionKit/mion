@@ -10,9 +10,6 @@
     "test": "vitest run",
     "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage"
   },
-  "devDependencies": {
-    "vite": "8.1.6"
-  },
   "dependencies": {
     "randexp": "0.5.3"
   }
