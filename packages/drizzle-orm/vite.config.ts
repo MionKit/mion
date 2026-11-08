@@ -16,7 +16,7 @@ export default defineConfig({
     // itself — injection happens at the consumer's own call sites, under the
     // consumer's build.
     dts({
-      outDir: '.dist/esm',
+      outDirs: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),
