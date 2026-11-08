@@ -12,6 +12,7 @@ declare module '@mionjs/run-types/formats' {
     tenLetters: true;
     twoLetters: true;
     emptyString: true;
+    fixedSmith: true;
   }
 }
 
@@ -60,9 +61,9 @@ describe('custom mock generators', () => {
     );
   });
 
-  it("throw after 64 values the format's char rules reject", () => {
+  it("throw after 64 values the format's pattern rejects", () => {
     registerMockGenerator('alwaysUpper', () => 'ABC');
-    const mock = createMockDataFn<TF.String<{allowedChars: {val: 'abc'}; generator: 'alwaysUpper'}>>();
+    const mock = createMockDataFn<TF.String<{pattern: {source: '^[a-z]+$'; mockSamples: ['abc']}; generator: 'alwaysUpper'}>>();
     expect(() => mock()).toThrow(/`alwaysUpper`: 64 values failed the format's pattern, allowedChars or disallowedChars/);
   });
 
@@ -76,6 +77,22 @@ describe('custom mock generators', () => {
     expect(createValidateFn<TF.String<{length: 7; generator: 'twoLetters'}>>()(padded)).toBe(true);
     // A pad that never grows the value falls back to letters.
     expect(createMockDataFn<TF.String<{length: 4; generator: 'emptyString'}>>()()).toMatch(/^[a-z]{4}$/);
+  });
+
+  it('replace a rejected char: other case, then same kind of letter, then any allowed char', () => {
+    registerMockGenerator('fixedSmith', () => 'Smith');
+    expect(createMockDataFn<TF.String<{allowedChars: {val: 'smith'}; generator: 'fixedSmith'}>>()()).toBe('smith');
+    // `i` stays; every consonant becomes one of x, y, z.
+    expect(createMockDataFn<TF.String<{allowedChars: {val: 'aeiouxyz'}; generator: 'fixedSmith'}>>()()).toMatch(
+      /^[xyz]{2}i[xyz]{2}$/
+    );
+    expect(createMockDataFn<TF.String<{allowedChars: {val: '0123'}; generator: 'fixedSmith'}>>()()).toMatch(/^[0-3]{5}$/);
+    // Same case first: the capital S becomes a capital consonant, the small ones small consonants.
+    const sameCase = createMockDataFn<TF.String<{allowedChars: {val: 'ixXyY'}; generator: 'fixedSmith'}>>();
+    for (let seed = 1; seed <= 20; seed++) expect(sameCase({mock: {seed}})).toMatch(/^[XY][xy]i[xy]{2}$/);
+    expect(createMockDataFn<TF.String<{disallowedChars: {val: 'S'; mockSamples: 'x'}; generator: 'fixedSmith'}>>()()).toBe(
+      'smith'
+    );
   });
 
   it('refuse a registration that is not a function', () => {

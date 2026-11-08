@@ -36,55 +36,55 @@ func expectGeneratorInvalid(t *testing.T, resp protocol.Response, reason string)
 	}
 }
 
-// A last name never starts with a digit.
-const noFirstChar = `type Code = TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;`
+// allowedValues already decides the value.
+const besideAllowedValues = `type Code = TF.String<{allowedValues: {val: ['Lee']}; generator: 'lastName'}>;`
 
-func TestFormatGenerator_NoFirstCharStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, noFirstChar, `export const isCode = createValidateFn<Code>();`), "starts every value")
+func TestFormatGenerator_BesideAllowedValuesStatic(t *testing.T) {
+	expectGeneratorInvalid(t, scanGenerator(t, besideAllowedValues, `export const isCode = createValidateFn<Code>();`), "allowedValues")
 }
 
-func TestFormatGenerator_NoFirstCharValue(t *testing.T) {
-	resp := scanGenerator(t, noFirstChar+`
+func TestFormatGenerator_BesideAllowedValuesValue(t *testing.T) {
+	resp := scanGenerator(t, besideAllowedValues+`
 declare const code: Code;`, `export const isCode = createValidateFn(code);`)
-	expectGeneratorInvalid(t, resp, "starts every value")
+	expectGeneratorInvalid(t, resp, "allowedValues")
 }
 
 func TestFormatGenerator_NestedMemberStatic(t *testing.T) {
-	resp := scanGenerator(t, noFirstChar+`
+	resp := scanGenerator(t, besideAllowedValues+`
 type Order = {item: {code: Code}};`, `export const isOrder = createValidateFn<Order>();`)
-	expectGeneratorInvalid(t, resp, "starts every value")
+	expectGeneratorInvalid(t, resp, "allowedValues")
 }
 
 func TestFormatGenerator_NestedMemberValue(t *testing.T) {
-	resp := scanGenerator(t, noFirstChar+`
+	resp := scanGenerator(t, besideAllowedValues+`
 type Order = {item: {code: Code}};
 declare const order: Order;`, `export const isOrder = createValidateFn(order);`)
-	expectGeneratorInvalid(t, resp, "starts every value")
+	expectGeneratorInvalid(t, resp, "allowedValues")
 }
 
 // An email's localPart takes a generator too; spelled with the exact TypeFormat, since TF.EmailParts cannot set it.
 const emailLocalPart = `import type {TypeFormat} from '@mionjs/run-types';
-type Work = TypeFormat<string, 'email', {localPart: {generator: 'fullName'; allowedChars: {val: 'abcdefghijklmnopqrstuvwxyz'}}}>;`
+type Work = TypeFormat<string, 'email', {localPart: {generator: 'fullName'; mockSamples: ['ann']}}>;`
 
 func TestFormatGenerator_EmailLocalPartStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, emailLocalPart, `export const isWork = createValidateFn<Work>();`), "allowedChars")
+	expectGeneratorInvalid(t, scanGenerator(t, emailLocalPart, `export const isWork = createValidateFn<Work>();`), "mockSamples")
 }
 
 func TestFormatGenerator_EmailLocalPartValue(t *testing.T) {
 	resp := scanGenerator(t, emailLocalPart+`
 declare const work: Work;`, `export const isWork = createValidateFn(work);`)
-	expectGeneratorInvalid(t, resp, "allowedChars")
+	expectGeneratorInvalid(t, resp, "mockSamples")
 }
 
 // A type only mocked still gets the check, at the mock call.
 func TestFormatGenerator_MockOnlySiteStatic(t *testing.T) {
-	expectGeneratorInvalid(t, scanGenerator(t, noFirstChar, `export const mock = createMockDataFn<Code>();`), "starts every value")
+	expectGeneratorInvalid(t, scanGenerator(t, besideAllowedValues, `export const mock = createMockDataFn<Code>();`), "allowedValues")
 }
 
 func TestFormatGenerator_MockOnlySiteValue(t *testing.T) {
-	resp := scanGenerator(t, noFirstChar+`
+	resp := scanGenerator(t, besideAllowedValues+`
 declare const code: Code;`, `export const mock = createMockDataFn(code);`)
-	expectGeneratorInvalid(t, resp, "starts every value")
+	expectGeneratorInvalid(t, resp, "allowedValues")
 }
 
 const besideMockSamples = `type Code = TF.String<{generator: 'city'; mockSamples: ['Rome']}>;`
@@ -122,12 +122,13 @@ func TestFormatGenerator_WidenedNameValue(t *testing.T) {
 	}
 }
 
-// Any length bounds stay clean (the mock pads or cuts); a custom name skips the table checks (TypeScript catches
-// typos via MockGeneratorName).
+// Any length bounds or char set stay clean (the mock fits the value); a custom name is not checked against the table
+// (TypeScript catches typos via MockGeneratorName).
 var cleanGeneratorCases = map[string]string{
 	"fits":                            `type Code = TF.String<{maxLength: 40; generator: 'lastName'}>;`,
 	"too short is cut":                `type Code = TF.String<{maxLength: 1; generator: 'lastName'}>;`,
 	"too long is padded":              `type Code = TF.String<{minLength: 200; generator: 'fullName'}>;`,
+	"rejected chars are replaced":     `type Code = TF.String<{allowedChars: {val: '0123456789'}; generator: 'lastName'}>;`,
 	"alpha preset":                    `type Code = TF.Alpha<{maxLength: 3; generator: 'firstName'}>;`,
 	"disallowedChars without samples": `type Code = TF.String<{disallowedChars: {val: '@'; mockSamples: ''}; generator: 'city'}>;`,
 	"sample-less pattern":             `type Code = TF.String<{pattern: {source: '^[A-Z][a-z]+$'}; generator: 'firstName'}>;`,

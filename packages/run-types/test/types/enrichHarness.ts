@@ -16,7 +16,7 @@ export type {MeasureResult};
 const FRIENDLY_TS = fileURLToPath(new URL('../../src/enrich/friendlyText.ts', import.meta.url));
 const MOCK_TS = fileURLToPath(new URL('../../src/enrich/mockData.ts', import.meta.url));
 const ERROR_KEYS_TS = fileURLToPath(new URL('../../src/go-generated/formatErrorKeys.generated.ts', import.meta.url));
-const GENERATOR_META_TS = fileURLToPath(new URL('../../src/go-generated/mockGeneratorMeta.generated.ts', import.meta.url));
+const GENERATOR_NAMES_TS = fileURLToPath(new URL('../../src/go-generated/builtinMockGenerators.generated.ts', import.meta.url));
 const FORMATS_TS = fileURLToPath(new URL('../../src/formats/index.ts', import.meta.url));
 
 /** Slice a `#region <name> … #endregion <name>` block out of a source file and
@@ -44,7 +44,7 @@ const ERROR_KEYS_PREAMBLE = readFileSync(ERROR_KEYS_TS, 'utf8').replace(/^export
 
 const FRIENDLY_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${ERROR_KEYS_PREAMBLE}\n${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
 // The generator names the string leaf takes: the import-free generated table plus the extendable name union.
-const GENERATOR_NAMES_PREAMBLE = `${readFileSync(GENERATOR_META_TS, 'utf8').replace(/^export (type|interface|const) /gm, '$1 ')}\n${extractRegion(FORMATS_TS, 'mockgenerator-names-extract')}`;
+const GENERATOR_NAMES_PREAMBLE = `${readFileSync(GENERATOR_NAMES_TS, 'utf8').replace(/^export (type|interface|const) /gm, '$1 ')}\n${extractRegion(FORMATS_TS, 'mockgenerator-names-extract')}`;
 const MOCK_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${GENERATOR_NAMES_PREAMBLE}\n${extractRegion(MOCK_TS, 'mockdata-extract')}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `FRIENDLY_PREAMBLE + snippet`; report errors + raw/net instantiations. **/

@@ -103,7 +103,7 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.messages.join('\n')).toMatch(/error format-sample-out-of-bounds \(2\)[\s\S]*index\.ts:13:\d+/);
   }, 60_000);
 
-  it('format-generator-invalid: a generator the format leaves nothing to produce', async () => {
+  it('format-generator-invalid: a generator the format cannot use', async () => {
     const result = await buildFixture('format-generator-invalid');
     expect(result.codes).toContain('format-generator-invalid');
     expect(result.ok).toBe(false);

@@ -61,25 +61,25 @@ func TestMockWalk_EveryKindHasARow(t *testing.T) {
 }
 
 func TestMockWalk_CheckReachesEveryScaffoldedLeaf(t *testing.T) {
-	digitsOnly := &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{
-		Name: "stringFormat", Params: map[string]any{"allowedChars": map[string]any{"val": "0123456789"}},
+	valueSet := &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{
+		Name: "stringFormat", Params: map[string]any{"allowedValues": map[string]any{"val": []any{"Lee"}}},
 	}}
 	param := func(child *reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindParameter, Child: child}
 	}
 	values := map[string]*reflection.RunType{
-		"map": {Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(digitsOnly), param(digitsOnly)}},
-		"set": {Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(digitsOnly)}},
+		"map": {Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(valueSet), param(valueSet)}},
+		"set": {Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(valueSet)}},
 	}
 	for kind, row := range mockWalkRows {
 		if row == nil {
 			continue
 		}
-		value := row(digitsOnly)
+		value := row(valueSet)
 		switch {
 		case value != nil:
 		case kind == reflection.KindString:
-			value = digitsOnly // a plain string takes any generator, the digits-only one takes none
+			value = valueSet // a plain string takes any generator, the value-set one takes none
 		default:
 			value = &reflection.RunType{Kind: kind}
 		}

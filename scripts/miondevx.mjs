@@ -164,7 +164,7 @@ const CODEGEN = {
   // Per-format FriendlyText error keys plus the params the samples cover (a type test fails on any other param).
   errorkeys: {run: [...GO_RUN, './cmd/gen-format-error-keys'], stdoutTo: 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts', outputs: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts'], fmt: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts']},
   // GEN namespace + length / character table from formats.MockGenerators; the generator writes both outputs itself.
-  mockgenerators: {run: [...GO_RUN, './cmd/gen-mock-generators'], outputs: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/mockGeneratorMeta.generated.ts'], fmt: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/mockGeneratorMeta.generated.ts']},
+  mockgenerators: {run: [...GO_RUN, './cmd/gen-mock-generators'], outputs: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts'], fmt: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts']},
   // Compiled-function catalog for the docs site: every function the build can
   // compile for a type, with the name a marker calls it by, its factory and its
   // one-line description, all read off the operations registry. No `fmt` — the

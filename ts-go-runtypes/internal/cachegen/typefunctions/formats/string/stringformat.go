@@ -349,7 +349,7 @@ func hasGenerator(params map[string]any) bool {
 	return present
 }
 
-// checkGenerator reports a mock generator the format's own rules leave nothing to produce.
+// checkGenerator reports a mock generator the format cannot use (formats.GeneratorProblems).
 func checkGenerator(ctx formats.EmitContext, params map[string]any) {
 	name, present := params["generator"]
 	if !present {
