@@ -53,6 +53,30 @@ export const OBJECT = {
     },
   },
 
+  leafKeyNamedFields: {
+    title: 'Fields named like mock settings (pool / min / max)',
+    case: () => {
+      // ##### src #####
+      type Target = {pool: string; min: number; max: {pool: string}};
+      // ##### friendly #####
+      const friendlyTarget: FriendlyText<Target> = {
+        rt$label: '',
+        rt$errors: {type: ''},
+        pool: {rt$label: '', rt$errors: {type: ''}},
+        min: {rt$label: '', rt$errors: {type: ''}},
+        max: {rt$label: '', rt$errors: {type: ''}, pool: {rt$label: '', rt$errors: {type: ''}}},
+      };
+      // ##### mock #####
+      const mockTarget: MockData<Target> = {
+        pool: {pool: []},
+        min: {pool: []},
+        max: {pool: {pool: []}},
+      };
+      // ##### result #####
+      return {friendlyTarget, mockTarget};
+    },
+  },
+
   nested: {
     title: 'Nested object',
     case: () => {

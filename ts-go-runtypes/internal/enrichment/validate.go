@@ -68,14 +68,18 @@ var friendlyMetaKeys = map[string]bool{
 	"rt$items":  true,
 }
 
-// mockMetaKeys are the reserved keys a MockData node carries beside its fields, never matched against a property.
-var mockMetaKeys = map[string]bool{
-	"rt$items":    true,
-	"rt$length":   true,
-	"rt$optional": true,
-	"pool":        true,
-	"min":         true,
-	"max":         true,
+// mockLeafKeys are the bare settings a MockData leaf carries. They are settings only when the value is not an object
+// literal: every field value is an object node, so an object under `pool` is a real field the type may declare.
+var mockLeafKeys = map[string]bool{
+	"pool": true,
+	"min":  true,
+	"max":  true,
+}
+
+// isMockMetaKey reports whether a MockData key is node settings rather than a field: any rt$ key, or a leaf key whose
+// value is not an object literal.
+func isMockMetaKey(literal LiteralView, key string) bool {
+	return strings.HasPrefix(key, reservedMetaPrefix) || (mockLeafKeys[key] && literal.Child(key) == nil)
 }
 
 // reservedMetaPrefix is RESERVED for enrichment meta keys, so a type declaring one cannot be enriched: the scaffold could
@@ -414,7 +418,7 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	byName := childByName(ctx, rt)
 	checkReservedProperties(findings, ctx, rt, path, diagnostics.CodeMockReservedProp)
 	for _, key := range literal.Keys() {
-		if mockMetaKeys[key] {
+		if isMockMetaKey(literal, key) {
 			continue
 		}
 		child, ok := byName[key]
