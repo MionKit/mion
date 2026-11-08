@@ -217,12 +217,12 @@ export type InjectPureFnId<F> = string & {
 /**
  * Request-batch id injection marker, declared as the trailing parameter of a builder that runs
  * several routes in one request (`batch<Routes>(routes: [...Routes], batchId?: InjectBatchId<Routes>)`):
- * the build reads the ordered route ids out of the array argument, hashes them into a stable id and
+ * the build reads the ordered route ids from the types of the array's items, hashes them into a stable id and
  * fills the slot with it. The server carries the same id in its compiled batch table, so the wire
  * needs nothing but the id.
  *
  * `Routes` is phantom, linking the marker to the routes argument; the runtime value is the injected
- * string. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner resolves the
+ * string, or an object of one id per route combination when an item may be several routes. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner resolves the
  * alias identically.
  */
 export type InjectBatchId<Routes> = string & {

@@ -80,7 +80,6 @@ describe('middleware onRequest', () => {
   });
 
   it('runs once per batch, and the context lists the batch routes', async () => {
-    // inline: the build reads a batch's routes only from the proxy initClient returns in this file
     const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
     destroy = () => client.destroy();
     const contexts: CallContext[] = [];
@@ -322,7 +321,6 @@ describe('middleware onRequest', () => {
     });
 
     it('answers in a batch', async () => {
-      // inline: the build reads a batch's routes only from the proxy initClient returns in this file
       const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
       destroy = () => client.destroy();
       middlewares.auth.onRequest((auth) => auth(authHeaders));

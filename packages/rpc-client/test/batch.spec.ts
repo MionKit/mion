@@ -451,6 +451,52 @@ describe('batch build shapes end to end', () => {
     expect(user11).toEqual({id: 11, orgId: 110, tagIds: [11, 12]});
     expect(org11).toEqual({id: 110, name: 'Org 110'});
   });
+
+  it('a client a composable returns, the shape Vue inject() and Nuxt useNuxtApp() hand over', async () => {
+    function useApi() {
+      return initClient<MyApi>({baseURL});
+    }
+    const api = useApi();
+    api.middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+    const entries = await batch([api.routes.flow.getUser(12), api.routes.utils.sumTwo(12)]).call();
+    const [[user, , clientResponse], [sum]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(user).toEqual({id: 12, orgId: 120, tagIds: [12, 13]});
+    expect(sum).toBe(14);
+  });
+
+  it('a helper whose inferred return type keeps the route id', async () => {
+    const getUser = (id: number) => routes.flow.getUser(id);
+    const [[user, userError, clientResponse]] = await batch([getUser(13)]).call();
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(userError).toBeUndefined();
+    expect(user).toEqual({id: 13, orgId: 130, tagIds: [13, 14]});
+  });
+
+  it('a ternary item runs whichever route it picked, one compiled batch per choice', async () => {
+    for (const wantUser of [true, false]) {
+      const first = wantUser ? routes.flow.getUser(14) : routes.flow.getOrg(140);
+      const [[value, error, clientResponse], [sum]] = await batch([first, routes.utils.sumTwo(14)]).call();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(value).toEqual(wantUser ? {id: 14, orgId: 140, tagIds: [14, 15]} : {id: 140, name: 'Org 140'});
+      expect(sum).toBe(16);
+    }
+  });
+
+  it('an if / else into a let runs whichever route it picked', async () => {
+    for (const wantUser of [true, false]) {
+      // typed: with noImplicitAny off, as in this repo, a bare `let first;` is `any` and names no route
+      let first: ReturnType<typeof routes.flow.getUser> | ReturnType<typeof routes.flow.getOrg>;
+      if (wantUser) first = routes.flow.getUser(15);
+      else first = routes.flow.getOrg(150);
+      const [[value, error, clientResponse]] = await batch([first]).call();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(value).toEqual(wantUser ? {id: 15, orgId: 150, tagIds: [15, 16]} : {id: 150, name: 'Org 150'});
+    }
+  });
 });
 
 // ############# END-TO-END: every mapping shape the build reads #############
@@ -754,6 +800,17 @@ describe('batch runtime behaviour', () => {
     let caught: unknown;
     try {
       untransformed([routes.sayHello(someUser)]);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RpcError);
+    expect((caught as RpcError<string>).type).toBe('batch-missing-id');
+  });
+
+  it('batch-missing-id when the id lookup has no entry for the routes it got (a cast that named other routes)', () => {
+    let caught: unknown;
+    try {
+      batch([routes.sayHello(someUser)], {'flow/getUser': 'b_other'} as never);
     } catch (error) {
       caught = error;
     }

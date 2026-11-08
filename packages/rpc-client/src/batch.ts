@@ -13,7 +13,8 @@ import type {MionSubRequest} from './subRequest.ts';
 import type {InputFromRef} from '@mionjs/core';
 
 /** Runs several routes in ONE HTTP request. The build hashes the ordered route ids into `batchId`, which
- * names the batch in the table it compiled into the server; the request carries only that id. */
+ * names the batch in the table it compiled into the server; the request carries only that id.
+ * An item that may be several routes makes one batch per combination, and `batchId` holds them all. */
 export function batch<Routes extends RouteSubRequest<any>[]>(
   routes: [...Routes],
   batchId?: InjectBatchId<Routes>
@@ -24,12 +25,14 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
       publicMessage: 'batch() requires at least one route subrequest.',
     });
   }
-  if (!batchId) {
+  const id = pickBatchId(routes, batchId);
+  if (!id) {
     throw new RpcError({
       type: 'batch-missing-id',
       publicMessage:
         'batch() needs the mion build plugin (the vite preset or the mion CLI) to inject the batch id. ' +
-        'Batches are compiled into the server at build time, so a client without the build cannot send one.',
+        'Batches are compiled into the server at build time, from the routes each item is typed with, so a client ' +
+        'without the build, or a route its types did not name, cannot send one.',
     });
   }
 
@@ -57,9 +60,17 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
     // `apiMetadata` is filled by the build when routes are bundled, never by hand
     async call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata) {
       client.useBundledApi(apiMetadata);
-      return client.execute(undefined, routes, batchId, setup?.signal, setup?.timeout);
+      return client.execute(undefined, routes, id, setup?.signal, setup?.timeout);
     },
   };
+}
+
+/** An item that may be one of several routes gets one id per route combination, keyed by the route ids joined with `,`. */
+function pickBatchId(routes: RouteSubRequest<any>[], batchId: InjectBatchId<unknown> | undefined): string | undefined {
+  if (typeof batchId !== 'object' || batchId === null) return batchId;
+  const ids = batchId as unknown as Record<string, string>;
+  const key = routes.map((route) => route.id).join(',');
+  return Object.hasOwn(ids, key) ? ids[key] : undefined;
 }
 
 const inputFromSymbol = Symbol('InputFromRef');
