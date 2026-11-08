@@ -65,6 +65,7 @@ Copy `go-suite-wait` (`ci.yml:223-236`): `needs: lanes`, `actions: read`, `uses:
   in js-suite and js-serial, whose `test-pr --base HEAD^1` needs it.
 - go-checks: gate "Build the resolver + dists" (`ci.yml:190`) on `fromJSON(env.MION_LANES)['go-tools'].run`.
   Move "Record gofmt and vet as green" to right after `Go vet`.
+- js-static: gate its "Build the resolver + dists" step on `fromJSON(env.MION_LANES)['js-static'].run`.
 - The `*-green` jobs need no change: they already use `!cancelled()` and accept a skipped job.
 - `--pr` / `js-pr` keep working: `lane-wait.yml` passes `--pr`, and `deferredKeys` adds `js-pr` on a PR.
 
@@ -81,11 +82,12 @@ Rewrite `ci.yml:222` ("A matrix job cannot wait in a step…") and `.github/acti
   accept `contains(fromJSON('["success","skipped"]'), needs.go-build.result)`. On a skipped `go-build` the
   resolver action restores or builds the binaries itself. That is slower only when the older run failed, and
   it saves a runner on every deferred commit.
-- drizzle `decide` (`drizzle-e2e.yml:74`): it has no `if:` and does a full-history checkout on every run. Add
-  `if: fromJSON(needs.lanes.outputs.lanes).drizzle.run`. `build` already requires `decide.outputs.run == 'true'`.
-  It reads the gate on purpose: a deferred lane keeps `run`, so the waiter's later verdict still finds an answer.
-- The sweep found nothing else: the pr-heavy jobs already start only through their waiters, and every other
-  step runs only in a job whose lane runs.
+- drizzle `decide` (`drizzle-e2e.yml:74`): it has no `if:` and does a full-history checkout on every run. It now
+  needs `drizzle-wait` and starts on `!cancelled() && needs.lanes.result == 'success'` plus the
+  `waiter || gate` verdict's `drizzle.run`, so a lane the older run proves never boots it. `build` already
+  requires `decide.outputs.run == 'true'`.
+- Beyond these and the two dists builds in B, the sweep found nothing: the pr-heavy jobs already start only
+  through their waiters, and every other step runs only in a job whose lane runs.
 - Run a final sweep over every job in `ci.yml`, `pr-heavy.yml` and `drizzle-e2e.yml`. Look for a job that
   starts while none of its lanes runs (`run && !deferredTo`), or a step that runs when its lane does not. Fix
   each one you find in this PR.
@@ -103,19 +105,29 @@ runs is unchanged, so the only lanes a newer run can re-run while the older one 
   `MION_WATCH: node ${{ github.workspace }}/scripts/ci/supersede.mjs --watch` (absolute, for `working-directory`
   steps) and `GH_TOKEN`. gofmt, the one multi-line script, takes a second and is left out.
 - `supersede.mjs --watch` spawns the command in its own process group. Off a pull request it only runs it.
-  On a pull request, after 60 s and then each minute, `newerDecisions()` lists the newer runs of this workflow
-  and PR, with the same filters as the gate's listing in `.github/actions/ci-lanes`. It skips a cancelled run,
-  and downloads each newer run's `lane-decision` once.
+  On a pull request it polls each minute, after the first minute.
+- One listing serves both directions. `listRuns()` returns this workflow's runs on this branch and event, from
+  this repository, and on a pull request of this PR only. `readDecision()` downloads a run's `lane-decision`
+  once into a directory every watched step of the job shares, and reads it back from there.
+  - The gate's "Keep or cancel the older runs" step, formerly bash and jq, is now one line:
+    `supersede.mjs --plan --older-dir …`. `olderRuns()` keeps the older runs that are still active. A failed
+    listing warns and keeps or cancels nothing.
+  - `newerDecisions()` keeps the newer runs that were not cancelled, finished ones included: a newer run that
+    finished still re-ran the lane. A finished run that never uploaded a decision is given up after one try.
 - `takenOver()` is a pure function next to `supersede()`. A newer run takes over lane L when its uploaded
   decision has L live (`liveKeys`) under another hash. That decision is written before `supersede()` runs, so it
   carries no `deferredTo`, but a lane deferred to us always hashes the same.
-- Once every lane of the step is taken over, the watcher kills the process group and exits 0. It writes the lane
+- Once every lane of the step is taken over, the watcher sends the process group SIGTERM, and SIGKILL once the
+  command ends (or after 10 s), so nothing it started that ignores SIGTERM survives. It then exits 0. It writes the lane
   to `MION_TAKEN_OVER` (space separated) in `$GITHUB_ENV`, and a line naming the newer run to the step summary.
   A later watched step of a taken lane exits at once, and the save steps add
   `!contains(env.MION_TAKEN_OVER, '<lane>')`. The job ends green, never red: no waiter sees a failed job.
-- Polling and the kill go through `gh` and timers passed in (`watchStep({check, firstMs, everyMs})`), so tests fake
-  them. Any `gh` error or unreadable answer counts as "not taken over", so the job keeps running. Signals sent to
-  the step are forwarded to the command, and its exit code is passed through.
+- `main(args, {gh, env, pollMs})` takes the `gh` call, the env and the poll interval, so tests fake them. Any
+  `gh` error or unreadable answer counts as "not taken over", so the job keeps running. Signals sent to the step
+  are forwarded to the command, and its exit code is passed through.
+- Known gap: a command that fails during the second or two a poll blocks on `gh` can still read as a takeover.
+  Node runs the exit handler only after the poll returns, so the poll cannot see the exit. The newer run re-runs
+  that lane anyway.
 - Fails safe. Suppose an even newer run defers L to this stopped run. Its waiter ends when this run completes,
   re-decides, finds no marker and runs L.
 - Polling budget: two jobs, one listing per minute plus one download per newer run. That stays inside the
@@ -129,27 +141,36 @@ runs is unchanged, so the only lanes a newer run can re-run while the older one 
   - one that runs L under our hash, has it off by label, or never decided does not;
   - only the step's lanes count;
   - each lane names the first newer run that took it.
-- A seeded property check: a lane is taken over exactly when some newer run has it live under another hash.
-- `newerDecisions` with a fake `gh`:
-  - it keeps only newer runs of this PR, from this repository, and never a cancelled one;
-  - it downloads each decision once and retries one not uploaded yet;
-  - it reads nothing off a pull request or from an unreadable listing.
-- `watchStep` with real short `node` children:
+- The run listing, with a fake `gh` serving runs and decisions:
+  - `listRuns` filters on repository and PR, keeps every run off a pull request, and returns null for an
+    unreadable listing;
+  - `olderRuns` keeps the older active runs, counts an undownloadable or unreadable decision as none, and warns
+    with nothing to keep or cancel when the listing fails;
+  - `newerDecisions` drops cancelled runs, downloads once across polls, retries a missing decision, and gives up
+    on a finished run without one.
+- `watchStep` with real `node` children:
   - the exit code passes through;
-  - a takeover kills the command and a grandchild it started;
+  - a takeover stops a grandchild that ignores SIGTERM, and the test checks its pid is gone;
   - a partial takeover or a throwing check keeps it running;
   - a command that cannot start reports 127.
-- The CLI: a lane already in `MION_TAKEN_OVER` skips the command, and off a pull request the step runs as is.
+- The CLI:
+  - `--plan` lists, keeps and cancels through the fake `gh`, and cancels nothing when listing fails;
+  - a takeover writes `MION_TAKEN_OVER=<already + lane>` to `$GITHUB_ENV` and the step summary, and exits 0;
+  - a lane already taken over skips the command;
+  - off a pull request the step runs as is;
+  - a SIGTERM sent to the watcher stops the command.
 
 `packages/devtools/test/ci-lane-contracts.test.ts`:
 - The waiter table covers all eight ci.yml heavy jobs, with their shared waiters. The per-waiter test pins the
   prefix, `deferredTo`, `needs`, `!cancelled()`, `waiter || gate` and `actions: read`.
 - The in-job waiter tests are gone. The "reads from the gate alone" check now excuses only the start conditions
-  of `go-build`, `decide` and the waiters.
+  of `go-build` and `go-checks-wait`.
+- The gate's bash-harness tests became one check: the step is a single `supersede.mjs --plan` line, with
+  `GH_TOKEN` and no branch name in the script. The listing cases moved to the unit tests above.
 - New:
   - `go-checks-wait`'s start rule;
   - `go-build` starts only for `run && !deferredTo`, and its restorers accept a skipped `go-build`;
-  - `decide`'s `if:`;
+  - `decide` needs `drizzle-wait` and reads `waiter || gate`;
   - the `go-static` save right after `Go vet`, and the dists build after it gated on `go-tools`;
   - in go-checks and js-static: the watcher env and `actions: read`, every one-line command under
     `$MION_WATCH <its lane> --`, and every save gated on `MION_TAKEN_OVER`.

@@ -2,7 +2,7 @@
 // older run whose live lanes all hash the same is kept and our jobs for those lanes wait for its markers.
 // CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow, --watch around a kept run's raw-lane steps.
 import {spawn} from 'node:child_process';
-import {appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {LANES, PR_PROOF, flagValues, greenKey, laneLive} from './lanes.mjs';
@@ -130,45 +130,70 @@ export function takenOver({ours, newer, names}) {
   return taken;
 }
 
-// The newer runs of this workflow and pull request, filtered like the ci-lanes listing. A cancelled one took nothing over.
-export function newerDecisions({gh, env, dir, seen}) {
-  const pr = /^refs\/pull\/(\d+)\//.exec(env.GITHUB_REF ?? '')?.[1];
+// This workflow's runs on this branch and event, from this repository, and on a pull request of this PR only, so a
+// same-named branch in a fork or another PR is never touched. Null when the listing cannot be read.
+export function listRuns({gh, env}) {
   const workflow = (env.GITHUB_WORKFLOW_REF ?? '').split('@')[0].split('/').pop();
-  if (!pr || !workflow) return [];
-  const listed = gh(['api', '-X', 'GET', `repos/${env.GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs`, '-f', `branch=${env.GITHUB_HEAD_REF}`, '-f', 'event=pull_request', '-F', 'per_page=30']);
-  let runs = [];
+  const pr = /^refs\/pull\/(\d+)\//.exec(env.GITHUB_REF ?? '')?.[1];
+  const branch = env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME;
+  const listed = gh(['api', '-X', 'GET', `repos/${env.GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs`, '-f', `branch=${branch}`, '-f', `event=${env.GITHUB_EVENT_NAME}`, '-F', 'per_page=30']);
   try {
-    if (listed.status === 0) runs = JSON.parse(listed.stdout).workflow_runs ?? [];
+    const runs = listed.status === 0 ? JSON.parse(listed.stdout).workflow_runs : null;
+    if (!Array.isArray(runs)) return null;
+    return runs.filter(
+      (run) => run.head_repository?.full_name === env.GITHUB_REPOSITORY && (!pr || run.pull_requests?.some((pull) => String(pull.number) === pr))
+    );
   } catch {
-    // An unreadable listing is one more poll.
+    return null;
   }
-  const newer = runs.filter(
-    (run) =>
-      run.id > Number(env.GITHUB_RUN_ID) &&
-      run.head_repository?.full_name === env.GITHUB_REPOSITORY &&
-      run.pull_requests?.some((pull) => String(pull.number) === pr) &&
-      !(run.status === 'completed' && run.conclusion === 'cancelled')
-  );
-  return newer.map((run) => {
-    if (!seen.has(run.id)) {
-      const target = join(dir, String(run.id));
-      rmSync(target, {recursive: true, force: true});
-      const downloaded = gh(['run', 'download', String(run.id), '--repo', env.GITHUB_REPOSITORY, '--name', 'lane-decision', '--dir', target]);
-      try {
-        const decision = downloaded.status === 0 ? JSON.parse(readFileSync(join(target, 'decision.json'), 'utf8')) : null;
-        // Not uploaded yet is read again next poll.
-        if (typeof decision?.lanes === 'object' && decision.lanes !== null) seen.set(run.id, decision);
-      } catch {
-        // An unreadable decision is read again next poll.
-      }
+}
+
+// A run's uploaded lane decision, or null when it has none yet or it is unreadable. A downloaded one stays on disk,
+// so every watched step of a job reads it once.
+export function readDecision({gh, env, dir, runId}) {
+  const target = join(dir, String(runId));
+  const file = join(target, 'decision.json');
+  const parse = () => {
+    try {
+      const decision = JSON.parse(readFileSync(file, 'utf8'));
+      return typeof decision?.lanes === 'object' && decision.lanes !== null && !Array.isArray(decision.lanes) ? decision : null;
+    } catch {
+      return null;
     }
-    return {runId: run.id, decision: seen.get(run.id) ?? null};
+  };
+  if (existsSync(file)) return parse();
+  gh(['run', 'download', String(runId), '--repo', env.GITHUB_REPOSITORY, '--name', 'lane-decision', '--dir', target]);
+  return parse();
+}
+
+// The gate's input: older active runs with their decisions. A failed listing keeps and cancels nothing.
+export function olderRuns({gh, env, dir}) {
+  const runs = listRuns({gh, env});
+  if (runs === null) {
+    console.log('::warning::could not list the older runs, so none is kept or cancelled');
+    return [];
+  }
+  return runs
+    .filter((run) => run.status !== 'completed' && run.id < Number(env.GITHUB_RUN_ID))
+    .map((run) => ({runId: run.id, decision: readDecision({gh, env, dir, runId: run.id})}));
+}
+
+// The watcher's input: newer runs with their decisions. A cancelled run took nothing over, and a finished one that
+// never uploaded a decision never will, so neither is downloaded again.
+export function newerDecisions({gh, env, dir}) {
+  const newer = (listRuns({gh, env}) ?? []).filter((run) => run.id > Number(env.GITHUB_RUN_ID) && run.conclusion !== 'cancelled');
+  return newer.flatMap((run) => {
+    const gaveUp = join(dir, `${run.id}.none`);
+    if (existsSync(gaveUp)) return [];
+    const decision = readDecision({gh, env, dir, runId: run.id});
+    if (!decision && run.status === 'completed') writeFileSync(gaveUp, '');
+    return [{runId: run.id, decision}];
   });
 }
 
 // Runs one step's command in its own process group, so a takeover can stop everything it started.
 // `check` returns the lanes taken over so far; a throw is one more poll, never a stop.
-export function watchStep({command, names, check, firstMs, everyMs}) {
+export function watchStep({command, names, check, pollMs}) {
   return new Promise((resolve) => {
     const child = spawn(command[0], command.slice(1), {stdio: 'inherit', detached: true});
     let timer = null;
@@ -180,27 +205,28 @@ export function watchStep({command, names, check, firstMs, everyMs}) {
         // The group already exited.
       }
     };
-    const forward = (signal) => signalGroup(signal);
-    process.on('SIGINT', forward).on('SIGTERM', forward);
+    process.on('SIGINT', signalGroup).on('SIGTERM', signalGroup);
     const poll = () => {
-      let now = new Map();
+      let lanes = new Map();
       try {
-        now = check();
+        lanes = check();
       } catch {
         // Keep running: an unknown is never a takeover.
       }
-      if (names.every((name) => now.has(name))) {
-        taken = now;
+      if (names.every((name) => lanes.has(name))) {
+        taken = lanes;
         signalGroup('SIGTERM');
-        setTimeout(() => signalGroup('SIGKILL'), 10_000).unref();
+        timer = setTimeout(() => signalGroup('SIGKILL'), 10_000);
         return;
       }
-      timer = setTimeout(poll, everyMs);
+      timer = setTimeout(poll, pollMs);
     };
-    if (check) timer = setTimeout(poll, firstMs);
+    if (check) timer = setTimeout(poll, pollMs);
     const finish = (code, signal) => {
       clearTimeout(timer);
-      process.off('SIGINT', forward).off('SIGTERM', forward);
+      process.off('SIGINT', signalGroup).off('SIGTERM', signalGroup);
+      // The direct child may exit on SIGTERM while something it started ignores it.
+      if (taken) signalGroup('SIGKILL');
       resolve({code, signal, taken});
     };
     child.on('error', () => finish(127, null));
@@ -209,7 +235,7 @@ export function watchStep({command, names, check, firstMs, everyMs}) {
 }
 
 // `--watch <lane…> -- <command…>`: a step that proves those lanes. Off a pull request it only runs the command.
-async function watchMain(args, env) {
+async function watchMain(args, {gh, env, pollMs}) {
   const names = flagValues(args, '--watch');
   const command = args.slice(args.indexOf('--') + 1);
   if (names.length === 0 || !args.includes('--') || command.length === 0) die('--watch needs <lane…> -- <command…>');
@@ -217,12 +243,12 @@ async function watchMain(args, env) {
   if (names.every((name) => already.includes(name))) return console.log(`skipped: a newer run re-runs ${names.join(', ')}`);
   let check = null;
   if (env.GITHUB_EVENT_NAME === 'pull_request') {
-    const ours = JSON.parse(env.MION_LANES ?? '{}');
-    const dir = mkdtempSync(join(env.RUNNER_TEMP ?? tmpdir(), 'lane-takeover-'));
-    const seen = new Map();
-    check = () => takenOver({ours, newer: newerDecisions({gh, env, dir, seen}), names});
+    const ours = JSON.parse(env.MION_LANES);
+    const dir = join(env.RUNNER_TEMP ?? tmpdir(), 'lane-takeover');
+    mkdirSync(dir, {recursive: true});
+    check = () => takenOver({ours, newer: newerDecisions({gh, env, dir}), names});
   }
-  const {code, signal, taken} = await watchStep({command, names, check, firstMs: 60_000, everyMs: 60_000});
+  const {code, signal, taken} = await watchStep({command, names, check, pollMs});
   if (!taken) {
     process.exitCode = code ?? (signal ? 1 : 0);
     return;
@@ -230,15 +256,16 @@ async function watchMain(args, env) {
   const runs = [...new Set(taken.values())].join(', ');
   const note = `stopped: newer run ${runs} re-runs ${names.join(', ')}, so this run saves no marker for it`;
   console.log(note);
-  if (env.GITHUB_ENV) appendFileSync(env.GITHUB_ENV, `MION_TAKEN_OVER=${[...already, ...names].join(' ')}\n`);
-  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${note}\n`);
+  appendFileSync(env.GITHUB_ENV, `MION_TAKEN_OVER=${[...already, ...names].join(' ')}\n`);
+  appendFileSync(env.GITHUB_STEP_SUMMARY, `${note}\n`);
 }
 
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
-const gh = (args) => capture('gh', args);
+const ghCli = (args) => capture('gh', args);
 
-export function main(args, env = process.env) {
-  if (args.includes('--watch')) return watchMain(args, env);
+// Tests pass a fake `gh`, their own env and a short poll.
+export function main(args, {gh = ghCli, env = process.env, pollMs = 60_000} = {}) {
+  if (args.includes('--watch')) return watchMain(args, {gh, env, pollMs});
   const decisionFile = flagValues(args, '--decision')[0];
   if (!decisionFile) die('--decision <file> is required');
   if (args.includes('--wait')) {
@@ -254,18 +281,18 @@ export function main(args, env = process.env) {
   }
   if (!args.includes('--plan')) die('pass --plan or --wait');
   const out = flagValues(args, '--out')[0];
-  if (!out) die('--plan needs --out <file>');
-  const olderFile = flagValues(args, '--older')[0];
-  const plan = supersede({ours: readJson(decisionFile), older: olderFile ? readJson(olderFile) : []});
+  const dir = flagValues(args, '--older-dir')[0];
+  if (!out || !dir) die('--plan needs --out <file> and --older-dir <dir>');
+  const plan = supersede({ours: readJson(decisionFile), older: olderRuns({gh, env, dir})});
   const waitingOn = (runId) => Object.keys(plan.deferred).filter((key) => plan.deferred[key] === runId).join(', ');
   for (const runId of plan.cancel) noteErr(`cancel run ${runId}: ${plan.reasons[runId]}`);
   for (const runId of plan.keep) noteErr(`keep run ${runId}; these wait on it: ${waitingOn(runId)}`);
   writeFileSync(out, JSON.stringify(plan.lanes));
   if (!args.includes('--github')) return;
 
-  appendFileSync(process.env.GITHUB_OUTPUT, `cancel=${plan.cancel.join(' ')}\n`);
+  appendFileSync(env.GITHUB_OUTPUT, `cancel=${plan.cancel.join(' ')}\n`);
   const rows = [...plan.cancel.map((runId) => `| ${runId} | cancel: ${plan.reasons[runId]} | |`), ...plan.keep.map((runId) => `| ${runId} | keep | ${waitingOn(runId)} |`)];
-  if (rows.length > 0) appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['### Older runs', '', '| run | verdict | lanes waiting on it |', '| --- | --- | --- |', ...rows, ''].join('\n'));
+  if (rows.length > 0) appendFileSync(env.GITHUB_STEP_SUMMARY, ['### Older runs', '', '| run | verdict | lanes waiting on it |', '| --- | --- | --- |', ...rows, ''].join('\n'));
 }
 
 if (import.meta.main) {

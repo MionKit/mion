@@ -73,9 +73,9 @@ jobs:
   # false} means "cannot tell", which MUST run the lane — never skip on doubt.
   decide:
     name: should the lane run
-    needs: lanes
-    # A proven lane needs no answer; a deferred one keeps `run`, so its waiter's verdict still finds one.
-    if: fromJSON(needs.lanes.outputs.lanes).drizzle.run
+    needs: [lanes, drizzle-wait]
+    # After the waiter, so a lane the older run proves needs no answer and no full-history checkout.
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
