@@ -699,7 +699,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         expect(run.error).toBeNull();
         expect(run.warns.some((w) => w.includes("route list can't be determined at compile time"))).toBe(true);
         expect(run.sites).toEqual([]);
-        // no id slot is filled, the client's own guard throws at call time
+        // the client's own guard throws at call time
         const code = await run.transform('case.ts');
         expect(code ?? source).not.toMatch(/'b_/);
       });
