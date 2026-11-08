@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-08
 ---
 
@@ -46,3 +46,20 @@ None, because this is a packaging fix with no user-facing API change.
 - The reproduction fails before the fix and passes after, in CI.
 - Every bare side-effect import under `packages/run-types/src` is covered by `sideEffects` or replaced by a named import.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan: sideEffects entry + bundle regression (approved 2026-11-08)
+
+Delegated session, no user in the loop: planned and approved in automatic mode.
+
+- Fix: `packages/run-types/package.json` `sideEffects` gains `./src/mocking/mock*Format.ts` and its
+  `./dist/mocking/mock*Format.js` twin. Narrow on purpose: the mock subtree stays droppable from bundles that never
+  import `@mionjs/run-types/mocking` (pinned by `rpc-client/test/bundleSplit.spec.ts`). New registration files
+  named `mock<Kind>Format.ts` are covered with no edit.
+- Test: `packages/run-types/test/features/mockFormatSideEffects.test.ts` runs a real Vite production build of a
+  consumer that mocks one number, bigint and string format (type-only formats import), loads the bundle and checks
+  50 mocks validate, both marker shapes. Failed before the fix, passes after.
+- Guard in the same file: every bare `import './x.ts'` under `src` must resolve to a file a `sideEffects` glob
+  keeps, and every `./src/` glob has its `./dist/` twin.
+- Other bare imports checked: `src/index.ts`, `src/builders/index.ts`, `src/formats/index.ts` all land under
+  already-listed globs. `@mionjs/client`'s `import '@mionjs/run-types/formats'` is governed by run-types' own list.
+- Docs: none, packaging fix with no user-facing API change.
