@@ -21,7 +21,7 @@ import {
   toHttpMethod,
 } from '@mionjs/router';
 import type {MionResponse, RawRequestBody} from '@mionjs/router';
-import {Request, Response} from 'express';
+import type {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
 import {GoogleCFOptions} from './types.ts';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';

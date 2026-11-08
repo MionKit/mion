@@ -641,14 +641,25 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
-const importedModules = (file: string): string[] => {
+// Type-only imports are erased from the built JS: runtimeOnly skips them.
+const isTypeOnlyImport = (node: ts.ImportDeclaration | ts.ExportDeclaration): boolean => {
+  if (ts.isExportDeclaration(node)) return node.isTypeOnly;
+  const clause = node.importClause;
+  if (!clause) return false;
+  if (clause.isTypeOnly) return true;
+  const named = clause.namedBindings;
+  return !clause.name && !!named && ts.isNamedImports(named) && named.elements.every((element) => element.isTypeOnly);
+};
+
+const importedModules = (file: string, runtimeOnly = false): string[] => {
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
   const found: string[] = [];
   const visit = (node: ts.Node): void => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
-      ts.isStringLiteral(node.moduleSpecifier)
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      !(runtimeOnly && isTypeOnlyImport(node))
     ) {
       found.push(node.moduleSpecifier.text);
     }
@@ -2185,6 +2196,26 @@ describe('platform-bun installs without the compiler', () => {
   it('depends on core and router only', () => {
     const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/platform-bun/package.json'), 'utf8'));
     expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual(['@mionjs/core', '@mionjs/router']);
+  });
+});
+
+// The user's function runs on the functions framework, so the adapter only borrows its express types.
+describe('platform-gcloud leaves the functions framework to the user', () => {
+  const gcloud = join(REPO_ROOT, 'packages/platform-gcloud');
+
+  it('declares it as a peer, never a dependency', () => {
+    const pkg = JSON.parse(readFileSync(join(gcloud, 'package.json'), 'utf8'));
+    expect(Object.keys(pkg.dependencies ?? {})).not.toContain('@google-cloud/functions-framework');
+    expect(pkg.peerDependencies?.['@google-cloud/functions-framework']).toBeDefined();
+  });
+
+  it('no src file loads express or the framework at runtime', () => {
+    const offenders = globSync('src/**/*.ts', {cwd: gcloud}).filter((file) =>
+      importedModules(join(gcloud, file), true).some(
+        (specifier) => specifier === 'express' || specifier.startsWith('@google-cloud/functions-framework')
+      )
+    );
+    expect(offenders).toEqual([]);
   });
 });
 

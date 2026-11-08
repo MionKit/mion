@@ -81,6 +81,8 @@ minimumReleaseAgeExclude:
   - '@vitest/spy@4.1.12'
   - '@vitest/utils@4.1.12'
   - 'fast-uri@3.1.9'
+  - 'body-parser@2.4.0'
+  - 'qs@6.16.1'
   - 'unplugin'
   - '@types/node'
   - '@rolldown/binding-darwin-x64'
@@ -130,6 +132,9 @@ minimumReleaseAgeExclude:
 overrides:
   # security fix (Dependabot), added 2026-11-08: oxfmt pins tinypool 2.1.0
   'tinypool@<2.1.2': '2.1.2'
+  # security fix (Dependabot), added 2026-11-08: express 5 / functions-framework ranges still allow these
+  'body-parser@>=2.0.0 <2.4.0': '2.4.0'
+  'qs@<6.16.1': '6.16.1'
 
 # ── Block lifecycle scripts ──────────────────────────────
 # Hard-block ALL build scripts. Specific packages are re-enabled
