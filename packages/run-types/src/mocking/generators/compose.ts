@@ -3,22 +3,15 @@
 // combination fits, one is returned, and every draw goes through the shared MockRandom.
 
 import type {MockRandom} from '../mockRandom.ts';
+import type {Part, Shapes} from './types.ts';
 
-/** One slot of a composed value: its achievable lengths, how many values each length has, and a draw of one.
- *  `chars` holds every character a value can contain, `common` the ones every value contains. **/
-export interface Part {
-  readonly lengths: readonly number[];
-  readonly chars: string;
-  readonly common: string;
-  count(length: number): number;
-  draw(random: MockRandom, length: number): string;
-}
+export type {Part} from './types.ts';
 
 const DIGITS = '0123456789';
 
 /** A fixed text, like a separator. **/
 export function literalPart(text: string): Part {
-  return {lengths: [text.length], chars: text, common: text, count: () => 1, draw: () => text};
+  return {lengths: [text.length], chars: text, common: text, leading: text.charAt(0), count: () => 1, draw: () => text};
 }
 
 /** One entry of a list, uniform among the entries of the chosen length. ASCII lists only, so `.length` counts code points. **/
@@ -35,6 +28,7 @@ export function listPart(list: readonly string[]): Part {
     lengths,
     chars: [...new Set(list.join(''))].join(''),
     common,
+    leading: [...new Set(list.map((entry) => entry.charAt(0)))].join(''),
     count: (length) => byLength.get(length)?.length ?? 0,
     draw: (random, length) => {
       const bucket = byLength.get(length) as string[];
@@ -51,6 +45,7 @@ export function numberPart(minDigits: number, maxDigits: number): Part {
     lengths,
     chars: DIGITS,
     common: '',
+    leading: DIGITS.slice(1),
     count: (length) => 9 * 10 ** (length - 1),
     draw: (random, length) => String(random.int(length === 1 ? 1 : 10 ** (length - 1), 10 ** length - 1)),
   };
@@ -62,6 +57,7 @@ export function digitsPart(digits: number, leadingZero = false): Part {
     lengths: [digits],
     chars: DIGITS,
     common: '',
+    leading: leadingZero ? DIGITS : DIGITS.slice(1),
     count: () => (leadingZero ? 10 : 9) * 10 ** (digits - 1),
     draw: (random) => {
       let out = String(random.int(leadingZero ? 0 : 1, 9));
@@ -71,11 +67,14 @@ export function digitsPart(digits: number, leadingZero = false): Part {
   };
 }
 
-/** Every character a value of any shape can contain, and the ones every value contains, both sorted. **/
-export function shapeChars(shapes: readonly (readonly Part[])[]): {chars: string; required: string} {
+/** Every character a value of any shape can contain, the ones every value contains, and the ones a value can start
+ *  with, all sorted. **/
+export function shapeChars(shapes: Shapes): {chars: string; required: string; leading: string} {
   const chars = new Set<string>();
+  const leading = new Set<string>();
   let required: Set<string> | undefined;
   for (const shape of shapes) {
+    for (const char of shape[0]?.leading ?? '') leading.add(char);
     const mustHave = new Set<string>();
     for (const part of shape) {
       for (const char of part.chars) chars.add(char);
@@ -83,7 +82,11 @@ export function shapeChars(shapes: readonly (readonly Part[])[]): {chars: string
     }
     required = required ? new Set([...required].filter((char) => mustHave.has(char))) : mustHave;
   }
-  return {chars: [...chars].sort().join(''), required: [...(required ?? [])].sort().join('')};
+  return {
+    chars: [...chars].sort().join(''),
+    required: [...(required ?? [])].sort().join(''),
+    leading: [...leading].sort().join(''),
+  };
 }
 
 /** Every total length the parts can make, ascending. **/

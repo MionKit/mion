@@ -299,14 +299,14 @@ func lengthBoundViolations(params map[string]any, pool []string) []string {
 // complex param, so at most one applies. Plain Go string ops, no regex, so no RE2 concern.
 func charValueViolations(params map[string]any, pool []string) []string {
 	var messages []string
-	if val, _, ok := readCharParam(params, "allowedChars"); ok {
+	if val, _, ok := formats.ReadCharParam(params, "allowedChars"); ok {
 		allowed := runeSet(val)
 		offenders := filterSamples(pool, func(sample string) bool { return !onlyRunes(sample, allowed) })
 		if len(offenders) > 0 {
 			messages = append(messages, "sample(s) "+quoteJoin(offenders)+" contain characters outside allowedChars "+jsquote.Double(val))
 		}
 	}
-	if val, _, ok := readCharParam(params, "disallowedChars"); ok {
+	if val, _, ok := formats.ReadCharParam(params, "disallowedChars"); ok {
 		offenders := filterSamples(pool, func(sample string) bool { return strings.ContainsAny(sample, val) })
 		if len(offenders) > 0 {
 			messages = append(messages, "sample(s) "+quoteJoin(offenders)+" contain disallowed characters from disallowedChars "+jsquote.Double(val))

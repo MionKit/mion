@@ -96,10 +96,10 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	} else {
 		reportUnrecoveredPattern(ctx, params)
 	}
-	if val, flags, ok := readCharParam(params, "allowedChars"); ok {
+	if val, flags, ok := formats.ReadCharParam(params, "allowedChars"); ok {
 		conditions = append(conditions, emitPatternTest(ctx, allowedCharsSource(val), flags, vλl))
 	}
-	if val, flags, ok := readCharParam(params, "disallowedChars"); ok {
+	if val, flags, ok := formats.ReadCharParam(params, "disallowedChars"); ok {
 		conditions = append(conditions, "!"+emitPatternTest(ctx, disallowedCharsSource(val), flags, vλl))
 	}
 	if vals, flags, ok := readValuesParam(params, "allowedValues"); ok {
@@ -138,22 +138,6 @@ func lengthConditions(params map[string]any, vλl string, ctx formats.EmitContex
 		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+vλl+".length <= "+doubled+" && "+codePointLength()+" === "+bound+")")
 	}
 	return conditions
-}
-
-// readCharParam reads a `{val: string, ignoreCase?}` param object, returning the char set and the regex flags.
-func readCharParam(params map[string]any, key string) (val, flags string, ok bool) {
-	obj, isMap := params[key].(map[string]any)
-	if !isMap {
-		return "", "", false
-	}
-	val, isString := obj["val"].(string)
-	if !isString || val == "" {
-		return "", "", false
-	}
-	if ignore, _ := obj["ignoreCase"].(bool); ignore {
-		flags = "i"
-	}
-	return val, flags, true
 }
 
 // readValuesParam reads a `{val: string[], ignoreCase?}` param object; typeid lowers the tuple to a []any of
@@ -269,12 +253,12 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 	} else {
 		reportUnrecoveredPattern(ctx, params)
 	}
-	if val, flags, ok := readCharParam(params, "allowedChars"); ok {
+	if val, flags, ok := formats.ReadCharParam(params, "allowedChars"); ok {
 		test := emitPatternTest(ctx, allowedCharsSource(val), flags, vλl)
 		statements = append(statements,
 			"if (!("+test+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "allowedChars", messageLiteral(params, "allowedChars"), errorTypeExpr))
 	}
-	if val, flags, ok := readCharParam(params, "disallowedChars"); ok {
+	if val, flags, ok := formats.ReadCharParam(params, "disallowedChars"); ok {
 		test := emitPatternTest(ctx, disallowedCharsSource(val), flags, vλl)
 		statements = append(statements,
 			"if ("+test+") "+formatErrWithType(pathExpr, errorsArr, fmtName, "disallowedChars", messageLiteral(params, "disallowedChars"), errorTypeExpr))

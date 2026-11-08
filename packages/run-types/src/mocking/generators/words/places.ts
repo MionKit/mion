@@ -1,18 +1,7 @@
 // mion's own place data for the mock generators, ASCII only. One row per country, so every generator that depends on
 // a country (country, phone numbers, state, postcode) reads the same row and a later linked draw can share one pick.
 
-export interface CountryRow {
-  iso: string;
-  name: string;
-  /** Calling code digits, without the `+`. **/
-  callingCode: string;
-  /** Digits in a national number, the part after the calling code. **/
-  nationalDigits: number;
-  /** Present only where the generators know the subdivisions (`state`). **/
-  states?: readonly string[];
-  /** `#` is a digit. Present only where the generators know the format (`postcode`). **/
-  postcodeTemplates?: readonly string[];
-}
+import type {CountryRow} from '../types.ts';
 
 export const US_STATES: readonly string[] = [
   'Alabama',
@@ -68,63 +57,62 @@ export const US_STATES: readonly string[] = [
 ];
 
 export const COUNTRIES: readonly CountryRow[] = [
-  {iso: 'AR', name: 'Argentina', callingCode: '54', nationalDigits: 10},
-  {iso: 'AU', name: 'Australia', callingCode: '61', nationalDigits: 9},
-  {iso: 'AT', name: 'Austria', callingCode: '43', nationalDigits: 10},
-  {iso: 'BD', name: 'Bangladesh', callingCode: '880', nationalDigits: 10},
-  {iso: 'BE', name: 'Belgium', callingCode: '32', nationalDigits: 9},
-  {iso: 'BR', name: 'Brazil', callingCode: '55', nationalDigits: 11},
-  {iso: 'CA', name: 'Canada', callingCode: '1', nationalDigits: 10},
-  {iso: 'CL', name: 'Chile', callingCode: '56', nationalDigits: 9},
-  {iso: 'CN', name: 'China', callingCode: '86', nationalDigits: 11},
-  {iso: 'CO', name: 'Colombia', callingCode: '57', nationalDigits: 10},
-  {iso: 'CZ', name: 'Czech Republic', callingCode: '420', nationalDigits: 9},
-  {iso: 'DK', name: 'Denmark', callingCode: '45', nationalDigits: 8},
-  {iso: 'EG', name: 'Egypt', callingCode: '20', nationalDigits: 10},
-  {iso: 'FI', name: 'Finland', callingCode: '358', nationalDigits: 9},
-  {iso: 'FR', name: 'France', callingCode: '33', nationalDigits: 9},
-  {iso: 'DE', name: 'Germany', callingCode: '49', nationalDigits: 10},
-  {iso: 'GR', name: 'Greece', callingCode: '30', nationalDigits: 10},
-  {iso: 'IN', name: 'India', callingCode: '91', nationalDigits: 10},
-  {iso: 'ID', name: 'Indonesia', callingCode: '62', nationalDigits: 10},
-  {iso: 'IE', name: 'Ireland', callingCode: '353', nationalDigits: 9},
-  {iso: 'IL', name: 'Israel', callingCode: '972', nationalDigits: 9},
-  {iso: 'IT', name: 'Italy', callingCode: '39', nationalDigits: 10},
-  {iso: 'JP', name: 'Japan', callingCode: '81', nationalDigits: 10},
-  {iso: 'KE', name: 'Kenya', callingCode: '254', nationalDigits: 9},
-  {iso: 'MY', name: 'Malaysia', callingCode: '60', nationalDigits: 9},
-  {iso: 'MX', name: 'Mexico', callingCode: '52', nationalDigits: 10},
-  {iso: 'MA', name: 'Morocco', callingCode: '212', nationalDigits: 9},
-  {iso: 'NL', name: 'Netherlands', callingCode: '31', nationalDigits: 9},
-  {iso: 'NZ', name: 'New Zealand', callingCode: '64', nationalDigits: 9},
-  {iso: 'NG', name: 'Nigeria', callingCode: '234', nationalDigits: 10},
-  {iso: 'NO', name: 'Norway', callingCode: '47', nationalDigits: 8},
-  {iso: 'PK', name: 'Pakistan', callingCode: '92', nationalDigits: 10},
-  {iso: 'PE', name: 'Peru', callingCode: '51', nationalDigits: 9},
-  {iso: 'PH', name: 'Philippines', callingCode: '63', nationalDigits: 10},
-  {iso: 'PL', name: 'Poland', callingCode: '48', nationalDigits: 9},
-  {iso: 'PT', name: 'Portugal', callingCode: '351', nationalDigits: 9},
-  {iso: 'SA', name: 'Saudi Arabia', callingCode: '966', nationalDigits: 9},
-  {iso: 'SG', name: 'Singapore', callingCode: '65', nationalDigits: 8},
-  {iso: 'ZA', name: 'South Africa', callingCode: '27', nationalDigits: 9},
-  {iso: 'KR', name: 'South Korea', callingCode: '82', nationalDigits: 10},
-  {iso: 'ES', name: 'Spain', callingCode: '34', nationalDigits: 9},
-  {iso: 'SE', name: 'Sweden', callingCode: '46', nationalDigits: 9},
-  {iso: 'CH', name: 'Switzerland', callingCode: '41', nationalDigits: 9},
-  {iso: 'TH', name: 'Thailand', callingCode: '66', nationalDigits: 9},
-  {iso: 'TR', name: 'Turkey', callingCode: '90', nationalDigits: 10},
-  {iso: 'UA', name: 'Ukraine', callingCode: '380', nationalDigits: 9},
-  {iso: 'AE', name: 'United Arab Emirates', callingCode: '971', nationalDigits: 9},
-  {iso: 'GB', name: 'United Kingdom', callingCode: '44', nationalDigits: 10},
+  {name: 'Argentina', callingCode: '54', nationalDigits: 10},
+  {name: 'Australia', callingCode: '61', nationalDigits: 9},
+  {name: 'Austria', callingCode: '43', nationalDigits: 10},
+  {name: 'Bangladesh', callingCode: '880', nationalDigits: 10},
+  {name: 'Belgium', callingCode: '32', nationalDigits: 9},
+  {name: 'Brazil', callingCode: '55', nationalDigits: 11},
+  {name: 'Canada', callingCode: '1', nationalDigits: 10},
+  {name: 'Chile', callingCode: '56', nationalDigits: 9},
+  {name: 'China', callingCode: '86', nationalDigits: 11},
+  {name: 'Colombia', callingCode: '57', nationalDigits: 10},
+  {name: 'Czech Republic', callingCode: '420', nationalDigits: 9},
+  {name: 'Denmark', callingCode: '45', nationalDigits: 8},
+  {name: 'Egypt', callingCode: '20', nationalDigits: 10},
+  {name: 'Finland', callingCode: '358', nationalDigits: 9},
+  {name: 'France', callingCode: '33', nationalDigits: 9},
+  {name: 'Germany', callingCode: '49', nationalDigits: 10},
+  {name: 'Greece', callingCode: '30', nationalDigits: 10},
+  {name: 'India', callingCode: '91', nationalDigits: 10},
+  {name: 'Indonesia', callingCode: '62', nationalDigits: 10},
+  {name: 'Ireland', callingCode: '353', nationalDigits: 9},
+  {name: 'Israel', callingCode: '972', nationalDigits: 9},
+  {name: 'Italy', callingCode: '39', nationalDigits: 10},
+  {name: 'Japan', callingCode: '81', nationalDigits: 10},
+  {name: 'Kenya', callingCode: '254', nationalDigits: 9},
+  {name: 'Malaysia', callingCode: '60', nationalDigits: 9},
+  {name: 'Mexico', callingCode: '52', nationalDigits: 10},
+  {name: 'Morocco', callingCode: '212', nationalDigits: 9},
+  {name: 'Netherlands', callingCode: '31', nationalDigits: 9},
+  {name: 'New Zealand', callingCode: '64', nationalDigits: 9},
+  {name: 'Nigeria', callingCode: '234', nationalDigits: 10},
+  {name: 'Norway', callingCode: '47', nationalDigits: 8},
+  {name: 'Pakistan', callingCode: '92', nationalDigits: 10},
+  {name: 'Peru', callingCode: '51', nationalDigits: 9},
+  {name: 'Philippines', callingCode: '63', nationalDigits: 10},
+  {name: 'Poland', callingCode: '48', nationalDigits: 9},
+  {name: 'Portugal', callingCode: '351', nationalDigits: 9},
+  {name: 'Saudi Arabia', callingCode: '966', nationalDigits: 9},
+  {name: 'Singapore', callingCode: '65', nationalDigits: 8},
+  {name: 'South Africa', callingCode: '27', nationalDigits: 9},
+  {name: 'South Korea', callingCode: '82', nationalDigits: 10},
+  {name: 'Spain', callingCode: '34', nationalDigits: 9},
+  {name: 'Sweden', callingCode: '46', nationalDigits: 9},
+  {name: 'Switzerland', callingCode: '41', nationalDigits: 9},
+  {name: 'Thailand', callingCode: '66', nationalDigits: 9},
+  {name: 'Turkey', callingCode: '90', nationalDigits: 10},
+  {name: 'Ukraine', callingCode: '380', nationalDigits: 9},
+  {name: 'United Arab Emirates', callingCode: '971', nationalDigits: 9},
+  {name: 'United Kingdom', callingCode: '44', nationalDigits: 10},
   {
-    iso: 'US',
     name: 'United States',
     callingCode: '1',
     nationalDigits: 10,
     states: US_STATES,
     postcodeTemplates: ['#####', '#####-####'],
   },
-  {iso: 'VN', name: 'Vietnam', callingCode: '84', nationalDigits: 9},
+  {name: 'Vietnam', callingCode: '84', nationalDigits: 9},
 ];
 
 export const CITIES: readonly string[] = [
