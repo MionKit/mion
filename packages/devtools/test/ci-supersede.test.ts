@@ -496,7 +496,7 @@ describe('the run listing', () => {
   });
 });
 
-// Real child processes: a `pid` file shows what the command started, so the test can tell it is gone.
+// Real child processes: a `pid` file names what the command started, so the test can tell it is gone.
 const gone = async (pid: number) => {
   for (let tries = 0; tries < 50; tries++) {
     try {
