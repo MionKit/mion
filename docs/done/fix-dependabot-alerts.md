@@ -1,11 +1,14 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-11-08
 ---
 
 # Clear the 404 open Dependabot alerts
+
+> Shipped 2026-11-08. The plan below is what was approved; **What shipped** (near the end) records where the
+> build diverged and why. Read that first.
 
 ## Problem
 
@@ -175,6 +178,45 @@ suites specifically, the before/after `.d.ts` diff from step 1b, CI lanes for ev
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
 this change touched, review its report against the code, and commit it as its own commit.
+
+## What shipped
+
+Where the build left the plan above:
+
+- **miniflare 4.20260730.0**, the newest release past the 30-day cutoff, not the oldest that fixes the alerts:
+  its version is a workerd runtime date, so an older one only tests against an older runtime.
+- **Root overrides** (`pnpm-workspace.yaml`): `tinypool` (oxfmt pins 2.1.0 exactly; bumping oxfmt changes
+  formatting), `body-parser` 2.4.0 and `qs` 6.16.1 (express 5 ranges still allow the bad copies).
+  `@types/express` 4.17.25 → 5.0.6 to match framework 5.
+- **vite 8.1.6 deprecation:** `inlineDynamicImports: true` → `codeSplitting: false` in the four private-package
+  vite configs and `container/pre-publish-e2e/mion-consumer/edge/vite.config.ts` (same output, no warning).
+- **vite-plugin-dts 5:** all 514 emitted `.d.ts` files byte-identical before and after.
+- **platform-gcloud test:** the contract lives in `packages/devtools/test/repo-contracts.test.ts` beside the
+  platform-bun one (no runtime import of express or the framework in `src/`, framework only as a peer);
+  it fails on the old value import. The built JS mentions express only in comments.
+- **`minimatch` 10.2.5 (root) left:** its only parent is `rimraf` 6.1.3 → `glob` 13; the fix needs rimraf 6.1.4 +
+  glob 14 + minimatch 11 + `path-scurry` 3 + a brand-new `@isaacs/nonrecursive-glob-match`, all under 30 days old,
+  for a dev-only cleanup tool fed our own patterns. minimatch 11 drops APIs glob 13 uses, so no override either.
+- **Website: nuxt 4.5.2, not 4.6.3.** 4.6.x needs vite ^8.3.4 and vue ^3.5.44, about 50 packages under 30 days
+  old. 4.5.2 clears every high nuxt alert with no exceptions; the 4 left are server- or dev-server-only.
+  **docus stays 5.9.0:** `@nuxtjs/mcp-toolkit`'s `^1.29.0` range already reaches the fixed MCP sdk.
+  In-range refresh in the container (`pnpm update --lockfile-only --depth Infinity <names>`), exact-version
+  exceptions (`@intlify/*` + vue-i18n 11.4.14, `@nuxt/devtools*` 3.4.3, which drops simple-git, body-parser,
+  dompurify, fast-uri, ip-address, node-forge, qs, serialize-javascript, zod), overrides for
+  `@ai-sdk/provider-utils`, `vue` (dedupes a 3.5.34 peer copy), `ws`, `zod` 4.x. 243 → 18 open.
+- **Benchmarks: not rerun** (maintainer's call). Every lane, mion included, builds and passes
+  `pnpm miondevx bench smoke` on vite 8.1.6. The compile-time bench config is already lean
+  (`minify: false`, `reportCompressedSize: false`): no vite option worth tuning. `bench servers` not run.
+- **e2e:** next 16.4.1 needs its 10 lockstep packages (`next`, `@next/env`, 8 `@next/swc-*`) as exact exceptions.
+- **Unplanned test fix:** `packages/run-types/test/features/mockFormatSideEffects.test.ts` built its fixture from
+  `os.tmpdir()`, a symlink on macOS, which the devtools plugin rightly refuses; now `realpathSync` first.
+
+Alerts left for dismissal, each with the maintainer's OK: root `uuid` (cloudevents pins `^8` at every major) and
+`minimatch` (above); website `nuxt` / `@nuxt/nitro-server` / `@nuxt/vite-builder` (server or dev server only,
+static site), `@nuxtjs/mdc` (XSS from untrusted markdown; ours is our own; fix is a 0.x minor docus does not
+allow), `zod` 3.25.76 (`@nuxt/content` pins `^3`; fix only in 4.x), `sharp` 0.34.5 (librsvg CVE; ipx only sees
+our own images; 0.35 swaps the native binaries), `esbuild` 0.27.7 (Windows dev server only), `katex` 0.16 (low;
+mermaid pins `^0.16`), `glob` / `minimatch` majors, `deepmerge` (no fix exists).
 
 ## Out of scope
 
