@@ -474,6 +474,22 @@ describe('batch build shapes end to end', () => {
     expect(user).toEqual({id: 13, orgId: 130, tagIds: [13, 14]});
   });
 
+  it('a mapped route call next to a helper item: the lookup key names the mapped argument', async () => {
+    const sumOf = (value: number) => routes.utils.sumTwo(value);
+    const user = routes.flow.getUser(16);
+    const entries = await batch([
+      user,
+      routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
+      sumOf(16),
+    ]).call();
+    const [[userValue, , clientResponse], [org], [sum]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined, undefined]);
+    expect(userValue).toEqual({id: 16, orgId: 160, tagIds: [16, 17]});
+    expect(org).toEqual({id: 160, name: 'Org 160'});
+    expect(sum).toBe(18);
+  });
+
   it('a ternary item runs whichever route it picked, one compiled batch per choice', async () => {
     for (const wantUser of [true, false]) {
       const first = wantUser ? routes.flow.getUser(14) : routes.flow.getOrg(140);
@@ -818,13 +834,13 @@ describe('batch runtime behaviour', () => {
     expect((caught as RpcError<string>).type).toBe('batch-missing-id');
   });
 
-  it('batch-missing-id when an out-of-sight route call carries a mapping the build could not read', () => {
+  it('batch-missing-id when a route call the build cannot see carries a mapping', () => {
     const user = routes.flow.getUser(1);
-    // the mapping sits in the helper's body, where the build does not look
-    const orgOf = () => routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg());
+    // the mapped call sits in an object property, where the build does not look
+    const holder = {org: routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())};
     let caught: unknown;
     try {
-      batch([user, orgOf()]);
+      batch([user, holder.org]);
     } catch (error) {
       caught = error;
     }

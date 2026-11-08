@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
@@ -73,21 +74,10 @@ func (scope *fileScope) routeSubRequestIds(routeType *checker.Type) ([]string, s
 	if len(arguments) <= routeIdTypeArgument {
 		return nil, reasonIdNotLiteral
 	}
-	idType := arguments[routeIdTypeArgument]
-	idTypes := []*checker.Type{idType}
-	if checker.Type_flags(idType)&checker.TypeFlagsUnion != 0 {
-		idTypes = idType.Types()
-	}
-	ids := make([]string, 0, len(idTypes))
-	for _, member := range idTypes {
-		if checker.Type_flags(member)&checker.TypeFlagsStringLiteral == 0 {
-			return nil, reasonIdNotLiteral
-		}
-		id, ok := member.AsLiteralType().Value().(string)
-		if !ok {
-			return nil, reasonIdNotLiteral
-		}
-		ids = append(ids, id)
+	// The same reader the client-bundle lane uses, so the server table and the bundle agree on every call.
+	ids, kind := apimeta.ReadIds(arguments[routeIdTypeArgument])
+	if kind != apimeta.IdsLiteral {
+		return nil, reasonIdNotLiteral
 	}
 	return ids, ""
 }
@@ -106,30 +96,34 @@ func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	return declaration != nil && declaration.Kind == ast.KindFunctionType && marker.DeclaringModuleOfNode(declaration, scope.markerOpts.FS) == ClientModule
 }
 
-// mappingCall finds the route call holding an item's mappings. opaque: out of sight (helper result, property,
-// parameter, reassigned variable), checked at runtime via batchIdLiteral. reason: a mapping seen but unreadable.
-func (scope *fileScope) mappingCall(item *ast.Node) (call *ast.Node, opaque bool, reason string) {
+// mappingCall finds the route call holding an item's mappings: the item itself or the variable it names. A non-empty
+// reason marks a mapping the build can see but not read. A mapping it cannot see is caught at runtime (batchIdLiteral).
+func (scope *fileScope) mappingCall(item *ast.Node) (*ast.Node, string) {
 	unwrapped := unwrap(item)
 	if unwrapped == nil {
-		return nil, true, ""
+		return nil, ""
 	}
 	if scope.isRouteCall(unwrapped) {
-		return unwrapped, false, ""
+		return unwrapped, ""
 	}
 	if unwrapped.Kind == ast.KindIdentifier {
 		return scope.boundMappingCall(unwrapped)
 	}
-	if scope.containsMapperCall(unwrapped) {
-		return nil, true, reasonMapperOutsideRouteCall
+	if scope.reachesMapperCall(unwrapped) {
+		return nil, reasonMapperOutsideRouteCall
 	}
-	return nil, true, ""
+	return nil, ""
 }
 
 // boundMappingCall is mappingCall for an item written as a name.
-func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, bool, string) {
+func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, string) {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
-		return nil, true, ""
+		return nil, ""
+	}
+	// A redeclared `var` may run any of its initializers.
+	if len(symbol.Declarations) > 1 {
+		return nil, ""
 	}
 	for _, declaration := range symbol.Declarations {
 		variable := declaration
@@ -139,30 +133,53 @@ func (scope *fileScope) boundMappingCall(identifier *ast.Node) (*ast.Node, bool,
 		if variable == nil || variable.Kind != ast.KindVariableDeclaration {
 			continue
 		}
-		var initializer *ast.Node
-		if variableDecl := variable.AsVariableDeclaration(); variableDecl.Initializer != nil {
-			initializer = unwrap(variableDecl.Initializer)
+		initializer := variableInitializer(variable)
+		if scope.writesMapper(symbol, variable) {
+			return nil, reasonMappedRouteReassigned
 		}
-		if writes := scope.assignedValues(symbol, variable); len(writes) > 0 {
-			for _, value := range append(writes, initializer) {
-				if value != nil && scope.containsMapperCall(value) {
-					return nil, true, reasonMappedRouteReassigned
-				}
-			}
-			return nil, true, ""
-		}
-		if initializer == nil {
-			return nil, true, ""
+		if len(scope.assignedValues(symbol, variable)) > 0 || initializer == nil {
+			return nil, ""
 		}
 		if variable == declaration && scope.isRouteCall(initializer) {
-			return initializer, false, ""
+			return initializer, ""
 		}
-		if scope.containsMapperCall(initializer) {
-			return nil, true, reasonMapperOutsideRouteCall
+		if scope.reachesMapperCall(initializer) {
+			return nil, reasonMapperOutsideRouteCall
 		}
-		return nil, true, ""
+		return nil, ""
 	}
-	return nil, true, ""
+	return nil, ""
+}
+
+// writesMapper reports whether a reassigned variable's initializer or any later write holds a mapper call.
+func (scope *fileScope) writesMapper(symbol *ast.Symbol, declaration *ast.Node) bool {
+	writes := scope.assignedValues(symbol, declaration)
+	if len(writes) == 0 {
+		return false
+	}
+	for _, value := range append(writes, variableInitializer(declaration)) {
+		if value != nil && scope.containsMapperCall(value) {
+			return true
+		}
+	}
+	return false
+}
+
+// reachesMapperCall is containsMapperCall over an expression plus, for a call to a function this program
+// declares, that function's body: a helper returning a mapped route call.
+func (scope *fileScope) reachesMapperCall(node *ast.Node) bool {
+	if scope.containsMapperCall(node) {
+		return true
+	}
+	if node.Kind != ast.KindCallExpression {
+		return false
+	}
+	signature := checker.Checker_getResolvedSignature(scope.typeChecker, node, nil, 0)
+	if signature == nil {
+		return false
+	}
+	declaration := checker.Signature_declaration(signature)
+	return declaration != nil && declaration.Body() != nil && scope.containsMapperCall(declaration.Body())
 }
 
 // containsMapperCall reports whether a branded mapper-factory call sits anywhere under node.
@@ -193,13 +210,9 @@ func (finder *mapperCallFinder) visit(node *ast.Node) bool {
 	return finder.found
 }
 
-// blockScopedInitializer returns the unwrapped initializer of a `const` / `let` declaration, nil for `var`.
-func blockScopedInitializer(declaration *ast.Node) *ast.Node {
+// variableInitializer returns the unwrapped initializer of a variable declaration, nil when it has none.
+func variableInitializer(declaration *ast.Node) *ast.Node {
 	if declaration == nil || declaration.Kind != ast.KindVariableDeclaration {
-		return nil
-	}
-	parent := declaration.Parent
-	if parent == nil || parent.Flags&(ast.NodeFlagsConst|ast.NodeFlagsLet) == 0 {
 		return nil
 	}
 	variableDecl := declaration.AsVariableDeclaration()
@@ -209,7 +222,7 @@ func blockScopedInitializer(declaration *ast.Node) *ast.Node {
 	return unwrap(variableDecl.Initializer)
 }
 
-// bindingInitializer resolves a mapper written as a name to its const / let initializer; reassigned means that
+// bindingInitializer resolves a mapper written as a name to its variable's initializer; reassigned means that
 // initializer may not be what runs, and nil without reassigned is a name the build cannot read.
 func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *ast.Node, reassigned bool) {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
@@ -217,7 +230,7 @@ func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *a
 		return nil, false
 	}
 	for _, declaration := range symbol.Declarations {
-		initializer := blockScopedInitializer(declaration)
+		initializer := variableInitializer(declaration)
 		if initializer == nil {
 			continue
 		}

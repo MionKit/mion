@@ -368,7 +368,7 @@ const (
 	// the SERVER build from its own program, so the server owns every file it loads.
 	RpcModuleDir = "rpc"
 	// BatchKeyRouteSeparator / BatchKeyMappedArgMark build the `batch()` id lookup key `users/getById,orders/list#0`
-	// (each route id, then its mapped argument indexes). No route id holds either; gen-ts-constants mirrors them.
+	// (each route id, then its mapped argument indexes). The router refuses both in a route name; gen-ts-constants mirrors them.
 	BatchKeyRouteSeparator = ","
 	BatchKeyMappedArgMark  = "#"
 	// ApiModuleDir holds what a CLIENT build bundles under `client.routes: 'bundle'`: `api/m/<id>.js` per called route
