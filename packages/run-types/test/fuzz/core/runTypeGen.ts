@@ -20,9 +20,9 @@
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
-import {mockGeneratorMeta} from '../../../src/go-generated/mockGeneratorMeta.generated.ts';
+import * as GEN from '../../../src/go-generated/mockGenerators.generated.ts';
 
-const GENERATOR_NAMES = Object.keys(mockGeneratorMeta);
+const GENERATOR_NAMES = Object.keys(GEN);
 
 /** Tuning knobs for `randomRunType` (mirrors typeGen's `GenOptions` shape). **/
 export interface RunTypeGenOptions {

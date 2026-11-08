@@ -11,14 +11,14 @@ never mix generated and manual code in one file.
 
 ## What's here
 
-| File                             | Generator                   | Go source of truth                                                            |
-| -------------------------------- | --------------------------- | ----------------------------------------------------------------------------- |
-| `runTypeKind.generated.ts`       | `cmd/gen-run-type-kind`     | `internal/reflection/runtype.go` + `internal/reflection/subkind.go`           |
-| `fnHashes.generated.ts`          | `cmd/gen-fn-hashes`         | `internal/cachegen/operations` (registry + fnhash salt)                       |
-| `typeFormats.generated.ts`       | `cmd/gen-type-formats`      | `internal/cachegen/typefunctions/formats` (emitter registry)                  |
-| `formatErrorKeys.generated.ts`   | `cmd/gen-format-error-keys` | `internal/cachegen/typefunctions/formats` (error keys + samples)              |
-| `mockGenerators.generated.ts`    | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (the `GEN` names) |
-| `mockGeneratorMeta.generated.ts` | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (lengths + chars) |
+| File                                 | Generator                   | Go source of truth                                                            |
+| ------------------------------------ | --------------------------- | ----------------------------------------------------------------------------- |
+| `runTypeKind.generated.ts`           | `cmd/gen-run-type-kind`     | `internal/reflection/runtype.go` + `internal/reflection/subkind.go`           |
+| `fnHashes.generated.ts`              | `cmd/gen-fn-hashes`         | `internal/cachegen/operations` (registry + fnhash salt)                       |
+| `typeFormats.generated.ts`           | `cmd/gen-type-formats`      | `internal/cachegen/typefunctions/formats` (emitter registry)                  |
+| `formatErrorKeys.generated.ts`       | `cmd/gen-format-error-keys` | `internal/cachegen/typefunctions/formats` (error keys + samples)              |
+| `mockGenerators.generated.ts`        | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (the `GEN` names) |
+| `builtinMockGenerators.generated.ts` | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (names)           |
 
 ## Regenerate
 
@@ -27,7 +27,7 @@ pnpm miondevx core codegen kind        # runTypeKind.generated.ts (+ the devtool
 pnpm miondevx core codegen fnhashes    # fnHashes.generated.ts
 pnpm miondevx core codegen typeformats # typeFormats.generated.ts
 pnpm miondevx core codegen errorkeys   # formatErrorKeys.generated.ts
-pnpm miondevx core codegen mockgenerators # mockGenerators + mockGeneratorMeta .generated.ts
+pnpm miondevx core codegen mockgenerators # mockGenerators + builtinMockGenerators .generated.ts
 pnpm miondevx core codegen all         # every Go→TS mirror in the repo
 ```
 

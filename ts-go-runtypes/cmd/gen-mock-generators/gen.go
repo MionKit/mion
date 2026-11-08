@@ -3,7 +3,6 @@ package main
 import (
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -20,7 +19,7 @@ func outputs() []output {
 	dir := filepath.Join(monorepoRoot(), "packages", "run-types", "src", "go-generated")
 	return []output{
 		{filepath.Join(dir, "mockGenerators.generated.ts"), GenerateNames},
-		{filepath.Join(dir, "mockGeneratorMeta.generated.ts"), GenerateMeta},
+		{filepath.Join(dir, "builtinMockGenerators.generated.ts"), GenerateBuiltinNames},
 	}
 }
 
@@ -43,50 +42,19 @@ func GenerateNames() string {
 	return builder.String()
 }
 
-// GenerateMeta renders the names interface and the length / character table.
-func GenerateMeta() string {
+// GenerateBuiltinNames renders the names interface and the replacement chars, import-free so the MockData type
+// harness can inline it.
+func GenerateBuiltinNames() string {
 	var builder strings.Builder
 	builder.WriteString(header)
-	builder.WriteString("// The built-in mock generators: their names, and the lengths (code points) and characters each one can produce.\n\n")
+	builder.WriteString("// The built-in mock generator names, as the keys of one interface, and the chars a rejected char may become.\n\n")
 	builder.WriteString("/** One key per built-in mock generator name. **/\n")
 	builder.WriteString("export interface BuiltinMockGenerators {\n")
 	for _, row := range formats.MockGenerators {
 		builder.WriteString("  " + row.Name + ": true;\n")
 	}
 	builder.WriteString("}\n\n")
-	builder.WriteString("export interface MockGeneratorMeta {\n")
-	builder.WriteString("  /** Achievable lengths in code points, inclusive ranges, ascending. **/\n")
-	builder.WriteString("  lengths: readonly (readonly [number, number])[];\n")
-	builder.WriteString("  /** Every character an output can contain, sorted. **/\n")
-	builder.WriteString("  chars: string;\n")
-	builder.WriteString("  /** The characters every output contains, sorted. **/\n")
-	builder.WriteString("  required: string;\n")
-	builder.WriteString("  /** The characters an output can start with, sorted. **/\n")
-	builder.WriteString("  leading: string;\n")
-	builder.WriteString("}\n\n")
-	builder.WriteString("export const mockGeneratorMeta: Readonly<Record<keyof BuiltinMockGenerators, MockGeneratorMeta>> = {\n")
-	for _, row := range formats.MockGenerators {
-		spans := make([]string, len(row.Lengths))
-		for i, span := range row.Lengths {
-			spans[i] = "[" + strconv.Itoa(span.Min) + ", " + strconv.Itoa(span.Max) + "]"
-		}
-		builder.WriteString("  " + row.Name + ": {\n")
-		// The formatter keeps one span inline and puts several on their own lines; match it so the drift check holds.
-		if len(spans) == 1 {
-			builder.WriteString("    lengths: [" + spans[0] + "],\n")
-		} else {
-			builder.WriteString("    lengths: [\n      " + strings.Join(spans, ",\n      ") + ",\n    ],\n")
-		}
-		builder.WriteString("    chars: " + quote(row.Chars) + ",\n")
-		builder.WriteString("    required: " + quote(row.Required) + ",\n")
-		builder.WriteString("    leading: " + quote(row.Leading) + ",\n")
-		builder.WriteString("  },\n")
-	}
-	builder.WriteString("};\n")
+	builder.WriteString("/** What a mock may turn a char `disallowedChars` rejects into (Go formats.MockReplacementChars). **/\n")
+	builder.WriteString("export const MOCK_REPLACEMENT_CHARS = '" + formats.MockReplacementChars + "';\n")
 	return builder.String()
-}
-
-// quote renders a single-quoted TS string; the table holds plain ASCII without quotes or backslashes.
-func quote(text string) string {
-	return "'" + strings.ReplaceAll(strings.ReplaceAll(text, `\`, `\\`), "'", `\'`) + "'"
 }

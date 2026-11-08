@@ -14,12 +14,9 @@ export interface GeneratorContext {
 
 export type GeneratorFn = (ctx: GeneratorContext) => string;
 
-/** `common`: chars in every value; `leading`: chars a value can start with; `count`: values of one length. **/
+/** One slot of a composed value; `count`: how many values one length holds. **/
 export interface Part {
   readonly lengths: readonly number[];
-  readonly chars: string;
-  readonly common: string;
-  readonly leading: string;
   count(length: number): number;
   draw(random: MockRandom, length: number): string;
 }

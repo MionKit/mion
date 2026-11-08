@@ -1,11 +1,12 @@
-// mockFromGenerator pads or cuts a drawn value to the length bounds, then keeps it only if the format's pattern and
-// char rules accept it, so the mock always re-passes its own validator.
+// mockFromGenerator fits a drawn value to the format (fit.ts) and keeps it only if every format rule accepts it, so the
+// mock always re-passes its own validator.
 
 import type {CustomMockGenerators} from '../../formats/index.ts';
-import type {BuiltinMockGenerators} from '../../go-generated/mockGeneratorMeta.generated.ts';
+import type {BuiltinMockGenerators} from '../../go-generated/builtinMockGenerators.generated.ts';
 import type {StringParams} from '../../formats/string/stringFormats.ts';
 import type {MockRandom} from '../mockRandom.ts';
-import {codePointLength, stringParamsAccept} from '../stringParamsAccept.ts';
+import {stringParamsAccept} from '../stringParamsAccept.ts';
+import {fitCandidates, fitContext} from './fit.ts';
 import {BUILTIN_GENERATORS} from './builtins.ts';
 import type {GeneratorFn} from './types.ts';
 
@@ -42,11 +43,9 @@ export function mockFromGenerator(name: string, params: StringParams, random: Mo
     stringParamsAccept(value, params as Record<string, unknown>, (key) => {
       throw new Error(`Mock generator \`${name}\`: no run-time test for the string param '${key}'.`);
     });
-  const charSets = {allowedChars: params.allowedChars, disallowedChars: params.disallowedChars};
-  const keepChar = (char: string): boolean => stringParamsAccept(char, charSets, () => true);
-  const bounds: Bounds = {lo: lo ?? 0, hi: hi ?? Infinity, random};
+  const fit = fitContext(params, {lo, hi, random});
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    for (const candidate of fitToLength(draw({lo, hi}), bounds, () => draw({}), keepChar)) {
+    for (const candidate of fitCandidates(draw({lo, hi}), fit, () => draw({}))) {
       if (accepts(candidate)) return candidate;
     }
   }
@@ -63,57 +62,4 @@ function isBuiltin(name: string): name is keyof BuiltinMockGenerators {
 function lengthBounds(params: StringParams): {lo?: number; hi?: number} {
   if (params.length !== undefined) return {lo: params.length, hi: params.length};
   return {lo: params.minLength, hi: params.maxLength};
-}
-
-const PAD_LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-
-/** The value itself when it fits; else cut to `hi`, or padded to `lo` with more draws: digits after digits, then words
- *  joined by a space, then joined as is, then plain letters. Last, the value without the chars the format's char sets
- *  reject, fitted with letters. The caller keeps the first one the format accepts. **/
-function* fitToLength(value: string, bounds: Bounds, more: () => string, keepChar: (char: string) => boolean): Generator<string> {
-  const {lo, hi} = bounds;
-  const size = codePointLength(value);
-  if (size >= lo) {
-    yield cut(value, hi);
-    if (size <= hi) return;
-  } else {
-    if (/^\+?\d+$/.test(value)) yield padTo(value, bounds, () => more().replace(/\D/g, ''), '');
-    yield padTo(value, bounds, more, ' ');
-    yield padTo(value, bounds, more, '');
-  }
-  yield withLetters(value, bounds);
-  yield withLetters([...value].filter(keepChar).join(''), bounds);
-}
-
-interface Bounds {
-  lo: number;
-  hi: number;
-  random: MockRandom;
-}
-
-// An empty extra (a custom generator returning '') adds one letter instead, so padding always ends.
-function padTo(value: string, {lo, hi, random}: Bounds, extra: () => string, joiner: string): string {
-  let current = value;
-  let size = codePointLength(value);
-  while (size < lo) {
-    const next = extra();
-    const piece = next === '' ? random.string(1, PAD_LETTERS) : (current === '' ? '' : joiner) + next;
-    current += piece;
-    size += codePointLength(piece);
-  }
-  return cut(current, hi);
-}
-
-function withLetters(value: string, {lo, hi, random}: Bounds): string {
-  const size = codePointLength(value);
-  return cut(size < lo ? value + random.string(lo - size, PAD_LETTERS) : value, hi);
-}
-
-// A cut never ends on the space a word pad added: that last char becomes a letter.
-function cut(value: string, hi: number): string {
-  const chars = [...value];
-  if (chars.length <= hi) return value;
-  const kept = chars.slice(0, hi);
-  if (kept[kept.length - 1] === ' ') kept[kept.length - 1] = 'a';
-  return kept.join('');
 }

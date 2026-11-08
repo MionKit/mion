@@ -91,10 +91,15 @@ describe('mock generators: out of their natural lengths', () => {
       /^[A-Z][a-z]*( [a-z]+)*\.( [A-Z].*)?$/,
     ],
     'loremIpsum cut to 1': [TF.string({generator: GEN.loremIpsum, length: 1}), /^[A-Z]$/],
-    'email cut to 10 without _': [
+    'email cut to 10, its _ replaced': [
       TF.string({generator: GEN.email, maxLength: 10, disallowedChars: {val: '_', mockSamples: 'x'}}),
-      /^[a-z@.]{1,10}$/,
+      /^[a-z]+[A-Za-z\d ]?[a-z@.]*$/,
     ],
+    'fullName in capitals only': [
+      TF.string({generator: GEN.fullName, allowedChars: {val: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '}}),
+      /^[A-Z]+ [A-Z]+$/,
+    ],
+    'lastName from digits only': [TF.string({generator: GEN.lastName, allowedChars: {val: '0123456789'}}), /^\d{2,10}$/],
     'streetAddress cut to 7 without spaces': [
       TF.string({
         generator: GEN.streetAddress,

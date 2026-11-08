@@ -37,8 +37,8 @@ export type {
 
 // For autocomplete: `GEN.lastName` is the literal 'lastName' as a value and a type.
 export * as GEN from '../go-generated/mockGenerators.generated.ts';
-import type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
-export type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
+import type {BuiltinMockGenerators} from '../go-generated/builtinMockGenerators.generated.ts';
+export type {BuiltinMockGenerators} from '../go-generated/builtinMockGenerators.generated.ts';
 
 // #region mockgenerator-names-extract — sliced verbatim by test/types/enrichHarness.ts beside the generated meta file.
 /** Augment it via `declare module '@mionjs/run-types/formats'` to name generators for `registerMockGenerator`.

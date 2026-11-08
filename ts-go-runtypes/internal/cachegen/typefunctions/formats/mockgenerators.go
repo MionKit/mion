@@ -3,59 +3,37 @@ package formats
 import (
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
-// lenSpan is an inclusive range of lengths, in code points.
-type lenSpan struct{ Min, Max int }
-
-// MockGenerator describes a built-in generator's data exactly, so the build can reject a format it cannot satisfy.
-// mockGeneratorMeta.test.ts derives the same table from the TS data and fails when the two disagree.
+// MockGenerator names a built-in generator; mockGeneratorNames.test.ts fails when the TS built-ins name others.
 type MockGenerator struct {
 	// Name is the drizzle-seed name, also the TS const / type and the GEN member.
 	Name    string
 	Summary string
-	// Lengths are the exact achievable lengths, ascending and disjoint.
-	Lengths []lenSpan
-	// Chars: every char an output can contain; Required: in every output; Leading: can start one. All sorted.
-	Chars    string
-	Required string
-	Leading  string
 }
 
-const digits = "0123456789"
+// MockReplacementChars are what the mock may turn a char `disallowedChars` rejects into; generated into TS for fit.ts.
+const MockReplacementChars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 // MockGenerators are the built-in generators, sorted by name.
 var MockGenerators = []MockGenerator{
-	{Name: "city", Leading: "ABCDEFGHIJKLMNOPQRSTVWYZ", Summary: "A world city, like `Lisbon`.", Lengths: []lenSpan{{4, 14}},
-		Chars: " ABCDEFGHIJKLMNOPQRSTVWYZabcdefghijklmnoprstuvwxyz"},
-	{Name: "companyName", Leading: "ABCDEFGHIJKLMNOPRSTWYZ", Summary: "A company name, like `Smith Labs` or `Lee and Park`.", Lengths: []lenSpan{{5, 37}},
-		Chars: " ,-ABCDEFGHIJKLMNOPRSTVWYZabcdefghiklmnoprstuvwxyz", Required: " "},
-	{Name: "country", Leading: "ABCDEFGIJKMNPSTUV", Summary: "A country name, like `Portugal`.", Lengths: []lenSpan{{4, 14}, {20, 20}},
-		Chars: " ABCDEFGIJKMNPRSTUVZabcdefghiklmnoprstuwxyz"},
-	{Name: "email", Leading: "abcdefghijklmnopqrstvwyz", Summary: "A lowercase email address, like `brave_emma@example.com`.", Lengths: []lenSpan{{15, 33}},
-		Chars: ".@_abcdefghijklmnopqrstuvwxyz", Required: ".@_m"},
-	{Name: "firstName", Leading: "ABCDEFGHIJKLMNOPRSTVWYZ", Summary: "A first name, letters only, like `Olivia`.", Lengths: []lenSpan{{3, 9}, {11, 11}},
-		Chars: "ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnoprstuvwxyz"},
-	{Name: "fullName", Leading: "ABCDEFGHIJKLMNOPRSTVWYZ", Summary: "A first and last name, like `Olivia Garcia`.", Lengths: []lenSpan{{6, 22}},
-		Chars: " ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnoprstuvwxyz", Required: " "},
-	{Name: "jobTitle", Leading: "ABCDEFGHIJLMNOPQRSTUVW", Summary: "A job title, like `Data Analyst`.", Lengths: []lenSpan{{4, 25}},
-		Chars: " ABCDEFGHIJLMNOPQRSTUVWXabcdefghijklmnoprstuvwxy"},
-	{Name: "lastName", Leading: "ABCDEFGHIJKLMNOPRSTWYZ", Summary: "A last name, letters only, like `Smith`.", Lengths: []lenSpan{{2, 10}},
-		Chars: "ABCDEFGHIJKLMNOPRSTWYZabcdefghiklmnoprstuvwxyz"},
-	{Name: "loremIpsum", Leading: "ABCDEFGHIJLMNOPQRSTUV", Summary: "One lorem ipsum sentence ending in `.`, sized to the length bounds.", Lengths: []lenSpan{{2, 520}},
-		Chars: " .ABCDEFGHIJLMNOPQRSTUVabcdefghijlmnopqrstuv", Required: "."},
-	{Name: "phoneCountryCode", Leading: "+", Summary: "A country calling code, like `+44`.", Lengths: []lenSpan{{2, 4}},
-		Chars: "+" + digits, Required: "+"},
-	{Name: "phoneNumber", Leading: "+", Summary: "A phone number with its country code, E.164 style, like `+447700900123`.", Lengths: []lenSpan{{11, 14}},
-		Chars: "+" + digits, Required: "+"},
-	{Name: "phoneNumberLocal", Leading: "123456789", Summary: "A national phone number without the country code, digits only.", Lengths: []lenSpan{{8, 11}},
-		Chars: digits},
-	{Name: "postcode", Leading: "0123456789", Summary: "A US ZIP code, `#####` or `#####-####`.", Lengths: []lenSpan{{5, 5}, {10, 10}},
-		Chars: "-" + digits},
-	{Name: "state", Leading: "ACDFGHIKLMNOPRSTUVW", Summary: "A US state, like `Oregon`.", Lengths: []lenSpan{{4, 14}},
-		Chars: " ACDFGHIJKLMNOPRSTUVWYabcdefghiklmnoprstuvwxyz"},
-	{Name: "streetAddress", Leading: "123456789", Summary: "A street address, like `742 Evans Avenue`.", Lengths: []lenSpan{{8, 26}},
-		Chars: " " + digits + "ABCDEFGHIJKLMNOPRSTVWYZabcdefghijklmnopqrstuvwxyz", Required: " "},
+	{Name: "city", Summary: "A world city, like `Lisbon`."},
+	{Name: "companyName", Summary: "A company name, like `Smith Labs` or `Lee and Park`."},
+	{Name: "country", Summary: "A country name, like `Portugal`."},
+	{Name: "email", Summary: "A lowercase email address, like `brave_emma@example.com`."},
+	{Name: "firstName", Summary: "A first name, letters only, like `Olivia`."},
+	{Name: "fullName", Summary: "A first and last name, like `Olivia Garcia`."},
+	{Name: "jobTitle", Summary: "A job title, like `Data Analyst`."},
+	{Name: "lastName", Summary: "A last name, letters only, like `Smith`."},
+	{Name: "loremIpsum", Summary: "One lorem ipsum sentence ending in `.`, sized to the length bounds."},
+	{Name: "phoneCountryCode", Summary: "A country calling code, like `+44`."},
+	{Name: "phoneNumber", Summary: "A phone number with its country code, E.164 style, like `+447700900123`."},
+	{Name: "phoneNumberLocal", Summary: "A national phone number without the country code, digits only."},
+	{Name: "postcode", Summary: "A US ZIP code, `#####` or `#####-####`."},
+	{Name: "state", Summary: "A US state, like `Oregon`."},
+	{Name: "streetAddress", Summary: "A street address, like `742 Evans Avenue`."},
 }
 
 // lookupMockGenerator finds a built-in generator by name.
@@ -68,7 +46,7 @@ func lookupMockGenerator(name string) (MockGenerator, bool) {
 }
 
 // GeneratorProblems lists why `generator` cannot mock a format; a MockData one (fromData) overrides mockSamples.
-// A name not built in is a custom run-time generator: no table, so only param combinations are checked.
+// A custom name (not built in) skips the replacement-char check: its values are unknown.
 func GeneratorProblems(name any, params map[string]any, fromData bool) []string {
 	generator, isString := name.(string)
 	if !isString || generator == "" {
@@ -83,81 +61,45 @@ func GeneratorProblems(name any, params map[string]any, fromData bool) []string 
 	if _, present := params["mockSamples"]; present && !fromData {
 		problems = append(problems, "`generator` cannot be combined with `mockSamples`: both pick the mock value")
 	}
-	row, builtin := lookupMockGenerator(generator)
-	if !builtin {
-		return problems
+	// The mock fits any length and replaces each char a char set rejects, so only a format that leaves it nothing to
+	// build from fails: `length: 0` (only '', which `allowedChars` rejects, while `disallowedChars` accepts it) or no
+	// replacement char left.
+	hi, bounded := ReadNumberParam(params, "length")
+	if !bounded {
+		hi, bounded = ReadNumberParam(params, "maxLength")
 	}
-	// Out of every span the mock fits a value: it pads or cuts it and, last, drops the chars a char set rejects, so a
-	// required char only binds a natural length. `length: 0` leaves only '', which no first char check applies to.
-	lo, hi := lengthBounds(params)
-	required := row.Required
-	if !spansOverlap(row.Lengths, lo, hi) {
-		required = ""
+	empty := bounded && hi == 0
+	if _, _, ok := ReadCharParam(params, "allowedChars"); ok && empty {
+		problems = append(problems, "the format allows only '', which `allowedChars` rejects")
 	}
-	if allowed, flags, ok := ReadCharParam(params, "allowedChars"); ok {
-		for _, char := range required {
-			if !containsChar(allowed, char, flags != "") {
-				problems = append(problems, "`"+generator+"` always contains `"+string(char)+"`, which `allowedChars` does not allow")
-			}
-		}
-		if hi == 0 {
-			problems = append(problems, "the format allows only '', which `allowedChars` rejects")
-		} else if !containsAny(allowed, row.Leading, flags != "") {
-			problems = append(problems, "`"+generator+"` starts every value with one of `"+row.Leading+"`, and `allowedChars` allows none")
-		}
-	}
-	if disallowed, flags, ok := ReadCharParam(params, "disallowedChars"); ok {
-		for _, char := range required {
-			if containsChar(disallowed, char, flags != "") {
-				problems = append(problems, "`"+generator+"` always contains `"+string(char)+"`, which `disallowedChars` forbids")
-			}
-		}
-		if hi != 0 && !hasCharOutside(disallowed, row.Leading, flags != "") {
-			problems = append(problems, "`"+generator+"` starts every value with one of `"+row.Leading+"`, and `disallowedChars` forbids them all")
+	if _, builtin := lookupMockGenerator(generator); builtin && !empty {
+		if disallowed, flags, ok := ReadCharParam(params, "disallowedChars"); ok && !hasCharOutside(disallowed, MockReplacementChars, flags != "") {
+			problems = append(problems, "`disallowedChars` forbids every letter, digit and space, so `"+generator+"` has nothing to build from")
 		}
 	}
 	return problems
 }
 
-// lengthBounds reads [lo, hi] from length / minLength / maxLength; hi -1 means no upper bound.
-func lengthBounds(params map[string]any) (lo, hi int) {
-	hi = -1
-	if length, ok := ReadNumberParam(params, "length"); ok {
-		return int(length), int(length)
-	}
-	if minLength, ok := ReadNumberParam(params, "minLength"); ok {
-		lo = int(minLength)
-	}
-	if maxLength, ok := ReadNumberParam(params, "maxLength"); ok {
-		hi = int(maxLength)
-	}
-	return lo, hi
-}
-
-func spansOverlap(spans []lenSpan, lo, hi int) bool {
-	for _, span := range spans {
-		if span.Max >= lo && (hi < 0 || span.Min <= hi) {
-			return true
-		}
-	}
-	return false
-}
-
 func containsChar(set string, char rune, ignoreCase bool) bool {
-	if ignoreCase {
-		return strings.ContainsRune(strings.ToLower(set), []rune(strings.ToLower(string(char)))[0])
+	if !ignoreCase {
+		return strings.ContainsRune(set, char)
 	}
-	return strings.ContainsRune(set, char)
-}
-
-// containsAny reports whether set holds at least one of chars.
-func containsAny(set, chars string, ignoreCase bool) bool {
-	for _, char := range chars {
-		if containsChar(set, char, ignoreCase) {
+	for _, member := range set {
+		if jsCanonical(member) == jsCanonical(char) {
 			return true
 		}
 	}
 	return false
+}
+
+// jsCanonical folds a char the way a JS regex `i` flag without `u` does: to upper case, unless that would turn a
+// non-ASCII char into an ASCII one (the Kelvin sign stays itself, never `k`).
+func jsCanonical(char rune) rune {
+	upper := unicode.ToUpper(char)
+	if char >= utf8.RuneSelf && upper < utf8.RuneSelf {
+		return char
+	}
+	return upper
 }
 
 // hasCharOutside reports whether at least one of chars is not in set.

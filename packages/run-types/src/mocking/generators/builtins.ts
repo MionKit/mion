@@ -1,6 +1,6 @@
 // Built-ins named like drizzle-seed's; mockFromGenerator filters character and pattern rules afterwards.
 
-import type {BuiltinMockGenerators} from '../../go-generated/mockGeneratorMeta.generated.ts';
+import type {BuiltinMockGenerators} from '../../go-generated/builtinMockGenerators.generated.ts';
 import {compose, digitsPart, fits, listPart, literalPart, numberPart} from './compose.ts';
 import type {GeneratorContext, GeneratorFn, Part, Shapes} from './types.ts';
 import {FIRST_NAMES, LAST_NAMES} from './words/names.ts';

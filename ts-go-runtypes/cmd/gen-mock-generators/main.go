@@ -1,6 +1,6 @@
 // gen-mock-generators writes the TS mirrors of formats.MockGenerators: the `GEN` namespace, so `GEN.lastName`
-// autocompletes in type and value positions, and mockGeneratorMeta, kept import-free so the MockData type harness
-// can inline it. Run `pnpm miondevx core codegen mockgenerators [--check]`, which also formats and drift-checks.
+// autocompletes in type and value positions, and the BuiltinMockGenerators names interface.
+// Run `pnpm miondevx core codegen mockgenerators [--check]`, which also formats and drift-checks.
 package main
 
 import (
