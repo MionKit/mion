@@ -23,8 +23,7 @@ const routeSubRequestName = "RouteSubRequest"
 // routeIdTypeArgument is the `Id` slot of `RouteSubRequest<PH, Id, RA>`.
 const routeIdTypeArgument = 1
 
-// itemRouteIds reads the routes a batch item may run from its type, sorted: one id, or one per union member.
-// The type is read at the item as written, so a cast is trusted: the server only runs the batches it compiled.
+// itemRouteIds reads an item's routes from its type as written; a cast is trusted: the server runs only compiled batches.
 func (scope *fileScope) itemRouteIds(node *ast.Node) ([]string, string) {
 	if node == nil {
 		return nil, reasonNotRoute
@@ -93,8 +92,8 @@ func (scope *fileScope) routeSubRequestIds(routeType *checker.Type) ([]string, s
 	return ids, ""
 }
 
-// isRouteCall tells a route call from a helper returning one: the routes proxy types each route as a function type
-// the client package declares (a helper is a function, and inside the client package's own files it is declared there too).
+// isRouteCall tells a route call from a helper: the proxy types each route as a client-package function type
+// (the kind check matters inside the client package's own files, where helpers are declared too).
 func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	if call == nil || call.Kind != ast.KindCallExpression {
 		return false
@@ -107,10 +106,8 @@ func (scope *fileScope) isRouteCall(call *ast.Node) bool {
 	return declaration != nil && declaration.Kind == ast.KindFunctionType && marker.DeclaringModuleOfNode(declaration, scope.markerOpts.FS) == ClientModule
 }
 
-// mappingCall finds the route call whose arguments hold a batch item's `inputFrom()` mappings: the item itself or
-// the variable it names. opaque marks an item whose route call the build cannot see (a helper's result, a
-// property, a parameter, a reassigned variable): its mappings are checked at runtime instead (batchIdLiteral).
-// A non-empty reason marks a mapping the build can see but not read, the rpc-batch-mapper-unreadable argument.
+// mappingCall finds the route call holding an item's mappings. opaque: out of sight (helper result, property,
+// parameter, reassigned variable), checked at runtime via batchIdLiteral. reason: a mapping seen but unreadable.
 func (scope *fileScope) mappingCall(item *ast.Node) (call *ast.Node, opaque bool, reason string) {
 	unwrapped := unwrap(item)
 	if unwrapped == nil {
@@ -212,9 +209,8 @@ func blockScopedInitializer(declaration *ast.Node) *ast.Node {
 	return unwrap(variableDecl.Initializer)
 }
 
-// bindingInitializer resolves an identifier to the initializer of the const / let binding it names, the road an
-// `inputFrom()` mapper written as a name takes. reassigned marks a binding written after its initializer, whose
-// initializer is not what runs; a nil initializer with reassigned false is a name the build cannot read.
+// bindingInitializer resolves a mapper written as a name to its const / let initializer; reassigned means that
+// initializer may not be what runs, and nil without reassigned is a name the build cannot read.
 func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *ast.Node, reassigned bool) {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
@@ -233,10 +229,8 @@ func (scope *fileScope) bindingInitializer(identifier *ast.Node) (initializer *a
 	return nil, false
 }
 
-// assignedValues guards a silent misread: the extractor only ever reads the initializer. It lists every write to a
-// non-const variable after its declaration (an increment or a destructuring write lists the expression it is
-// part of). A variable can only be written by its own module, so the declaring file is the whole search space,
-// collected once and memoised for the scope's lifetime.
+// assignedValues lists every write to a non-const variable, since the extractor reads only initializers. Only its
+// own module can write it, so the declaring file is scanned once and memoised.
 func (scope *fileScope) assignedValues(symbol *ast.Symbol, declaration *ast.Node) []*ast.Node {
 	if declaration.Parent != nil && declaration.Parent.Flags&ast.NodeFlagsConst != 0 {
 		return nil
@@ -253,7 +247,7 @@ func (scope *fileScope) assignedValues(symbol *ast.Symbol, declaration *ast.Node
 	return writes[symbol]
 }
 
-// collectAssignments maps every symbol a file assigns, increments, or heads a for-in / for-of with to the written values.
+// collectAssignments maps each symbol a file assigns, increments or for-in / for-of iterates with to its written values.
 func (scope *fileScope) collectAssignments(sourceFile *ast.SourceFile) map[*ast.Symbol][]*ast.Node {
 	writes := map[*ast.Symbol][]*ast.Node{}
 	var visit ast.Visitor
@@ -279,8 +273,7 @@ func (scope *fileScope) collectAssignments(sourceFile *ast.SourceFile) map[*ast.
 	return writes
 }
 
-// writtenValue is the expression a write to target stores: an assignment's right side, a for-in / for-of's
-// iterated expression, or the increment itself.
+// writtenValue is the expression a write to target stores; an increment answers itself.
 func writtenValue(target *ast.Node) *ast.Node {
 	write := ast.GetAssignmentTarget(target)
 	if write == nil {

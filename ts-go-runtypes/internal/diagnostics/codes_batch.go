@@ -3,12 +3,10 @@ package diagnostics
 // Request-batch codes (rpc-batch-*), raised when a `batch([...])` call (recognised by the InjectBatchId
 // brand on its resolved signature) cannot be read statically, or when two batches collide.
 //
-// Every code is LevelRuntimeError: the `batch()` call still compiles and runs. A code that drops the site
-// injects no id, so `batch()` throws `batch-missing-id` before any network work; a code that injects an id
-// fails against the server (rpc-batch-router-init-hidden: every request is a 404 `batch-unknown-id`).
+// Every code is LevelRuntimeError: the call still runs. A dropped site injects no id, so `batch()` throws
+// `batch-missing-id` before any network work; rpc-batch-router-init-hidden 404s every request as `batch-unknown-id`.
 const (
-	// CodeBatchElementNotReadable: the type of an element of the routes argument does not name its
-	// route: not a `RouteSubRequest`, or a route id type that is not a string literal. Args: [0] the reason.
+	// CodeBatchElementNotReadable: an element's type is not a `RouteSubRequest` with a string-literal id. Args: [0] reason.
 	CodeBatchElementNotReadable = "rpc-batch-element-unreadable"
 	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not in the batch, or sits
 	// AFTER the route it feeds (a route only reads the output of one that ran before it). Args:
@@ -36,8 +34,7 @@ const (
 	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
 	// the table was written and nothing imports it. Args: [0] the table module's path.
 	CodeBatchNoRouterInit = "rpc-batch-router-init-hidden"
-	// CodeBatchTooManyCombinations: the items that may run more than one route multiply into more batches
-	// than one call may compile. Args: [0] the cap.
+	// CodeBatchTooManyCombinations: the items' possible routes multiply past the per-call batch cap. Args: [0] the cap.
 	CodeBatchTooManyCombinations = "rpc-batch-too-many-combinations"
 )
 

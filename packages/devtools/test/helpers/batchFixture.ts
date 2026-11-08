@@ -8,8 +8,7 @@
 // Ambient `@mionjs/client` / `@mionjs/router` declarations for a batch fixture: the compiler reads the declaring
 // module, so a test needs no built framework packages. Runtime stubs are each spec's own.
 
-// Shaped like the real client: a route call returns `RouteSubRequest<H, Id, Api>` with the id as a template-literal
-// type, which is what the build reads.
+// Shaped like the real client: the build reads the route id from `RouteSubRequest`'s template-literal `Id` type.
 export const CLIENT_DTS = `declare module '@mionjs/client' {
   import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> { id: Id }

@@ -1,8 +1,7 @@
 package testfixtures
 
-// BatchClientDTS is an ambient stand-in for the `@mionjs/client` surface the batches lane reads, shaped like the real
-// types: a route call returns `RouteSubRequest<H, Id, Api>` with the id as a template-literal type, the two-overload
-// `inputFrom` mapper factory and the branded `batch`. Its markers import the REAL `@mionjs/run-types` package.
+// BatchClientDTS stands in for `@mionjs/client`, shaped like the real types: the build reads the route id from
+// `RouteSubRequest`'s template-literal `Id`. Its markers import the REAL `@mionjs/run-types` package.
 const BatchClientDTS = `declare module '@mionjs/client' {
   import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> { id: Id }
@@ -20,5 +19,5 @@ const BatchClientDTS = `declare module '@mionjs/client' {
 }
 `
 
-// BatchRouteLeaf is the route leaf shape `ClientRoutes` maps, for a fixture's API type: `getById: Route<(id: number) => User>`.
+// BatchRouteLeaf is the route leaf `ClientRoutes` maps, for a fixture's API: `getById: Route<(id: number) => User>`.
 const BatchRouteLeaf = "type Route<H> = {type: 1; handler: H};\n"

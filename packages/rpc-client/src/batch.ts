@@ -12,9 +12,8 @@ import type {InjectedApiMetadata} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import type {InputFromRef} from '@mionjs/core';
 
-/** Runs several routes in ONE HTTP request. The build hashes the ordered route ids into `batchId`, which
- * names the batch in the table it compiled into the server; the request carries only that id.
- * An item that may be several routes makes one batch per combination, and `batchId` holds them all. */
+/** Runs several routes in ONE HTTP request carrying only `batchId`, the build's hash of the ordered route ids that
+ * names the batch compiled into the server. An item that may be several routes makes one id per combination. */
 export function batch<Routes extends RouteSubRequest<any>[]>(
   routes: [...Routes],
   batchId?: InjectBatchId<Routes>
@@ -65,9 +64,8 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
   };
 }
 
-/** The build injects one id per route combination when an item may be several routes, or its route call is out of
- * the build's sight. The key names each route and the arguments mapped into it, so a mapping the build could not
- * see finds no entry. */
+/** Must build the key Go batchLookupKey writes. The object comes for a union item or an out-of-sight route call,
+ * where a mapping the build could not see then finds no entry. */
 function pickBatchId(routes: RouteSubRequest<any>[], batchId: InjectBatchId<unknown> | undefined): string | undefined {
   if (typeof batchId !== 'object') return batchId;
   const key = routes

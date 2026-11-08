@@ -215,15 +215,9 @@ export type InjectPureFnId<F> = string & {
 };
 
 /**
- * Request-batch id injection marker, declared as the trailing parameter of a builder that runs
- * several routes in one request (`batch<Routes>(routes: [...Routes], batchId?: InjectBatchId<Routes>)`):
- * the build reads the ordered route ids from the types of the array's items, hashes them into a stable id and
- * fills the slot with it. The server carries the same id in its compiled batch table, so the wire
- * needs nothing but the id.
- *
- * `Routes` is phantom, linking the marker to the routes argument; the runtime value is the injected
- * id, or an object of one id per route combination, the shape `batch()` reads. The scanner matches a marker by
- * name, module and brand property, never by what it wraps.
+ * Request-batch id marker, the trailing parameter of `batch(routes, batchId?)`: the build hashes the route ids read
+ * from the items' types into it, and the server's compiled batch table holds the same id, so the wire carries only it.
+ * Value: the id, or one id per route combination. The scanner matches by name, module and brand, never what it wraps.
  */
 export type InjectBatchId<Routes> = (string | Readonly<Record<string, string>>) & {
   readonly __rtInjectBatchIdBrand?: Routes;

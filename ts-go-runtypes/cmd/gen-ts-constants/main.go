@@ -1,22 +1,6 @@
-// gen-ts-constants regenerates the TS mirror of internal/constants/constants.go.
-//
-// internal/constants/constants.go is the single source of truth for values
-// shared across the Go and JS halves of this repo (cache module settings,
-// reserved identifiers, …). This program imports that package and writes a
-// TS module mirroring its values, so the JS workspace never duplicates the
-// constants by hand.
-//
-// Output:
-//
-//   - packages/devtools/src/core/go-generated/runtypes-constants.generated.ts
-//     The registry consumed by the Vite plugin (cache modules, reflection
-//     sub kinds, non-serializable globals).
-//   - packages/core/src/go-generated/batchKey.generated.ts
-//     The batch id lookup key format `batch()` in @mionjs/client builds.
-//
-// Run via the pnpm script:
-//
-//	pnpm miondevx core codegen constants
+// gen-ts-constants regenerates the TS mirrors of internal/constants/constants.go, the single source of truth for
+// values the Go and JS halves share: the Vite plugin registry and the batch id lookup key `batch()` builds.
+// Run via `pnpm miondevx core codegen constants`.
 package main
 
 import (

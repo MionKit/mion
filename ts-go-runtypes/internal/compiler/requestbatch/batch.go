@@ -1,8 +1,6 @@
-// Package requestbatch extracts `batch([...routes], batchId?)` call sites whose resolved signature carries
-// the InjectBatchId marker, reads the ORDERED route ids from each item's type and the `inputFrom` links between
-// them, and splices the deterministic batch id (one per route combination, as a lookup) into the call's empty
-// trailing slot. The mapper keys come from the pure-fn
-// extractor itself, so this report and the hash the pure-fn lane injects at the same call cannot disagree.
+// Package requestbatch reads each InjectBatchId-branded `batch([...])` call: the ORDERED route ids from each item's
+// type and the `inputFrom` links, and splices the batch id (or one per route combination) into the empty trailing
+// slot. Mapper keys come from the pure-fn extractor, so this report and the pure-fn lane's hash cannot disagree.
 // A batch with any diagnostic yields NO site: a half-read plan must not ship under an id the server trusts.
 package requestbatch
 
@@ -34,8 +32,7 @@ type Mapping struct {
 	MapperKey  string
 }
 
-// Site is one batch a successfully read `batch([...])` call may run; a call with an item of several possible
-// routes yields one Site per combination, all sharing the call's span, the first carrying the splice.
+// Site is one route combination a read `batch([...])` call may run; all share the span, the first holds the splice.
 type Site struct {
 	// The call expression's span, in byte offsets.
 	FilePath string
@@ -47,8 +44,7 @@ type Site struct {
 	RouteIds []string
 	// Mappings are the `inputFrom()` links, sorted by (ToId, ParamIndex).
 	Mappings []Mapping
-	// InjectPos is the closing `)` offset and InjectText the literal to splice (batchIdLiteral); empty InjectText marks
-	// a call whose id slot was already written (a pass-through).
+	// InjectPos is the closing `)` offset, InjectText the batchIdLiteral to splice, empty on all but a call's first site.
 	InjectPos  int
 	InjectText string
 	// CalleeName / CalleeModule attribute the site to the identifier and its declaring package (report-only).
@@ -135,8 +131,7 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 	return sites, diags
 }
 
-// maxCombinations caps the batches one call may compile: each union item multiplies them, and each is a
-// server table entry plus a key in the client bundle.
+// maxCombinations caps one call's batches: union items multiply them, each a server table entry plus a client key.
 const maxCombinations = 64
 
 // batchItem is one element of the routes argument, the routes it may run, and whether its route call is out of sight.
@@ -274,10 +269,8 @@ func (fileScope *fileScope) duplicateRoutes(items []batchItem, routeIds []string
 	return diags
 }
 
-// batchIdLiteral is the id slot's value: the id itself, or an object of one id per combination that `batch()`
-// picks from at runtime, keyed by batchLookupKey. The object is also written when an item's route call is out of
-// the build's sight: the key then holds the arguments the build mapped, so a mapping it could not see makes
-// `batch()` throw `batch-missing-id` instead of sending a null argument.
+// batchIdLiteral is the id, or `{batchLookupKey: id}` per combination for `batch()` to pick from. An out-of-sight item
+// also gets the object: a mapping the build missed finds no key, so `batch()` throws instead of sending a null arg.
 func batchIdLiteral(sites []Site, opaque bool) string {
 	if len(sites) == 1 && !opaque {
 		return jsquote.Single(sites[0].BatchId)
@@ -289,8 +282,7 @@ func batchIdLiteral(sites []Site, opaque bool) string {
 	return "{" + strings.Join(entries, ", ") + "}"
 }
 
-// batchLookupKey names a combination as `batch()` does from the routes it got: each route id followed by
-// BatchKeyMappedArgMark and the index of each argument mapped into it, joined by BatchKeyRouteSeparator.
+// batchLookupKey must match the key pickBatchId in rpc-client's batch.ts builds from the routes it got.
 func batchLookupKey(site Site) string {
 	parts := make([]string, len(site.RouteIds))
 	for i, routeId := range site.RouteIds {

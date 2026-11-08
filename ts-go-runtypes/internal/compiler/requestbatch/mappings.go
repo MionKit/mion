@@ -35,8 +35,7 @@ type pendingMapping struct {
 	written *ast.Node
 }
 
-// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route call,
-// and marks each item whose route call the build cannot see.
+// resolveMappings reads each `inputFrom()` passed top-level to a batched route call, and marks items out of sight.
 func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []diagnostics.Diagnostic) {
 	var pending []pendingMapping
 	var diags []diagnostics.Diagnostic
@@ -87,8 +86,7 @@ func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []
 	return pending, diags
 }
 
-// placeMappings checks one combination's mappings: a source must run before the route it feeds
-// (rpc-batch-source-not-before, reported at the argument written in the batched call, where the fix goes).
+// placeMappings checks a combination runs each source before the route it feeds, reported where the fix goes.
 func (scope *fileScope) placeMappings(pending []pendingMapping, routeIds []string) ([]Mapping, []diagnostics.Diagnostic) {
 	var mappings []Mapping
 	var diags []diagnostics.Diagnostic
@@ -191,8 +189,7 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 	return false
 }
 
-// readMapping reads one branded mapper-factory call into a Mapping for route toId. The argument position must be
-// one the target route declares (rpc-batch-argument-out-of-range), reported at `written`, the argument in the batched call.
+// readMapping reads one mapper-factory call for route toId; an undeclared argument position reports at `written`.
 func (scope *fileScope) readMapping(mapperCall, written, targetCall *ast.Node, toId string, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
 	callExpr := mapperCall.AsCallExpression()
 	var args []*ast.Node
