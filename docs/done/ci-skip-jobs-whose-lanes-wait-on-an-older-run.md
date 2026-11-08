@@ -105,7 +105,7 @@ runs is unchanged, so the only lanes a newer run can re-run while the older one 
   `MION_WATCH: node ${{ github.workspace }}/scripts/ci/supersede.mjs --watch` (absolute, for `working-directory`
   steps) and `GH_TOKEN`. gofmt, the one multi-line script, takes a second and is left out.
 - `supersede.mjs --watch` spawns the command in its own process group. Off a pull request it only runs it.
-  On a pull request it polls each minute, after the first minute.
+  On a pull request it polls each minute, after the first minute, so a step shorter than a minute never stops.
 - One listing serves both directions. `listRuns()` returns this workflow's runs on this branch and event, from
   this repository, and on a pull request of this PR only. `readDecision()` downloads a run's `lane-decision`
   once into a directory every watched step of the job shares, and reads it back from there.
