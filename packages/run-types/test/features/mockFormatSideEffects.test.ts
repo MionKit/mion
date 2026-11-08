@@ -1,7 +1,7 @@
 // A production Vite build honours `sideEffects`, so a mock registration import it does not keep makes mocks fail.
 
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {globSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {globSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -33,7 +33,8 @@ let root: string;
 let app: {staticShape: Shape; valueShape: Shape};
 
 beforeAll(async () => {
-  root = mkdtempSync(path.join(tmpdir(), 'mion-mock-side-effects-'));
+  // Real path: macOS tmpdir is a symlink and the bundler loads real paths.
+  root = realpathSync(mkdtempSync(path.join(tmpdir(), 'mion-mock-side-effects-')));
   writeFileSync(path.join(root, 'app.ts'), APP);
   // rootDir `/`: the app lives outside the package and imports its sources by absolute path.
   const tsconfig = {extends: path.join(packageRoot, 'tsconfig.json'), include: ['app.ts'], compilerOptions: {rootDir: '/'}};
