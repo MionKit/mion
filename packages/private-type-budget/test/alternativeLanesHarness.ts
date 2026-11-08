@@ -128,10 +128,10 @@ interface LaneBudgets {
   builder: [number, number, number, number, number];
 }
 const LANE_BUDGETS: Record<DialectName, LaneBudgets> = {
-  // builder step 1 576 -> 553: lowered, the budget never followed an earlier drop in the RT.* builders.
-  pg: {typeOnly: [47, 393, 254, 500, 3106], builder: [553, 384, 262, 496, 3346]},
-  mysql: {typeOnly: [47, 393, 254, 500, 3106], builder: [553, 384, 262, 496, 3346]},
-  sqlite: {typeOnly: [47, 388, 254, 500, 3106], builder: [549, 379, 262, 496, 3346]},
+  // builder step 1 553 -> 558 (sqlite 549 -> 554): reviewed rise, StringParams gained the optional `generator` key.
+  pg: {typeOnly: [47, 393, 254, 500, 3106], builder: [558, 384, 262, 496, 3346]},
+  mysql: {typeOnly: [47, 393, 254, 500, 3106], builder: [558, 384, 262, 496, 3346]},
+  sqlite: {typeOnly: [47, 388, 254, 500, 3106], builder: [554, 379, 262, 496, 3346]},
 };
 
 const typeOnlyMeasure = makeMeasurer(TYPE_ONLY_HEADER, {
