@@ -236,8 +236,12 @@ async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
   const html = path.join(appDir, '.next/server/app/index.html');
-  const run = (flags = []) =>
+  // A config process that quits mid-await still exits 0: only a page this build wrote proves it built.
+  const run = (flags = []) => {
+    rmSync(html, {force: true});
     execFileSync(process.execPath, [nextBin, 'build', ...flags], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+    if (!existsSync(html)) throw new Error(`${app.name}: next build ${flags.join(' ')} exited 0 without prerendering ${html}`);
+  };
   // Next fails if the injected imports land above a directive. Turbopack builds last: build-outputs.test.mjs reads it.
   if (app.directiveProbes) {
     run(['--webpack']);
