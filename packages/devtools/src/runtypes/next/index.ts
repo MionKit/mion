@@ -22,6 +22,7 @@ interface TurbopackRule {
 }
 interface NextConfigLike {
   turbopack?: {rules?: Record<string, unknown>; [key: string]: unknown};
+  experimental?: Record<string, unknown>;
   webpack?: (config: WebpackConfigLike, context: unknown) => WebpackConfigLike;
   [key: string]: unknown;
 }
@@ -78,6 +79,8 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
 
   return {
     ...nextConfig,
+    // Invariant 10 in ./AGENTS.md: a cached build reuses rewrites that import pruned modules. A caller's own value wins.
+    experimental: {turbopackFileSystemCacheForBuild: false, ...nextConfig.experimental},
     turbopack: {
       ...nextConfig.turbopack,
       rules: {

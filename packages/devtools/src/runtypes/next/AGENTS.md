@@ -68,8 +68,8 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
      `next dev` kept a cached rewrite importing a just-pruned module → 500 with
      `Can't resolve ../.mion/types/<hash>.js`. With stamp: clean re-transform, zero resolve errors.
    - Asymmetry, easy to test the wrong lane and call the stamp dead code: **`next build` re-runs loaders on
-     every build** → picks up type changes even with stamp disabled (confirmed vs persistent build cache,
-     imported and ambient type).
+     every build** (invariant 10 keeps it so) → picks up type changes even with stamp disabled (confirmed
+     vs persistent build cache, imported and ambient type).
    - Stamp = belt-and-braces for builds, load bearing for dev. Test in **dev**, with a type with no import edge.
 8. **Broker syncs the pure-fn artifact dir itself, twice.**
    - Other hosts put `mion-pure-fns/` next to the bundle from a post-bundle hook. Turbopack has none.
@@ -82,6 +82,12 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
    - `next dev` forks its server: argv loses `--webpack`, env gets `TURBOPACK` only for Turbopack.
    - Argv alone → the `next dev --webpack` server took the Turbopack branch: no plugin, no rewrite, every
      marker call threw `no id injected`.
+
+10. **`withRunTypes` turns `experimental.turbopackFileSystemCacheForBuild` off** (a caller's own value wins).
+    - Next 16.4 turned it on by default. A cached build reuses rewrites from the last run, whose cache modules
+      the broker has since renamed or pruned.
+    - Symptom (e2e, next 16.4.1): `Export __rt_<id> doesn't exist in target module` after a type edit, and
+      `Can't resolve '.rt/types/<hash>.ts'` on a build after `next dev`.
 
 ## Gotchas when testing by hand
 
