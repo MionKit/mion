@@ -498,7 +498,7 @@ describe('the run listing', () => {
 
 // Real child processes: a `pid` file names what the command started, so the test can tell it is gone.
 const gone = async (pid: number) => {
-  for (let tries = 0; tries < 50; tries++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
     try {
       process.kill(pid, 0);
     } catch {
@@ -509,7 +509,7 @@ const gone = async (pid: number) => {
   return false;
 };
 const waitForFile = async (file: string) => {
-  for (let tries = 0; tries < 100; tries++) {
+  for (let attempt = 0; attempt < 100; attempt++) {
     try {
       return Number(readFileSync(file, 'utf8'));
     } catch {
