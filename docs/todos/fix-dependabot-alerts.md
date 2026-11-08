@@ -61,8 +61,26 @@ re-resolved, never a blind full `pnpm update`): brace-expansion (1.1.21 / 2.1.7 
 js-yaml 4.3.2, postcss 8.5.23, source-map-js 1.2.2, tinypool 2.1.2, ws 8.21.0.
 
 Still vulnerable after that → a root `overrides` entry scoped to the bad range (`'tmp@<0.2.6': '0.2.6'`),
-one comment line each. `minimatch` (9.x / 10.x from typescript-eslint, fix only in 11.0.1): try a scoped override;
-if a parent breaks, dismiss instead (step 7).
+one comment line each. `minimatch` (fix only in 11.0.1): step 1b drops the 9.0.9 and 10.2.3 copies; the
+10.2.5 copy left comes from `glob@13` under `rimraf@6`. Try a scoped override; if a parent breaks, dismiss
+instead (step 7).
+
+### 1b. `vite-plugin-dts` 4.5.4 → 5.1.2
+
+Not an alert itself, but v4 is the ONLY parent of `@microsoft/api-extractor` (with its `@rushstack/*` tree and
+`minimatch@10.2.3`) and of `@vue/language-core@2.2.0` (`minimatch@9.0.9`). v5 is a thin wrapper over
+`unplugin-dts@1.1.2`, which makes both optional peers: we use neither feature, so both trees leave the lockfile.
+Both versions are old enough (5.1.2: 2026-10-03, unplugin-dts 1.1.2: 2026-10-03). v5 also fixes TS 6 `rootDir`
+handling, which every `tsconfig.build.json` here sets.
+
+- Used by 14 `packages/*/vite.config.ts` (every package that builds with vite; run-types, devtools,
+  bin-compiler build otherwise). Each passes only `outDir`, `pathsToAliases`, `tsconfigPath`.
+- The one breaking change that hits us: `outDir` → `outDirs` (same string value). `pathsToAliases` and
+  `tsconfigPath` are unchanged. Upstream guide: `docs/en/migration-v4-to-v5.md` in `qmhc/unplugin-dts`.
+- Update the comment in `packages/devtools/src/vite/buildEntries.ts:13` only if it names an option that moved.
+- Proof it changes nothing users get: build the 14 packages before and after, diff every `.dist/**/*.d.ts`
+  (and `.d.ts.map` if emitted). The only diff allowed is none. Any diff → read it, fix the config, never ship it.
+  Also check `pnpm why @microsoft/api-extractor` and `pnpm why @vue/language-core` now find nothing.
 
 ### 2. `@mionjs/platform-gcloud`
 
@@ -143,9 +161,9 @@ If time runs short, cut from the bottom of this list, top stays:
 
 ## Tests
 
-No new tests: no repo code changes beyond the gcloud import. Coverage = the existing suites:
-`pnpm run lint`, `pnpm test` (bootstrapped host), `platform-gcloud` + `platform-cloudflare` suites
-specifically, CI lanes for every touched area (`.agents/docs/pr-ready.md` for labels), each image lane from step 6.
+No new tests: no repo code changes beyond the gcloud import and the 14 `outDirs` renames. Coverage = the
+existing suites: `pnpm run lint`, `pnpm test` (bootstrapped host), `platform-gcloud` + `platform-cloudflare`
+suites specifically, the before/after `.d.ts` diff from step 1b, CI lanes for every touched area (`.agents/docs/pr-ready.md` for labels), each image lane from step 6.
 
 ## Docs
 
@@ -161,7 +179,8 @@ this change touched, review its report against the code, and commit it as its ow
 ## Out of scope
 
 - A `.github/dependabot.yml` for automatic update PRs: separate decision.
-- Upgrading anything that has no open alert, or past the lowest fixing version.
+- Upgrading anything that has no open alert, or past the lowest fixing version. One exception, step 1b:
+  `vite-plugin-dts` has no alert but is the only parent of two vulnerable `minimatch` copies.
 - Moving the container installs to committed lockfiles.
 
 ## Done when
