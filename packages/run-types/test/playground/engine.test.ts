@@ -248,7 +248,7 @@ type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags:
     expect(ok.value).toBe(true);
   });
 
-  // Counts scanFiles through the resolver; `fake` answers without WASM, so many scans cost nothing.
+  // `fake` answers without WASM, so many scans cost nothing.
   async function countingScans(fake: boolean): Promise<{scans: () => number; restore: () => void}> {
     const resolver = await getResolver();
     const sources = runtypesPackageSources();
@@ -267,7 +267,7 @@ type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags:
     return {scans: () => scans, restore};
   }
 
-  // A scan is a whole-program WASM check: mockInvalid's 8 rounds below once ran 24 of them and timed out under load.
+  // mockInvalid's 8 rounds below once ran 24 whole-program WASM scans and timed out under load.
   it('reuses a scan of the same snippet, keeps the newest 64, and starts over on new package sources', async () => {
     const {scans, restore} = await countingScans(true);
     try {
