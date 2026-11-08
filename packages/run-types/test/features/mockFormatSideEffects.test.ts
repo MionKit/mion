@@ -1,5 +1,4 @@
-// Builds a consumer app through a real production Vite build, which honours package.json `sideEffects`, then runs it:
-// a bare import of a mock registration file that `sideEffects` does not keep is dropped and the mocks stop validating.
+// A production Vite build honours `sideEffects`, so a mock registration import it does not keep makes mocks fail.
 
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {globSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
@@ -13,7 +12,7 @@ const packageRoot = path.resolve(__dirname, '../..');
 const repoRoot = path.resolve(packageRoot, '../..');
 const MOCK_ROUNDS = 50;
 
-// One format per registration file; the formats import is type-only, as in a consumer that brands types.
+// One format per registration file; type-only formats import, like a consumer that brands types.
 const APP = `import {createValidateFn} from '${path.join(packageRoot, 'src/index.ts')}';
 import {createMockDataFn} from '${path.join(packageRoot, 'src/mocking/index.ts')}';
 import type * as TF from '${path.join(packageRoot, 'src/formats/index.ts')}';
@@ -36,7 +35,7 @@ let app: {staticShape: Shape; valueShape: Shape};
 beforeAll(async () => {
   root = mkdtempSync(path.join(tmpdir(), 'mion-mock-side-effects-'));
   writeFileSync(path.join(root, 'app.ts'), APP);
-  // rootDir `/` because the app lives outside the package and imports its sources by absolute path.
+  // rootDir `/`: the app lives outside the package and imports its sources by absolute path.
   const tsconfig = {extends: path.join(packageRoot, 'tsconfig.json'), include: ['app.ts'], compilerOptions: {rootDir: '/'}};
   writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify(tsconfig));
   const result = await build({
