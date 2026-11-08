@@ -1,20 +1,7 @@
-// Request-batch call-site reading, end to end through the build: every shape
-// of `batch([...])` the build can read from its items' types (the report carries the ordered route
-// ids, the `inputFrom()` mappings and the injected `b_` id, and the transform
-// splices that id into the call) and every shape it cannot (the build halts
-// with an rpc-batch-* diagnostic that names the file and the line of the offending
-// element, and the report carries no site for that batch).
-//
-// Like batch-report.test.ts this drives the SHARED unplugin factory through
-// the Rollup adapter against a self-contained on-disk fixture: an ambient
-// `@mionjs/client` stand-in whose markers come from the real
-// `@mionjs/run-types` package, an `api.ts` that calls `initClient<Api>()`, and
-// one `case.ts` per scenario.
-//
-// Positions: the Go side reports `node.Pos()`, which INCLUDES leading trivia,
-// so an element written on its own line is reported at the end of the line
-// before it. Every fixture below keeps the offending element on the same line
-// as the token before it, and one probe pins the multi-line posture explicitly.
+// Every `batch([...])` shape the build reads from its items' types, and every one it halts on with an rpc-batch-*
+// diagnostic, through the shared unplugin factory's Rollup adapter on an on-disk fixture. Go reports `node.Pos()`,
+// which INCLUDES leading trivia, so fixtures keep the offending element on the line of the token before it; one probe
+// pins the multi-line case.
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';

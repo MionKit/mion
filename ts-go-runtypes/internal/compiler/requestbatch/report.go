@@ -9,8 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// Replacements splices each call's batch id literal into the empty trailing slot of its call; no ImportFrom,
-// the injected value is a plain literal.
+// Replacements splices each call's batch id literal into its empty trailing slot, so no ImportFrom is needed.
 func Replacements(sites []Site) []protocol.Replacement {
 	var out []protocol.Replacement
 	for _, site := range sites {

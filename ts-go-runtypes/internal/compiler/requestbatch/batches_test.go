@@ -404,8 +404,7 @@ func TestShapes_AnyTypedClient(t *testing.T) {
 	}
 }
 
-// Shape 4: parentheses, `satisfies` and `!` wrap an element, the array argument or the chain root without
-// changing what is read; a cast is read as written, so a lying cast is trusted.
+// Shape 4: `()`, `satisfies` and `!` around an element, the array or the chain root read the same; a lying cast is trusted.
 func TestShapes_Wrappers(t *testing.T) {
 	cases := map[string]struct{ body, routes string }{
 		"parenthesized element": {routesBound + "export const b = batch([(routes.users.getById(1))]);", "users/getById"},
@@ -675,8 +674,7 @@ func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 	}
 }
 
-// Shape 9b: an item whose type is a union of routes (whatever wrote it) compiles one batch per combination,
-// and the call carries a lookup object keyed by each combination's route ids.
+// Shape 9b: a union-of-routes item, whatever wrote it, compiles one batch per combination behind a lookup object.
 func TestUnions_OneBatchPerCombination(t *testing.T) {
 	const flag = "declare const flag: boolean;\ndeclare const n: number;\n"
 	cases := map[string]struct {
@@ -825,8 +823,7 @@ func TestMappings_OnlyOffARouteCall_RpcBatchMapperUnreadable(t *testing.T) {
 	assertSite(t, site, "users/getById,orders/getById", "", ", {'users/getById,orders/getById': '"+site.BatchId+"'}")
 }
 
-// Shape 11c: a route call the build cannot see (a helper's body, a property) may hide a mapping, so the lookup key
-// names the arguments the build mapped: one it could not see makes `batch()` miss the key and throw.
+// Shape 11c: an out-of-sight route call may hide a mapping, so the key names the mapped arguments; a missed one throws.
 func TestMappings_OutOfSightRouteCall_KeyedByMappedArguments(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"

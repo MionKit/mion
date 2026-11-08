@@ -146,8 +146,8 @@ type Response struct {
 	// PureFnArtifact (generate only) is the package's `mion-pure-fns/` as path to content, for the caller to
 	// sync into the bundler's output dir once the bundle is on disk; empty means remove a stale one.
 	PureFnArtifact map[string]string `json:"pureFnArtifact,omitempty"`
-	// BatchSites is the request-batch build report, one record per batch a `batch([...])` call may run: whole program on
-	// OpGenerate, the rescanned files' delta on OpScanFiles, and empty unless the build report is enabled.
+	// BatchSites is the request-batch build report, one per batch a `batch([...])` call may run: whole program on
+	// OpGenerate, rescanned files' delta on OpScanFiles, empty unless the build report is enabled.
 	BatchSites []BatchSite           `json:"batchSites,omitempty"`
 	RunTypes   []*reflection.RunType `json:"runTypes,omitempty"`
 	// EntryModules is one rendered ES-module source per cache entry, keyed by module BASENAME (the `<basename>`
@@ -309,9 +309,8 @@ type BatchMapping struct {
 	MapperKey string `json:"mapperKey"`
 }
 
-// BatchSite is one batch a `batch([...])` call may run, reported so the server build registers the batch plan under
-// the same id the client bundle carries. A call with an item of several possible routes reports one per combination. Populated only when the build report is enabled (`--pure-fn-report-wire` /
-// `pureFnReport`); the id itself is spliced into the call whether or not the report is on.
+// BatchSite is one route combination a `batch([...])` call may run, so the server build registers its plan under the
+// client's id. Reported only with `--pure-fn-report-wire` / `pureFnReport`; the id is spliced in either way.
 type BatchSite struct {
 	// File / Start / End are the `batch(...)` call expression's span, in the byte offsets the matching injection
 	// Replacement indexes.

@@ -202,9 +202,9 @@ export interface BatchMapping {
   mapperKey: string;
 }
 
-// BatchSite mirrors Go protocol.BatchSite: one batch a `batch([...])` call may run (one per route combination when
-// an item may be several routes), so the server build registers the plan under the same id the client bundle carries. Delivered through `onBatchReport` or
-// `<genDir>/types/batches-report.json`, only when the build report is enabled; the id is injected regardless.
+// BatchSite mirrors Go protocol.BatchSite: one route combination a `batch([...])` call may run, so the server
+// build registers its plan under the client's id. Sent via `onBatchReport` or `<genDir>/types/batches-report.json`
+// only with the build report on; the id is injected regardless.
 export interface BatchSite {
   // The `batch(...)` call expression's span (byte offsets).
   file: string;
