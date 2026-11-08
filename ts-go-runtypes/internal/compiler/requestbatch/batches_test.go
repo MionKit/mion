@@ -138,7 +138,7 @@ export const b = batch([routes.users.getById(1), routes.orders.list(2)]);
 	if site.BatchId != BatchId(site.RouteIds, site.Mappings) {
 		t.Errorf("BatchId %q != BatchId(RouteIds, Mappings) %q", site.BatchId, BatchId(site.RouteIds, site.Mappings))
 	}
-	if want := ", '" + site.BatchId + "'"; site.InjectText != want {
+	if want := ", {'users/getById,orders/list': '" + site.BatchId + "'}"; site.InjectText != want {
 		t.Errorf("InjectText = %q, want %q", site.InjectText, want)
 	}
 	source := overlay.prog.SourceFile(site.FilePath)
@@ -196,7 +196,7 @@ func mappingsString(mappings []Mapping) string {
 }
 
 // assertSite pins a site's route ids, mappings and injected text; wantInject
-// "" means the default `, 'b_<id>'` splice.
+// "" means the default `, {'<route ids>': 'b_<id>'}` splice of a call with no mapping.
 func assertSite(t *testing.T, site Site, wantRoutes, wantMappings, wantInject string) {
 	t.Helper()
 	if got := strings.Join(site.RouteIds, ","); got != wantRoutes {
@@ -206,7 +206,7 @@ func assertSite(t *testing.T, site Site, wantRoutes, wantMappings, wantInject st
 		t.Errorf("Mappings = %q, want %q", got, wantMappings)
 	}
 	if wantInject == "" {
-		wantInject = ", '" + site.BatchId + "'"
+		wantInject = ", {'" + batchLookupKey(site) + "': '" + site.BatchId + "'}"
 	}
 	if site.InjectText != wantInject {
 		t.Errorf("InjectText = %q, want %q", site.InjectText, wantInject)
@@ -386,20 +386,9 @@ func TestShapes_AnyTypedClient(t *testing.T) {
 		"destructured from ternary":               "const client = initClient<Routes>();\ndeclare const flag: boolean;\nconst {routes} = flag ? client : client;\nexport const b = batch([routes.users.getById(1)]);",
 		"destructured through a long alias chain": depthChain(20) + "const {routes} = alias0;\nexport const b = batch([routes.users.getById(1)]);",
 	}
-	// The build cannot see these route calls, so their arguments' mappings are checked at runtime by the lookup key.
-	opaque := map[string]bool{
-		"inferred helper": true, "route from a parameter": true, "object property": true, "array index": true,
-		"element from map": true, "await element": true, "let reassigned": true, "let assigned later": true,
-		"ternary on the same route": true,
-	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			site := oneSite(t, body)
-			wantInject := ""
-			if opaque[name] {
-				wantInject = ", {'users/getById': '" + site.BatchId + "'}"
-			}
-			assertSite(t, site, "users/getById", "", wantInject)
+			assertSite(t, oneSite(t, body), "users/getById", "", "")
 		})
 	}
 }
@@ -591,7 +580,7 @@ func TestShapes_CallSyntax(t *testing.T) {
 	})
 	t.Run("trailing comma in the call", func(t *testing.T) {
 		site := oneSite(t, routesBound+"export const b = batch([routes.users.getById(1)],);")
-		assertSite(t, site, "users/getById", "", "'"+site.BatchId+"'")
+		assertSite(t, site, "users/getById", "", "{'users/getById': '"+site.BatchId+"'}")
 	})
 	t.Run("multiline with comments", func(t *testing.T) {
 		site := oneSite(t, routesBound+`export const b = batch([
@@ -808,6 +797,12 @@ func TestMappings_OnlyOffARouteCall_RpcBatchMapperUnreadable(t *testing.T) {
 		"var reassigned":                      {user + "var order = routes.orders.getById(" + mapper + ");\norder = routes.orders.getById(2);\nexport const b = batch([user, order]);", "batch([user, order", reasonMappedRouteReassigned},
 		"destructured array binding":          {user + "const [order] = [routes.orders.getById(" + mapper + ")];\nexport const b = batch([user, order]);", "batch([user, order", reasonMapperOutsideRouteCall},
 		"destructured object binding":         {user + "const {order} = {order: routes.orders.getById(" + mapper + ")};\nexport const b = batch([user, order]);", "batch([user, order", reasonMapperOutsideRouteCall},
+		"helper body":                         {user + "function makeOrder() { return routes.orders.getById(" + mapper + "); }\nexport const b = batch([user, makeOrder()]);", "makeOrder()]", reasonMapperOutsideRouteCall},
+		"helper via const":                    {user + "function makeOrder() { return routes.orders.getById(" + mapper + "); }\nconst order = makeOrder();\nexport const b = batch([user, order]);", "batch([user, order", reasonMapperOutsideRouteCall},
+		"ternary argument":                    {user + "export const b = batch([user, routes.orders.getById(flag ? " + mapper + ".asArg() : 2)]);", "asArg() : 2", reasonMapperOutsideRouteCall},
+		"helper returning a mapping":          {user + "function idOf() { return " + mapper + ".asArg(); }\nexport const b = batch([user, routes.orders.getById(idOf())]);", "getById(idOf()", reasonMapperOutsideRouteCall},
+		"mapping inside a spread":             {user + "export const b = batch([user, routes.orders.tail(1, ...[" + mapper + ".asArg()])]);", "asArg()]", reasonMapperInSpread},
+		"reassigned argument":                 {user + "let id = 0;\nif (flag) id = " + mapper + ".asArg();\nexport const b = batch([user, routes.orders.getById(id)]);", "getById(id", reasonMapperReassigned},
 		"source may be two routes":            {user + "const other = routes.users.search('a');\nexport const b = batch([user, other, routes.orders.getById(inputFrom(flag ? user : other, (u: {id: number}) => u.id))]);", "flag ? user : other", reasonMapperSourceUnion},
 	}
 	for name, testCase := range cases {
@@ -818,20 +813,22 @@ func TestMappings_OnlyOffARouteCall_RpcBatchMapperUnreadable(t *testing.T) {
 	}
 	// A var bound to a mapped route call reads like a const.
 	assertSite(t, oneSite(t, user+"var order = routes.orders.getById("+mapper+");\nexport const b = batch([user, order]);"), "users/getById,orders/getById", "users/getById>orders/getById#0@*", "")
-	// A reassigned let with no mapping anywhere is read by its type, its mappings checked at runtime.
-	site := oneSite(t, user+"let order = routes.orders.getById(2);\norder = routes.orders.getById(3);\nexport const b = batch([user, order]);")
-	assertSite(t, site, "users/getById,orders/getById", "", ", {'users/getById,orders/getById': '"+site.BatchId+"'}")
+	// A var-bound mapping reads like a const-bound one.
+	assertSite(t, oneSite(t, user+"var ref = "+mapper+";\nexport const b = batch([user, routes.orders.getById(ref)]);"), "users/getById,orders/getById", "users/getById>orders/getById#0@*", "")
+	// A reassigned let with no mapping anywhere is read by its type.
+	assertSite(t, oneSite(t, user+"let order = routes.orders.getById(2);\norder = routes.orders.getById(3);\nexport const b = batch([user, order]);"), "users/getById,orders/getById", "", "")
+	// A redeclared var may run either initializer: no mapping is read, the runtime key checks what ran.
+	assertSite(t, oneSite(t, user+"var order = routes.orders.getById("+mapper+");\nvar order = routes.orders.getById(2);\nexport const b = batch([user, order]);"), "users/getById,orders/getById", "", "")
 }
 
-// Shape 11c: an out-of-sight route call may hide a mapping, so the key names the mapped arguments; a missed one throws.
-func TestMappings_OutOfSightRouteCall_KeyedByMappedArguments(t *testing.T) {
+// Shape 11c: the lookup is keyed by each route and the arguments the build mapped into it, so a mapping the build
+// could not see (a property, an array element) finds no key at runtime and `batch()` throws.
+func TestMappings_LookupKeyNamesMappedArguments(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	const mapper = "inputFrom(user, (u: {id: number}) => u.id)"
 	cases := map[string]string{
-		"helper body":      user + "function makeOrder() { return routes.orders.getById(" + mapper + "); }\nexport const b = batch([user, makeOrder()]);",
-		"helper via const": user + "function makeOrder() { return routes.orders.getById(" + mapper + "); }\nconst order = makeOrder();\nexport const b = batch([user, order]);",
-		"object property":  user + "const holder = {order: routes.orders.getById(" + mapper + ")};\nexport const b = batch([user, holder.order]);",
-		"array element":    user + "const list = [routes.orders.getById(" + mapper + ")];\nexport const b = batch([user, list[0]]);",
+		"object property": user + "const holder = {order: routes.orders.getById(" + mapper + ")};\nexport const b = batch([user, holder.order]);",
+		"array element":   user + "const list = [routes.orders.getById(" + mapper + ")];\nexport const b = batch([user, list[0]]);",
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -840,10 +837,12 @@ func TestMappings_OutOfSightRouteCall_KeyedByMappedArguments(t *testing.T) {
 		})
 	}
 	t.Run("a mapping the build read is in the key", func(t *testing.T) {
-		site := oneSite(t, user+"const order = routes.orders.report(1, "+mapper+", 3);\nexport const b = batch([user, order, routes.users.search('a') as unknown as RouteSubRequest<any, 'users/search'>]);")
-		assertSite(t, site, "users/getById,orders/report,users/search", "users/getById>orders/report#1@*", "")
-		site = oneSite(t, user+"declare const helper: () => RouteSubRequest<any, 'users/search'>;\nexport const b = batch([user, routes.orders.report(1, "+mapper+", 3), helper()]);")
-		assertSite(t, site, "users/getById,orders/report,users/search", "users/getById>orders/report#1@*", ", {'users/getById,orders/report#1,users/search': '"+site.BatchId+"'}")
+		site := oneSite(t, user+"const order = routes.orders.report(1, "+mapper+", 3);\nexport const b = batch([user, order]);")
+		assertSite(t, site, "users/getById,orders/report", "users/getById>orders/report#1@*", ", {'users/getById,orders/report#1': '"+site.BatchId+"'}")
+	})
+	t.Run("two mappings into one route, in argument order", func(t *testing.T) {
+		site := oneSite(t, user+"export const b = batch([user, routes.orders.report("+mapper+", 'open', "+mapper+")]);")
+		assertSite(t, site, "users/getById,orders/report", "users/getById>orders/report#0@* users/getById>orders/report#2@*", ", {'users/getById,orders/report#0#2': '"+site.BatchId+"'}")
 	})
 }
 

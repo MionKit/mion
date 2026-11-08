@@ -134,11 +134,10 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 // maxCombinations caps one call's batches: union items multiply them, each a server table entry plus a client key.
 const maxCombinations = 64
 
-// batchItem is one element of the routes argument, the routes it may run, and whether its route call is out of sight.
+// batchItem is one element of the routes argument and the routes it may run.
 type batchItem struct {
-	node   *ast.Node
-	ids    []string
-	opaque bool
+	node *ast.Node
+	ids  []string
 }
 
 // extractOne reads a single branded batch call into one Site per route combination it may run.
@@ -227,17 +226,8 @@ func (fileScope *fileScope) extractOne(call *ast.Node) ([]Site, []diagnostics.Di
 	}
 	// One splice per call, carried by its first site.
 	sites[0].InjectPos = call.End() - 1
-	sites[0].InjectText = purefunctions.TrailingArgLiteral(batchIdLiteral(sites, anyOpaque(items)), callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
+	sites[0].InjectText = purefunctions.TrailingArgLiteral(batchIdLiteral(sites), callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
 	return sites, nil
-}
-
-func anyOpaque(items []batchItem) bool {
-	for _, item := range items {
-		if item.opaque {
-			return true
-		}
-	}
-	return false
 }
 
 // routeCombinations lists every ordered route list the items may run, the first item varying slowest.
@@ -269,12 +259,10 @@ func (fileScope *fileScope) duplicateRoutes(items []batchItem, routeIds []string
 	return diags
 }
 
-// batchIdLiteral is the id, or `{batchLookupKey: id}` per combination for `batch()` to pick from. An out-of-sight item
-// also gets the object: a mapping the build missed finds no key, so `batch()` throws instead of sending a null arg.
-func batchIdLiteral(sites []Site, opaque bool) string {
-	if len(sites) == 1 && !opaque {
-		return jsquote.Single(sites[0].BatchId)
-	}
+// batchIdLiteral is always `{batchLookupKey: id}`, one entry per combination, for `batch()` to pick from by the routes and
+// mappings it really got: a route or a mapping the build did not read finds no key, so `batch()` throws instead of
+// sending a null argument or another route.
+func batchIdLiteral(sites []Site) string {
 	entries := make([]string, 0, len(sites))
 	for _, site := range sites {
 		entries = append(entries, jsquote.Single(batchLookupKey(site))+": "+jsquote.Single(site.BatchId))
@@ -282,23 +270,16 @@ func batchIdLiteral(sites []Site, opaque bool) string {
 	return "{" + strings.Join(entries, ", ") + "}"
 }
 
-// batchLookupKey must match the key pickBatchId in rpc-client's batch.ts builds from the routes it got.
+// batchLookupKey must match the key pickBatchId in rpc-client's batch.ts builds from the routes it got; Mappings
+// are sorted by (ToId, ParamIndex), so each route's indexes come out ascending.
 func batchLookupKey(site Site) string {
-	parts := make([]string, len(site.RouteIds))
+	parts := append([]string(nil), site.RouteIds...)
 	for i, routeId := range site.RouteIds {
-		var part strings.Builder
-		part.WriteString(routeId)
-		var mapped []int
 		for _, mapping := range site.Mappings {
 			if mapping.ToId == routeId {
-				mapped = append(mapped, mapping.ParamIndex)
+				parts[i] += constants.BatchKeyMappedArgMark + strconv.Itoa(mapping.ParamIndex)
 			}
 		}
-		sort.Ints(mapped)
-		for _, paramIndex := range mapped {
-			part.WriteString(constants.BatchKeyMappedArgMark + strconv.Itoa(paramIndex))
-		}
-		parts[i] = part.String()
 	}
 	return strings.Join(parts, constants.BatchKeyRouteSeparator)
 }

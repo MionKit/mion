@@ -88,7 +88,7 @@ func TestBatch_ScanInjectsId_ReportOnlyOnWire(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing batch-id replacement in %+v", scan.Replacements)
 	}
-	if !strings.HasPrefix(rep.Text, ", 'b_") || !strings.HasSuffix(rep.Text, "'") {
+	if !strings.HasPrefix(rep.Text, ", {'orders/list': 'b_") || !strings.HasSuffix(rep.Text, "'}") {
 		t.Errorf("unexpected batch-id insertion text: %q", rep.Text)
 	}
 	if len(scan.BatchSites) != 0 {

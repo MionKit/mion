@@ -227,11 +227,11 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 		sourceFile:    scope.sourceFile,
 		callNode:      call,
 	}
-	ids, kind := readIds(idType)
+	ids, kind := ReadIds(idType)
 	switch kind {
-	case idsLiteral:
+	case IdsLiteral:
 		site.Ids = ids
-	case idsWidened:
+	case IdsWidened:
 		site.Widened = true
 	default:
 		return nil, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeApiMetaUnreadable, call, "the route id type is not a string literal")}
@@ -239,25 +239,25 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 	return site, nil
 }
 
-type idsKind int
+type IdsKind int
 
 const (
-	idsUnreadable idsKind = iota
-	idsLiteral
-	idsWidened
+	IdsUnreadable IdsKind = iota
+	IdsLiteral
+	IdsWidened
 )
 
-// readIds classifies the marker's Id type argument; a bare `string` is a widened id.
-func readIds(idType *checker.Type) ([]string, idsKind) {
+// ReadIds classifies the marker's Id type argument; a bare `string` is a widened id.
+func ReadIds(idType *checker.Type) ([]string, IdsKind) {
 	if idType == nil {
-		return nil, idsUnreadable
+		return nil, IdsUnreadable
 	}
 	flags := checker.Type_flags(idType)
 	if flags&checker.TypeFlagsStringLiteral != 0 {
 		if value, ok := idType.AsLiteralType().Value().(string); ok {
-			return []string{value}, idsLiteral
+			return []string{value}, IdsLiteral
 		}
-		return nil, idsUnreadable
+		return nil, IdsUnreadable
 	}
 	if flags&checker.TypeFlagsUnion != 0 {
 		seen := map[string]bool{}
@@ -266,13 +266,13 @@ func readIds(idType *checker.Type) ([]string, idsKind) {
 			memberFlags := checker.Type_flags(member)
 			if memberFlags&checker.TypeFlagsStringLiteral == 0 {
 				if memberFlags&checker.TypeFlagsString != 0 {
-					return nil, idsWidened
+					return nil, IdsWidened
 				}
-				return nil, idsUnreadable
+				return nil, IdsUnreadable
 			}
 			value, ok := member.AsLiteralType().Value().(string)
 			if !ok {
-				return nil, idsUnreadable
+				return nil, IdsUnreadable
 			}
 			if !seen[value] {
 				seen[value] = true
@@ -280,12 +280,12 @@ func readIds(idType *checker.Type) ([]string, idsKind) {
 			}
 		}
 		sort.Strings(ids)
-		return ids, idsLiteral
+		return ids, IdsLiteral
 	}
 	if flags&checker.TypeFlagsString != 0 {
-		return nil, idsWidened
+		return nil, IdsWidened
 	}
-	return nil, idsUnreadable
+	return nil, IdsUnreadable
 }
 
 // Files returns the sorted unique file paths of the sites a bundle injects into.

@@ -108,8 +108,8 @@ func clientMiddlewareId(typeChecker *checker.Checker, markerOpts marker.Options,
 	if len(arguments) < 2 {
 		return "", false
 	}
-	ids, kind := readIds(arguments[1])
-	if kind != idsLiteral || len(ids) != 1 {
+	ids, kind := ReadIds(arguments[1])
+	if kind != IdsLiteral || len(ids) != 1 {
 		return "", false
 	}
 	return ids[0], true

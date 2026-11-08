@@ -24,6 +24,7 @@ const (
 	// The build reads mappings only off a route call it can see; anywhere else they would be dropped.
 	reasonMapperOutsideRouteCall = "mapping is not an argument of a route call written inline or bound to a variable (a helper's argument, a ternary arm)"
 	reasonMappedRouteReassigned  = "the variable holding this route call is reassigned, so the mappings that run cannot be read"
+	reasonMapperInSpread         = "mapping inside a spread argument, so its parameter position cannot be read"
 	reasonMapperTargetUnion      = "the route this mapping feeds may be more than one route"
 	reasonMapperSourceUnion      = "source may be more than one route"
 )
@@ -40,8 +41,7 @@ func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []
 	var pending []pendingMapping
 	var diags []diagnostics.Diagnostic
 	for targetIndex, item := range items {
-		routeCall, opaque, reason := scope.mappingCall(item.node)
-		items[targetIndex].opaque = opaque
+		routeCall, reason := scope.mappingCall(item.node)
 		if reason != "" {
 			diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, item.node, reason))
 			continue
@@ -57,6 +57,9 @@ func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []
 		for paramIndex, arg := range callExpr.Arguments.Nodes {
 			if arg != nil && arg.Kind == ast.KindSpreadElement {
 				spreadSeen = true
+				if scope.containsMapperCall(arg) {
+					diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperInSpread))
+				}
 				continue
 			}
 			mapperCall, ok, refReason := scope.resolveMapperRef(arg, 0)
@@ -65,6 +68,10 @@ func (scope *fileScope) resolveMappings(items []batchItem) ([]pendingMapping, []
 				continue
 			}
 			if !ok {
+				// Not a mapping the build can follow; one written inside it (a ternary, a helper call) is reported.
+				if scope.reachesMapperCall(arg) {
+					diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperOutsideRouteCall))
+				}
 				continue
 			}
 			// A spread before the mapping shifts every later argument, so the position the server feeds is unknown.
@@ -129,8 +136,8 @@ func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall 
 	case ast.KindIdentifier:
 		initializer, reassigned := scope.bindingInitializer(unwrapped)
 		if reassigned {
-			// Only a binding whose initializer IS a mapping was misread; any other reassigned let is a plain argument.
-			if scope.initialMapperRef(unwrapped, depth) {
+			// Only a binding that holds a mapping at some write was misread; any other reassigned let is a plain argument.
+			if scope.initialMapperRef(unwrapped, depth) || scope.identifierWritesMapper(unwrapped) {
 				return nil, false, reasonMapperReassigned
 			}
 			return nil, false, ""
@@ -143,6 +150,20 @@ func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall 
 	return nil, false, ""
 }
 
+// identifierWritesMapper is writesMapper for the variable an identifier names.
+func (scope *fileScope) identifierWritesMapper(identifier *ast.Node) bool {
+	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if declaration != nil && declaration.Kind == ast.KindVariableDeclaration && scope.writesMapper(symbol, declaration) {
+			return true
+		}
+	}
+	return false
+}
+
 // initialMapperRef resolves the identifier's declared initializer without the reassignment guard.
 func (scope *fileScope) initialMapperRef(identifier *ast.Node, depth int) bool {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
@@ -150,7 +171,7 @@ func (scope *fileScope) initialMapperRef(identifier *ast.Node, depth int) bool {
 		return false
 	}
 	for _, declaration := range symbol.Declarations {
-		if initializer := blockScopedInitializer(declaration); initializer != nil {
+		if initializer := variableInitializer(declaration); initializer != nil {
 			_, ok, reason := scope.resolveMapperRef(initializer, depth+1)
 			return ok || reason != ""
 		}
