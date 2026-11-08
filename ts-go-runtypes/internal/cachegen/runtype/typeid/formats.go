@@ -475,6 +475,11 @@ func formatTypeValueOptions(typeChecker *checker.Checker) comptimeargs.TypeValue
 			if symbol.Name == "pattern" && patternType != nil && patternType.Flags()&checker.TypeFlagsObject != 0 {
 				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
 			}
+			// A mock generator must be ONE literal name; a widened `string` or a union of names would otherwise
+			// arrive as type text and read like a custom generator's name.
+			if symbol.Name == "generator" && patternType != nil && patternType.Flags()&checker.TypeFlagsStringLiteral == 0 {
+				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
+			}
 			return nil, false
 		},
 		NonLiteralFallback: func(tsType *checker.Type) any {
@@ -733,7 +738,9 @@ func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) stri
 	return builder.String()
 }
 
-// mockSamplesKey is the one format param that is NOT id-relevant; every other one is (`message` included).
+// mockSamplesKey is the one format param that is NOT id-relevant; every other one is (`message` included). A mock
+// `generator` stays IN the id although no validator reads it: reflection carries it to the mock, and equal ids share
+// one node, so leaving it out would mock `firstName` and `lastName` twins with whichever generator interned first.
 // Samples are generation metadata read only by the mock-data emitter, not validation behaviour, so two
 // formats identical but for their sample pools describe the SAME validator and MUST dedup onto one cache
 // entry. `message` stays folded in because it changes the emitted validator's error `val`, and a pattern's
