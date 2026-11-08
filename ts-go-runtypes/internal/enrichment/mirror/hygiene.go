@@ -189,7 +189,7 @@ func (scan *Scan) BlankValues() []TagFinding {
 	for _, match := range blankArrayPattern.FindAllStringSubmatchIndex(masked, -1) {
 		start, end := match[2], match[3] // group 1: the `[]`
 		if rangedPools[start] {
-			continue // `pool: []` beside a min / max is how MockData spells a range-only field
+			continue // `pool: []` beside a min / max or a generator is how MockData spells a range-only or generated field
 		}
 		findings = append(findings, TagFinding{Kind: TagBlankValue, Start: start, End: end, BlockStart: start, BlockEnd: end})
 	}
@@ -197,10 +197,12 @@ func (scan *Scan) BlankValues() []TagFinding {
 	return findings
 }
 
-// mockRangeKeys are the MockData knobs that make an empty pool a range: numbers and Dates take `min` / `max`.
-var mockRangeKeys = map[string]bool{"min": true, "max": true}
+// mockPoolSiblingKeys are the MockData knobs that fill a leaf beside an empty pool: a number or Date range
+// (`min` / `max`), or a string `generator`.
+var mockPoolSiblingKeys = map[string]bool{"min": true, "max": true, "generator": true}
 
-// rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a range key.
+// rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a pool sibling. A
+// generator counts only when it names one: a non-empty string literal or a member like `GEN.lastName`.
 func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 	offsets := map[int]bool{}
 	if sourceFile == nil {
@@ -220,7 +222,9 @@ func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 				}
 				key, value := property.Name().Text(), property.AsPropertyAssignment().Initializer
 				switch {
-				case mockRangeKeys[key]:
+				case key == "generator":
+					hasRange = hasRange || namesGenerator(value)
+				case mockPoolSiblingKeys[key]:
 					hasRange = true
 				case key == "pool" && isEmptyArrayLiteral(value):
 					emptyPool = value
@@ -235,6 +239,17 @@ func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 	}
 	sourceFile.AsNode().ForEachChild(visit)
 	return offsets
+}
+
+// namesGenerator is a `generator` value that names one: a non-empty string literal or a property access.
+func namesGenerator(value *ast.Node) bool {
+	if value == nil {
+		return false
+	}
+	if ast.IsStringLiteral(value) {
+		return value.Text() != ""
+	}
+	return ast.IsPropertyAccessExpression(value)
 }
 
 func isEmptyArrayLiteral(node *ast.Node) bool {

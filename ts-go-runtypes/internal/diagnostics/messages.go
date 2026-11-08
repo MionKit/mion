@@ -180,12 +180,13 @@ var headlineByCode = map[string]string{
 
 	// ─────────── MockData mirror files (enrich-mock-*) ───────────
 
-	CodeMockUnknownField: "Unknown field `{field}`: the type does not declare it, so this MockData entry is dead.",
-	CodeMockReservedProp: "Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
-	CodeMockTodo:         "Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.",
-	CodeMockOrphanConst:  "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
-	CodeMockOrphanField:  "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
-	CodeMockBlankValue:   "Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.",
+	CodeMockUnknownField:     "Unknown field `{field}`: the type does not declare it, so this MockData entry is dead.",
+	CodeMockInvalidGenerator: "MockData generator `{generator}` cannot mock field `{field}`: {reason}",
+	CodeMockReservedProp:     "Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
+	CodeMockTodo:             "Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.",
+	CodeMockOrphanConst:      "Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).",
+	CodeMockOrphanField:      "Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).",
+	CodeMockBlankValue:       "Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.",
 
 	// ─────────── Mirror ↔ source linkage (enrich-mirror-*, check) ───────────
 

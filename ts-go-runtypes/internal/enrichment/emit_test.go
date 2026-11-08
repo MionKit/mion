@@ -283,3 +283,19 @@ func TestFriendlySkeleton_KeysFromErrorCode(t *testing.T) {
 		}
 	}
 }
+
+// TestEmitMock_FormatGeneratorPrefilled: a String format that names a generator scaffolds a filled leaf.
+func TestEmitMock_FormatGeneratorPrefilled(t *testing.T) {
+	named := &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{
+		Name: "stringFormat", Params: map[string]any{"maxLength": 40.0, "generator": "lastName"},
+	}}
+	plain := &reflection.RunType{Kind: reflection.KindString}
+	rt := &reflection.RunType{ID: "person", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		{Kind: reflection.KindPropertySignature, Name: "last", IsSafeName: true, Child: named},
+		{Kind: reflection.KindPropertySignature, Name: "nick", IsSafeName: true, Child: plain},
+	}}
+	want := "{\n  last: {pool: [], generator: 'lastName'},\n  nick: {pool: []},\n}"
+	if got := MockSkeleton(rt, nil); got != want {
+		t.Errorf("MockSkeleton mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}

@@ -17,10 +17,11 @@ type fakeView struct {
 	order   []string
 	strings map[string]string
 	objects map[string]*fakeView
+	items   map[string][]*fakeView
 }
 
 func newFakeView() *fakeView {
-	return &fakeView{strings: map[string]string{}, objects: map[string]*fakeView{}}
+	return &fakeView{strings: map[string]string{}, objects: map[string]*fakeView{}, items: map[string][]*fakeView{}}
 }
 
 func (view *fakeView) str(key, value string) *fakeView {
@@ -48,6 +49,26 @@ func (view *fakeView) Child(key string) enrichment.LiteralView {
 func (view *fakeView) StringValue(key string) (string, bool) {
 	value, ok := view.strings[key]
 	return value, ok
+}
+
+func (view *fakeView) Items(key string) []enrichment.LiteralView {
+	items, ok := view.items[key]
+	if !ok {
+		return nil
+	}
+	out := make([]enrichment.LiteralView, len(items))
+	for index, item := range items {
+		if item != nil {
+			out[index] = item
+		}
+	}
+	return out
+}
+
+func (view *fakeView) arr(key string, items ...*fakeView) *fakeView {
+	view.order = append(view.order, key)
+	view.items[key] = items
+	return view
 }
 
 // objectRT builds an object-literal RunType from a set of named property
@@ -616,4 +637,76 @@ func hasFinding(findings []enrichment.Finding, code, path string) bool {
 		}
 	}
 	return false
+}
+
+func stringFormatRT(params map[string]any) *reflection.RunType {
+	return &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: params}}
+}
+
+func TestCheckMock_Generator(t *testing.T) {
+	cases := []struct {
+		name   string
+		field  *reflection.RunType
+		gen    string
+		reason string // "" = clean
+	}{
+		{"plain string", stringRT(), "fullName", ""},
+		{"fits the format", stringFormatRT(map[string]any{"maxLength": 40.0}), "lastName", ""},
+		{"format samples lose to the data generator", stringFormatRT(map[string]any{"mockSamples": []any{"x"}}), "city", ""},
+		{"too short", stringFormatRT(map[string]any{"maxLength": 1.0}), "lastName", "2 to 10"},
+		{"beside allowedValues", stringFormatRT(map[string]any{"allowedValues": map[string]any{"val": []any{"a"}}}), "city", "allowedValues"},
+		{"not a string", &reflection.RunType{Kind: reflection.KindNumber}, "city", "not a string"},
+		{"named format", &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "email"}}, "email", "mocks itself"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rt := objectRT(map[string]*reflection.RunType{"field": tc.field})
+			view := newFakeView().obj("field", newFakeView().str("generator", tc.gen))
+			findings := enrichment.CheckMock(rt, view, nil)
+			if tc.reason == "" {
+				if len(findings) != 0 {
+					t.Fatalf("want clean, got %v", findings)
+				}
+				return
+			}
+			if len(findings) != 1 || findings[0].Code != "enrich-mock-invalid-generator" || findings[0].Severity != enrichment.Error ||
+				findings[0].Path != "field.generator" || !strings.Contains(findings[0].Message, tc.reason) {
+				t.Fatalf("want enrich-mock-invalid-generator mentioning %q, got %v", tc.reason, findings)
+			}
+		})
+	}
+}
+
+// TestCheckMock_StructuralSlots: the check reaches every slot the scaffold writes (fixed tuple, Map, Set), so a bad
+// generator or an unknown field there is reported too.
+func TestCheckMock_StructuralSlots(t *testing.T) {
+	tooShort := stringFormatRT(map[string]any{"maxLength": 1.0})
+	param := func(child *reflection.RunType) *reflection.RunType {
+		return &reflection.RunType{Kind: reflection.KindParameter, Child: child}
+	}
+	tuple := &reflection.RunType{Kind: reflection.KindTuple, Children: []*reflection.RunType{
+		{Kind: reflection.KindTupleMember, Child: stringRT()},
+		{Kind: reflection.KindTupleMember, Child: tooShort},
+	}}
+	mapRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{param(stringRT()), param(tooShort)}}
+	setRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{param(tooShort)}}
+	bad := func() *fakeView { return newFakeView().str("generator", "lastName") }
+	cases := map[string]struct {
+		rt   *reflection.RunType
+		view *fakeView
+		path string
+	}{
+		"tuple slot": {tuple, newFakeView().arr("rt$slots", newFakeView(), bad()), "field.rt$slots.1.generator"},
+		"map value":  {mapRT, newFakeView().obj("rt$keys", newFakeView()).obj("rt$values", bad()), "field.rt$values.generator"},
+		"set value":  {setRT, newFakeView().obj("rt$values", bad()), "field.rt$values.generator"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rt := objectRT(map[string]*reflection.RunType{"field": tc.rt})
+			findings := enrichment.CheckMock(rt, newFakeView().obj("field", tc.view), nil)
+			if len(findings) != 1 || findings[0].Path != tc.path {
+				t.Fatalf("want one finding at %s, got %v", tc.path, findings)
+			}
+		})
+	}
 }

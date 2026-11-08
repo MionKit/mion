@@ -54,6 +54,11 @@
   "enrich-mirror-unreadable": [
     "reason"
   ],
+  "enrich-mock-invalid-generator": [
+    "generator",
+    "field",
+    "reason"
+  ],
   "enrich-mock-reserved-prefix": [
     "property"
   ],

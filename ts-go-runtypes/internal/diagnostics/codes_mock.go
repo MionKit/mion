@@ -13,6 +13,9 @@ const (
 	CodeMockOrphanConst  = "enrich-mock-orphan-type"
 	CodeMockOrphanField  = "enrich-mock-orphan-field"
 	CodeMockBlankValue   = "enrich-mock-blank-value"
+	// CodeMockInvalidGenerator: a MockData `generator` that cannot mock its field, so createMockDataFn throws there.
+	// Args: [generator, field path, the reasons joined].
+	CodeMockInvalidGenerator = "enrich-mock-invalid-generator"
 )
 
 func init() {
@@ -23,6 +26,7 @@ func init() {
 		{Code: CodeMockOrphanConst, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "Stale @rtOrphan const carcass in a MockData mirror file"},
 		{Code: CodeMockOrphanField, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "Stale @rtOrphanChild field carcass in a MockData mirror file"},
 		{Code: CodeMockBlankValue, Family: FamilyEnrich, Level: LevelWarning, Completeness: true, Scope: ScopeNotSource, Title: "Unfilled blank value in a MockData mirror file"},
+		{Code: CodeMockInvalidGenerator, Family: FamilyEnrich, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "MockData generator cannot mock its field"},
 	} {
 		register(definition)
 	}

@@ -364,6 +364,22 @@ func TestMerge_LeafKeyNamedFieldMerges(t *testing.T) {
 	assertReparses(t, got)
 }
 
+// TestMerge_AuthoredGeneratorSurvives: a generator the author added beside the pool is node settings, kept by --update.
+func TestMerge_AuthoredGeneratorSurvives(t *testing.T) {
+	existing := "{name: {pool: [], generator: 'fullName'}}"
+	desired := "{name: {pool: []}, age: {pool: []}}"
+	ctx := mergeCtx{
+		metaKeys:      mockReservedKeys,
+		existingChild: map[string]string{"name": "strID"},
+		desiredChild:  map[string]string{"name": "strID", "age": "numID"},
+	}
+	got := mergeWithCtx(t, existing, desired, ctx)
+	if !strings.Contains(got, "generator: 'fullName'") || strings.Contains(got, "@rtOrphanChild") {
+		t.Errorf("the authored generator must survive untouched:\n%s", got)
+	}
+	assertReparses(t, got)
+}
+
 // TestMerge_ShapeMismatchObjectToReference: a kept key that was an inline object
 // but is now a named-type REFERENCE (e.g. `address: {…}` → `address:
 // friendlyAddress`) switches to the reference; the old object is orphaned. This
