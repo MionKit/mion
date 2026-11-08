@@ -110,7 +110,7 @@
   },
   "peerDependencies": {
     "@mionjs/bin-compiler": "workspace:*",
-    "vite": ">=5.0.0"
+    "vite": ">=7.0.0"
   },
   "peerDependenciesMeta": {
     "vite": {
