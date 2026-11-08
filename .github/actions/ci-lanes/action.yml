@@ -134,7 +134,7 @@ runs:
         retention-days: 1
         overwrite: true
 
-    # Older runs only, so two runs never cancel each other; the PR filter spares another PR on a same-named branch.
+    # Older runs only, so two runs never cancel each other (scripts/ci/supersede.mjs olderRuns).
     # A decision that cannot be downloaded or read counts as none, which cancels that run.
     - name: Keep or cancel the older runs
       id: supersede
@@ -142,21 +142,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
-        MION_PR_NUMBER: ${{ github.event.pull_request.number }}
-      run: |
-        workflow="${GITHUB_WORKFLOW_REF%@*}"
-        ids=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/${workflow##*/}/runs" -f branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" \
-          -f event="$GITHUB_EVENT_NAME" -F per_page=30 --jq ".workflow_runs[] | select(.status != \"completed\" and .id < $GITHUB_RUN_ID
-            and .head_repository.full_name == \"$GITHUB_REPOSITORY\" and (\"$MION_PR_NUMBER\" == \"\" or ([.pull_requests[].number | tostring] | index(\"$MION_PR_NUMBER\")))) | .id") \
-          || { echo "::warning::could not list the older runs, so none is kept or cancelled"; ids=; }
-        echo '[]' > .lane-decision/older.json
-        for id in $ids; do
-          gh run download "$id" --repo "$GITHUB_REPOSITORY" --name lane-decision --dir ".lane-decision/older/$id" 2>/dev/null || :
-          decision=$(jq -cs '[.[] | select((.lanes | type) == "object")] | first // null' ".lane-decision/older/$id/decision.json" 2>/dev/null) || decision=null
-          jq --argjson id "$id" --argjson decision "$decision" '. + [{runId: $id, decision: $decision}]' .lane-decision/older.json > .lane-decision/next.json
-          mv .lane-decision/next.json .lane-decision/older.json
-        done
-        node scripts/ci/supersede.mjs --plan --decision .lane-decision/decision.json --older .lane-decision/older.json --out .lane-decision/final.json --github
+      run: node scripts/ci/supersede.mjs --plan --decision .lane-decision/decision.json --older-dir .lane-decision/older --out .lane-decision/final.json --github
 
     - name: Cancel the older runs this commit makes stale
       if: steps.supersede.outputs.cancel != ''

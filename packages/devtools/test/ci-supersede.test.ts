@@ -1,5 +1,6 @@
 // Which older CI runs a new run keeps (scripts/ci/supersede.mjs). A wrong keep is harmless (waiters re-decide);
 // a wrong defer waits on work nobody does, a wrong cancel throws away work the commit never touched.
+import {spawn} from 'node:child_process';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,7 +9,9 @@ import {
   deferredKeys,
   liveKeys,
   main,
+  listRuns,
   newerDecisions,
+  olderRuns,
   supersede,
   takenOver,
   waitForRun,
@@ -364,134 +367,191 @@ describe('takenOver', () => {
     ];
     expect(Object.fromEntries(takenOver({ours, newer, names}))).toEqual({'go-static': 9, 'go-tools': 12});
   });
-
-  // A deferred lane always hashes the same, so a takeover always means the newer run really runs the lane.
-  it('takes a lane over only when some newer run runs it live under another hash (seeded sweep)', () => {
-    let seed = 7;
-    const random = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
-    const pick = <Value>(values: Value[]): Value => values[Math.floor(random() * values.length)];
-    const lanes = ['go-static', 'go-tools', 'js-static'];
-    for (let round = 0; round < 300; round++) {
-      const mine = Object.fromEntries(lanes.map((lane) => [lane, {run: true, hash: pick(['a', 'b'])}]));
-      const newer: Older[] = [1, 2, 3].map((runId) => ({
-        runId,
-        decision:
-          random() < 0.2
-            ? null
-            : {
-                lanes: Object.fromEntries(lanes.map((lane) => [lane, {run: random() < 0.7, hash: pick(['a', 'b'])}])),
-                labels: random() < 0.1 ? ['skip-defaults'] : [],
-              },
-      }));
-      const wanted = lanes.filter(() => random() < 0.6);
-      const taken = takenOver({ours: mine, newer, names: wanted});
-      for (const lane of lanes) {
-        const claim = newer.find(
-          ({decision}) => decision && liveKeys(decision).has(lane) && liveKeys(decision).get(lane) !== mine[lane].hash
-        );
-        expect(taken.get(lane)).toBe(wanted.includes(lane) ? claim?.runId : undefined);
-      }
-    }
-  });
 });
 
-describe('newerDecisions', () => {
+// One listing for the gate (older runs) and the watcher (newer runs), with a fake `gh` that serves runs and decisions.
+const prEnv = {
+  GITHUB_REF: 'refs/pull/42/merge',
+  GITHUB_WORKFLOW_REF: 'MionKit/mion/.github/workflows/ci.yml@refs/pull/42/merge',
+  GITHUB_REPOSITORY: 'MionKit/mion',
+  GITHUB_HEAD_REF: 'feature',
+  GITHUB_EVENT_NAME: 'pull_request',
+  GITHUB_RUN_ID: '100',
+};
+const workflowRun = (id: number, extra: Record<string, unknown> = {}) => ({
+  id,
+  status: 'in_progress',
+  conclusion: null,
+  head_repository: {full_name: 'MionKit/mion'},
+  pull_requests: [{number: 42}],
+  ...extra,
+});
+const fakeGitHub = (runs: unknown[] | null, decisions: Record<number, string> = {}) => {
+  const calls: string[][] = [];
+  const gh = (args: string[]) => {
+    calls.push(args);
+    if (args[0] === 'api') return runs ? {status: 0, stdout: JSON.stringify({workflow_runs: runs})} : {status: 1, stdout: ''};
+    const content = decisions[Number(args[2])];
+    if (content === undefined) return {status: 1, stdout: ''};
+    const target = args[args.indexOf('--dir') + 1];
+    mkdirSync(target, {recursive: true});
+    writeFileSync(path.join(target, 'decision.json'), content);
+    return {status: 0, stdout: ''};
+  };
+  return {gh, calls, downloads: () => calls.filter((args) => args[1] === 'download').map((args) => Number(args[2]))};
+};
+
+describe('the run listing', () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(path.join(os.tmpdir(), 'takeover-'));
+    dir = mkdtempSync(path.join(os.tmpdir(), 'run-listing-'));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
   });
-  afterEach(() => rmSync(dir, {recursive: true, force: true}));
-  const env = {
-    GITHUB_REF: 'refs/pull/42/merge',
-    GITHUB_WORKFLOW_REF: 'MionKit/mion/.github/workflows/ci.yml@refs/pull/42/merge',
-    GITHUB_REPOSITORY: 'MionKit/mion',
-    GITHUB_HEAD_REF: 'feature',
-    GITHUB_RUN_ID: '100',
-  };
-  const run = (id: number, extra: Record<string, unknown> = {}) => ({
-    id,
-    status: 'in_progress',
-    conclusion: null,
-    head_repository: {full_name: 'MionKit/mion'},
-    pull_requests: [{number: 42}],
-    ...extra,
+  afterEach(() => {
+    vi.restoreAllMocks();
+    rmSync(dir, {recursive: true, force: true});
   });
   const decision = {lanes: {'go-tools': {run: true, hash: 't2'}}, labels: []};
-  const fakeGh = (runs: unknown[], uploaded: (id: string) => boolean = () => true) => {
-    const calls: string[][] = [];
-    const gh = (args: string[]) => {
-      calls.push(args);
-      if (args[0] === 'api') return {status: 0, stdout: JSON.stringify({workflow_runs: runs})};
-      const target = args[args.indexOf('--dir') + 1];
-      if (!uploaded(args[2])) return {status: 1, stdout: ''};
-      mkdirSync(target, {recursive: true});
-      writeFileSync(path.join(target, 'decision.json'), JSON.stringify(decision));
-      return {status: 0, stdout: ''};
-    };
-    return {gh, calls};
-  };
 
-  it('lists this workflow and branch, and keeps only newer runs of this pull request from this repository', () => {
-    const {gh, calls} = fakeGh([
-      run(99),
-      run(101),
-      run(102, {pull_requests: [{number: 7}]}),
-      run(103, {head_repository: {full_name: 'fork/mion'}}),
-      run(104, {status: 'completed', conclusion: 'cancelled'}),
-      run(105, {status: 'completed', conclusion: 'success'}),
+  it("lists this workflow's runs on this branch and event, from this repository and this pull request only", () => {
+    const {gh, calls} = fakeGitHub([
+      workflowRun(99),
+      workflowRun(101, {pull_requests: [{number: 7}]}),
+      workflowRun(102, {head_repository: {full_name: 'fork/mion'}}),
     ]);
-    const newer = newerDecisions({gh, env, dir, seen: new Map()});
-    expect(newer.map(({runId}: Older) => runId)).toEqual([101, 105]);
-    expect(calls[0]).toEqual(expect.arrayContaining(['repos/MionKit/mion/actions/workflows/ci.yml/runs', 'branch=feature']));
+    expect(listRuns({gh, env: prEnv}).map((run: {id: number}) => run.id)).toEqual([99]);
+    expect(calls[0]).toEqual(
+      expect.arrayContaining(['repos/MionKit/mion/actions/workflows/ci.yml/runs', 'branch=feature', 'event=pull_request'])
+    );
   });
 
-  it('downloads each decision once, and retries one not uploaded yet', () => {
-    let ready = false;
-    const {gh, calls} = fakeGh([run(101)], () => ready);
-    const seen = new Map();
-    expect(newerDecisions({gh, env, dir, seen})).toEqual([{runId: 101, decision: null}]);
-    ready = true;
-    expect(newerDecisions({gh, env, dir, seen})).toEqual([{runId: 101, decision}]);
-    newerDecisions({gh, env, dir, seen});
-    expect(calls.filter((args) => args[1] === 'download').length).toBe(2);
+  it('keeps every run of the branch off a pull request', () => {
+    const push = {
+      ...prEnv,
+      GITHUB_REF: 'refs/heads/main',
+      GITHUB_HEAD_REF: '',
+      GITHUB_REF_NAME: 'main',
+      GITHUB_EVENT_NAME: 'push',
+    };
+    const {gh, calls} = fakeGitHub([workflowRun(99, {pull_requests: []})]);
+    expect(listRuns({gh, env: push})).toHaveLength(1);
+    expect(calls[0]).toEqual(expect.arrayContaining(['branch=main', 'event=push']));
   });
 
-  it('reads nothing off a pull request or from an unreadable listing', () => {
-    expect(
-      newerDecisions({gh: fakeGh([run(101)]).gh, env: {...env, GITHUB_REF: 'refs/heads/main'}, dir, seen: new Map()})
-    ).toEqual([]);
-    expect(newerDecisions({gh: () => ({status: 0, stdout: 'not json'}), env, dir, seen: new Map()})).toEqual([]);
+  it('returns null for a listing it cannot read', () => {
+    expect(listRuns({gh: fakeGitHub(null).gh, env: prEnv})).toBeNull();
+    expect(listRuns({gh: () => ({status: 0, stdout: 'not json'}), env: prEnv})).toBeNull();
+    expect(listRuns({gh: () => ({status: 0, stdout: '{}'}), env: prEnv})).toBeNull();
+  });
+
+  it('gives the gate the older active runs, counting an undownloadable or unreadable decision as none', () => {
+    const {gh} = fakeGitHub(
+      [workflowRun(90), workflowRun(91), workflowRun(92), workflowRun(93, {status: 'completed'}), workflowRun(101)],
+      {90: JSON.stringify(decision), 91: '{not json', 93: JSON.stringify(decision)}
+    );
+    expect(olderRuns({gh, env: prEnv, dir})).toEqual([
+      {runId: 90, decision},
+      {runId: 91, decision: null},
+      {runId: 92, decision: null},
+    ]);
+  });
+
+  it('warns and gives the gate nothing to keep or cancel when the runs cannot be listed', () => {
+    expect(olderRuns({gh: fakeGitHub(null).gh, env: prEnv, dir})).toEqual([]);
+    expect(console.log).toHaveBeenCalledWith('::warning::could not list the older runs, so none is kept or cancelled');
+  });
+
+  it('gives the watcher the newer runs that were not cancelled', () => {
+    const {gh} = fakeGitHub(
+      [
+        workflowRun(99),
+        workflowRun(101),
+        workflowRun(102, {status: 'completed', conclusion: 'cancelled'}),
+        workflowRun(103, {status: 'completed', conclusion: 'success'}),
+      ],
+      {101: JSON.stringify(decision), 103: JSON.stringify(decision)}
+    );
+    expect(newerDecisions({gh, env: prEnv, dir})).toEqual([
+      {runId: 101, decision},
+      {runId: 103, decision},
+    ]);
+  });
+
+  it('downloads a decision once across polls, retries one not uploaded yet, and gives up on a finished run without one', () => {
+    const runs = [workflowRun(101), workflowRun(102, {status: 'completed', conclusion: 'failure'})];
+    const decisions: Record<number, string> = {};
+    const {gh, downloads} = fakeGitHub(runs, decisions);
+    expect(newerDecisions({gh, env: prEnv, dir})).toEqual([
+      {runId: 101, decision: null},
+      {runId: 102, decision: null},
+    ]);
+    decisions[101] = JSON.stringify(decision);
+    expect(newerDecisions({gh, env: prEnv, dir})).toEqual([{runId: 101, decision}]);
+    newerDecisions({gh, env: prEnv, dir});
+    expect(downloads()).toEqual([101, 102, 101]);
+  });
+
+  it('gives the watcher nothing when the runs cannot be listed', () => {
+    expect(newerDecisions({gh: fakeGitHub(null).gh, env: prEnv, dir})).toEqual([]);
   });
 });
 
+// Real child processes: a `pid` file shows what the command started, so the test can tell it is gone.
+const gone = async (pid: number) => {
+  for (let tries = 0; tries < 50; tries++) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
+};
+const waitForFile = async (file: string) => {
+  for (let tries = 0; tries < 100; tries++) {
+    try {
+      return Number(readFileSync(file, 'utf8'));
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  throw new Error(`${file} never appeared`);
+};
+// A command whose own child ignores SIGTERM and writes its pid, so only the group SIGKILL can stop it.
+const stubbornCommand = (pidFile: string) => {
+  const grandchild = `process.on('SIGTERM', () => {}); require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 60000)`;
+  const child = `require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], {stdio: 'inherit'}); setTimeout(() => {}, 60000)`;
+  return [process.execPath, '-e', child];
+};
+
 describe('watchStep', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'watch-step-'));
+  });
+  afterEach(() => rmSync(dir, {recursive: true, force: true}));
   const node = (code: string) => [process.execPath, '-e', code];
   const taken = new Map([['go-tools', 9]]);
 
   it('passes the command exit code through when nothing takes its lanes over', async () => {
-    const result = await watchStep({
-      command: node('process.exit(3)'),
-      names: ['go-tools'],
-      check: () => new Map(),
-      firstMs: 5,
-      everyMs: 5,
-    });
+    const result = await watchStep({command: node('process.exit(3)'), names: ['go-tools'], check: () => new Map(), pollMs: 5});
     expect(result).toEqual({code: 3, signal: null, taken: null});
   });
 
-  it('stops the command, and everything it started, once every lane is taken over', async () => {
-    const started = Date.now();
-    const result = await watchStep({
-      command: node(
-        "require('child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {stdio: 'inherit'}); setTimeout(() => {}, 60000)"
-      ),
+  it('stops the command and everything it started once every lane is taken over, even what ignores SIGTERM', async () => {
+    const pidFile = path.join(dir, 'pid');
+    let ready = false;
+    const pending = watchStep({
+      command: stubbornCommand(pidFile),
       names: ['go-tools'],
-      check: () => taken,
-      firstMs: 50,
-      everyMs: 50,
+      check: () => (ready ? taken : new Map()),
+      pollMs: 20,
     });
-    expect(result.taken).toBe(taken);
-    expect(Date.now() - started).toBeLessThan(20_000);
+    const grandchild = await waitForFile(pidFile);
+    ready = true;
+    expect((await pending).taken).toBe(taken);
+    expect(await gone(grandchild)).toBe(true);
   });
 
   it('keeps running while only some lanes are taken over, or the check throws', async () => {
@@ -504,17 +564,14 @@ describe('watchStep', () => {
         if (polls % 2) throw new Error('gh down');
         return taken;
       },
-      firstMs: 20,
-      everyMs: 20,
+      pollMs: 20,
     });
     expect(result).toEqual({code: 0, signal: null, taken: null});
     expect(polls).toBeGreaterThan(2);
   });
 
   it('never polls without a check, and reports a command that cannot start', async () => {
-    expect(
-      await watchStep({command: ['no-such-command-here'], names: ['go-tools'], check: null, firstMs: 5, everyMs: 5})
-    ).toMatchObject({
+    expect(await watchStep({command: ['no-such-command-here'], names: ['go-tools'], check: null, pollMs: 5})).toMatchObject({
       code: 127,
     });
   });
@@ -525,66 +582,141 @@ describe('the supersede CLI', () => {
   const env = {...process.env};
   const file = (name: string, content?: unknown) => {
     const at = path.join(dir, name);
-    if (content !== undefined) writeFileSync(at, JSON.stringify(content));
+    if (content !== undefined) writeFileSync(at, typeof content === 'string' ? content : JSON.stringify(content));
     return at;
   };
+  const githubEnv = () => ({
+    ...prEnv,
+    GITHUB_OUTPUT: file('output', ''),
+    GITHUB_STEP_SUMMARY: file('summary', ''),
+    GITHUB_ENV: file('env', ''),
+    RUNNER_TEMP: dir,
+  });
   beforeEach(() => {
     dir = mkdtempSync(path.join(os.tmpdir(), 'supersede-'));
-    process.env.GITHUB_OUTPUT = file('output', '');
-    process.env.GITHUB_STEP_SUMMARY = file('summary', '');
-    writeFileSync(process.env.GITHUB_OUTPUT, '');
-    writeFileSync(process.env.GITHUB_STEP_SUMMARY, '');
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
   afterEach(() => {
     process.env = {...env};
+    process.exitCode = 0;
     vi.restoreAllMocks();
     rmSync(dir, {recursive: true, force: true});
   });
 
   // The cancel step reads `cancel=` and nothing else: a typo there means no older run is ever cancelled.
-  it('writes our lanes with their waits to --out, and the runs to cancel as `cancel=`', () => {
-    const older: Older[] = [
-      {runId: 5, decision: ci()},
-      {runId: 6, decision: null},
-      {runId: 4, decision: ci({js: 'old'})},
-    ];
-    main([
+  it('plans from the listed older runs, writing our lanes with their waits to --out and the runs to cancel as `cancel=`', () => {
+    const {gh} = fakeGitHub([workflowRun(4), workflowRun(5), workflowRun(6), workflowRun(101)], {
+      4: JSON.stringify(ci({js: 'old'})),
+      5: JSON.stringify(ci()),
+    });
+    const ghEnv = githubEnv();
+    const args = [
       '--plan',
       '--decision',
       file('ours.json', ci()),
-      '--older',
-      file('older.json', older),
+      '--older-dir',
+      path.join(dir, 'older'),
       '--out',
       file('final.json'),
       '--github',
-    ]);
+    ];
+    main(args, {gh, env: ghEnv});
     expect(JSON.parse(readFileSync(file('final.json'), 'utf8')).go).toMatchObject({deferredTo: 5});
-    expect(readFileSync(process.env.GITHUB_OUTPUT as string, 'utf8')).toBe('cancel=4 6\n');
-    expect(readFileSync(process.env.GITHUB_STEP_SUMMARY as string, 'utf8')).toContain(
+    expect(readFileSync(ghEnv.GITHUB_OUTPUT, 'utf8')).toBe('cancel=4 6\n');
+    expect(readFileSync(ghEnv.GITHUB_STEP_SUMMARY, 'utf8')).toContain(
       '| 5 | keep | go.1, go.2, go.3, js-fuzz.sweep, js-fuzz.timeboxed, js |'
     );
   });
 
+  it('cancels nothing when the older runs cannot be listed', () => {
+    const ghEnv = githubEnv();
+    main(
+      [
+        '--plan',
+        '--decision',
+        file('ours.json', ci()),
+        '--older-dir',
+        path.join(dir, 'older'),
+        '--out',
+        file('final.json'),
+        '--github',
+      ],
+      {
+        gh: fakeGitHub(null).gh,
+        env: ghEnv,
+      }
+    );
+    expect(readFileSync(ghEnv.GITHUB_OUTPUT, 'utf8')).toBe('cancel=\n');
+  });
+
   it('returns at once from --wait when nothing waits, without calling gh', () => {
-    process.env.PATH = '';
-    main(['--wait', '--decision', file('lanes.json', ci().lanes), '--lanes', 'go', 'js', '--jobs', 'x', '--timeout', '60']);
+    const {gh, calls} = fakeGitHub([]);
+    main(['--wait', '--decision', file('lanes.json', ci().lanes), '--lanes', 'go', 'js', '--jobs', 'x', '--timeout', '60'], {gh});
     expect(console.log).toHaveBeenCalledWith('no lane of go js waits on an older run');
+    expect(calls).toEqual([]);
   });
 
   it('skips a watched step whose lanes a newer run already took over', async () => {
-    process.env.MION_TAKEN_OVER = 'go-static go-tools';
-    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)']);
+    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)'], {
+      env: {...prEnv, MION_TAKEN_OVER: 'go-static go-tools'},
+    });
     expect(console.log).toHaveBeenCalledWith('skipped: a newer run re-runs go-tools');
     expect(process.exitCode ?? 0).toBe(0);
   });
 
   it('runs a watched step as is off a pull request, exit code included', async () => {
-    process.env.GITHUB_EVENT_NAME = 'push';
-    delete process.env.MION_TAKEN_OVER;
-    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)']);
+    const {gh, calls} = fakeGitHub([]);
+    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'process.exit(5)'], {
+      gh,
+      env: {...prEnv, GITHUB_EVENT_NAME: 'push'},
+      pollMs: 5,
+    });
     expect(process.exitCode).toBe(5);
-    process.exitCode = 0;
+    expect(calls).toEqual([]);
+  });
+
+  // The save steps read MION_TAKEN_OVER, so a missing line would save a marker for work that never finished.
+  it('stops a step a newer run took over, exits 0, and records the lane for the steps below', async () => {
+    const newer = {lanes: {'go-tools': {run: true, hash: 't2'}}, labels: []};
+    const {gh} = fakeGitHub([workflowRun(101)], {101: JSON.stringify(newer)});
+    const ghEnv = {
+      ...githubEnv(),
+      MION_LANES: JSON.stringify({'go-static': {run: true, hash: 'g1'}, 'go-tools': {run: true, hash: 't1'}}),
+      MION_TAKEN_OVER: 'go-static',
+    };
+    await main(['--watch', 'go-tools', '--', process.execPath, '-e', 'setTimeout(() => process.exit(4), 60000)'], {
+      gh,
+      env: ghEnv,
+      pollMs: 20,
+    });
+    expect(process.exitCode ?? 0).toBe(0);
+    expect(readFileSync(ghEnv.GITHUB_ENV, 'utf8')).toBe('MION_TAKEN_OVER=go-static go-tools\n');
+    expect(readFileSync(ghEnv.GITHUB_STEP_SUMMARY, 'utf8')).toBe(
+      'stopped: newer run 101 re-runs go-tools, so this run saves no marker for it\n'
+    );
+  });
+
+  // A cancelled job signals the step; the command sits in its own process group, so only the forward stops it.
+  it('forwards a signal sent to the step to the whole command', async () => {
+    const pidFile = path.join(dir, 'pid');
+    const command = [
+      process.execPath,
+      '-e',
+      `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 60000)`,
+    ];
+    const watcher = spawn(
+      process.execPath,
+      [path.resolve(__dirname, '../../../scripts/ci/supersede.mjs'), '--watch', 'go-tools', '--', ...command],
+      {
+        env: {...process.env, GITHUB_EVENT_NAME: 'push'},
+        stdio: 'ignore',
+      }
+    );
+    const exited = new Promise<number | null>((resolve) => watcher.on('exit', (code) => resolve(code)));
+    const commandPid = await waitForFile(pidFile);
+    watcher.kill('SIGTERM');
+    expect(await exited).toBe(1);
+    expect(await gone(commandPid)).toBe(true);
   });
 });

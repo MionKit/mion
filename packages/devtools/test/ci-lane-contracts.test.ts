@@ -10,7 +10,7 @@
 // These pin the three halves to each other: the lane table in scripts/ci/lanes.mjs,
 // the `if:` that consults it, and the save step that writes the marker.
 import {spawnSync} from 'node:child_process';
-import {globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
@@ -516,10 +516,10 @@ describe('every workflow gates on the lanes it declares', () => {
           )
         );
       }
-      // go-build, drizzle's decide and the waiters decide from the gate whether to start; a deferred lane keeps `run`.
+      // go-build and go-checks-wait decide from the gate whether to start; a deferred lane keeps `run`.
       const withoutStartConditions = workflow
         .split(/\n  (?=[\w-]+:\n)/)
-        .map((job) => (/^(go-build|decide|[\w-]+-wait):/.test(job) ? job.replace(/^ {4}if: .*$/m, '') : job))
+        .map((job) => (/^(go-build|go-checks-wait):/.test(job) ? job.replace(/^ {4}if: .*$/m, '') : job))
         .join('\n  ');
       expect(withoutStartConditions, `${file} reads a verdict from the gate alone`).not.toMatch(
         /fromJSON\(needs\.lanes\.outputs\.lanes\)(\.[\w]+|\['[\w-]+'\])\.(run|runItems)\b/
@@ -895,10 +895,12 @@ describe('a new commit cancels only what it changed', () => {
     expect(next('- name: Go vet (our code only; never third_party)')).toMatch(/^name: Record gofmt and vet as green\n/);
   });
 
-  // A proven lane needs no answer from decide, which costs a full-history checkout.
-  it('starts drizzle decide only when the lane runs', () => {
-    expect(jobOf(read('.github/workflows/drizzle-e2e.yml'), 'decide')).toContain(
-      '    if: fromJSON(needs.lanes.outputs.lanes).drizzle.run\n'
+  // A lane the older run proves needs no answer from decide, which costs a full-history checkout.
+  it('starts drizzle decide after the waiter, only when the lane still runs', () => {
+    const decide = jobOf(read('.github/workflows/drizzle-e2e.yml'), 'decide');
+    expect(decide).toContain('    needs: [lanes, drizzle-wait]\n');
+    expect(decide).toContain(
+      "    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}\n"
     );
   });
 });
@@ -994,79 +996,17 @@ describe('the gate keeps or cancels older runs', () => {
   const action = read('.github/actions/ci-lanes/action.yml');
   const scriptOf = (name: string) =>
     (/run: \|\n((?: {8}.*\n?)+)/.exec(action.slice(action.indexOf(`- name: ${name}`)))?.[1] ?? '').replace(/^ {8}/gm, '');
-  const decision = {lanes: {'go-static': {run: true, hash: 'g'}}, labels: [], baseRef: 'main'};
-  const run = (gh: string, files: Record<string, string> = {}) => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'supersede-gate-'));
-    try {
-      mkdirSync(path.join(dir, '.lane-decision'));
-      writeFileSync(path.join(dir, '.lane-decision/decision.json'), JSON.stringify(decision));
-      for (const [name, content] of Object.entries(files)) {
-        mkdirSync(path.dirname(path.join(dir, name)), {recursive: true});
-        writeFileSync(path.join(dir, name), content);
-      }
-      symlinkSync(path.join(REPO_ROOT, 'scripts'), path.join(dir, 'scripts'));
-      const env = {
-        PATH: process.env.PATH,
-        GITHUB_OUTPUT: path.join(dir, 'output'),
-        GITHUB_STEP_SUMMARY: path.join(dir, 'summary'),
-        GITHUB_WORKFLOW_REF: 'o/r/.github/workflows/ci.yml@refs/pull/1/merge',
-        GITHUB_REPOSITORY: 'o/r',
-        GITHUB_RUN_ID: '50',
-        GITHUB_HEAD_REF: 'feat',
-        GITHUB_EVENT_NAME: 'pull_request',
-        MION_PR_NUMBER: '1',
-      };
-      writeFileSync(env.GITHUB_OUTPUT, '');
-      const result = spawnSync(
-        'bash',
-        ['--noprofile', '--norc', '-eo', 'pipefail', '-c', `gh() { ${gh}; }\n${scriptOf('Keep or cancel the older runs')}`],
-        {cwd: dir, env, encoding: 'utf8'}
-      );
-      const older = JSON.parse(readFileSync(path.join(dir, '.lane-decision/older.json'), 'utf8') || '[]');
-      return {status: result.status, stdout: result.stdout, output: readFileSync(env.GITHUB_OUTPUT, 'utf8'), older};
-    } finally {
-      rmSync(dir, {recursive: true, force: true});
-    }
-  };
-  // `gh api` lists runs 41 and 42; `gh run download` succeeds only where a file was planted.
-  const listing = `case "$1" in api) echo 41; echo 42;; run) [ "$2" = download ] && [ -f ".lane-decision/older/$3/decision.json" ];; esac`;
 
-  it('keeps an unchanged run, and cancels one whose decision cannot be downloaded', () => {
-    const result = run(listing, {'.lane-decision/older/41/decision.json': JSON.stringify(decision)});
-    expect(result.status).toBe(0);
-    expect(result.older).toEqual([
-      {runId: 41, decision},
-      {runId: 42, decision: null},
-    ]);
-    expect(result.output).toBe('cancel=42\n');
-  });
-
-  it('counts an unreadable decision as none instead of failing the gate', () => {
-    const result = run(listing, {
-      '.lane-decision/older/41/decision.json': '{not json',
-      '.lane-decision/older/42/decision.json': '{}',
-    });
-    expect(result.status).toBe(0);
-    expect(result.older).toEqual([
-      {runId: 41, decision: null},
-      {runId: 42, decision: null},
-    ]);
-    expect(result.output).toBe('cancel=41 42\n');
-  });
-
-  it('warns and cancels nothing when the runs cannot be listed', () => {
-    const result = run('return 1');
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('::warning::could not list the older runs');
-    expect(result.output).toBe('cancel=\n');
-  });
-
-  it('lists only older runs of this pull request, from this repository, through the API', () => {
-    const script = scriptOf('Keep or cancel the older runs');
-    expect(script).toContain('-f branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"');
-    expect(script).toContain('.id < $GITHUB_RUN_ID');
-    expect(script).toContain('.head_repository.full_name == \\"$GITHUB_REPOSITORY\\"');
-    expect(script).toContain('[.pull_requests[].number | tostring] | index(\\"$MION_PR_NUMBER\\")');
+  // The listing and its filters live in supersede.mjs, shared with the watcher; pasting the branch into bash would let it run code.
+  it('lists, downloads and plans in supersede.mjs, with the token and no branch name in the script', () => {
+    const step = action.slice(
+      action.indexOf('- name: Keep or cancel the older runs'),
+      action.indexOf('- name: Cancel the older runs')
+    );
+    expect(step).toContain(
+      'run: node scripts/ci/supersede.mjs --plan --decision .lane-decision/decision.json --older-dir .lane-decision/older --out .lane-decision/final.json --github\n'
+    );
+    expect(step).toContain('GH_TOKEN: ${{ github.token }}');
     expect(action).not.toMatch(/run: \|[\s\S]*\$\{\{ github\.head_ref/);
   });
 
