@@ -258,6 +258,24 @@ func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
 	}
 }
 
+// TestFormatAnnotation_GeneratorInKey pins that a mock `generator` IS id-relevant: reflection carries it to the mock, so
+// two formats differing only in their generator must get two entries, or one twin mocks with the other's generator.
+func TestFormatAnnotation_GeneratorInKey(t *testing.T) {
+	key := func(generator string) string {
+		return typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
+			Name:   "stringFormat",
+			Params: map[string]any{"maxLength": 120.0, "generator": generator},
+		})
+	}
+	bare := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
+		Name:   "stringFormat",
+		Params: map[string]any{"maxLength": 120.0},
+	})
+	if key("firstName") == key("lastName") || key("firstName") == bare {
+		t.Fatalf("generator must affect the key: %q / %q / %q", key("firstName"), key("lastName"), bare)
+	}
+}
+
 // TestFormatAnnotation_SamplesExcludedFromKey pins that mockSamples is NOT
 // id-relevant (generation metadata, not validation behaviour) while `message`
 // and a pattern's `source`/`flags` still are. Two same-shape formats differing
@@ -390,5 +408,20 @@ getRunTypeId<FixtureFormat>();
 	// the type's identity, so a fixture written either way caches as one entry.
 	if symbolKeyed.ID != stringKeyed.ID {
 		t.Fatalf("id depends on the sentinel key spelling: symbol-keyed %q vs string-keyed %q", symbolKeyed.ID, stringKeyed.ID)
+	}
+}
+
+// TestMergeFormatAnnotations_GeneratorsClash: an intersection of two formats with different mock generators has no
+// single generator to mock with, so the merge refuses it; the same generator on both sides merges.
+func TestMergeFormatAnnotations_GeneratorsClash(t *testing.T) {
+	annotation := func(generator string) *reflection.FormatAnnotation {
+		return &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"generator": generator}}
+	}
+	if _, ok := typeid.MergeFormatAnnotations([]*reflection.FormatAnnotation{annotation("firstName"), annotation("lastName")}); ok {
+		t.Fatal("two different generators must not merge")
+	}
+	merged, ok := typeid.MergeFormatAnnotations([]*reflection.FormatAnnotation{annotation("city"), annotation("city")})
+	if !ok || merged.Params["generator"] != "city" {
+		t.Fatalf("the same generator must merge, got %+v ok=%v", merged, ok)
 	}
 }

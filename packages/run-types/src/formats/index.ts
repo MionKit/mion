@@ -7,7 +7,6 @@ import './datetime/dateTime-pure-fns.ts';
 // The per-kind mock fns are NOT imported here: createMockData.ts registers them, so only a bundle
 // that mocks carries them.
 
-// Kept as `export type *`: the suite exporters' FORMATS_MODULE overlay keys off these lines.
 export type * from './string/stringFormats.ts';
 // The credit-card type, params and builder live beside the pure fns that back them.
 export type * from './string/credit-card-pure-fns.ts';
@@ -35,6 +34,20 @@ export type {
   FormattedObjectParamsValueFirst,
   StructuralBrand,
 } from './structural.ts';
+
+// The built-in mock generator names, for autocomplete: `GEN.lastName` is the literal 'lastName' as a value and a type.
+export * as GEN from '../go-generated/mockGenerators.generated.ts';
+import type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
+export type {BuiltinMockGenerators} from '../go-generated/mockGeneratorMeta.generated.ts';
+
+/** Extend it to name your own mock generators, registered with `registerMockGenerator`:
+ *  `declare module '@mionjs/run-types/formats' { interface CustomMockGenerators { phoneNumberUk: true } }`.
+ *  Declared here, not re-exported, so that augmentation of this subpath merges into it. **/
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CustomMockGenerators {}
+
+/** A string format's `generator`: a built-in name or one declared on CustomMockGenerators. **/
+export type MockGeneratorName = keyof BuiltinMockGenerators | keyof CustomMockGenerators;
 
 // Temporal builders are NOT re-exported here: they live on the `@mionjs/run-types/formats/temporal`
 // subpath, so non-Temporal consumers never pull in the Temporal lib.

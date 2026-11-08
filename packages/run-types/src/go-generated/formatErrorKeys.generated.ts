@@ -145,6 +145,7 @@ export type FormatSampledParams = {
     | 'contentMediaType'
     | 'disallowedChars'
     | 'disallowedValues'
+    | 'generator'
     | 'isRegex'
     | 'length'
     | 'maxLength'

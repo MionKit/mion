@@ -55,6 +55,7 @@ function paramAccepts(
       return param !== 'application/json' || parsesAsJson(params.contentEncoding === 'base64' ? decodeBase64(value) : value);
     // No check of their own: generation-only, a rewrite validate never applies, or read by contentMediaType.
     case 'mockSamples':
+    case 'generator':
     case 'transform':
     case 'contentEncoding':
       return true;

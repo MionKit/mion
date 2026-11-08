@@ -6,6 +6,7 @@
 import {TypeFormat} from '../../runtypes/typeFormat.ts';
 import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf, FormatBrand, NominalBrand} from '../../runtypes/typeFormat.ts';
 import type {FormatPattern, StringPatternArgs} from '../../runtypes/formatPattern.ts';
+import type {MockGeneratorName} from '../index.ts';
 // Type-only on purpose: a value import would ship the whole pattern table to every browser.
 // The Go scanner recovers {source, flags, mockSamples} from each const's literal type.
 import type {
@@ -162,6 +163,8 @@ export interface StringParams {
   allowedValues?: AllowedValuesParam;
   disallowedValues?: DisallowedValuesParam;
   mockSamples?: readonly string[];
+  // A realistic mock value, drawn by name (`'lastName'`, `GEN.lastName`); validation ignores it.
+  generator?: MockGeneratorName;
   // JSON Schema content keywords: `contentEncoding` says how the string is encoded, `contentMediaType`
   // what the DECODED content is, so with both the value must decode AND parse. Ordinary string
   // keywords, there is no separate content FORMAT.
