@@ -273,9 +273,9 @@ describe('MockData consumption — generators', () => {
     for (let i = 0; i < 50; i++) expect([...mock().code].length).toBeLessThanOrEqual(6);
   });
 
-  it('refuses a named family format, which mocks itself', () => {
-    const mock = createMockDataFn<{email: TF.Email}>(undefined, {data: {email: {pool: [], generator: 'email'}}});
-    expect(() => mock()).toThrow(/`email` format mocks itself/);
+  it('a named family format ignores it and mocks itself (enrich --no-emit reports the generator)', () => {
+    const mock = createMockDataFn<{email: TF.Email}>(undefined, {data: {email: {pool: [], generator: 'lastName'}}});
+    for (let seed = 1; seed <= 10; seed++) expect(mock({mock: {seed}}).email).toMatch(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
   });
 });
 

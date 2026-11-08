@@ -40,6 +40,7 @@ func TestGeneratorProblems(t *testing.T) {
 		{"allowedValues", "city", map[string]any{"allowedValues": map[string]any{"val": []any{"x"}}}, false, []string{"`allowedValues`"}},
 		{"disallowedValues", "city", map[string]any{"disallowedValues": map[string]any{"val": []any{"x"}}}, false, []string{"`disallowedValues`"}},
 		{"contentMediaType", "city", map[string]any{"contentMediaType": "application/json"}, false, []string{"`contentMediaType`"}},
+		{"isRegex", "phoneNumber", map[string]any{"isRegex": true}, true, []string{"`isRegex`"}},
 		{"mockSamples", "city", map[string]any{"mockSamples": []any{"x"}}, false, []string{"`mockSamples`"}},
 		{"mockSamples from data", "city", map[string]any{"mockSamples": []any{"x"}}, true, nil},
 		{"pattern samples fine", "firstName", map[string]any{"pattern": map[string]any{"source": "^[a-z]+$", "mockSamples": []any{"a"}}}, false, nil},

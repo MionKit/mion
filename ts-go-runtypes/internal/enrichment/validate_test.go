@@ -722,7 +722,8 @@ func TestCheckMock_StructuralSlots(t *testing.T) {
 	}
 }
 
-// TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator, a stringless union does not.
+// TestCheckMock_GeneratorOnUnionsAndVariadicTuples: a nullable string takes a generator, a stringless union does not,
+// and every plain or String-format arm must accept it (a named format arm mocks itself).
 // A variadic tuple's shared rt$items is checked against every slot, and `GEN.x` like the literal it equals.
 func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
 	valueSet := stringFormatRT(map[string]any{"allowedValues": map[string]any{"val": []any{"Lee"}}})
@@ -745,6 +746,8 @@ func TestCheckMock_GeneratorOnUnionsAndVariadicTuples(t *testing.T) {
 		{"nullable string", union(stringRT(), &reflection.RunType{Kind: reflection.KindNull}), bad(), ""},
 		{"nullable value-set string", union(valueSet, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
 		{"union without a string", union(&reflection.RunType{Kind: reflection.KindNumber}, &reflection.RunType{Kind: reflection.KindNull}), bad(), "field.generator"},
+		{"a named format arm mocks itself", union(stringRT(), &reflection.RunType{Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "email"}}), bad(), ""},
+		{"every String arm must accept it", union(stringRT(), valueSet), bad(), "field.generator"},
 		{"variadic tuple with a string slot", variadic(stringRT()), newFakeView().obj("rt$items", bad()), ""},
 		{"variadic tuple with a value-set slot", variadic(valueSet), newFakeView().obj("rt$items", bad()), "field.rt$items.generator"},
 		{"GEN member", valueSet, newFakeView().mem("generator", "lastName"), "field.generator"},

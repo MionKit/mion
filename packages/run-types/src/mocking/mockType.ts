@@ -142,16 +142,11 @@ function childDataNodeByName(node: MockDataNode | undefined, name: string | numb
   return asDataNode(node[name as string]);
 }
 
-/** The string params a MockData generator must satisfy; the format's own generator and samples check nothing. **/
-function dataGeneratorParams(runType: RunType): StringParams {
+/** The string params a MockData generator must satisfy, undefined for a named format, which mocks itself. **/
+function dataGeneratorParams(runType: RunType): StringParams | undefined {
   const annotation = runType.formatAnnotation;
   if (!annotation) return {};
-  if (annotation.name !== 'stringFormat') {
-    throw new Error(
-      `MockData generator: the \`${annotation.name}\` format mocks itself; a generator works on a plain string or a String format.`
-    );
-  }
-  return annotation.params as StringParams;
+  return annotation.name === 'stringFormat' ? (annotation.params as StringParams) : undefined;
 }
 
 /** Non-empty value pool from the current data node, or undefined. **/
@@ -211,9 +206,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
   const pool = dataPool(dataNode);
   if (pool) return random.pick(pool);
   // A data-node generator beats the format's own (generator or samples) but keeps its string rules.
-  if (kind === RunTypeKind.string && typeof dataNode?.generator === 'string') {
-    return mockFromGenerator(dataNode.generator, dataGeneratorParams(runType), random);
-  }
+  const generatorParams = typeof dataNode?.generator === 'string' && kind === RunTypeKind.string && dataGeneratorParams(runType);
+  if (generatorParams) return mockFromGenerator(dataNode!.generator as string, generatorParams, random);
 
   // TypeFormat brand: the kind's registered mock fn produces a value satisfying the format, drawing from
   // mockSamples for pattern formats since a regex can't be reversed. Undefined falls through to the kind-default.

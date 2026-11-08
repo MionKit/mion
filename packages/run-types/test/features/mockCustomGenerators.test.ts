@@ -63,7 +63,8 @@ describe('custom mock generators', () => {
 
   it("throw after 64 values the format's pattern rejects", () => {
     registerMockGenerator('alwaysUpper', () => 'ABC');
-    const mock = createMockDataFn<TF.String<{pattern: {source: '^[a-z]+$'; mockSamples: ['abc']}; generator: 'alwaysUpper'}>>();
+    // `^ab$` accepts no single char, so no replacement can rescue the value.
+    const mock = createMockDataFn<TF.String<{pattern: {source: '^ab$'; mockSamples: ['ab']}; generator: 'alwaysUpper'}>>();
     expect(() => mock()).toThrow(/`alwaysUpper`: 64 values failed the format's pattern, allowedChars or disallowedChars/);
   });
 
@@ -99,8 +100,21 @@ describe('custom mock generators', () => {
     expect(() => registerMockGenerator('neverRegistered', 'nope' as never)).toThrow(/`neverRegistered` needs a function/);
   });
 
-  it('refuse a built-in name and a second registration', () => {
+  it('refuse a built-in name, replace a custom one registered again', () => {
     expect(() => registerMockGenerator('lastName' as 'phoneNumberUk', ukPhone)).toThrow(/built-in generator/);
-    expect(() => registerMockGenerator('phoneNumberUk', ukPhone)).toThrow(/already registered/);
+    registerMockGenerator('phoneNumberUk', () => '+44 7000000000');
+    expect(createMockDataFn<TF.String<{generator: 'phoneNumberUk'}>>()()).toBe('+44 7000000000');
+    registerMockGenerator('phoneNumberUk', ukPhone);
+  });
+
+  it('a union falls through to a sibling arm when the generator runs out of draws', () => {
+    const mock = createMockDataFn<
+      TF.String<{pattern: {source: '^ab$'; mockSamples: ['ab']}; generator: 'alwaysUpper'}> | number
+    >();
+    for (let seed = 1; seed <= 10; seed++) expect(typeof mock({mock: {seed}})).toBe('number');
+  });
+
+  it('an empty value under allowedChars still gets one char', () => {
+    expect(createMockDataFn<TF.String<{allowedChars: {val: 'abc'}; generator: 'emptyString'}>>()()).toMatch(/^[abc]$/);
   });
 });
