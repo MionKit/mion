@@ -75,7 +75,7 @@ var UUIDSpellings = map[string]FormatFamily{
 // TypeFormat-constructor escape. A key added without a row here only DEMOTES to that exact spelling.
 var GenericParamKeys = map[string]map[string]bool{
 	"stringFormat": setOf("maxLength", "minLength", "length", "pattern", "allowedChars", "disallowedChars",
-		"allowedValues", "disallowedValues", "mockSamples", "contentEncoding", "contentMediaType",
+		"allowedValues", "disallowedValues", "mockSamples", "generator", "contentEncoding", "contentMediaType",
 		"transform"),
 	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf", "multipleOfTolerance",
 		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "isCurrency"),

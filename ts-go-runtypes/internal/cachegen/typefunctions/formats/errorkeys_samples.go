@@ -14,7 +14,7 @@ var errorKeySamples = map[string][]map[string]any{
 			"maxLength": 10.0, "minLength": 1.0, "length": 5.0, "pattern": samplePattern,
 			"allowedChars": map[string]any{"val": "abc"}, "disallowedChars": map[string]any{"val": "xyz"},
 			"allowedValues": map[string]any{"val": []any{"a"}}, "disallowedValues": map[string]any{"val": []any{"b"}},
-			"mockSamples": []any{"abc"}, "transform": map[string]any{"trim": true}, "isRegex": true,
+			"mockSamples": []any{"abc"}, "generator": "firstName", "transform": map[string]any{"trim": true}, "isRegex": true,
 		},
 		{"contentMediaType": "application/json", "contentEncoding": "base64"},
 	},

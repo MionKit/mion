@@ -76,7 +76,7 @@
     {
       "group": "scalar",
       "label": "string({params})",
-      "fixed": 200,
+      "fixed": 205,
       "fixedBudget": 225,
       "marginal": 29,
       "marginalBudget": 29
@@ -84,7 +84,7 @@
     {
       "group": "scalar",
       "label": "string({params}, brand)",
-      "fixed": 268,
+      "fixed": 273,
       "fixedBudget": 293,
       "marginal": 63,
       "marginalBudget": 63
@@ -180,7 +180,7 @@
     {
       "group": "string-preset",
       "label": "alpha({maxLength})",
-      "fixed": 333,
+      "fixed": 338,
       "fixedBudget": 358,
       "marginal": 49,
       "marginalBudget": 49
@@ -188,7 +188,7 @@
     {
       "group": "string-preset",
       "label": "base64({maxLength})",
-      "fixed": 336,
+      "fixed": 341,
       "fixedBudget": 361,
       "marginal": 49,
       "marginalBudget": 49
