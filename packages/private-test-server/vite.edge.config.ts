@@ -60,7 +60,7 @@ export default defineConfig({
         // Extend globalThis instead of replacing it (important for EdgeVM)
         extend: true,
         // Inline all dynamic imports (IIFE doesn't support code splitting)
-        inlineDynamicImports: true,
+        codeSplitting: false,
       },
       // Bundle ALL dependencies — no externals
       external: [],

@@ -43,7 +43,7 @@ export default defineConfig({
       // workerd's own module, provided by the runtime. Bundling it is impossible
       // and externalising it is what lets `extends DurableObject` work.
       external: ['cloudflare:workers'],
-      output: {format: 'es', inlineDynamicImports: true},
+      output: {format: 'es', codeSplitting: false},
     },
   },
 });
