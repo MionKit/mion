@@ -1,4 +1,4 @@
-// Built-ins named like drizzle-seed's; mockFromGenerator filters character and pattern rules afterwards.
+// Built-ins named like drizzle-seed's; mockFromGenerator then fits each value to the format's lengths and chars.
 
 import type {BuiltinMockGenerators} from '../../go-generated/builtinMockGenerators.generated.ts';
 import {compose, digitsPart, fits, listPart, literalPart, numberPart} from './compose.ts';
