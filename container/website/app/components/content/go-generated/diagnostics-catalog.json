@@ -1474,6 +1474,15 @@
       "example": null
     },
     {
+      "code": "enrich-mock-invalid-generator",
+      "subsystem": "enrichment",
+      "level": "runtimeError",
+      "headline": "MockData generator `{generator}` cannot mock field `{field}`: {reason}",
+      "summary": "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format: its length limits and characters, with no `allowedValues` beside it. A named format such as `Email` mocks itself and takes no generator. Otherwise `createMockDataFn` throws at that field.",
+      "fix": "name: {pool: [], generator: 'fullName'}",
+      "example": null
+    },
+    {
       "code": "enrich-mock-orphan-field",
       "subsystem": "enrichment",
       "level": "warning",

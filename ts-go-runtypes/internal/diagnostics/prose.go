@@ -713,6 +713,10 @@ mion enrich --prune`,
 		Summary: "This MockData entry names a field your type does not have: it was removed, renamed or misspelled. Its pool or range never feeds a mock. Remove the entry, or run `mion enrich <source.ts> <Type> --update` so the file follows the type.",
 		Fix:     "mion enrich <source.ts> <Type> --update",
 	},
+	CodeMockInvalidGenerator: {
+		Summary: "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format: its length limits and characters, with no `allowedValues` beside it. A named format such as `Email` mocks itself and takes no generator. Otherwise `createMockDataFn` throws at that field.",
+		Fix:     "name: {pool: [], generator: 'fullName'}",
+	},
 	CodeMockReservedProp: {
 		Summary: "Keys starting with `rt$` (`rt$items`, `rt$length`, `rt$optional`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no MockData file. Rename the property; a plain `$` prefix is fine.",
 		Fix: `interface Config {

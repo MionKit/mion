@@ -3,8 +3,10 @@ package enrichment
 import (
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/cldr"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -59,6 +61,9 @@ type LiteralView interface {
 	Keys() []string
 	Child(key string) LiteralView
 	StringValue(key string) (string, bool)
+	// Items returns the elements of the array literal at key, nil when the value is not an array literal; an element
+	// that is not an object literal is a nil view.
+	Items(key string) []LiteralView
 }
 
 // friendlyMetaKeys are the reserved keys a FriendlyText node carries beside its fields, never matched against a property.
@@ -71,9 +76,10 @@ var friendlyMetaKeys = map[string]bool{
 // mockLeafKeys are the bare settings a MockData leaf carries. They are settings only when the value is not an object
 // literal: every field value is an object node, so an object under `pool` is a real field the type may declare.
 var mockLeafKeys = map[string]bool{
-	"pool": true,
-	"min":  true,
-	"max":  true,
+	"pool":      true,
+	"min":       true,
+	"max":       true,
+	"generator": true,
 }
 
 // isMockMetaKey reports whether a MockData key is node settings rather than a field: any rt$ key, or a leaf key whose
@@ -401,7 +407,31 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	if literal == nil || rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		return
 	}
+	checkMockGenerator(findings, rt, literal, path)
 
+	// The structural slots the scaffold writes, in its own order: a fixed tuple's rt$slots, a Map's rt$keys /
+	// rt$values and a Set's rt$values, so every position the mirror can name is checked.
+	if rt.Kind == reflection.KindTuple {
+		if !isVariadicTuple(ctx, rt) {
+			slotViews := literal.Items("rt$slots")
+			for index, slot := range tupleSlots(ctx, rt) {
+				if index < len(slotViews) {
+					checkMockNode(findings, ctx, slot, slotViews[index], joinPath(path, "rt$slots."+strconv.Itoa(index)), depth+1)
+				}
+			}
+		}
+		return
+	}
+	if isMap(rt) {
+		keyType, valueType := mapKeyValue(ctx, rt)
+		checkMockNode(findings, ctx, keyType, literal.Child("rt$keys"), joinPath(path, "rt$keys"), depth+1)
+		checkMockNode(findings, ctx, valueType, literal.Child("rt$values"), joinPath(path, "rt$values"), depth+1)
+		return
+	}
+	if isSet(rt) {
+		checkMockNode(findings, ctx, setElement(ctx, rt), literal.Child("rt$values"), joinPath(path, "rt$values"), depth+1)
+		return
+	}
 	if element := arrayElement(rt); element != nil {
 		if items := literal.Child("rt$items"); items != nil {
 			checkMockNode(findings, ctx, element, items, joinPath(path, "rt$items"), depth+1)
@@ -437,6 +467,44 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 			checkMockNode(findings, ctx, child.Child, nested, joinPath(path, key), depth+1)
 		}
 	}
+}
+
+// checkMockGenerator reports a node's `generator` (a string literal; a `GEN.x` member is checked by TypeScript) that
+// cannot mock it: not a string field, a named format that mocks itself, or a generator the field's format leaves
+// nothing to produce (formats.GeneratorProblems, the same rules the build applies to a format's own generator).
+func checkMockGenerator(findings *[]Finding, rt *reflection.RunType, literal LiteralView, path string) {
+	generator, ok := literal.StringValue("generator")
+	if !ok {
+		return
+	}
+	var problems []string
+	switch {
+	case rt.Kind != reflection.KindString:
+		problems = []string{"a generator mocks strings, and this field is not a string"}
+	case rt.FormatAnnotation != nil && rt.FormatAnnotation.Name != "stringFormat":
+		problems = []string{"the `" + rt.FormatAnnotation.Name + "` format mocks itself; a generator works on a plain string or a String format"}
+	default:
+		params := map[string]any{}
+		if rt.FormatAnnotation != nil {
+			params = rt.FormatAnnotation.Params
+		}
+		problems = formats.GeneratorProblems(generator, params, true)
+	}
+	if len(problems) == 0 {
+		return
+	}
+	field := path
+	if field == "" {
+		field = "(root)"
+	}
+	reason := strings.Join(problems, "; ")
+	*findings = append(*findings, Finding{
+		Code:     diagnostics.CodeMockInvalidGenerator,
+		Severity: Error,
+		Path:     joinPath(path, "generator"),
+		Message:  "MockData generator `" + generator + "` cannot mock field `" + field + "`: " + reason,
+		Args:     []string{generator, field, reason},
+	})
 }
 
 // FormatFinding renders the text-report line body `<path> [<CODE> <severity>] <message>`; the caller prefixes the file.

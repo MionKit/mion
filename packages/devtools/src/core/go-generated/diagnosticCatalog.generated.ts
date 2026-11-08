@@ -151,6 +151,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'enrich',
     completeness: true,
   },
+  'enrich-mock-invalid-generator': {
+    headline: 'MockData generator `{generator}` cannot mock field `{field}`: {reason}',
+    level: 'runtimeError',
+    family: 'enrich',
+    slots: ['generator', 'field', 'reason'],
+  },
   'enrich-mock-orphan-field': {
     headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
     level: 'warning',

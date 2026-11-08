@@ -26,6 +26,26 @@ export const FORMAT = {
     },
   },
 
+  stringGenerator: {
+    title: 'String naming a mock generator',
+    case: () => {
+      // ##### src #####
+      type Target = {name: TF.String<{maxLength: 40; generator: 'lastName'}>};
+      // ##### friendly #####
+      // `generator` only picks the mock value, so it is not an rt$errors key.
+      const friendlyTarget: FriendlyText<Target> = {
+        rt$label: '',
+        rt$errors: {type: ''},
+        name: {rt$label: '', rt$errors: {type: '', maxLength: {one: '', other: ''}}},
+      };
+      // ##### mock #####
+      // The scaffold starts this leaf filled from the format's own generator.
+      const mockTarget: MockData<Target> = {name: {pool: [], generator: 'lastName'}};
+      // ##### result #####
+      return {friendlyTarget, mockTarget};
+    },
+  },
+
   stringLowercase: {
     title: 'Lowercase string',
     case: () => {

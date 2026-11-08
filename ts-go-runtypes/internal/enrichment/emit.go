@@ -210,7 +210,21 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, dept
 		b.WriteString(", rt$length: [1, 3]}")
 		return
 	}
+	// A String format that names a mock generator already mocks realistically, so its leaf starts filled.
+	if generator := formatGenerator(rt); generator != "" {
+		b.WriteString("{pool: [], generator: " + jsquote.Single(generator) + "}")
+		return
+	}
 	b.WriteString("{pool: []}")
+}
+
+// formatGenerator is the mock generator a String format leaf names, "" for any other node.
+func formatGenerator(rt *reflection.RunType) string {
+	if rt.Kind != reflection.KindString || rt.FormatAnnotation == nil || rt.FormatAnnotation.Name != "stringFormat" {
+		return ""
+	}
+	generator, _ := rt.FormatAnnotation.Params["generator"].(string)
+	return generator
 }
 
 func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, depth int) {

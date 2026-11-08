@@ -13,7 +13,8 @@ import (
 var orphanBlockPattern = regexp.MustCompile(`(?s)` + OrphanBlockPatternSource)
 
 // friendlyReservedKeys / mockReservedKeys are the META keys a node carries beside its fields, never merged or renamed.
-// Every `rt$` key is meta by construction, the prefix being reserved; the mock family also reserves pool, min and max.
+// Every `rt$` key is meta by construction, the prefix being reserved; the mock family also reserves pool, min, max and
+// generator, as settings only on a leaf (merge.go fieldKeys).
 var friendlyReservedKeys = map[string]bool{
 	"rt$label": true, "rt$errors": true, "rt$items": true,
 	"rt$slots": true, "rt$keys": true, "rt$values": true,
@@ -22,7 +23,7 @@ var friendlyReservedKeys = map[string]bool{
 var mockReservedKeys = map[string]bool{
 	"rt$items": true, "rt$length": true, "rt$optional": true,
 	"rt$slots": true, "rt$keys": true, "rt$values": true, "rt$size": true,
-	"pool": true, "min": true, "max": true,
+	"pool": true, "min": true, "max": true, "generator": true,
 }
 
 // Reconcile matches the existing mirror against spec's desired const set and returns the new bytes plus whether they

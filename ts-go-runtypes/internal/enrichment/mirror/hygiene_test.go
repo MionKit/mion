@@ -412,3 +412,23 @@ func TestBlankValues_RangedPool(t *testing.T) {
 		}
 	}
 }
+
+// TestBlankValues_GeneratedPool: `pool: []` beside a generator that names one is a generated field, not a blank slot.
+func TestBlankValues_GeneratedPool(t *testing.T) {
+	text := "export const mockUser: MockData<User> = {\n" +
+		"  name: {pool: [], generator: 'fullName'},\n" + // literal name → no hit
+		"  city: {generator: GEN.city, pool: []},\n" + // GEN member, pool after → no hit
+		"  nick: {pool: [], generator: ''},\n" + // empty name → hit
+		"  code: {pool: []},\n" + // bare pool → hit
+		"};\n"
+	findings := ScanBlankValues(text)
+	lines := NewLineIndex(text)
+	var gotLines []int
+	for _, finding := range findings {
+		line, _ := lines.At(finding.Start)
+		gotLines = append(gotLines, line)
+	}
+	if len(gotLines) != 3 || gotLines[0] != 4 || gotLines[2] != 5 {
+		t.Fatalf("blank lines = %v, want the empty generator string and pool on line 4 and the bare pool on line 5", gotLines)
+	}
+}

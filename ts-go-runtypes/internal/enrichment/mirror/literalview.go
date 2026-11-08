@@ -60,3 +60,19 @@ func (view *astLiteralView) StringValue(key string) (string, bool) {
 	}
 	return value.Text(), true
 }
+
+// Items returns a view per element of the array literal bound to key, nil when that value is not an array literal.
+func (view *astLiteralView) Items(key string) []enrichment.LiteralView {
+	value := view.byKey[key]
+	if value == nil || !ast.IsArrayLiteralExpression(value) {
+		return nil
+	}
+	elements := value.AsArrayLiteralExpression().Elements.Nodes
+	out := make([]enrichment.LiteralView, len(elements))
+	for index, element := range elements {
+		if element != nil && ast.IsObjectLiteralExpression(element) {
+			out[index] = newASTLiteralView(element)
+		}
+	}
+	return out
+}
