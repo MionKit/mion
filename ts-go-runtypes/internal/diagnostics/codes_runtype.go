@@ -136,6 +136,11 @@ const (
 	// CodeFMTPatternUnreadable: the validator would skip an unreadable `pattern`, e.g. a RegExp or a .d.ts `FormatPattern` const.
 	// Args: [the pattern's type as written].
 	CodeFMTPatternUnreadable = "format-pattern-unreadable"
+
+	// CodeFMTGeneratorInvalid: a string format's mock `generator` cannot produce a value the format accepts (unknown or
+	// widened name, a length range it never reaches, a character it always uses that the format forbids, or a sibling
+	// that already picks the mock value), so every mock call would throw. Args: [generator, the reasons joined].
+	CodeFMTGeneratorInvalid = "format-generator-invalid"
 )
 
 // removeUnknownKeys never drops a declared member: copied, shared (the -shared codes) or it throws (the rest).
@@ -227,4 +232,5 @@ func init() {
 	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
 	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
 	register(Definition{Code: CodeFMTPatternUnreadable, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern is a value the build cannot read"})
+	register(Definition{Code: CodeFMTGeneratorInvalid, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "mock generator cannot produce a value the format accepts"})
 }

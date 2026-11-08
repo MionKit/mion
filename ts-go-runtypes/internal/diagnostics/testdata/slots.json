@@ -81,6 +81,10 @@
   "enrich-text-unknown-plural-arm": [
     "arm"
   ],
+  "format-generator-invalid": [
+    "generator",
+    "reason"
+  ],
   "format-invalid-params": [
     "reason"
   ],

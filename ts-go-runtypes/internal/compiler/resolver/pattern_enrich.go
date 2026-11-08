@@ -119,6 +119,10 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 	if !ok {
 		return
 	}
+	// A mock generator draws instead of pattern samples, so none are generated for it.
+	if _, hasGenerator := params["generator"]; hasGenerator {
+		return
+	}
 	source, ok := pattern["source"].(string)
 	if !ok {
 		return

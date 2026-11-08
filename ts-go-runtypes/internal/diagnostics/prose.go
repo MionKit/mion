@@ -541,6 +541,16 @@ createJsonEncoderFn(undefined, preset);`,
 		Summary: "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count code points, the same as the validator: `💩` is one. Change the sample or relax the setting.",
 		Fix:     "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
 	},
+	CodeFMTGeneratorInvalid: {
+		Summary: "A `generator` picks realistic mock values, so it must be one generator name, fit the format's length limits and characters, and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or `contentMediaType`, which already decide the value. Otherwise every mock call throws. The message names the problem. Lengths count code points.",
+		Fix:     "type LastName = TF.String<{maxLength: 40; generator: 'lastName'}>;",
+		Example: `import {createValidateFn} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+export const isCode = createValidateFn<TF.String<{maxLength: 1; generator: 'lastName'}>>();`,
+		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+export const isUser = createValidateFn<{user: {name: TF.String<{maxLength: 1; generator: 'lastName'}>}}>();`,
+	},
 	CodeFMTMissingJsRuntime: {
 		Summary: "mion checks each `pattern` on a real JavaScript engine (that it compiles and that its `mockSamples` match), and no JavaScript runtime could be started. Install node or bun (both found on your PATH), or point `--js-runtime` or `MION_JS_RUNTIME` at another runtime such as deno. Projects with no patterns never need this.",
 	},

@@ -22,6 +22,7 @@ var mockRelevantFormatCodes = map[string]bool{
 	diagnostics.CodeFMTSampleGenFailed:  true,
 	diagnostics.CodeFMTPatternTimeout:   true,
 	diagnostics.CodeFMTMissingJsRuntime: true,
+	diagnostics.CodeFMTGeneratorInvalid: true,
 }
 
 // mockSiteFormatDiagnostics checks every format reachable from each createMockDataFn-only site, at any depth (union
