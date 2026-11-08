@@ -42,6 +42,17 @@ describe('withRunTypes — the Next config wrapper', () => {
     expect(config.turbopack.rules['*.ts']).toBeDefined();
   });
 
+  // Next 16.4 caches `next build` by default; a cached rewrite can import a module the broker pruned.
+  it('turns off the Turbopack build cache unless the caller set it', async () => {
+    type Experimental = {experimental: Record<string, unknown>};
+    const plain = (await withoutBroker(() => withRunTypes({experimental: {ppr: true}}, {cwd: '/tmp'}))) as Experimental;
+    expect(plain.experimental).toEqual({ppr: true, turbopackFileSystemCacheForBuild: false});
+    const chosen = (await withoutBroker(() =>
+      withRunTypes({experimental: {turbopackFileSystemCacheForBuild: true}}, {cwd: '/tmp'})
+    )) as Experimental;
+    expect(chosen.experimental.turbopackFileSystemCacheForBuild).toBe(true);
+  });
+
   it('falls back to a webpack plugin under `next --webpack`, composing onto an existing webpack fn', async () => {
     // Next 16 makes Turbopack the default, so the opt-out is what is detected.
     const previous = process.env.TURBOPACK;
