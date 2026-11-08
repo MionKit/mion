@@ -643,12 +643,18 @@ describe('the workspace package dependency graph stays acyclic', () => {
 
 // Type-only imports are erased from the built JS: runtimeOnly skips them.
 const isTypeOnlyImport = (node: ts.ImportDeclaration | ts.ExportDeclaration): boolean => {
-  if (ts.isExportDeclaration(node)) return node.isTypeOnly;
+  // An empty `import {} from 'x'` still loads x.
+  const allTypes = (elements: ts.NodeArray<ts.ImportSpecifier | ts.ExportSpecifier>): boolean =>
+    elements.length > 0 && elements.every((element) => element.isTypeOnly);
+  if (ts.isExportDeclaration(node)) {
+    const clause = node.exportClause;
+    return node.isTypeOnly || (!!clause && ts.isNamedExports(clause) && allTypes(clause.elements));
+  }
   const clause = node.importClause;
   if (!clause) return false;
   if (clause.isTypeOnly) return true;
   const named = clause.namedBindings;
-  return !clause.name && !!named && ts.isNamedImports(named) && named.elements.every((element) => element.isTypeOnly);
+  return !clause.name && !!named && ts.isNamedImports(named) && allTypes(named.elements);
 };
 
 const importedModules = (file: string, runtimeOnly = false): string[] => {
@@ -2209,13 +2215,52 @@ describe('platform-gcloud leaves the functions framework to the user', () => {
     expect(pkg.peerDependencies?.['@google-cloud/functions-framework']).toBeDefined();
   });
 
-  it('no src file loads express or the framework at runtime', () => {
-    const offenders = globSync('src/**/*.ts', {cwd: gcloud}).filter((file) =>
+  it('no published source loads express or the framework at runtime', () => {
+    const files = globSync(['index.ts', 'src/**/*.ts'], {cwd: gcloud});
+    expect(files.length).toBeGreaterThan(1);
+    const offenders = files.filter((file) =>
       importedModules(join(gcloud, file), true).some(
         (specifier) => specifier === 'express' || specifier.startsWith('@google-cloud/functions-framework')
       )
     );
     expect(offenders).toEqual([]);
+  });
+
+  it('the runtime filter keeps value imports and drops type-only ones', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gcloud-contract-'));
+    const file = join(dir, 'probe.ts');
+    writeFileSync(
+      file,
+      [
+        "import {Request} from 'value-import';",
+        "import {} from 'empty-import';",
+        "import type {Response} from 'type-import';",
+        "import {type Next} from 'inline-type-import';",
+        "export {type Handler} from 'inline-type-export';",
+      ].join('\n')
+    );
+    try {
+      expect(importedModules(file, true)).toEqual(['value-import', 'empty-import']);
+    } finally {
+      rmSync(dir, {recursive: true, force: true});
+    }
+  });
+});
+
+// vite-plugin-dts falls back to the vite outDir when outDirs is missing, so every types entry would break.
+describe('vite-built packages emit their .d.ts where exports point', () => {
+  const configs = globSync('packages/*/vite.config.ts', {cwd: REPO_ROOT}).filter((config) =>
+    readFileSync(join(REPO_ROOT, config), 'utf8').includes('dts(')
+  );
+
+  it('finds the dts-built packages', () => {
+    expect(configs.length).toBeGreaterThan(10);
+  });
+
+  it.each(configs)('%s', (config) => {
+    const outDirs = /\boutDirs:\s*'([^']+)'/.exec(readFileSync(join(REPO_ROOT, config), 'utf8'))?.[1];
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, dirname(config), 'package.json'), 'utf8'));
+    expect(pkg.exports['.'].types).toMatch(new RegExp(`^\\./${outDirs}/`));
   });
 });
 
