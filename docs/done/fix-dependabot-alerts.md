@@ -222,6 +222,15 @@ Where the build left the plan above:
   (`minify: false`, `reportCompressedSize: false`): no vite option worth tuning. `bench servers` not run for
   the same reason.
 - **e2e:** next 16.4.1 needs its 10 lockstep packages (`next`, `@next/env`, 8 `@next/swc-*`) as exact exceptions.
+- **Unplanned devtools fix:** Next 16.4 turns Turbopack's build cache on by default, and a cached build reused
+  rewrites that import pruned cache modules. `withRunTypes` now turns it off unless the caller set it
+  (invariant 10 in the Next adapter's `AGENTS.md`).
+- **Unplanned devtools race fix:** `withRunTypes` returned before the broker's first scan wrote the cache
+  modules. On Next 16.4 compiling often started first, saw no genDir and failed `smoke-next-ts` with `Can't resolve
+  '.rt/types/<hash>.ts'`. It now waits on `broker.ready` (invariant 11). The stamp also stopped counting its
+  own file, which moved it on the first request and re-ran every rewritten file.
+- **Unplanned devtools peer floor:** vite `>=5.0.0` → `>=7.0.0`, the oldest vite a lane installs (the e2e
+  matrix's rolldown-vite 7); the mion preset already used vite 6+ build options. A repo contract ties the two.
 - **Unplanned test fix:** `packages/run-types/test/features/mockFormatSideEffects.test.ts` built its fixture from
   `os.tmpdir()`, a symlink on macOS, which the devtools plugin rightly refuses; now `realpathSync` first.
 
