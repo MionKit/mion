@@ -184,14 +184,10 @@ export type StringParamsValueFirst = Omit<StringParams, 'pattern'> & {pattern?: 
  *  generator, a disallowed set still needs samples, since a negative rule cannot be mocked from. Mapped per key so
  *  it can bound `P` itself (`P extends StringParams & GeneratorOrSamples<P>`). **/
 export type GeneratorOrSamples<P> = {
-  [K in keyof P]: P extends {generator: unknown}
-    ? K extends keyof WithoutSamples
-      ? NonNullable<WithoutSamples[K]>
-      : unknown
-    : K extends keyof DisallowedSamples
-      ? NonNullable<DisallowedSamples[K]>
-      : unknown;
+  [K in keyof P & SampleKey]: P extends {generator: unknown} ? WithoutSamples[K] : DisallowedSamples[K];
 };
+
+type SampleKey = keyof WithoutSamples;
 
 /** GeneratorOrSamples for a builder argument, where one conditional is cheaper than a mapped type. **/
 export type GeneratorOrSamplesArg<P> = P extends {generator: unknown} ? WithoutSamples : DisallowedSamples;
@@ -206,6 +202,10 @@ interface WithoutSamples {
 }
 
 interface DisallowedSamples {
+  mockSamples?: unknown;
+  pattern?: unknown;
+  allowedChars?: unknown;
+  allowedValues?: unknown;
   disallowedChars?: {mockSamples: string};
   disallowedValues?: {mockSamples: Samples};
 }

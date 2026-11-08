@@ -47,8 +47,8 @@
             {
               "step": 1,
               "label": "format-branded row",
-              "delta": 47,
-              "budget": 47
+              "delta": 61,
+              "budget": 61
             },
             {
               "step": 2,
@@ -75,7 +75,7 @@
               "budget": 3106
             }
           ],
-          "total": 4257
+          "total": 4271
         },
         {
           "name": "builder",
@@ -83,8 +83,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 558,
-              "budget": 558
+              "delta": 574,
+              "budget": 574
             },
             {
               "step": 2,
@@ -111,7 +111,7 @@
               "budget": 3346
             }
           ],
-          "total": 5006
+          "total": 5022
         }
       ]
     },
@@ -160,8 +160,8 @@
             {
               "step": 1,
               "label": "format-branded row",
-              "delta": 47,
-              "budget": 47
+              "delta": 61,
+              "budget": 61
             },
             {
               "step": 2,
@@ -188,7 +188,7 @@
               "budget": 3106
             }
           ],
-          "total": 4257
+          "total": 4271
         },
         {
           "name": "builder",
@@ -196,8 +196,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 558,
-              "budget": 558
+              "delta": 574,
+              "budget": 574
             },
             {
               "step": 2,
@@ -224,7 +224,7 @@
               "budget": 3346
             }
           ],
-          "total": 5006
+          "total": 5022
         }
       ]
     },
@@ -273,8 +273,8 @@
             {
               "step": 1,
               "label": "format-branded row",
-              "delta": 47,
-              "budget": 47
+              "delta": 61,
+              "budget": 61
             },
             {
               "step": 2,
@@ -301,7 +301,7 @@
               "budget": 3106
             }
           ],
-          "total": 4252
+          "total": 4266
         },
         {
           "name": "builder",
@@ -309,8 +309,8 @@
             {
               "step": 1,
               "label": "format-params builder object",
-              "delta": 554,
-              "budget": 554
+              "delta": 570,
+              "budget": 570
             },
             {
               "step": 2,
@@ -337,7 +337,7 @@
               "budget": 3346
             }
           ],
-          "total": 4997
+          "total": 5013
         }
       ]
     }
