@@ -18,7 +18,7 @@ export default defineConfig({
       runTypes: {emitMode: 'both'},
     }),
     dts({
-      outDir: '.dist/esm',
+      outDirs: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),

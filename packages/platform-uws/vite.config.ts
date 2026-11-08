@@ -13,7 +13,7 @@ export default defineConfig({
   },
   plugins: [
     dts({
-      outDir: '.dist/esm',
+      outDirs: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),

@@ -19,7 +19,7 @@ export default defineConfig({
     // Tests still run the plugin via vitest.config.ts, where the spec/stub call
     // sites need it.
     dts({
-      outDir: '.dist/esm',
+      outDirs: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),
