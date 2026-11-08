@@ -14,6 +14,7 @@ import {sql as dzSql} from 'drizzle-orm';
 // @mion-expect-error drizzle-mixed-types
 import * as dz from 'drizzle-orm/sqlite-core';
 import {createValidateFn, getRunType, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {UUID} from '@mionjs/run-types/formats';
 import type {InferInsertModel, InferSelectModel, ReflectedNode, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, rtTableBrand, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
@@ -712,5 +713,34 @@ describe('sqlite columns: models compile full-fidelity validators', () => {
   it('reflection form: the refined model resolves to the same id', () => {
     const person: Person = validPerson as Person;
     expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
+  });
+});
+
+// A refinement can name a mock generator: the refined model then mocks realistic values its validator accepts.
+const contacts = sqliteTable('contacts', {
+  id: text({primaryKey: true, $type: $type<UUID>()}),
+  name: text({length: 100, notNull: true}),
+  city: text(),
+});
+const apiContacts = refineTableType(contacts, {name: {generator: 'fullName'}, city: {generator: 'city'}});
+type Contact = InferSelectModel<typeof apiContacts>;
+
+describe('sqlite columns: a refined generator mocks realistic rows', () => {
+  it('the refined table is the same object', () => {
+    expect(apiContacts).toBe(contacts);
+  });
+  it('static form', () => {
+    const validate = createValidateFn<Contact>();
+    const mock = createMockDataFn<Contact>();
+    for (let i = 0; i < 50; i++) {
+      const row = mock();
+      expect(validate(row)).toBe(true);
+      expect(row.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    }
+  });
+  it('value form', () => {
+    const sample = {id: '793aff46-42ac-4372-b7fa-c48ba48ed94f', name: 'Ann Lee', city: null} as Contact;
+    const mock = createMockDataFn(sample);
+    expect(mock().name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
   });
 });
