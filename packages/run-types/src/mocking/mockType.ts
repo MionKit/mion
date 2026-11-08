@@ -18,6 +18,8 @@ import {stringCharSet} from './constants.mock.ts';
 import {mockBoundedNativeDate} from './mockDateTimeBounds.ts';
 import {mockTemporal, isTemporalSubKind, temporalBoundsFromAnnotation} from './mockTemporal.ts';
 import {mockUrlObject} from './mockStringFormat.ts';
+import {mockFromGenerator} from './generators/index.ts';
+import type {StringParams} from '../formats/string/stringFormats.ts';
 
 /** Public entry; the cycle detector is reference identity, since the runTypes cache shares one object per cyclic ref. **/
 export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
@@ -140,6 +142,22 @@ function childDataNodeByName(node: MockDataNode | undefined, name: string | numb
   return asDataNode(node[name as string]);
 }
 
+/** The string params a MockData generator must satisfy: none for a plain string, the stringFormat's otherwise. A
+ *  named family (email, url, …) has rules a generator cannot be checked against, so it throws instead. **/
+function dataGeneratorParams(runType: RunType): StringParams {
+  const annotation = runType.formatAnnotation;
+  if (!annotation) return {};
+  if (annotation.name !== 'stringFormat') {
+    throw new Error(
+      `MockData generator: the \`${annotation.name}\` format mocks itself; a generator works on a plain string or a String format.`
+    );
+  }
+  const params: StringParams = {...(annotation.params as StringParams)};
+  delete params.generator;
+  delete params.mockSamples;
+  return params;
+}
+
 /** Non-empty value pool from the current data node, or undefined. **/
 function dataPool(node: MockDataNode | undefined): unknown[] | undefined {
   if (node && Array.isArray(node.pool) && node.pool.length > 0) return node.pool;
@@ -196,6 +214,10 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
   const dataNode = options.dataNode;
   const pool = dataPool(dataNode);
   if (pool) return random.pick(pool);
+  // A data-node generator beats the format's own (generator or samples) but keeps its string rules.
+  if (kind === RunTypeKind.string && typeof dataNode?.generator === 'string') {
+    return mockFromGenerator(dataNode.generator, dataGeneratorParams(runType), random);
+  }
 
   // TypeFormat brand: the kind's registered mock fn produces a value satisfying the format, drawing from
   // mockSamples for pattern formats since a regex can't be reversed. Undefined falls through to the kind-default.

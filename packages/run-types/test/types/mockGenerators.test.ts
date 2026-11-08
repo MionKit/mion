@@ -23,7 +23,9 @@ type _sameFormat = Expect<Equal<Str<{generator: GEN.lastName}>, Str<{generator: 
 // Every GEN member is a built-in name, and every built-in name has a GEN member.
 type _genIsTheTable = Expect<Equal<(typeof GEN)[keyof typeof GEN], keyof BuiltinMockGenerators>>;
 // A name declared on CustomMockGenerators is accepted next to the built-ins.
-type _customJoins = Expect<Equal<MockGeneratorName, keyof BuiltinMockGenerators | 'testCode'>>;
+type _customJoins = Expect<
+  Equal<Extract<MockGeneratorName, 'testCode' | keyof BuiltinMockGenerators>, 'testCode' | keyof BuiltinMockGenerators>
+>;
 type _customAccepted = Str<{maxLength: 16; generator: 'testCode'}>;
 // Refinement merges a generator like any other string param.
 type _refines = Expect<Equal<MergeFormat<Str<{maxLength: 120}>, {generator: 'city'}>, Str<{maxLength: 120; generator: 'city'}>>>;

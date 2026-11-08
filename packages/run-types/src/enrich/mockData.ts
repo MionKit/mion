@@ -2,8 +2,10 @@
 // docs/AI_ENRICHMENT.md): the AI supplies realistic values, the generator stays deterministic. Same
 // construction as `FriendlyNode` and `DataOnly<T>` (src/runtypes/dataOnly.ts): depth-bounded tuple
 // decrement, NO `infer` on the hot path, scalar-before-object gates, homomorphic child map. The
-// `#region mockdata-extract` block is sliced VERBATIM by test/types/enrichHarness.ts, so it must
-// reference only `lib` types + its own declarations.
+// `#region mockdata-extract` block is sliced VERBATIM by test/types/enrichHarness.ts, so it may reference only
+// `lib` types, `MockGeneratorName` (the harness inlines its declarations) and its own declarations.
+
+import type {MockGeneratorName} from '../formats/index.ts';
 
 // #region mockdata-extract — MockData machinery; sliced verbatim between these
 // markers by test/types/enrichHarness.ts. Self-contained: `lib` + own decls only.
@@ -41,7 +43,7 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
         : T extends number
           ? {pool: number[]; min?: number; max?: number}
           : T extends string
-            ? {pool: string[]}
+            ? {pool: string[]; generator?: MockGeneratorName}
             : T extends Date
               ? {pool: Date[]; min?: Date; max?: Date}
               : T extends MockDataUrl
