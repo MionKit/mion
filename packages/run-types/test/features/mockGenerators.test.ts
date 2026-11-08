@@ -74,7 +74,7 @@ describe('mock generators: under the format rules', () => {
   });
 });
 
-// Bounds no built-in value fits: the mock cuts or pads instead of throwing.
+// The mock cuts or pads instead of throwing.
 describe('mock generators: out of their natural lengths', () => {
   const fitted: Record<string, [RunType<string>, RegExp]> = {
     'lastName cut to 1': [TF.string({generator: GEN.lastName, maxLength: 1}), /^[A-Z]$/],

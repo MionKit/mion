@@ -1,5 +1,4 @@
-// mockFromGenerator fits a drawn value to the format (fit.ts) and keeps it only if every format rule accepts it, so the
-// mock always re-passes its own validator.
+// A fitted value is kept only if every format rule accepts it, so the mock always re-passes its own validator.
 
 import type {CustomMockGenerators} from '../../formats/index.ts';
 import type {BuiltinMockGenerators} from '../../go-generated/builtinMockGenerators.generated.ts';
