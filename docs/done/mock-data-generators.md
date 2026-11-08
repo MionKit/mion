@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-11-08
 ---
 
@@ -53,7 +53,7 @@ Decisions already taken:
 | `state` | 50 US states |
 | `streetAddress` | `N Name Suffix` |
 | `postcode` | US `#####` or `#####-####` |
-| `companyName` | `Last Suffix` / `A - B` / `A and B` / `A, B and C`, 25 suffixes |
+| `companyName` | `Last Suffix` / `A - B` / `A and B` / `A, B and C`, 20 suffixes |
 | `loremIpsum` | one sentence ending in `.`, built to fit the length bounds |
 
 The three phone generators share one country table (code + national number length), so a phone with and without
@@ -133,9 +133,9 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
 
 ## Shipped (differences from the plan below)
 
-- Word lists are smaller than planned (about 15KB): ~230 first and ~190 last names, ~150 cities, a 50-row country
+- Word lists are smaller than planned (about 17KB): 225 first and 182 last names, 154 cities, a 50-row country
   table (name, calling code, national digits; US rows carry states and ZIP templates) that `country` also draws
-  from, 68 job titles, 140 lorem words, 80 adjectives, 16 email domains, 33 street and 20 company suffixes.
+  from, 68 job titles, 134 lorem words, 80 adjectives, 16 email domains, 33 street and 20 company suffixes.
 - `loremIpsum` is capped at 40 words, so its span is `[2, 520]`. Composite generators always build to fit
   (no natural draws first), and each shape's reachable lengths are cached.
 - Mock-only site checks (C3) run each format emitter's own validate check with a recording context at render time,
@@ -144,6 +144,11 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
 - Custom generator names: see the Go section. The email `localPart` generator is pinned by a Go test with the exact
   `TypeFormat` spelling, since `TF.EmailParts` does not let users override `localPart`.
 - The seeded snapshot is an explicit `toEqual`: inline snapshots cannot be written back under the plugin.
+- Review additions: the table also records the characters a value can start with (`Leading`), so `allowedChars`
+  without any of them fails the build; the enrich check accepts a nullable string, checks a variadic tuple's shared
+  `rt$items` against every slot and reads `GEN.x` members; the mock walker reads a fixed tuple's `rt$slots`; the
+  mock-only site check is built outside the family walkers on purpose (no family that checks formats reaches a
+  mock-only site); the disk cache format moved to v25.
 
 ## Plan
 
@@ -158,7 +163,7 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   ```
 - New generated file `go-generated/mockGeneratorMeta.generated.ts`, import-free:
   `export interface BuiltinMockGenerators {city: true; ...}`, `export interface MockGeneratorMeta {lengths: readonly
-  (readonly [number, number])[]; chars: string; required: string; examples: readonly string[]}`,
+  (readonly [number, number])[]; chars: string; required: string; leading: string}`,
   `export const mockGeneratorMeta`.
 - `formats/index.ts`: `export * as GEN from '../go-generated/mockGenerators.generated.ts';`, and declares, directly in
   this file so `declare module '@mionjs/run-types/formats'` augments it without going through a re-export:
@@ -203,7 +208,7 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   augmentation from Go was dropped as fragile. A widened `generator: string` or a union is marked `unrecovered` by
   typeid (like an unreadable `pattern`) and reported as "must be one generator name".
   `GeneratorProblems` reasons: not one literal name (a widened union arrives as text via `NonLiteralFallback`,
-  `typeid/formats.go:480`); unknown name, neither built-in nor custom (list the known ones); beside `allowedValues`, `disallowedValues`,
+  `typeid/formats.go:480`); beside `allowedValues`, `disallowedValues`,
   a top-level `mockSamples` (when not `fromData`; a pattern's own samples are fine, so `Alpha<{generator}>` is OK) or
   `contentMediaType`; `length` / `minLength` / `maxLength` never overlap `Lengths`; a `Required` char outside
   `allowedChars` (respect `ignoreCase`) or inside `disallowedChars`. No static pattern check (undecidable).
@@ -211,14 +216,14 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   TS files itself (like `gen-run-type-kind` / `gen-fn-hashes`). Add a `mockgenerators` entry to `CODEGEN`
   (`scripts/miondevx.mjs:151-186`) listing both files in `outputs` + `fmt`, so `codegen all --check` guards drift.
 - Go tests: `TestMockGenerators_RowsSelfConsistent` (sorted, unique, identifier names, valid spans,
-  `Required ⊆ Chars`, examples fit), `TestGeneratorProblems` table.
+  `Required ⊆ Chars`, `Leading ⊆ Chars`), `TestGeneratorProblems` table.
 
 ### Diagnostics (follow the add-diagnostic skill)
 
 - `format-generator-invalid`: FamilyRunType, LevelRuntimeError (code is produced, every mock call throws), ScopeGraph,
   registered beside `diagnostics/codes_runtype.go:220-229`. Headline (`messages.go`):
   ``TypeFormat mock generator `{generator}` cannot mock this format: {reason}``; reasons joined with `; `.
-  Prose: Summary "A `generator` picks realistic mock values, so it must name a known generator, fit the format's
+  Prose: Summary "A `generator` picks realistic mock values, so it must be one generator name, fit the format's
   length limits and characters, and not sit next to `allowedValues`, `disallowedValues`, `mockSamples` or
   `contentMediaType`. Otherwise every mock call throws.", Fix ``TF.String<{maxLength: 40; generator: 'lastName'}>``,
   Example ``createValidateFn<TF.String<{maxLength: 1; generator: 'lastName'}>>()``, NestedExample inside
@@ -226,7 +231,7 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   (`stringformat.go:73-107`), so root, email `localPart` (`email.go:105-106`) and every depth are covered.
 - `enrich-mock-invalid-generator`: FamilyEnrich, LevelRuntimeError, ScopeNotSource, Severity Error, in
   `diagnostics/codes_mock.go:9-25`. Headline ``MockData generator `{generator}` cannot mock field `{field}`: {reason}``.
-  Summary "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format.
+  Summary "A MockData `generator` must be one generator name, sit on a string field, and fit that field's format.
   Otherwise `createMockDataFn` throws at that field." Fix `name: {pool: [], generator: 'fullName'}`.
 - Adjacent Go changes: `sampleDrawPool` (`formats/string/pattern.go:250-268`) returns nil when `generator` is set and no
   `allowedValues` (else `Alpha<{maxLength: 3; generator: 'firstName'}>` falsely fails sample bounds);
@@ -243,11 +248,11 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   ~195 countries, ~300 job titles, ~180 lorem words, ~200 adjectives, ~30 email domains, ~40 street suffixes,
   25 company suffixes, ~40 phone countries (calling code + national number length, shared by the 3 phone
   generators), 50 US states.
-- `src/mocking/generators/registry.ts`: `registerMockGenerator(name: keyof CustomMockGenerators, fn: GeneratorFn)`,
+- `src/mocking/generators/index.ts`: `registerMockGenerator(name: keyof CustomMockGenerators, fn: GeneratorFn)`,
   exported from `@mionjs/run-types/mocking` (`mocking/index.ts`). Throws on a built-in name or a name registered twice.
   Lookup: built-in table, then the custom registry. Separate from the per-kind `registerMockingFunction`
   (`mocking/mockRegistry.ts`), which stays as is.
-- `generators/index.ts`: `MOCK_GENERATORS satisfies Record<keyof BuiltinMockGenerators, GeneratorFn>` (`GeneratorFn`
+- `generators/builtins.ts`: `BUILTIN_SHAPES satisfies Record<keyof BuiltinMockGenerators, Shapes>` and `BUILTIN_GENERATORS` (`GeneratorFn`
   below). List generators pick uniformly among
   entries within bounds (lazy length index). Composites try a natural draw up to 8 times, then build to fit: component
   lengths chosen left to right, each limited to values from which the rest can still reach `[lo, hi]`. So when the
@@ -334,22 +339,22 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
 
 - **C1:** Go validate / merge / reconcile: (a) type `{name: string}`, literal `{name: {pool: []}, pool: {pool: []}}`
   → `enrich-mock-unknown-field` at `pool`; (b) type `{pool: {x: string}}`, literal `{pool: {y: {pool: []}}}` →
-  unknown field at `pool.y`; (c) `--update` renames / orphans a real field `pool`. JS `suites/enrich/enrichCheck` +
-  `enrichReconcile` with a real `pool` field; enrich fuzz `negativeProbe` with a `pool` field
+  unknown field at `pool.y`; (c) `--update` renames / orphans a real field `pool`. JS `enrichGen` / `enrichCheck`
+  cases with real `pool` / `min` / `max` fields (the failing directions live in Go); enrich fuzz `negativeProbe` with a `pool` field
   (`test/fuzz/enrich/enrichModel.ts:440`).
 - **C2:** astral sample under `maxLength`; a `contains: String<{allowedValues: {val: ['x']}}>` child over `string[]`
   with `minContains` whose mock must validate (fails today).
 - **C3:** devtools fixture `format-sample-out-of-bounds-mock-only` + a case in `test/vite/buildFailure.spec.ts`.
-- **C4:** same-file, imported namespace, re-exported namespace, `.d.ts` (`external_test.go`); property access on a
-  plain object const still refused.
+- **C4:** imported namespace, re-exported namespace, `.d.ts` (`external_test.go`); a property of a plain object const
+  and a namespace member that is a function stay refused.
 - **C5:** the Go tests in the codegen section.
 - **C6:** Go `TestFormatAnnotation_GeneratorInKey` beside `typeid/formats_test.go:261`. Resolver PAIRED tests (Marker
   test coverage rule): static `getRunTypeId<TF.String<{maxLength: 120; generator: 'lastName'}>>()` vs value
   `const s: TF.String<{maxLength: 120; generator: GEN.lastName}> = 'x'; getRunTypeId(s)` → equal ids;
-  firstName / lastName twins → different ids, no `format-sample-conflict`. `test/suites/id-integrity` rows for
-  type-first, `TF.string({generator: GEN.lastName})`, literal. Type tests: both positions, `@ts-expect-error` for
+  firstName / lastName twins → different ids, no `format-sample-conflict`; `TF.string({generator: GEN.lastName})` and
+  `TF.GEN.lastName` converge on the literal's id (the resolver tests stand in for id-integrity rows). Type tests: both positions, `@ts-expect-error` for
   `'nope'` and for generator on `Email` / `Number`, `keyof BuiltinMockGenerators` equals `(typeof GEN)[keyof typeof GEN]`.
-  `refineFormat.test.ts` + a refined `text()` column in `drizzle-orm-pg-core/test/typeTables.spec.ts`.
+  `test/types/mockGenerators.test.ts` (refinement) + a refined column in each dialect's `typeTables.spec.ts`.
 - **C7:** `resolver/format_generator_test.go`, Static / Value pairs modelled on `format_pattern_unreadable_test.go:34-108`,
   nested position, email `localPart`, mock-only site, negatives (Alpha + firstName clean; disallowedChars without
   samples clean). `TestDiagExamples_*` pass. Devtools fixtures `format-generator-invalid` and
@@ -360,15 +365,15 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   Custom generators: `test/features/mockCustomGenerators.test.ts` registers one, mocks it standalone, inside an
   object, in a `MockData` node and seeded (same seed → same value); unregistered name throws the message; registering
   a built-in name or the same name twice throws. Type test: an augmented `CustomMockGenerators` name is accepted, a typo
-  still errors. Go resolver test: a custom name declared by augmentation is not reported unknown, a typo is (both
-  `getRunTypeId` call shapes, paired).
+  still errors. Go resolver test: a non-built-in name is not reported, both call shapes (TypeScript catches a typo
+  through `MockGeneratorName`).
   `suites/mocking/mockGeneratorMeta.test.ts`: spans exact from the data, `chars ⊆`, `required ⊆` every output over
-  2000 seeded draws and every span edge, GEN keys = meta keys = `MOCK_GENERATORS` keys. `mockSoundness.test.ts` rows.
+  2000 seeded draws and every span edge, GEN keys = meta keys = `BUILTIN_GENERATORS` keys. `mockSoundness.test.ts` rows.
   `mockSeed.test.ts` generator rows + an inline snapshot at seed 42 (it pins no golden values today).
 - **C9:** `suites/mocking/mockData.test.ts` (precedence chain, bounds kept, Email field throws);
   `mockData.compile.test.ts` (accepts `{pool: [], generator}`, rejects `'nope'`, type budget unchanged).
-- **C10:** Go emit / hygiene / validate / merge; JS `enrichGen` (prefill), `enrichCheck` (new code), `enrichReconcile`
-  (`--update` keeps `generator`).
+- **C10:** Go emit / hygiene / validate / merge (the new code firing, `--update` keeping `generator`), a Go coverage
+  test looping every kind over the scaffold and check walks; JS `enrichGen` / `enrichCheck` run the prefilled case.
 
 ## Docs
 
