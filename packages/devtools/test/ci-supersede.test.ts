@@ -369,7 +369,7 @@ describe('takenOver', () => {
   });
 });
 
-// One listing serves the gate (older runs) and the watcher (newer runs).
+// One listing feeds the gate (older runs) and the watcher (newer runs).
 const prEnv = {
   GITHUB_REF: 'refs/pull/42/merge',
   GITHUB_WORKFLOW_REF: 'MionKit/mion/.github/workflows/ci.yml@refs/pull/42/merge',
