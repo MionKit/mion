@@ -84,7 +84,8 @@ Rewrite `ci.yml:222` ("A matrix job cannot wait in a step…") and `.github/acti
   it saves a runner on every deferred commit.
 - drizzle `decide` (`drizzle-e2e.yml:74`): it has no `if:` and does a full-history checkout on every run. It now
   needs `drizzle-wait` and starts on `!cancelled() && needs.lanes.result == 'success'` plus the
-  `waiter || gate` verdict's `drizzle.run`, so a lane the older run proves never boots it. `build` already
+  `waiter || gate` verdict's `drizzle.run`, so a lane the older run proves never boots it. It also needs the
+  `drizzle-e2e` label or a PR into `prod`: otherwise `drizzle-e2e.mjs` always answers no. `build` already
   requires `decide.outputs.run == 'true'`.
 - Beyond these and the two dists builds in B, the sweep found nothing: the pr-heavy jobs already start only
   through their waiters, and every other step runs only in a job whose lane runs.

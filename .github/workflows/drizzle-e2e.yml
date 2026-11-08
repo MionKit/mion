@@ -75,7 +75,8 @@ jobs:
     name: should the lane run
     needs: [lanes, drizzle-wait]
     # After the waiter, so a lane the older run proves needs no answer and no full-history checkout.
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}
+    # Unlabelled and not into prod, drizzle-e2e.mjs always answers no, so it is not asked.
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run && (contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') || github.base_ref == 'prod') }}
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}

@@ -895,13 +895,17 @@ describe('a new commit cancels only what it changed', () => {
     expect(next('- name: Go vet (our code only; never third_party)')).toMatch(/^name: Record gofmt and vet as green\n/);
   });
 
-  // A lane the older run proves needs no answer from decide, which costs a full-history checkout.
-  it('starts drizzle decide after the waiter, only when the lane still runs', () => {
+  // decide costs a full-history checkout, so it starts only when the lane still runs and its answer can be yes.
+  it('starts drizzle decide after the waiter, only when the lane still runs and is labelled or into prod', () => {
     const decide = jobOf(read('.github/workflows/drizzle-e2e.yml'), 'decide');
     expect(decide).toContain('    needs: [lanes, drizzle-wait]\n');
     expect(decide).toContain(
-      "    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}\n"
+      "    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run && (contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') || github.base_ref == 'prod') }}\n"
     );
+    // The same two answers drizzle-e2e.mjs gives without looking at history.
+    const script = read('scripts/release/drizzle-e2e.mjs');
+    expect(script).toContain("if (process.env.LABELLED === 'true') return {run: true");
+    expect(script).toContain("if ((process.env.BASE_REF ?? '') !== 'prod') return {run: false");
   });
 });
 
