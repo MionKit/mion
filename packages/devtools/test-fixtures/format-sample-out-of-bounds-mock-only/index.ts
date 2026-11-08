@@ -7,3 +7,7 @@ import {String} from '@mionjs/run-types/formats';
 type TooLongSample = String<{maxLength: 2; mockSamples: ['abcd', 'xyz']}>;
 
 export const mock = createMockDataFn<TooLongSample>();
+
+// The value call shape reports the same error at its own call.
+declare const sample: TooLongSample;
+export const mockValue = createMockDataFn(sample);

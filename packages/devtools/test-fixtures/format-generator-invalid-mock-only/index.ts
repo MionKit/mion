@@ -6,3 +6,7 @@ import {String} from '@mionjs/run-types/formats';
 type Initial = String<{maxLength: 1; generator: 'lastName'}>;
 
 export const mockInitial = createMockDataFn<Initial>();
+
+// The value call shape reports the same error at its own call.
+declare const sample: Initial;
+export const mockInitialValue = createMockDataFn(sample);
