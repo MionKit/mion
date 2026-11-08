@@ -180,3 +180,30 @@ describe('mock: an unsatisfiable combination throws instead of shipping a bad va
     expect(() => mock()).toThrow(/a Set holds one copy of a member/);
   });
 });
+
+describe('mock: a contains child whose matcher reads the string value sets', () => {
+  // The matcher must read `{val}` exactly as the validator does: skipping the check over-counts matches, so the
+  // filler entries would also satisfy `contains` and blow `maxContains`.
+  it('allowedValues: exactly the asked count of matching entries', () => {
+    const schema = RT.array(TF.string(), {
+      minItems: 3,
+      contains: TF.string({allowedValues: {val: ['x']}}),
+      minContains: 1,
+      maxContains: 1,
+    });
+    const validate = createValidateFn(schema);
+    const mock = createMockDataFn(schema);
+    for (let i = 0; i < DRAWS; i++) {
+      const value = mock();
+      expect(validate(value), JSON.stringify(value)).toBe(true);
+      expect(value.filter((entry) => entry === 'x')).toHaveLength(1);
+    }
+  });
+
+  it('allowedChars: the matcher tests the char set instead of throwing', () => {
+    const schema = RT.array(TF.string(), {contains: TF.string({allowedChars: {val: 'ab'}, minLength: 2}), minContains: 2});
+    const validate = createValidateFn(schema);
+    const mock = createMockDataFn(schema);
+    for (let i = 0; i < DRAWS; i++) expect(validate(mock())).toBe(true);
+  });
+});
