@@ -119,7 +119,7 @@
   },
   "devDependencies": {
     "@mionjs/bin-compiler": "workspace:*",
-    "vite": "8.0.16"
+    "vite": "8.1.6"
   },
   "engines": {
     "node": ">=24"
