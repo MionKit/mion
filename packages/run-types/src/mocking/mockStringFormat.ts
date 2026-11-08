@@ -28,6 +28,7 @@ import type {
 import type {DateParams, DateTimeParams, TimeParams} from '../formats/datetime/stringDateTimeFormats.ts';
 import {mockBoundedDate, mockBoundedTime, mockBoundedDateTime} from './mockDateTimeBounds.ts';
 import {codePointLength} from './stringParamsAccept.ts';
+import {mockFromGenerator} from './generators/index.ts';
 
 // Returns undefined for an unrecognised name so the walker falls back to the kind-default (a plain random string).
 // `random` defaults to the shared native instance so a call without one still works.
@@ -69,6 +70,7 @@ registerMockingFunction(RunTypeKind.string, mockStringFormat);
 
 function mockStringParams(params: StringParams, random: MockRandom): string {
   if (params.allowedValues) return pickSample(params.allowedValues.val, random) ?? '';
+  if (params.generator !== undefined) return mockFromGenerator(params.generator, params, random);
   // A regex can't be reversed, so draw from the supplied samples, keeping only those satisfying the length bounds
   // (e.g. Alpha<{maxLength:3}> must not pick a 5-char sample).
   const sample = pickSample(

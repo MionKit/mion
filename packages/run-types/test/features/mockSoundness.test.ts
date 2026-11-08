@@ -166,3 +166,24 @@ describe('mock sample lengths count code points, as the validator does', () => {
     expect(seen.has('💩💩')).toBe(true);
   });
 });
+
+describe('mock soundness: generators', () => {
+  type Profile = {
+    name: StringFormat<{maxLength: 12; generator: 'fullName'}>;
+    tag: StringFormat<{allowedChars: {val: 'abcdefghijklmnopqrstuvwxyz'; ignoreCase: true}; generator: 'firstName'}>;
+    zip: StringFormat<{pattern: {source: '^\\d{5}$'; flags: ''}; generator: 'postcode'}>;
+  };
+
+  it('every draw passes its own validator (static)', () => {
+    const isValid = createValidateFn<Profile>();
+    const mock = createMockDataFn<Profile>();
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+
+  it('every draw passes its own validator (value)', () => {
+    const sample = {name: 'Ann Lee', tag: 'Ann', zip: '12345'} as Profile;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+});

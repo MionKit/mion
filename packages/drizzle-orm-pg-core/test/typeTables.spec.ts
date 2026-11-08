@@ -14,6 +14,7 @@ import {sql as dzSql} from 'drizzle-orm';
 // @mion-expect-error drizzle-mixed-types
 import * as dz from 'drizzle-orm/pg-core';
 import {createValidateFn, getRunType, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {InferInsertModel, InferSelectModel, ReflectedNode, RtTableMeta, Sql} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, rtTableBrand, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
 import type {
@@ -922,5 +923,34 @@ describe('pg columns: only pg: uuid version', () => {
   it('reflection form: the versioned model resolves to the hand-written table model', () => {
     const session: Session = validSession as Session;
     expect(getRunTypeId(session)).toBe(getRunTypeId<InferSelectModel<Sessions>>());
+  });
+});
+
+// A refinement can name a mock generator: the refined model then mocks realistic values its validator accepts.
+const contacts = pgTable('contacts', {
+  id: uuid({primaryKey: true}),
+  name: varchar({length: 100, notNull: true}),
+  city: text(),
+});
+const apiContacts = refineTableType(contacts, {name: {generator: 'fullName'}, city: {generator: 'city'}});
+type Contact = InferSelectModel<typeof apiContacts>;
+
+describe('pg columns: a refined generator mocks realistic rows', () => {
+  it('the refined table is the same object', () => {
+    expect(apiContacts).toBe(contacts);
+  });
+  it('static form', () => {
+    const validate = createValidateFn<Contact>();
+    const mock = createMockDataFn<Contact>();
+    for (let i = 0; i < 50; i++) {
+      const row = mock();
+      expect(validate(row)).toBe(true);
+      expect(row.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    }
+  });
+  it('value form', () => {
+    const sample = {id: '793aff46-42ac-4372-b7fa-c48ba48ed94f', name: 'Ann Lee', city: null} as Contact;
+    const mock = createMockDataFn(sample);
+    expect(mock().name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
   });
 });
