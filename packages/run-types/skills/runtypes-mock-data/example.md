@@ -8,6 +8,7 @@ import type * as TF from '@mionjs/run-types/formats';
 
 export interface User {
   name: string;
+  city: string;
   age: TF.Number<{min: 0; max: 120}>;
   tags: string[];
   profile: {
@@ -24,6 +25,7 @@ import type {MockData} from '@mionjs/run-types';
 
 export const mockUser: MockData<User> = {
   name: {pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', 'Diego Ramirez']},
+  city: {pool: [], generator: 'city'}, // empty pool: draw from the built-in city generator
   age: {pool: [], min: 18, max: 95}, // empty pool: draw from the range
   tags: {
     rt$items: {pool: ['urgent', 'beta', 'vip']}, // element node
@@ -45,7 +47,7 @@ import type {User} from '../models/user';
 const makeUser = createMockDataFn<User>(undefined, {data: mockUser});
 
 const fixture = makeUser();
-// e.g. { name: 'Liang Wei', age: 41, tags: ['beta','vip'],
+// e.g. { name: 'Liang Wei', city: 'Lisbon', age: 41, tags: ['beta','vip'],
 //        profile: { email: 'alice@example.com', score: 72 } }
 ```
 
