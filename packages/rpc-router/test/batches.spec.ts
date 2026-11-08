@@ -74,6 +74,14 @@ describe('batches', () => {
       expect(() => mion.initRoutes(routesWithComma)).toThrow('Route names cannot contain commas');
     });
 
+    it("should reject route names containing '#'", async () => {
+      const routesWithHash = {
+        'route#0': mion.route((ctx): string => 'test'),
+      } satisfies Routes;
+
+      expect(() => mion.initRoutes(routesWithHash)).toThrow("Route names cannot contain '#'");
+    });
+
     it('should reject route names using the reserved batch route name', async () => {
       const routesWithBatchName = {
         [MION_BATCH_KEY]: mion.route((ctx): string => 'test'),
