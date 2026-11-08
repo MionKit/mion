@@ -149,12 +149,16 @@ Not ported (mion already covers them): `date`, `time`, `timestamp`, `datetime`, 
   `rt$items` against every slot and reads `GEN.x` members; the mock walker reads a fixed tuple's `rt$slots`; the
   mock-only site check is built outside the family walkers on purpose (no family that checks formats reaches a
   mock-only site); the disk cache format moved to v25.
-- Length bounds never fail the build or throw (user decision after review). Out of every span, `mockFromGenerator`
+- Length bounds and char sets never fail the build or throw (user decisions after review). `generators/fit.ts`
   cuts a value to `hi` or pads it to `lo` with more draws (digits after digits, then words joined by a space, then
-  joined as is, then plain letters), last without the chars the format's char sets reject, and keeps the first one
-  the format accepts; custom generators get the same. `GeneratorProblems` dropped the span-overlap reason, checks
-  `Required` chars only at a natural length (no fitting), and at `length: 0` reports `allowedChars` (it rejects '')
-  instead of the `Leading` check. The sections below still describe the length error as planned.
+  joined as is, then pool letters); last, each char `allowedChars` / `disallowedChars` rejects becomes its other
+  case, else a vowel for a vowel or a consonant for a consonant, else any allowed char. Custom generators get the
+  same. `GeneratorProblems` keeps the name and combination checks and adds only what leaves nothing to build from:
+  `length: 0` with `allowedChars` (it rejects '') and, for a built-in at a non-zero length, `disallowedChars` covering
+  every letter, digit and space (`ignoreCase` folds like a JS regex). So the Go table holds only names and summaries:
+  `Lengths`, `Chars`, `Required` and `Leading` are gone, and the generated `mockGeneratorMeta.generated.ts` became
+  `builtinMockGenerators.generated.ts` (names and `MOCK_REPLACEMENT_CHARS`, the one replacement set). The
+  sections below still describe the planned length and char checks.
 
 ## Plan
 
