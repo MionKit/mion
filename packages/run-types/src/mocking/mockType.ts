@@ -417,10 +417,11 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // Per-element options indexed to each slot: `tupleOptions` for a plain tuple, `paramsOptions` for a
       // function's parameter tuple, which is what `Parameters<typeof fn>` reflects as, so params are mocked here.
       const perElemOptions = mOps.tupleOptions ?? mOps.paramsOptions;
-      // Tuples share one `rt$items` element node (the DSL has no per-slot tuple nodes), threaded into every member.
+      // A fixed tuple's MockData is one node per slot (`rt$slots`); a variadic one shares `rt$items` across members.
+      const slotNodes = Array.isArray(dataNode?.rt$slots) ? dataNode.rt$slots : undefined;
       const itemsNode = asDataNode(dataNode?.rt$items);
-      const baseOpts = withDataNode(options, itemsNode);
       const params = children.map((member, index) => {
+        const baseOpts = withDataNode(options, slotNodes ? asDataNode(slotNodes[index]) : itemsNode);
         const childOpts = perElemOptions?.[index] ? mergeChildOptions(baseOpts, perElemOptions[index]) : baseOpts;
         return mockRunType(member, childOpts, stack);
       });

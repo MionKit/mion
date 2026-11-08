@@ -278,3 +278,16 @@ describe('MockData consumption — generators', () => {
     expect(() => mock()).toThrow(/`email` format mocks itself/);
   });
 });
+
+describe('MockData consumption — fixed tuple slots', () => {
+  it('each rt$slots node feeds its own position (static)', () => {
+    const mock = createMockDataFn<[string, number]>(undefined, {data: {rt$slots: [{pool: ['a']}, {pool: [7]}]}});
+    for (let i = 0; i < 20; i++) expect(mock()).toEqual(['a', 7]);
+  });
+
+  it('each rt$slots node feeds its own position (value)', () => {
+    const sample = ['x', 1] as [string, number];
+    const mock = createMockDataFn(sample, {data: {rt$slots: [{pool: ['a']}, {pool: [7]}]}});
+    for (let i = 0; i < 20; i++) expect(mock()).toEqual(['a', 7]);
+  });
+});
