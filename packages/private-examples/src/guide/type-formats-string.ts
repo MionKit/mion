@@ -65,11 +65,10 @@ type Slug = TF.String<{
 // end-mock-samples
 
 // start-generator
-// GEN.firstName is the literal 'firstName', there for autocomplete
 type User = {
   firstName: TF.String<{maxLength: 120; generator: TF.GEN.firstName}>;
   lastName: TF.String<{maxLength: 120; generator: 'lastName'}>;
-  phone: TF.String<{generator: 'phoneNumber'}>; // like +447700900123
+  phone: TF.String<{generator: 'phoneNumber'}>;
 };
 // end-generator
 
