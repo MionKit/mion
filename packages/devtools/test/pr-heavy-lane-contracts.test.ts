@@ -56,11 +56,11 @@ describe('the pre-publish-e2e lane mirrors the release gate', () => {
     expect(lane).toContain('needs: [lanes, e2e-wait, pre-publish-build]');
   });
 
-  it('pulls the same prebuilt e2e image the gate pulls, with the PAT', () => {
+  it('pulls the same prebuilt e2e image the gate pulls, with the job token, no PAT', () => {
     for (const source of [lane, gate]) {
       expect(source).toContain('remote: ghcr.io/mionkit/tsrt-e2e:latest');
       expect(source).toContain('local-tag: tsrt-e2e:dev');
-      expect(source).toContain('password: ${{ secrets.GHCR_PAT }}');
+      expect(source).not.toContain('GHCR_PAT');
     }
   });
 });

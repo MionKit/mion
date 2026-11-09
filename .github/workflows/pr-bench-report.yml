@@ -112,8 +112,6 @@ jobs:
       - uses: ./.github/actions/resolver
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
-        with:
-          password: ${{ secrets.GHCR_PAT }}
       # Full windows and every competitor, as the deploy's website-bench measures them.
       - name: Run the validation benchmarks
         run: pnpm miondevx bench

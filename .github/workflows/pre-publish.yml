@@ -3,9 +3,7 @@ name: prod · pre-publish checks
 # Gate on every PR that targets prod (the release line). Runs the full reusable
 # release gate (build all packages + binaries, install the packed artifacts from
 # a local registry and run the consumer e2e on each platform, plus benchmarks and
-# the static website build). No publish. Secrets are inherited (GHCR_PAT, to pull
-# the private e2e image): same-repo release PRs get it; fork PRs get none from
-# GitHub and fall back to GITHUB_TOKEN - still safe for fork PRs.
+# the static website build). No publish.
 on:
   pull_request:
     branches: [prod]
@@ -84,8 +82,3 @@ jobs:
       contents: read
       packages: read
     uses: ./.github/workflows/release-gate.yml
-    # Pass repo secrets (GHCR_PAT) into the reusable gate so its e2e / benchmarks /
-    # website-build jobs can authenticate GHCR pulls with the PAT. Same-repo release
-    # PRs get the secret; fork PRs get none and fall back to GITHUB_TOKEN (which can
-    # still pull tsrt-website, but not the private tsrt-e2e).
-    secrets: inherit

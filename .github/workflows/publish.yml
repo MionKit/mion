@@ -87,9 +87,6 @@ jobs:
       contents: read
       packages: read
     uses: ./.github/workflows/release-gate.yml
-    # Pass repo secrets (GHCR_PAT) into the reusable gate so its e2e / benchmarks /
-    # website-build jobs can authenticate GHCR pulls with the PAT (private tsrt-e2e).
-    secrets: inherit
 
   publish-npm:
     name: stage-publish to npm + tag
