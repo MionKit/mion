@@ -7,7 +7,7 @@
 // pin the two to each other, and pin the pre-publish e2e lane to the release
 // gate's shape so the PR proves the same thing the release does.
 import {describe, it, expect} from 'vitest';
-import {readFileSync} from 'node:fs';
+import {globSync, readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -62,5 +62,24 @@ describe('the pre-publish-e2e lane mirrors the release gate', () => {
       expect(source).toContain('local-tag: tsrt-e2e:dev');
       expect(source).not.toContain('GHCR_PAT');
     }
+  });
+});
+
+// The image pull signs in with the job token, which reads a package only when the job grants packages:read.
+describe('every job that pulls a prebuilt image', () => {
+  it('grants its token packages:read', () => {
+    let checked = 0;
+    for (const file of globSync('.github/workflows/*.yml', {cwd: REPO_ROOT})) {
+      for (const job of read(file).split(/\n  (?=[\w-]+:\n)/)) {
+        if (!job.includes('uses: ./.github/actions/pull-shared-image')) continue;
+        checked += 1;
+        expect(job, `${file}: ${job.slice(0, job.indexOf(':'))}`).toMatch(
+          /\n {4}permissions:\n(?: {6}.*\n)*? {6}packages: read\n/
+        );
+      }
+    }
+    // ci smoke, drizzle-e2e, post-publish e2e, bench report, pr-heavy website + bench + e2e,
+    // release-gate e2e + benchmarks + website-build, website-deploy.
+    expect(checked).toBe(11);
   });
 });
