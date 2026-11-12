@@ -128,6 +128,9 @@ type Options struct {
 	EnrichI18n         bool
 	EnrichLocales      []string
 	EnrichSourceLocale string
+	// Ext is per-extension session config, keyed by extension name and filled by its SessionFlags.
+	// Never a typeID, fnHash or disk-fingerprint input: an extension must never change a public answer.
+	Ext map[string]any
 }
 
 // ValidateDefaults is the project-wide subset of ValidateOptions a build may set through the `validate`

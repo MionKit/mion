@@ -45,6 +45,8 @@ const (
 	// warm connection instead of spawning. It returns the mirror CONTENT (Response.EnrichFiles) and NEVER writes.
 	// Shares enrichgen.Plan + mirror.Scaffold/Reconcile with the CLI verb, so both produce byte-identical mirrors.
 	OpEnrich = "enrich"
+	// OpCapabilities lists what the binary's extensions add (Response.Capabilities); the public binary answers empty.
+	OpCapabilities = "capabilities"
 )
 
 // Request is the union of all query operations (see resolver/dispatch).
@@ -93,6 +95,19 @@ type Request struct {
 	// OpEnrich carries NO fields beyond Files (which files changed; empty = whole program): families, i18n
 	// locales and the output root all ride resolver.Options, loaded once at spawn from the serve --gen-dir /
 	// --enrich-* flags. The daemon owns the demanded type name → source file mapping the caller cannot do itself.
+
+	// Ext carries an extension's own request fields, keyed by name, e.g. a registered scan check's switch
+	// (ExtFlag). A sub-object, so a request decodes in one pass and no extension key can clash with a mion field.
+	Ext map[string]json.RawMessage `json:"ext,omitempty"`
+}
+
+// ExtFlag returns a predicate that is true when the request's ext[name] is the JSON value true.
+func ExtFlag(name string) func(Request) bool {
+	return func(request Request) bool {
+		var on bool
+		raw, ok := request.Ext[name]
+		return ok && json.Unmarshal(raw, &on) == nil && on
+	}
 }
 
 // Metrics is the per-op performance block, populated only when Request.IncludeMetrics is set. The
@@ -195,7 +210,35 @@ type Response struct {
 	TsCompileMs float64 `json:"tsCompileMs,omitempty"`
 	// Metrics is nil, and off the wire, unless the request set IncludeMetrics.
 	Metrics *Metrics `json:"metrics,omitempty"`
-	Error   string   `json:"error,omitempty"`
+	// Ext carries an extension op's own answer fields, keyed by name; off the wire when empty.
+	Ext map[string]any `json:"ext,omitempty"`
+	// Capabilities answers OpCapabilities: what the binary's extensions add. Nil on every other op.
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
+	Error        string        `json:"error,omitempty"`
+}
+
+// Capabilities lists the extension rows a binary registered (mion's own rows never appear), so a host can
+// reach them: the ops it may send, the scan checks to switch on through Request.Ext, the codes to render.
+// The public binary answers every list empty.
+type Capabilities struct {
+	Extensions  []ExtensionInfo            `json:"extensions"`
+	Ops         []string                   `json:"ops"`
+	ScanChecks  []ScanCheckInfo            `json:"scanChecks"`
+	Diagnostics []diagnostics.CatalogEntry `json:"diagnostics"`
+}
+
+// ExtensionInfo names one extension built into the binary.
+type ExtensionInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// ScanCheckInfo is one extension scan check: its Request.Ext switch name, its diagnostics family label, and the
+// JS regex source (compiled with the `m` flag) whose match sends a file through the resolver in lint.
+type ScanCheckInfo struct {
+	Name   string `json:"name"`
+	Family string `json:"family"`
+	Probe  string `json:"probe,omitempty"`
 }
 
 // Site records one transformer-injection point; Pos is the byte offset of the closing `)`, where the patcher inserts.
@@ -509,6 +552,12 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.Metrics != nil {
 		out["metrics"] = response.Metrics
+	}
+	if len(response.Ext) > 0 {
+		out["ext"] = response.Ext
+	}
+	if response.Capabilities != nil {
+		out["capabilities"] = response.Capabilities
 	}
 	if response.Error != "" {
 		out["error"] = response.Error

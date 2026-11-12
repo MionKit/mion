@@ -36,7 +36,7 @@ func runDrizzleMigrate(args []string) {
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	reportFlag := flagSet.String("report", "", "write a JSON report of what was rewritten and what refused to this path")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `mion drizzle-migrate — move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
+		PrintUsage(flagSet, `mion drizzle-migrate — move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
 
 Usage:
     mion drizzle-migrate src/schema.ts
@@ -62,7 +62,7 @@ drizzle; any such refusal makes the exit code non-zero.
 	}
 	positional, flags := splitArgs(args)
 	if parseErr := flagSet.Parse(flags); parseErr != nil {
-		fatal("drizzle-migrate: %v", parseErr)
+		Fatal("drizzle-migrate: %v", parseErr)
 	}
 	if len(positional) == 0 {
 		flagSet.Usage()
@@ -73,7 +73,7 @@ drizzle; any such refusal makes the exit code non-zero.
 	if *outDirFlag != "" {
 		copied, copyErr := copyIntoOutDir(rootDir, *outDirFlag, files)
 		if copyErr != nil {
-			fatal("drizzle-migrate: %v", copyErr)
+			Fatal("drizzle-migrate: %v", copyErr)
 		}
 		files = copied
 	}
@@ -86,17 +86,17 @@ drizzle; any such refusal makes the exit code non-zero.
 	cwd := filepath.Dir(absFiles[0])
 	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots(absFiles, convertConfigRoots(parsed, rootDir, *outDirFlag)))
 	if progErr != nil {
-		fatal("drizzle-migrate: build program: %v", progErr)
+		Fatal("drizzle-migrate: build program: %v", progErr)
 	}
 	session, resolverErr := resolver.New(prog, resolver.Options{Cwd: cwd})
 	if resolverErr != nil {
-		fatal("drizzle-migrate: build resolver: %v", resolverErr)
+		Fatal("drizzle-migrate: build resolver: %v", resolverErr)
 	}
 	defer session.Close()
 
 	importMap, mapErr := drizzlemigrate.LoadImportMap()
 	if mapErr != nil {
-		fatal("drizzle-migrate: %v", mapErr)
+		Fatal("drizzle-migrate: %v", mapErr)
 	}
 	report := migrateReport{DrizzleOrm: importMap.DrizzleOrm, Used: map[string][]string{}}
 	usedByDialect := map[string]map[string]bool{}
@@ -105,7 +105,7 @@ drizzle; any such refusal makes the exit code non-zero.
 	for _, absPath := range absFiles {
 		result, migrateErr := drizzlemigrate.MigrateFile(prog, session.Checker(), absPath, drizzlemigrate.Options{})
 		if migrateErr != nil {
-			fatal("drizzle-migrate: %v", migrateErr)
+			Fatal("drizzle-migrate: %v", migrateErr)
 		}
 		for _, diagnostic := range result.Diags {
 			if diagnostic.Severity == drizzlemigrate.SeverityError {
@@ -136,7 +136,7 @@ drizzle; any such refusal makes the exit code non-zero.
 			continue
 		}
 		if writeErr := os.WriteFile(absPath, []byte(result.Output), 0o644); writeErr != nil {
-			fatal("drizzle-migrate: write %s: %v", absPath, writeErr)
+			Fatal("drizzle-migrate: write %s: %v", absPath, writeErr)
 		}
 		fmt.Printf("rewrote %s\n", relPath(absPath))
 	}
@@ -144,10 +144,10 @@ drizzle; any such refusal makes the exit code non-zero.
 	if *reportFlag != "" {
 		encoded, marshalErr := json.MarshalIndent(report, "", "  ")
 		if marshalErr != nil {
-			fatal("drizzle-migrate: encode report: %v", marshalErr)
+			Fatal("drizzle-migrate: encode report: %v", marshalErr)
 		}
 		if writeErr := os.WriteFile(*reportFlag, append(encoded, '\n'), 0o644); writeErr != nil {
-			fatal("drizzle-migrate: write report %s: %v", *reportFlag, writeErr)
+			Fatal("drizzle-migrate: write report %s: %v", *reportFlag, writeErr)
 		}
 		fmt.Printf("wrote report %s\n", relPath(mustAbs(*reportFlag)))
 	}

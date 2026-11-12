@@ -579,377 +579,390 @@ func sameTransformPath(tagged, requested, requestedAbs string) bool {
 	return strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
 }
 
-// dispatch is the un-instrumented op switch. metrics may be nil (the
-// no-IncludeMetrics fast path); phase recordings are guarded per site.
+// dispatch is the un-instrumented op lookup: every op, built-in or extension, is a row of the op table.
+// metrics may be nil (the no-IncludeMetrics fast path); phase recordings are guarded per site.
 func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
-	before := sess.cache.Size()
-	switch request.Op {
-	case protocol.OpScanFiles:
-		if sess.Program == nil {
-			return protocol.Response{Error: "scanFiles: no Program loaded — call setSources first"}
-		}
-		if len(request.Files) == 0 {
-			return protocol.Response{Error: "scanFiles: files is required and must be non-empty"}
-		}
-		scanStart := time.Now()
-		sites, markerDiagnostics, err := sess.dispatchScanFiles(request.Files)
-		if err != nil {
-			return protocol.Response{Error: err.Error()}
-		}
-		if metrics != nil {
-			metrics.MarkerScanMs = elapsedMs(scanStart)
-		}
-		// A registration can change without adding a RunType; extract on every scan for rewrites and editor diagnostics.
-		pureFnsStart := time.Now()
-		pureFnEntries, pureFnDiagnostics, pureFnReplacements, addedPureFns := sess.extractPureFnsForScan(request.Files)
-		if metrics != nil {
-			metrics.PureFnsMs = elapsedMs(pureFnsStart)
-		}
-		// Batch ids require source rewrites; report batch diagnostics on every scan.
-		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
-		sess.noteOwnBatches(batchSites)
-		// Bundled-API dispatch sites also need binding rewrites and rpc-client diagnostics.
-		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
-		prepStart := time.Now()
-		added := sess.cache.Added(before)
-		// Consumed by Vite handleHotUpdate.
-		addedRunTypes := len(added) > 0
-		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
-		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
-		// Run after cache.Added(before), or enrichment checks would contaminate the HMR signals.
-		if request.CheckEnrich {
-			combinedDiagnostics = append(combinedDiagnostics, sess.checkEnrichFiles(request.Files)...)
-		}
-		// Route checks can also intern types; keep them outside the HMR signals.
-		if request.CheckRouterRules {
-			combinedDiagnostics = append(combinedDiagnostics, sess.checkRouterRuleFiles(request.Files)...)
-		}
-		combinedDiagnostics = append(combinedDiagnostics, sess.checkApiTypeImports(request.Files)...)
-		combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
-		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
-		response := protocol.Response{
-			Sites:         sess.stampSiteModules(sites),
-			Replacements:  allReplacements,
-			AddedRunTypes: addedRunTypes,
-			AddedPureFns:  addedPureFns,
-			Diagnostics:   combinedDiagnostics,
-			// Echoed for the linter, which has no generate call to read it from.
-			DowngradeErrors: sess.opts.TsconfigDowngradeErrors,
-		}
-		// Update callbacks need only the rescanned files; an unused report must cost nothing.
-		response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
-		response.BatchSites = sess.batchReportForSites(batchSites)
-		// Opt-in: the plugin and bench client read only the added* booleans, so every scan's RunType graphs are wire waste.
-		if request.IncludeRunTypes {
-			response.Added = added
-		}
-		if metrics != nil {
-			metrics.PrepMs = elapsedMs(prepStart)
-		}
-		// A shared sink reports each throw once per call site; diagnostics-only lint collects without returning modules.
-		renderEntries := request.IncludeEntryModules || request.IncludeRtDiagnostics
-		var rtDiagnostics []diagnostics.Diagnostic
-		// Validate rendered pure-fn dependencies against program registrations; rewrite-only scans need no check.
-		var rtPureFnDeps []typefunctions.PureFnDepUse
-		var rtOpts typefunctions.RenderOpts
-		if renderEntries {
-			rtOptsStart := time.Now()
-			rtRooted, rtReaching := sess.buildProvenanceSites()
-			rtOpts = sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
-			rtOpts.PureFnDepSink = &rtPureFnDeps
-			if metrics != nil {
-				metrics.PrepMs += elapsedMs(rtOptsStart)
-			}
-		}
-		if request.IncludeRunTypes || renderEntries {
-			scopedStart := time.Now()
-			scoped := sess.scopedDump(request.Files)
-			if metrics != nil {
-				metrics.ScopedDumpMs = elapsedMs(scopedStart)
-			}
-			if request.IncludeRunTypes {
-				response.RunTypes = scoped.RunTypes
-			}
-			if renderEntries {
-				// Overrides need modules for redirects, but must not affect registration rewrites or addedPureFns.
-				allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
-				// Emitted row homes must match the whole program; diagnostics-only scans need only a local plan.
-				var homes *runtype.RowHomes
-				if request.IncludeEntryModules {
-					sess.scanAllProgramFiles()
-					homes = runtype.PlanRowHomes(protocol.Dump{RunTypes: sess.cache.Dump(), Sites: sess.Sites()}, sess.reflectionModuleFor)
-				}
-				modules, _, modulesErr := sess.collectEntryModules(scoped, homes, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
-				if modulesErr != nil {
-					return protocol.Response{Error: modulesErr.Error()}
-				}
-				if request.IncludeEntryModules {
-					response.EntryModules = modules
-				}
-				rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(scoped.Sites)...)
-			}
-		}
-		// The Vite reception loop reads only response.Diagnostics.
-		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// Missing registrations reached by emitted bodies must fail lint and builds.
-		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
-		return response
-	case protocol.OpDump:
-		// Vite can load an entry module before transforming its marker-bearing source; scan before serializing.
-		scanStart := time.Now()
-		if sess.Program != nil {
-			sess.scanAllProgramFiles()
-		}
-		if metrics != nil {
-			metrics.MarkerScanMs = elapsedMs(scanStart)
-		}
-		fullDump := protocol.Dump{
-			RunTypes: sess.cache.Dump(),
-			Sites:    sess.stampSiteModules(sess.Sites()),
-		}
-		response := protocol.Response{
-			RunTypes: fullDump.RunTypes,
-			Sites:    fullDump.Sites,
-		}
-		var rtDiagnostics []diagnostics.Diagnostic
-		var rtPureFnDeps []typefunctions.PureFnDepUse
-		rtRooted, rtReaching := sess.buildProvenanceSites()
-		rtOpts := sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
-		rtOpts.PureFnDepSink = &rtPureFnDeps
-		pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
-		// batchcompile consumes this response, so include eager-scan diagnostics as OpGenerate does.
-		response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
-		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
-		// rpc-client-types-not-built-by-mion rides the dump too: `--no-emit` stops here, and settling drops what it explains.
-		response.Diagnostics = append(response.Diagnostics, sess.apiTypesPackages().diags...)
-		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
-		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
-		response.BatchSites = sess.batchReportForSites(dumpBatchSites)
-		modules, _, modulesErr := sess.collectEntryModules(fullDump, nil, rtOpts, pureFnGraph, metrics)
-		if modulesErr != nil {
-			return protocol.Response{Error: modulesErr.Error()}
-		}
-		response.EntryModules = modules
-		rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(fullDump.Sites)...)
-		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// Missing registrations must also fail batchcompile, which uses OpDump.
-		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
-		return response
-	case protocol.OpGenerate:
-		// Echo the output root for the dependency-free plugin: --gen-dir > tsconfig genDir > inferred <srcDir>/.mion.
-		outDir := sess.resolveOutDir()
-		if outDir == "" {
-			return protocol.Response{Error: "generate: could not resolve an output dir (no --gen-dir, no tsconfig genDir, no inferable srcDir)"}
-		}
-		if sess.Program != nil {
-			sess.scanAllProgramFiles()
-		}
-		genDump := protocol.Dump{
-			RunTypes: sess.cache.Dump(),
-			Sites:    sess.stampSiteModules(sess.Sites()),
-		}
-		var genDiagnostics []diagnostics.Diagnostic
-		var genPureFnDeps []typefunctions.PureFnDepUse
-		genRooted, genReaching := sess.buildProvenanceSites()
-		genOpts := sess.rtRenderOpts(&genDiagnostics, genRooted, genReaching)
-		genOpts.PureFnDepSink = &genPureFnDeps
-		genPureFnGraph, genPureFnsDiagnostics := sess.collectProgramPureFns(metrics)
-		genModules, genArtifact, genModulesErr := sess.collectEntryModules(genDump, nil, genOpts, genPureFnGraph, metrics)
-		if genModulesErr != nil {
-			return protocol.Response{Error: genModulesErr.Error()}
-		}
-		manifest, genErr := generateToDisk(outDir, genModules, moduleExt(sess.opts.EmitMode))
-		if genErr != nil {
-			return protocol.Response{Error: genErr.Error()}
-		}
-		// Dispatch-only files need transforms too; remove stale api/ output when bundled routes are off.
-		apiSites, apiSiteDiagnostics := sess.collectProgramApiSites()
-		apiGenDiagnostics, apiErr := sess.generateApiBundle(outDir, apiSites)
-		if apiErr != nil {
-			return protocol.Response{Error: "generate: " + apiErr.Error()}
-		}
-		// Batch-only files need transforms; only a whole-program scan can detect cross-file batch id collisions.
-		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
-		// Router-init files need batch imports; no router means no table and stale output is removed.
-		// A hidden router gets a table and rpc-batch-router-init-hidden; the author must write its import.
-		routerInitFiles := sess.routerInitFiles()
-		var rpc rpcCollection
-		if len(routerInitFiles) > 0 || sess.importsRouter() {
-			rpc = sess.collectRpc(genBatchSites)
-		}
-		batchesModule, rpcGenErr := generateRpc(outDir, rpc, sess.opts.EmitMode)
-		if rpcGenErr != nil {
-			return protocol.Response{Error: "generate: " + rpcGenErr.Error()}
-		}
-		siteFiles := append(append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), apimeta.Files(apiSites)...), routerInitFiles...)
-		// A file whose only marker use is the version slot on `initRoutes` / `initClient` still needs the transform.
-		siteFiles = append(siteFiles, sess.apiVersionFiles(sess.programSourceFiles(), routerInitFiles)...)
-		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
-		genResponse.ProgramHash = sess.programHash()
-		genResponse.BatchesModule = batchesModule
-		genResponse.RouterInitFiles = routerInitFiles
-		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
-		if batchesModule != "" && len(routerInitFiles) == 0 {
-			genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))
-		}
-		// Echoed like OutDir, so the dependency-free host can adopt a tsconfig-only setting.
-		genResponse.DowngradeErrors = sess.opts.TsconfigDowngradeErrors
-		genResponse.Levels = sess.opts.TsconfigLevels
-		genResponse.LogStyle = sess.opts.TsconfigLogStyle
-		// File reports let separate server builds and --compile consumers read the callback data.
-		if report := sess.collectPureFnReport(metrics); report != nil {
-			genResponse.PureFnSites = report
-			if sess.opts.PureFnReportFile {
-				if reportErr := writeJSONReport(pureFnReportPath(outDir), "pure-fn", report); reportErr != nil {
-					return protocol.Response{Error: reportErr.Error()}
-				}
-			}
-		}
-		// The caller owns the bundler output directory; modules already exist under types/pf/.
-		genResponse.PureFnArtifact = genArtifact
-		if sess.opts.PureFnReportWire {
-			batchReport := requestbatch.Report(genBatchSites)
-			genResponse.BatchSites = batchReport
-			if sess.opts.PureFnReportFile {
-				if reportErr := writeJSONReport(batchReportPath(outDir), "batch", batchReport); reportErr != nil {
-					return protocol.Response{Error: reportErr.Error()}
-				}
-			}
-		}
-		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
-		// Consumed by buildStart.
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiTypeImports(sess.programSourceFiles())...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkDrizzleFiles(sess.programSourceFiles())...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.mockSiteFormatDiagnostics(genDump.Sites)...)
-		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.validateProgramPureFnDeps(genPureFnDeps)...)
-		return genResponse
-	case protocol.OpSetSources:
-		setStart := time.Now()
-		if err := sess.dispatchSetSources(request.Sources); err != nil {
-			return protocol.Response{Error: err.Error()}
-		}
-		if metrics != nil {
-			metrics.SetSourcesMs = elapsedMs(setStart)
-		}
-		return protocol.Response{OK: true}
-	case protocol.OpReset:
-		sess.Reset()
-		return protocol.Response{OK: true}
-	case protocol.OpEnrich:
-		return sess.dispatchEnrich(request)
-	case protocol.OpTsCompile:
-		ms, err := sess.dispatchTsCompile()
-		if err != nil {
-			return protocol.Response{Error: err.Error()}
-		}
-		return protocol.Response{TsCompileMs: ms}
-	case protocol.OpTransform:
-		// Go rewrites and maps via pkg/compiler/sourcerewrite; added* flags let Vite drive HMR with one call.
-		if sess.Program == nil {
-			return protocol.Response{Error: "transform: no Program loaded — call setSources first"}
-		}
-		if len(request.Files) == 0 {
-			return protocol.Response{Error: "transform: files is required and must be non-empty"}
-		}
-		scanStart := time.Now()
-		sites, markerDiagnostics, err := sess.dispatchScanFiles(request.Files)
-		if err != nil {
-			return protocol.Response{Error: err.Error()}
-		}
-		if metrics != nil {
-			metrics.MarkerScanMs = elapsedMs(scanStart)
-		}
-		pureFnsStart := time.Now()
-		_, pureFnDiagnostics, pureFnReplacements, addedPureFns := sess.extractPureFnsForScan(request.Files)
-		if metrics != nil {
-			metrics.PureFnsMs = elapsedMs(pureFnsStart)
-		}
-		transformBatchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
-		sess.noteOwnBatches(transformBatchSites)
-		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
-		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
-		allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
-		sites = sess.stampSiteModules(sites)
-		addedRunTypes := len(sess.cache.Added(before)) > 0
-		// Program text is authoritative: Site.Pos offsets index those bytes.
-		transformed := make(map[string]protocol.TransformResult, len(request.Files))
-		transformOutDir := ""
-		if sess.opts.TransformRelative {
-			transformOutDir = sess.resolveOutDir()
-		}
-		for _, file := range request.Files {
-			sourceFile, sourceErr := sess.sourceFile(file)
-			if sourceErr != nil {
-				return protocol.Response{Error: sourceErr.Error()}
-			}
-			fileAbs := sess.absPath(file)
-			var fileSites []protocol.Site
-			for _, site := range sites {
-				if sameTransformPath(site.File, file, fileAbs) {
-					fileSites = append(fileSites, site)
-				}
-			}
-			var fileReplacements []protocol.Replacement
-			for _, replacement := range allReplacements {
-				if sameTransformPath(replacement.File, file, fileAbs) {
-					fileReplacements = append(fileReplacements, replacement)
-				}
-			}
-			source := sourceFile.Text()
-			prologueEnd := sourcerewrite.PrologueEnd(sourceFile)
-			if request.EmitEdits {
-				// ComputeEdits and JS EditBuffer must reproduce Apply byte for byte; SourceHash detects upstream source edits.
-				importBlock, importAt, edits := sourcerewrite.ComputeEdits(source, prologueEnd, fileSites, fileReplacements)
-				if importBlock != "" && transformOutDir != "" {
-					// Only the injected block has rtmod: specifiers; relativizing it matches go-mode output.
-					importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock, moduleExt(sess.opts.EmitMode))
-				}
-				transformed[file] = protocol.TransformResult{
-					ImportBlock: importBlock,
-					ImportAt:    importAt,
-					Edits:       edits,
-					SourceHash:  sourcerewrite.SourceHash(source),
-					TypeDeps:    sess.cache.DeclFilesForFiles([]string{file}),
-				}
-				continue
-			}
-			code, sourceMap := sourcerewrite.Apply(file, source, prologueEnd, fileSites, fileReplacements)
-			if transformOutDir != "" {
-				// Absolute bases keep filepath.Rel valid; the injected block stays one line to preserve the source map.
-				code = relativizeUserImports(sess.absPath(file), transformOutDir, code, moduleExt(sess.opts.EmitMode))
-			}
-			if sess.opts.OmitSourcesContent && sourceMap != nil {
-				// The bundler supplies source content; nil slots must remain aligned with Sources.
-				sourceMap.SourcesContent = make([]*string, len(sourceMap.Sources))
-			}
-			// SourceHash warns of upstream edits that go-mode output would overwrite; transformation still proceeds.
-			transformed[file] = protocol.TransformResult{
-				Code:       code,
-				Map:        sourceMap,
-				SourceHash: sourcerewrite.SourceHash(source),
-				TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
-			}
-		}
-		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
-		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
-		combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
-		response := protocol.Response{
-			Transformed:   transformed,
-			Sites:         sites,
-			Replacements:  allReplacements,
-			AddedRunTypes: addedRunTypes,
-			AddedPureFns:  addedPureFns,
-			Diagnostics:   combinedDiagnostics,
-		}
-		return response
-	default:
+	op, ok := opTable.rows[request.Op]
+	if !ok {
 		return protocol.Response{Error: "unknown op: " + request.Op}
 	}
+	return op.Run(sess, request, metrics)
+}
+
+func (sess *Session) opScanFiles(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	before := sess.cache.Size()
+	if sess.Program == nil {
+		return protocol.Response{Error: "scanFiles: no Program loaded — call setSources first"}
+	}
+	if len(request.Files) == 0 {
+		return protocol.Response{Error: "scanFiles: files is required and must be non-empty"}
+	}
+	scanStart := time.Now()
+	sites, markerDiagnostics, err := sess.dispatchScanFiles(request.Files)
+	if err != nil {
+		return protocol.Response{Error: err.Error()}
+	}
+	if metrics != nil {
+		metrics.MarkerScanMs = elapsedMs(scanStart)
+	}
+	// A registration can change without adding a RunType; extract on every scan for rewrites and editor diagnostics.
+	pureFnsStart := time.Now()
+	pureFnEntries, pureFnDiagnostics, pureFnReplacements, addedPureFns := sess.extractPureFnsForScan(request.Files)
+	if metrics != nil {
+		metrics.PureFnsMs = elapsedMs(pureFnsStart)
+	}
+	// Batch ids require source rewrites; report batch diagnostics on every scan.
+	batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
+	sess.noteOwnBatches(batchSites)
+	// Bundled-API dispatch sites also need binding rewrites and rpc-client diagnostics.
+	_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
+	prepStart := time.Now()
+	added := sess.cache.Added(before)
+	// Consumed by Vite handleHotUpdate.
+	addedRunTypes := len(added) > 0
+	combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
+	combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
+	// Run after cache.Added(before): a check can intern types (enrichment, route rules), which must stay out of the
+	// HMR signals.
+	for _, check := range scanCheckTable.list() {
+		if check.Enabled(request) {
+			combinedDiagnostics = append(combinedDiagnostics, check.Run(sess, request.Files)...)
+		}
+	}
+	combinedDiagnostics = append(combinedDiagnostics, sess.checkApiTypeImports(request.Files)...)
+	combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
+	allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
+	response := protocol.Response{
+		Sites:         sess.stampSiteModules(sites),
+		Replacements:  allReplacements,
+		AddedRunTypes: addedRunTypes,
+		AddedPureFns:  addedPureFns,
+		Diagnostics:   combinedDiagnostics,
+		// Echoed for the linter, which has no generate call to read it from.
+		DowngradeErrors: sess.opts.TsconfigDowngradeErrors,
+	}
+	// Update callbacks need only the rescanned files; an unused report must cost nothing.
+	response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
+	response.BatchSites = sess.batchReportForSites(batchSites)
+	// Opt-in: the plugin and bench client read only the added* booleans, so every scan's RunType graphs are wire waste.
+	if request.IncludeRunTypes {
+		response.Added = added
+	}
+	if metrics != nil {
+		metrics.PrepMs = elapsedMs(prepStart)
+	}
+	// A shared sink reports each throw once per call site; diagnostics-only lint collects without returning modules.
+	renderEntries := request.IncludeEntryModules || request.IncludeRtDiagnostics
+	var rtDiagnostics []diagnostics.Diagnostic
+	// Validate rendered pure-fn dependencies against program registrations; rewrite-only scans need no check.
+	var rtPureFnDeps []typefunctions.PureFnDepUse
+	var rtOpts typefunctions.RenderOpts
+	if renderEntries {
+		rtOptsStart := time.Now()
+		rtRooted, rtReaching := sess.buildProvenanceSites()
+		rtOpts = sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
+		rtOpts.PureFnDepSink = &rtPureFnDeps
+		if metrics != nil {
+			metrics.PrepMs += elapsedMs(rtOptsStart)
+		}
+	}
+	if request.IncludeRunTypes || renderEntries {
+		scopedStart := time.Now()
+		scoped := sess.scopedDump(request.Files)
+		if metrics != nil {
+			metrics.ScopedDumpMs = elapsedMs(scopedStart)
+		}
+		if request.IncludeRunTypes {
+			response.RunTypes = scoped.RunTypes
+		}
+		if renderEntries {
+			// Overrides need modules for redirects, but must not affect registration rewrites or addedPureFns.
+			allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
+			// Emitted row homes must match the whole program; diagnostics-only scans need only a local plan.
+			var homes *runtype.RowHomes
+			if request.IncludeEntryModules {
+				sess.scanAllProgramFiles()
+				homes = runtype.PlanRowHomes(protocol.Dump{RunTypes: sess.cache.Dump(), Sites: sess.Sites()}, sess.reflectionModuleFor)
+			}
+			modules, _, modulesErr := sess.collectEntryModules(scoped, homes, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
+			if modulesErr != nil {
+				return protocol.Response{Error: modulesErr.Error()}
+			}
+			if request.IncludeEntryModules {
+				response.EntryModules = modules
+			}
+			rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(scoped.Sites)...)
+		}
+	}
+	// The Vite reception loop reads only response.Diagnostics.
+	response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
+	// Missing registrations reached by emitted bodies must fail lint and builds.
+	response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
+	return response
+}
+
+func (sess *Session) opDump(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	// Vite can load an entry module before transforming its marker-bearing source; scan before serializing.
+	scanStart := time.Now()
+	if sess.Program != nil {
+		sess.scanAllProgramFiles()
+	}
+	if metrics != nil {
+		metrics.MarkerScanMs = elapsedMs(scanStart)
+	}
+	fullDump := protocol.Dump{
+		RunTypes: sess.cache.Dump(),
+		Sites:    sess.stampSiteModules(sess.Sites()),
+	}
+	response := protocol.Response{
+		RunTypes: fullDump.RunTypes,
+		Sites:    fullDump.Sites,
+	}
+	var rtDiagnostics []diagnostics.Diagnostic
+	var rtPureFnDeps []typefunctions.PureFnDepUse
+	rtRooted, rtReaching := sess.buildProvenanceSites()
+	rtOpts := sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
+	rtOpts.PureFnDepSink = &rtPureFnDeps
+	pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
+	// batchcompile consumes this response, so include eager-scan diagnostics as OpGenerate does.
+	response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
+	response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
+	// rpc-client-types-not-built-by-mion rides the dump too: `--no-emit` stops here, and settling drops what it explains.
+	response.Diagnostics = append(response.Diagnostics, sess.apiTypesPackages().diags...)
+	dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
+	response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
+	response.BatchSites = sess.batchReportForSites(dumpBatchSites)
+	modules, _, modulesErr := sess.collectEntryModules(fullDump, nil, rtOpts, pureFnGraph, metrics)
+	if modulesErr != nil {
+		return protocol.Response{Error: modulesErr.Error()}
+	}
+	response.EntryModules = modules
+	rtDiagnostics = append(rtDiagnostics, sess.mockSiteFormatDiagnostics(fullDump.Sites)...)
+	response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
+	// Missing registrations must also fail batchcompile, which uses OpDump.
+	response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
+	return response
+}
+
+func (sess *Session) opGenerate(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	// Echo the output root for the dependency-free plugin: --gen-dir > tsconfig genDir > inferred <srcDir>/.mion.
+	outDir := sess.resolveOutDir()
+	if outDir == "" {
+		return protocol.Response{Error: "generate: could not resolve an output dir (no --gen-dir, no tsconfig genDir, no inferable srcDir)"}
+	}
+	if sess.Program != nil {
+		sess.scanAllProgramFiles()
+	}
+	genDump := protocol.Dump{
+		RunTypes: sess.cache.Dump(),
+		Sites:    sess.stampSiteModules(sess.Sites()),
+	}
+	var genDiagnostics []diagnostics.Diagnostic
+	var genPureFnDeps []typefunctions.PureFnDepUse
+	genRooted, genReaching := sess.buildProvenanceSites()
+	genOpts := sess.rtRenderOpts(&genDiagnostics, genRooted, genReaching)
+	genOpts.PureFnDepSink = &genPureFnDeps
+	genPureFnGraph, genPureFnsDiagnostics := sess.collectProgramPureFns(metrics)
+	genModules, genArtifact, genModulesErr := sess.collectEntryModules(genDump, nil, genOpts, genPureFnGraph, metrics)
+	if genModulesErr != nil {
+		return protocol.Response{Error: genModulesErr.Error()}
+	}
+	manifest, genErr := generateToDisk(outDir, genModules, moduleExt(sess.opts.EmitMode))
+	if genErr != nil {
+		return protocol.Response{Error: genErr.Error()}
+	}
+	// Dispatch-only files need transforms too; remove stale api/ output when bundled routes are off.
+	apiSites, apiSiteDiagnostics := sess.collectProgramApiSites()
+	apiGenDiagnostics, apiErr := sess.generateApiBundle(outDir, apiSites)
+	if apiErr != nil {
+		return protocol.Response{Error: "generate: " + apiErr.Error()}
+	}
+	// Batch-only files need transforms; only a whole-program scan can detect cross-file batch id collisions.
+	genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
+	// Router-init files need batch imports; no router means no table and stale output is removed.
+	// A hidden router gets a table and rpc-batch-router-init-hidden; the author must write its import.
+	routerInitFiles := sess.routerInitFiles()
+	var rpc rpcCollection
+	if len(routerInitFiles) > 0 || sess.importsRouter() {
+		rpc = sess.collectRpc(genBatchSites)
+	}
+	batchesModule, rpcGenErr := generateRpc(outDir, rpc, sess.opts.EmitMode)
+	if rpcGenErr != nil {
+		return protocol.Response{Error: "generate: " + rpcGenErr.Error()}
+	}
+	siteFiles := append(append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), apimeta.Files(apiSites)...), routerInitFiles...)
+	// A file whose only marker use is the version slot on `initRoutes` / `initClient` still needs the transform.
+	siteFiles = append(siteFiles, sess.apiVersionFiles(sess.programSourceFiles(), routerInitFiles)...)
+	genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
+	genResponse.ProgramHash = sess.programHash()
+	genResponse.BatchesModule = batchesModule
+	genResponse.RouterInitFiles = routerInitFiles
+	genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
+	if batchesModule != "" && len(routerInitFiles) == 0 {
+		genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))
+	}
+	// Echoed like OutDir, so the dependency-free host can adopt a tsconfig-only setting.
+	genResponse.DowngradeErrors = sess.opts.TsconfigDowngradeErrors
+	genResponse.Levels = sess.opts.TsconfigLevels
+	genResponse.LogStyle = sess.opts.TsconfigLogStyle
+	// File reports let separate server builds and --compile consumers read the callback data.
+	if report := sess.collectPureFnReport(metrics); report != nil {
+		genResponse.PureFnSites = report
+		if sess.opts.PureFnReportFile {
+			if reportErr := writeJSONReport(pureFnReportPath(outDir), "pure-fn", report); reportErr != nil {
+				return protocol.Response{Error: reportErr.Error()}
+			}
+		}
+	}
+	// The caller owns the bundler output directory; modules already exist under types/pf/.
+	genResponse.PureFnArtifact = genArtifact
+	if sess.opts.PureFnReportWire {
+		batchReport := requestbatch.Report(genBatchSites)
+		genResponse.BatchSites = batchReport
+		if sess.opts.PureFnReportFile {
+			if reportErr := writeJSONReport(batchReportPath(outDir), "batch", batchReport); reportErr != nil {
+				return protocol.Response{Error: reportErr.Error()}
+			}
+		}
+	}
+	genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
+	// Consumed by buildStart.
+	genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiTypeImports(sess.programSourceFiles())...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkDrizzleFiles(sess.programSourceFiles())...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, sess.mockSiteFormatDiagnostics(genDump.Sites)...)
+	genResponse.Diagnostics = append(genResponse.Diagnostics, sess.validateProgramPureFnDeps(genPureFnDeps)...)
+	return genResponse
+}
+
+func (sess *Session) opSetSources(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	setStart := time.Now()
+	if err := sess.dispatchSetSources(request.Sources); err != nil {
+		return protocol.Response{Error: err.Error()}
+	}
+	if metrics != nil {
+		metrics.SetSourcesMs = elapsedMs(setStart)
+	}
+	return protocol.Response{OK: true}
+}
+
+func (sess *Session) opReset(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	sess.Reset()
+	return protocol.Response{OK: true}
+}
+
+func (sess *Session) opTsCompile(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	ms, err := sess.dispatchTsCompile()
+	if err != nil {
+		return protocol.Response{Error: err.Error()}
+	}
+	return protocol.Response{TsCompileMs: ms}
+}
+
+func (sess *Session) opTransform(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
+	before := sess.cache.Size()
+	// Go rewrites and maps via pkg/compiler/sourcerewrite; added* flags let Vite drive HMR with one call.
+	if sess.Program == nil {
+		return protocol.Response{Error: "transform: no Program loaded — call setSources first"}
+	}
+	if len(request.Files) == 0 {
+		return protocol.Response{Error: "transform: files is required and must be non-empty"}
+	}
+	scanStart := time.Now()
+	sites, markerDiagnostics, err := sess.dispatchScanFiles(request.Files)
+	if err != nil {
+		return protocol.Response{Error: err.Error()}
+	}
+	if metrics != nil {
+		metrics.MarkerScanMs = elapsedMs(scanStart)
+	}
+	pureFnsStart := time.Now()
+	_, pureFnDiagnostics, pureFnReplacements, addedPureFns := sess.extractPureFnsForScan(request.Files)
+	if metrics != nil {
+		metrics.PureFnsMs = elapsedMs(pureFnsStart)
+	}
+	transformBatchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
+	sess.noteOwnBatches(transformBatchSites)
+	_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
+	allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
+	allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
+	sites = sess.stampSiteModules(sites)
+	addedRunTypes := len(sess.cache.Added(before)) > 0
+	// Program text is authoritative: Site.Pos offsets index those bytes.
+	transformed := make(map[string]protocol.TransformResult, len(request.Files))
+	transformOutDir := ""
+	if sess.opts.TransformRelative {
+		transformOutDir = sess.resolveOutDir()
+	}
+	for _, file := range request.Files {
+		sourceFile, sourceErr := sess.sourceFile(file)
+		if sourceErr != nil {
+			return protocol.Response{Error: sourceErr.Error()}
+		}
+		fileAbs := sess.absPath(file)
+		var fileSites []protocol.Site
+		for _, site := range sites {
+			if sameTransformPath(site.File, file, fileAbs) {
+				fileSites = append(fileSites, site)
+			}
+		}
+		var fileReplacements []protocol.Replacement
+		for _, replacement := range allReplacements {
+			if sameTransformPath(replacement.File, file, fileAbs) {
+				fileReplacements = append(fileReplacements, replacement)
+			}
+		}
+		source := sourceFile.Text()
+		prologueEnd := sourcerewrite.PrologueEnd(sourceFile)
+		if request.EmitEdits {
+			// ComputeEdits and JS EditBuffer must reproduce Apply byte for byte; SourceHash detects upstream source edits.
+			importBlock, importAt, edits := sourcerewrite.ComputeEdits(source, prologueEnd, fileSites, fileReplacements)
+			if importBlock != "" && transformOutDir != "" {
+				// Only the injected block has rtmod: specifiers; relativizing it matches go-mode output.
+				importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock, moduleExt(sess.opts.EmitMode))
+			}
+			transformed[file] = protocol.TransformResult{
+				ImportBlock: importBlock,
+				ImportAt:    importAt,
+				Edits:       edits,
+				SourceHash:  sourcerewrite.SourceHash(source),
+				TypeDeps:    sess.cache.DeclFilesForFiles([]string{file}),
+			}
+			continue
+		}
+		code, sourceMap := sourcerewrite.Apply(file, source, prologueEnd, fileSites, fileReplacements)
+		if transformOutDir != "" {
+			// Absolute bases keep filepath.Rel valid; the injected block stays one line to preserve the source map.
+			code = relativizeUserImports(sess.absPath(file), transformOutDir, code, moduleExt(sess.opts.EmitMode))
+		}
+		if sess.opts.OmitSourcesContent && sourceMap != nil {
+			// The bundler supplies source content; nil slots must remain aligned with Sources.
+			sourceMap.SourcesContent = make([]*string, len(sourceMap.Sources))
+		}
+		// SourceHash warns of upstream edits that go-mode output would overwrite; transformation still proceeds.
+		transformed[file] = protocol.TransformResult{
+			Code:       code,
+			Map:        sourceMap,
+			SourceHash: sourcerewrite.SourceHash(source),
+			TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
+		}
+	}
+	combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
+	combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
+	combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
+	response := protocol.Response{
+		Transformed:   transformed,
+		Sites:         sites,
+		Replacements:  allReplacements,
+		AddedRunTypes: addedRunTypes,
+		AddedPureFns:  addedPureFns,
+		Diagnostics:   combinedDiagnostics,
+	}
+	return response
 }
 
 // dispatchSetSources builds an inferred Program from the supplied overlay and swaps it into the resolver.

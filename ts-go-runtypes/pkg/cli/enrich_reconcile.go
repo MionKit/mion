@@ -36,7 +36,7 @@ func updateMirrorFile(spec mirror.Spec) bool {
 	existingBytes, err := os.ReadFile(spec.MirrorPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			fatal("enrich --update: read %s: %v", spec.MirrorPath, err)
+			Fatal("enrich --update: read %s: %v", spec.MirrorPath, err)
 		}
 		// Missing file → seed it via the ordinary create-only path.
 		return writeMirrorFile(spec)
@@ -55,7 +55,7 @@ func updateMirrorFile(spec mirror.Spec) bool {
 
 	out, changed, err := mirror.Reconcile(spec, existingBytes, readSourceFile)
 	if err != nil {
-		fatal("enrich --update: %v", err)
+		Fatal("enrich --update: %v", err)
 	}
 	if !changed {
 		return false // idempotent no-op
@@ -68,10 +68,10 @@ func updateMirrorFile(spec mirror.Spec) bool {
 // parent dirs as needed, and reports the change.
 func writeReconciled(mirrorPath string, content []byte) {
 	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
-		fatal("enrich --update: mkdir %s: %v", filepath.Dir(mirrorPath), err)
+		Fatal("enrich --update: mkdir %s: %v", filepath.Dir(mirrorPath), err)
 	}
 	if err := atomicWriteFile(mirrorPath, content, 0o644); err != nil {
-		fatal("enrich --update: write %s: %v", mirrorPath, err)
+		Fatal("enrich --update: write %s: %v", mirrorPath, err)
 	}
 	fmt.Printf("enrich --update: reconciled %s\n", mirrorPath)
 }
@@ -173,7 +173,7 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 	}
 	files, err := collectMirrorFiles(target)
 	if err != nil {
-		fatal("enrich --prune: %v", err)
+		Fatal("enrich --prune: %v", err)
 	}
 	return files
 }
@@ -192,7 +192,7 @@ func pruneMirrorFile(mirrorFile string) int {
 		if os.IsNotExist(err) {
 			return 0
 		}
-		fatal("enrich --prune: read %s: %v", mirrorFile, err)
+		Fatal("enrich --prune: read %s: %v", mirrorFile, err)
 	}
 	pruned, removed, skipped, err := mirror.PruneOrphanBlocks(string(bytes))
 	if err != nil {
@@ -208,7 +208,7 @@ func pruneMirrorFile(mirrorFile string) int {
 		return 0
 	}
 	if err := atomicWriteFile(mirrorFile, []byte(pruned), 0o644); err != nil {
-		fatal("enrich --prune: write %s: %v", mirrorFile, err)
+		Fatal("enrich --prune: write %s: %v", mirrorFile, err)
 	}
 	fmt.Printf("enrich --prune: %s — removed %d orphan block(s)\n", mirrorFile, removed)
 	return removed

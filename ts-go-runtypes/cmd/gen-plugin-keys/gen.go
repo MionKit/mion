@@ -41,7 +41,7 @@ func outputPath() string {
 
 // parsePluginKeys walks config.go and returns the json tag names of every field
 // on the tsRuntypesPlugin struct, sorted, skipping "" and "-". This mirrors the
-// runtime knownPluginKeys reflection in config.go — same struct, same rule — but
+// runtime pluginKeyTags reflection in config.go — same struct, same rule — but
 // via the AST, so this generator needs no import of pkg/cli (and with it the
 // whole compiler).
 func parsePluginKeys() ([]string, error) {

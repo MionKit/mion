@@ -149,7 +149,7 @@ func TestResolveEnrichConfig_DefaultGenDirLocation(t *testing.T) {
 
 // TestResolveEnrichConfig_GarbageTsconfig: an unparseable DISCOVERED tsconfig is
 // fatal — strict like tsc, never a silent fall-back to defaults that could
-// resolve types differently. resolveEnrichConfig calls fatal() (os.Exit), so
+// resolve types differently. resolveEnrichConfig calls Fatal() (os.Exit), so
 // the assertion runs in a re-exec'd subprocess (same pattern as
 // TestUpdate_FatalOnUnparseableFile).
 func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
