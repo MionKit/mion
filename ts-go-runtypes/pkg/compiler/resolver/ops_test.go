@@ -15,23 +15,10 @@ import (
 // withTables restores every extension table when the test ends, so a test row never leaks into another test.
 func withTables(t *testing.T) {
 	t.Helper()
-	saved := struct {
-		ops        registry[Op]
-		checks     registry[ScanCheck]
-		gen        registry[GenDirEntry]
-		extensions []protocol.ExtensionInfo
-	}{cloneRegistry(opTable), cloneRegistry(scanCheckTable), cloneRegistry(genDirTable), slices.Clone(extensions)}
+	ops, checks, gen, saved := opTable.Clone(), scanCheckTable.Clone(), genDirTable.Clone(), slices.Clone(extensions)
 	t.Cleanup(func() {
-		*opTable, *scanCheckTable, *genDirTable, extensions = saved.ops, saved.checks, saved.gen, saved.extensions
+		*opTable, *scanCheckTable, *genDirTable, extensions = *ops, *checks, *gen, saved
 	})
-}
-
-func cloneRegistry[T any](table *registry[T]) registry[T] {
-	rows := make(map[string]T, len(table.rows))
-	for name, row := range table.rows {
-		rows[name] = row
-	}
-	return registry[T]{kind: table.kind, order: slices.Clone(table.order), rows: rows}
 }
 
 // newOpsSession is a server session with one plain file loaded.
@@ -98,8 +85,8 @@ func TestRegisterOp_DuplicateAndReplace(t *testing.T) {
 	if response := session.Dispatch(protocol.Request{Op: protocol.OpReset}); response.Ext["replaced"] != true {
 		t.Fatalf("Replace must swap the built-in: %+v", response)
 	}
-	if !slices.Equal(opTable.order[:2], []string{protocol.OpScanFiles, protocol.OpDump}) || opTable.order[4] != protocol.OpReset {
-		t.Fatalf("a replaced row keeps its slot: %v", opTable.order)
+	if names := opTable.Names(); !slices.Equal(names[:2], []string{protocol.OpScanFiles, protocol.OpDump}) || names[4] != protocol.OpReset {
+		t.Fatalf("a replaced row keeps its slot: %v", names)
 	}
 }
 

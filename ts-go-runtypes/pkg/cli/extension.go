@@ -47,59 +47,26 @@ type SessionFlags struct {
 	Replace  bool
 }
 
-// table is one ordered registry with the duplicate / Replace rules above.
-type table[T any] struct {
-	kind  string
-	order []string
-	rows  map[string]T
-}
-
-func newTable[T any](kind string) *table[T] { return &table[T]{kind: kind, rows: map[string]T{}} }
-
-func (rows *table[T]) add(name string, row T, replace bool) {
-	if name == "" {
-		panic("cli: " + rows.kind + " registered without a name")
-	}
-	_, exists := rows.rows[name]
-	switch {
-	case exists && !replace:
-		panic("cli: duplicate registration of " + rows.kind + " " + name)
-	case !exists && replace:
-		panic("cli: " + rows.kind + " " + name + " is not registered, so there is nothing to replace")
-	case !exists:
-		rows.order = append(rows.order, name)
-	}
-	rows.rows[name] = row
-}
-
-func (rows *table[T]) list() []T {
-	out := make([]T, 0, len(rows.order))
-	for _, name := range rows.order {
-		out = append(out, rows.rows[name])
-	}
-	return out
-}
-
 var (
-	commandTable      = newTable[Command]("command")
-	sessionFlagsTable = newTable[SessionFlags]("session flags")
+	commandTable      = resolver.NewRegistry[Command]("command")
+	sessionFlagsTable = resolver.NewRegistry[SessionFlags]("session flags")
 	// pluginKeyTable holds the registered keys beyond the tsRuntypesPlugin json tags.
-	pluginKeyTable = newTable[PluginKey]("plugin key")
+	pluginKeyTable = resolver.NewRegistry[PluginKey]("plugin key")
 )
 
-func registerCommand(command Command) { commandTable.add(command.Name, command, command.Replace) }
+func registerCommand(command Command) { commandTable.Add(command.Name, command, command.Replace) }
 
-func registerSessionFlags(row SessionFlags) { sessionFlagsTable.add(row.Name, row, row.Replace) }
+func registerSessionFlags(row SessionFlags) { sessionFlagsTable.Add(row.Name, row, row.Replace) }
 
 // registerPluginKey checks a name against the struct tags as well: a tag is a key mion already has.
 func registerPluginKey(key PluginKey) {
 	if pluginKeyTags[key.Name] {
 		if !key.Replace {
-			panic("cli: duplicate registration of plugin key " + key.Name)
+			panic("mion: duplicate registration of plugin key " + key.Name)
 		}
 		return
 	}
-	pluginKeyTable.add(key.Name, key, key.Replace)
+	pluginKeyTable.Add(key.Name, key, key.Replace)
 }
 
 // install adds an extension's rows; the resolver rows take its name as their Owner.
@@ -132,7 +99,7 @@ func install(extension Extension) {
 func renderUsage() string {
 	var builder strings.Builder
 	builder.WriteString(usageHeader)
-	for _, command := range commandTable.list() {
+	for _, command := range commandTable.List() {
 		builder.WriteString("    " + command.Help + "\n")
 	}
 	builder.WriteString(usageFooter)

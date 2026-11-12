@@ -19,11 +19,11 @@ type GenDirEntry struct {
 	Replace bool
 }
 
-var genDirTable = newRegistry[GenDirEntry]("genDir entry")
+var genDirTable = NewRegistry[GenDirEntry]("genDir entry")
 
 // RegisterGenDirEntry adds a member the output-dir guard accepts and the genDir README lists.
 func RegisterGenDirEntry(entry GenDirEntry) {
-	genDirTable.add(entry.Name, entry, entry.Replace)
+	genDirTable.Add(entry.Name, entry, entry.Replace)
 }
 
 // genDirReadmeHeader opens the genDir README; the entries' bullets follow.
@@ -36,7 +36,7 @@ const genDirReadmeHeader = "# RunTypes output\n" +
 func genDirReadme() string {
 	var builder strings.Builder
 	builder.WriteString(genDirReadmeHeader)
-	for _, entry := range genDirTable.list() {
+	for _, entry := range genDirTable.List() {
 		builder.WriteString(entry.Bullet)
 	}
 	return builder.String()
@@ -45,7 +45,7 @@ func genDirReadme() string {
 // extensionGenDirMembers names the extension-owned members for the output-dir refusal, "" when there are none.
 func extensionGenDirMembers() string {
 	var names []string
-	for _, entry := range genDirTable.list() {
+	for _, entry := range genDirTable.List() {
 		if entry.Owner == "" {
 			continue
 		}

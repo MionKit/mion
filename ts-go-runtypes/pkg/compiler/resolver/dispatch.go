@@ -582,7 +582,7 @@ func sameTransformPath(tagged, requested, requestedAbs string) bool {
 // dispatch is the un-instrumented op lookup: every op, built-in or extension, is a row of the op table.
 // metrics may be nil (the no-IncludeMetrics fast path); phase recordings are guarded per site.
 func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
-	op, ok := opTable.rows[request.Op]
+	op, ok := opTable.Get(request.Op)
 	if !ok {
 		return protocol.Response{Error: "unknown op: " + request.Op}
 	}
@@ -624,7 +624,7 @@ func (sess *Session) opScanFiles(request protocol.Request, metrics *protocol.Met
 	combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 	// Run after cache.Added(before): a check can intern types (enrichment, route rules), which must stay out of the
 	// HMR signals.
-	for _, check := range scanCheckTable.list() {
+	for _, check := range scanCheckTable.List() {
 		if check.Enabled(request) {
 			combinedDiagnostics = append(combinedDiagnostics, check.Run(sess, request.Files)...)
 		}

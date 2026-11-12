@@ -56,7 +56,7 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 		if request.IncludeEntryModules || request.IncludeRtDiagnostics {
 			families[diagnostics.FamilyRunType] = true
 		}
-		for _, check := range scanCheckTable.list() {
+		for _, check := range scanCheckTable.List() {
 			if check.Enabled(request) {
 				families[check.Family] = true
 			}

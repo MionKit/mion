@@ -118,7 +118,7 @@ func Main(args []string, extensions ...Extension) {
 		fmt.Println(versionLine(extensions))
 		return
 	}
-	command, ok := commandTable.rows[args[0]]
+	command, ok := commandTable.Get(args[0])
 	if !ok {
 		fmt.Fprintf(os.Stderr, "mion: unknown command %q\n\n", args[0])
 		fmt.Fprint(os.Stderr, usage)
@@ -200,7 +200,7 @@ func RegisterSharedFlags(command string, fs *flag.FlagSet) *SharedFlags {
 		"match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)")
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")
 	fs.StringVar(&s.pprofHeap, "pprof-heap", "", "write a heap profile to PATH at exit")
-	for _, row := range sessionFlagsTable.list() {
+	for _, row := range sessionFlagsTable.List() {
 		if slices.Contains(row.Commands, command) {
 			s.sessionFlags = append(s.sessionFlags, row.Register(fs))
 		}
