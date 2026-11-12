@@ -2,6 +2,7 @@ import {spawn, type ChildProcess} from 'node:child_process';
 import {createInterface, type Interface} from 'node:readline';
 import type {Readable, Writable} from 'node:stream';
 import type {
+  Capabilities,
   Diagnostic,
   EnrichFile,
   Metrics,
@@ -101,6 +102,8 @@ export interface ResolverClientOptions {
   enrichI18n?: boolean;
   enrichLocales?: string[];
   enrichSourceLocale?: string;
+  // Extension serve flags (MionExtension.serveArgs), appended to the spawn argv; a respawn replays them.
+  extraArgs?: string[];
 }
 
 // WireStats is a connection's cumulative stdio byte + request tally (UTF-8, both directions), read by the
@@ -233,6 +236,8 @@ export interface ScanFilesOptions {
   checkRouterRules?: boolean;
   // The RunType-family render diagnostics without the entry-module payload. Lint-plugin use.
   includeRtDiagnostics?: boolean;
+  // Extension request fields: `ext[name] = true` switches on an advertised scan check.
+  ext?: Record<string, unknown>;
 }
 
 // ScanFilesResult is what scanFiles returns. Sites are flat, every site across the request's files, each tagged
@@ -320,9 +325,17 @@ export interface ResolverConnection {
   setSources(sources: Record<string, string>): Promise<void>;
   reset(): Promise<void>;
   tsCompile(): Promise<number>;
+  // Sends any op as-is, for an op an extension binary registers; the binary answers `unknown op: <op>` when it has
+  // none, which a binary without extensions turns into a hint naming the pro binary.
+  request(op: string, fields?: {files?: string[]; ext?: Record<string, unknown>}): Promise<Response>;
+  // What the binary's extensions add; every list empty on the public binary. Fetched once per connection.
+  capabilities(): Promise<Capabilities>;
   wireStats(): WireStats;
   close(): void;
 }
+
+const EMPTY_CAPABILITIES: Capabilities = {extensions: [], ops: [], scanChecks: [], diagnostics: []};
+const UNKNOWN_OP = /^unknown op: /;
 
 // TransformOptions selects the transform wire mode, the one genuinely per-request transform knob: `emitEdits:
 // true` is 'edits' mode, omitted or false is 'go' mode. It stays on the wire because a session can degrade from
@@ -351,6 +364,7 @@ abstract class ResolverClientBase implements ResolverConnection {
     if (opts.checkEnrich) req.checkEnrich = true;
     if (opts.checkRouterRules) req.checkRouterRules = true;
     if (opts.includeRtDiagnostics) req.includeRtDiagnostics = true;
+    if (opts.ext && Object.keys(opts.ext).length > 0) req.ext = opts.ext;
     const resp = await this.send(req);
     if (resp.error) throw new Error(`scanFiles [${files.join(', ')}]: ${resp.error}`);
     return {
@@ -445,6 +459,36 @@ abstract class ResolverClientBase implements ResolverConnection {
     return resp.tsCompileMs ?? 0;
   }
 
+  async request(op: string, fields: {files?: string[]; ext?: Record<string, unknown>} = {}): Promise<Response> {
+    const req: Request = {op};
+    if (fields.files) req.files = fields.files;
+    if (fields.ext) req.ext = fields.ext;
+    const resp = await this.send(req);
+    if (!resp.error) return resp;
+    if (UNKNOWN_OP.test(resp.error) && (await this.capabilities()).extensions.length === 0) {
+      throw new Error(`\`${op}\` needs the mion-pro binary (install @mionkit/pro-bin-compiler)`);
+    }
+    throw new Error(resp.error);
+  }
+
+  private capabilitiesAnswer: Promise<Capabilities> | undefined;
+
+  // A binary older than the op answers `unknown op: capabilities`, which reads as no extensions.
+  capabilities(): Promise<Capabilities> {
+    this.capabilitiesAnswer ??= this.send({op: 'capabilities'}).then((resp) => {
+      if (resp.error) {
+        if (UNKNOWN_OP.test(resp.error)) return EMPTY_CAPABILITIES;
+        throw new Error(`capabilities: ${resp.error}`);
+      }
+      return resp.capabilities ?? EMPTY_CAPABILITIES;
+    });
+    // A failed fetch (the transport died) is retried on the next call rather than remembered.
+    this.capabilitiesAnswer.catch(() => {
+      this.capabilitiesAnswer = undefined;
+    });
+    return this.capabilitiesAnswer;
+  }
+
   // wireStats exposes the connection's cumulative stdio byte + request tally, read by the transform-mode
   // benchmark to compare 'go' vs 'edits' wire cost.
   wireStats(): WireStats {
@@ -501,6 +545,8 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.enrichI18n) args.push('--enrich-i18n');
   if (opts.enrichLocales && opts.enrichLocales.length > 0) args.push('--enrich-locales', opts.enrichLocales.join(','));
   if (opts.enrichSourceLocale) args.push('--enrich-source-locale', opts.enrichSourceLocale);
+  // Last, so an extension binary's own serve flags never shadow one of mion's.
+  if (opts.extraArgs) args.push(...opts.extraArgs);
   return args;
 }
 
