@@ -4,6 +4,7 @@
 
 import {expect, test} from 'vitest';
 import type {FormatSampledParams} from '../../src/go-generated/formatErrorKeys.generated.ts';
+import type {FormatErrorKeys as PublicFormatErrorKeys} from '@mionjs/run-types/formats';
 import type {FormatName} from '../../src/go-generated/typeFormats.generated.ts';
 import type {NumberParams} from '../../src/formats/numberFormats.ts';
 import type {BigIntParams} from '../../src/formats/bigintFormats.ts';
@@ -57,4 +58,11 @@ const everyParamSampled: {[Name in FormatName]: never} = null as unknown as Unsa
 
 test('every format param has an error-key sample (checked by tsc)', () => {
   expect(everyParamSampled).toBeNull();
+});
+
+// The public `/formats` subpath carries the same key table code built on run-types reads.
+const publicKeys: Record<FormatName, string> = null as unknown as {[Name in FormatName]: PublicFormatErrorKeys[Name]};
+
+test('FormatErrorKeys is exported from @mionjs/run-types/formats (checked by tsc)', () => {
+  expect(publicKeys).toBeNull();
 });

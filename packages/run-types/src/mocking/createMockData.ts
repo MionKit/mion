@@ -15,7 +15,7 @@ import {mockRunType} from './mockType.ts';
 import {mockRunTypeInvalid} from './mockInvalid.ts';
 import {MockRandom, nativeMockRandom} from './mockRandom.ts';
 import {defaultMockOptions} from './constants.mock.ts';
-import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
+import type {MockDataNode, MockNodeHook, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
 
 /** Returns a mock-value generator for `T`; each call produces a fresh value that passes `validate<T>`.
  *  Options merge: call < factory < defaults. Takes a value-first schema (`createMockDataFn(rt)`) or the value/static form.
@@ -70,7 +70,8 @@ export function createMockDataFn<T>(
 }
 
 /** Shallow merge of the `mock` slot, so nested pool arrays are replaced when supplied, never merged.
- *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends. **/
+ *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends, and a `hook`
+ *  seeds `hookCursor` from its `root`. **/
 function mergeMockOptions(
   factoryOpts: RunTypeMockOptions<unknown> | undefined,
   callOpts: DeepPartial<RunTypeMockOptions<unknown>> | undefined
@@ -87,6 +88,11 @@ function mergeMockOptions(
   if (data !== undefined) {
     result.data = data;
     result.dataNode = data as MockDataNode;
+  }
+  const hook = (callOpts?.hook ?? factoryOpts?.hook) as MockNodeHook | undefined;
+  if (hook !== undefined) {
+    result.hook = hook;
+    result.hookCursor = hook.root;
   }
   return result;
 }
