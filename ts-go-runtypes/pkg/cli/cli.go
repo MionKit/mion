@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"slices"
 	"strings"
 	"sync"
 
@@ -41,20 +42,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
 )
 
-const usage = `mion — compile-time type resolver for runtypes
+// usageHeader and usageFooter frame the command rows in the top-level help (renderUsage).
+const usageHeader = `mion — compile-time type resolver for runtypes
 
 Usage:
     mion <command> [OPTIONS]
 
 Commands:
-    serve       serve the resolver protocol on stdio (the bundler-plugin path)
-    compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
-    enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
-    convert     rewrite type declarations between the three authoring forms
-    drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
-    api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
-    api-types   build a types-only package for an API's clients: trimmed .d.ts, manifest, marker, package.json
+`
 
+const usageFooter = `
 Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
@@ -87,21 +84,28 @@ off. Binary version is folded into every typeID hash so cross-version files
 never collide.
 `
 
-// commands is the top-level args[0] dispatch table — one convention for every
-// mode, like the vendored tsgo (cmd/tsgo/main.go switches on args[0]). Each
-// handler owns its own flag.FlagSet.
-var commands = map[string]func(args []string){
-	"serve":           runServe,
-	"compile":         runCompile,
-	"enrich":          runEnrich,
-	"convert":         runConvert,
-	"drizzle-migrate": runDrizzleMigrate,
-	"api-check":       runApiCheck,
-	"api-types":       runApiTypes,
+// mion's own verbs, rows of the same table extension verbs join: one convention for every mode, like the
+// vendored tsgo (cmd/tsgo/main.go switches on args[0]). Each handler owns its own flag.FlagSet.
+func init() {
+	for _, command := range []Command{
+		{Name: "serve", Help: "serve       serve the resolver protocol on stdio (the bundler-plugin path)", Run: runServe},
+		{Name: "compile", Help: "compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)", Run: runCompile},
+		{Name: "enrich", Help: "enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)", Run: runEnrich},
+		{Name: "convert", Help: "convert     rewrite type declarations between the three authoring forms", Run: runConvert},
+		{Name: "drizzle-migrate", Help: "drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages", Run: runDrizzleMigrate},
+		{Name: "api-check", Help: "api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)", Run: runApiCheck},
+		{Name: "api-types", Help: "api-types   build a types-only package for an API's clients: trimmed .d.ts, manifest, marker, package.json", Run: runApiTypes},
+	} {
+		registerCommand(command)
+	}
 }
 
-// Main runs the mion command line; args excludes the program name.
-func Main(args []string) {
+// Main runs the mion command line, plus each extension's rows; args excludes the program name.
+func Main(args []string, extensions ...Extension) {
+	for _, extension := range extensions {
+		install(extension)
+	}
+	usage := renderUsage()
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -111,22 +115,23 @@ func Main(args []string) {
 		fmt.Fprint(os.Stdout, usage)
 		return
 	case "-v", "--version", "version":
-		fmt.Printf("mion %s (tsgo %s)\n", constants.Version, constants.TsgoVersion)
+		fmt.Println(versionLine(extensions))
 		return
 	}
-	run, ok := commands[args[0]]
+	command, ok := commandTable.rows[args[0]]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "mion: unknown command %q\n\n", args[0])
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
 	}
-	run(args[1:])
+	command.Run(args[1:])
 }
 
-// sharedFlags are the resolver-configuring knobs common to serve + compile,
-// registered on each subcommand's own FlagSet by registerSharedFlags so a knob
-// spells and means the same thing wherever it appears.
-type sharedFlags struct {
+// SharedFlags are the resolver-configuring knobs common to every Program-building verb,
+// registered on each subcommand's own FlagSet by RegisterSharedFlags so a knob
+// spells and means the same thing wherever it appears. Each SessionFlags row
+// registered for the command rides along.
+type SharedFlags struct {
 	tsconfig             string
 	clientRoutes         string
 	cwd                  string
@@ -150,10 +155,13 @@ type sharedFlags struct {
 	noMarkerPackageCheck bool
 	pprofCPU             string
 	pprofHeap            string
+	// sessionFlags apply the command's SessionFlags rows once the config is resolved.
+	sessionFlags []func(cfg *SessionConfig)
 }
 
-func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
-	s := &sharedFlags{}
+// RegisterSharedFlags registers the shared knobs and every SessionFlags row for command (built-in or extension).
+func RegisterSharedFlags(command string, fs *flag.FlagSet) *SharedFlags {
+	s := &SharedFlags{}
 	fs.StringVar(&s.tsconfig, "tsconfig", "", "tsconfig.json path (default: discover upward from --cwd, tsc-style)")
 	fs.StringVar(&s.clientRoutes, "client-routes", "",
 		"how this client gets the metadata + compiled functions of the routes it calls: bundle (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | fetch (every route fetched) (default: the tsconfig clientRoutes plugin key, else bundle)")
@@ -192,6 +200,11 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)")
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")
 	fs.StringVar(&s.pprofHeap, "pprof-heap", "", "write a heap profile to PATH at exit")
+	for _, row := range sessionFlagsTable.list() {
+		if slices.Contains(row.Commands, command) {
+			s.sessionFlags = append(s.sessionFlags, row.Register(fs))
+		}
+	}
 	return s
 }
 
@@ -207,15 +220,15 @@ func exitAfterProfiling(code int) {
 
 // startProfiling honors --pprof-cpu / --pprof-heap and returns a stop function
 // the caller defers; a no-op when neither flag is set.
-func startProfiling(s *sharedFlags) func() {
+func startProfiling(s *SharedFlags) func() {
 	var stops []func()
 	if s.pprofCPU != "" {
 		cpuFile, err := os.Create(s.pprofCPU)
 		if err != nil {
-			fatal("pprof-cpu: %v", err)
+			Fatal("pprof-cpu: %v", err)
 		}
 		if err := pprof.StartCPUProfile(cpuFile); err != nil {
-			fatal("pprof-cpu: %v", err)
+			Fatal("pprof-cpu: %v", err)
 		}
 		stops = append(stops, func() { pprof.StopCPUProfile(); cpuFile.Close() })
 	}
@@ -245,13 +258,15 @@ func startProfiling(s *sharedFlags) func() {
 	return stopProfiling
 }
 
-// sessionConfig is the resolved config + options a Program-building subcommand
-// (serve / compile) consumes — the output of the ONE shared config pipeline.
-type sessionConfig struct {
-	absCwd       string
-	tsconfigPath string
-	genDir       string // compile's cache-module output root (merged flag > plugin > default)
-	opts         resolver.Options
+// SessionConfig is the resolved config + options a Program-building subcommand
+// (serve / compile / an extension verb) consumes — the output of the ONE shared config pipeline.
+type SessionConfig struct {
+	AbsCwd       string
+	TsconfigPath string
+	GenDir       string // compile's cache-module output root (merged flag > plugin > default)
+	Opts         resolver.Options
+	// Plugin is the raw `mion` entry of the tsconfig plugins (nil when none), so an extension reads its own keys.
+	Plugin map[string]json.RawMessage
 }
 
 // resolveCwd resolves the --cwd flag (empty → $PWD) to an absolute path.
@@ -260,22 +275,22 @@ func resolveCwd(cwdFlag string) string {
 	if cwd == "" {
 		d, err := os.Getwd()
 		if err != nil {
-			fatal("getwd: %v", err)
+			Fatal("getwd: %v", err)
 		}
 		cwd = d
 	}
 	absCwd, err := filepath.Abs(cwd)
 	if err != nil {
-		fatal("abs(cwd): %v", err)
+		Fatal("abs(cwd): %v", err)
 	}
 	return absCwd
 }
 
-// resolveSharedConfig is the ONE config pipeline of every Program-building subcommand (flag > plugin > default).
+// ResolveSharedConfig is the ONE config pipeline of every Program-building subcommand (flag > plugin > default).
 // readBuildPlugin is false for the overlay serve modes (--sources stdin|ops), which skip the tsconfig plugin block.
-func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, readBuildPlugin bool) sessionConfig {
+func ResolveSharedConfig(fs *flag.FlagSet, s *SharedFlags, genDirFlag string, readBuildPlugin bool) SessionConfig {
 	absCwd := resolveCwd(s.cwd)
-	tsconfigPath := resolveConfigPath(absCwd, s.tsconfig)
+	tsconfigPath := ResolveConfigPath(absCwd, s.tsconfig)
 
 	// Which flags were passed, so the plugin fills only the gaps.
 	setFlags := map[string]bool{}
@@ -315,7 +330,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	switch merged.moduleMode {
 	case constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules:
 	default:
-		fatal("module-mode: unknown value %q (expected %s | %s | %s)",
+		Fatal("module-mode: unknown value %q (expected %s | %s | %s)",
 			merged.moduleMode, constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules)
 	}
 	if !constants.EmitMode(merged.emitMode).Valid() {
@@ -394,7 +409,13 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		PatternSampleRetries: merged.patternSampleRetries,
 		MaxUnknownKeys:       merged.maxUnknownKeys,
 	}
-	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
+	cfg := SessionConfig{AbsCwd: absCwd, TsconfigPath: tsconfigPath, GenDir: merged.genDir, Opts: opts}
+	// The overlay serve modes read no build options, but an extension may still need its own keys.
+	cfg.Plugin, _, _ = ReadPlugin(tsconfigPath)
+	for _, apply := range s.sessionFlags {
+		apply(&cfg)
+	}
+	return cfg
 }
 
 // printUsage renders a subcommand's help: its synopsis, then EVERY flag it
@@ -402,7 +423,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 // one-line description — so each `mion <cmd> -h` is self-documenting and
 // can never drift from the registered flags. Like flag.PrintDefaults but with
 // the `--name` convention the synopsis and docs use (Go accepts both -x / --x).
-func printUsage(fs *flag.FlagSet, synopsis string) {
+func PrintUsage(fs *flag.FlagSet, synopsis string) {
 	fmt.Fprint(os.Stderr, synopsis)
 	fmt.Fprintln(os.Stderr, "\nFlags:")
 	fs.VisitAll(func(f *flag.Flag) {
@@ -432,74 +453,50 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 // --inline-sources-stdin / --inline-server modes into one command.
 func runServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	s := registerSharedFlags(fs)
+	s := RegisterSharedFlags("serve", fs)
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
 	// Session config the wire deliberately does NOT carry (the wire carries
 	// events — which files, which op; the session carries config). --gen-dir is
 	// the explicit output-root override (the host plugin's genDir option); the
-	// --enrich-* flags configure OpEnrich: the families to maintain, and the
-	// per-locale translation-mirror sync whose locales/sourceLocale default from
-	// the tsconfig plugin i18n block (project mode) unless overridden here.
+	// --enrich-* flags are the `enrich` SessionFlags row (enrich_cli.go).
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
 	omitSourcesContent := fs.Bool("omit-sources-content", false,
 		"drop the original source from each 'go'-mode transform source map (the host fills it from its own copy)")
-	enrichFriendly := fs.Bool("enrich-friendly", false, "OpEnrich maintains the FriendlyText mirrors (neither family flag = both)")
-	enrichMock := fs.Bool("enrich-mock", false, "OpEnrich maintains the MockData mirrors (neither family flag = both)")
-	enrichI18n := fs.Bool("enrich-i18n", false, "OpEnrich also syncs the per-locale translation mirrors (scaffold + sync only, never translated content)")
-	enrichLocales := fs.String("enrich-locales", "", "comma-separated target locales for --enrich-i18n (default: the tsconfig i18n.locales)")
-	enrichSourceLocale := fs.String("enrich-source-locale", "", "authoring locale of the source FriendlyText mirrors (default: the tsconfig i18n.sourceLocale)")
-	fs.Usage = func() { printUsage(fs, serveUsage) }
+	fs.Usage = func() { PrintUsage(fs, serveUsage) }
 	_ = fs.Parse(args)
 
 	switch *sources {
 	case "project", "stdin", "ops":
 	default:
-		fatal("serve: unknown --sources %q (want project | stdin | ops)", *sources)
+		Fatal("serve: unknown --sources %q (want project | stdin | ops)", *sources)
 	}
 
 	defer startProfiling(s)()
 
 	// Only the on-disk project mode merges the tsconfig plugin block; the
 	// overlay modes (stdin/ops) have no on-disk build options to honor.
-	cfg := resolveSharedConfig(fs, s, "", *sources == "project")
+	cfg := ResolveSharedConfig(fs, s, "", *sources == "project")
 	// The linter's ops mode takes `downgradeErrors`, so the editor lowers the same codes the build does.
 	if *sources == "ops" {
-		if plugin, found := resolveBuildPlugin(cfg.absCwd, cfg.tsconfigPath); found {
-			cfg.opts.TsconfigDowngradeErrors = plugin.DowngradeErrors
+		if plugin, found := resolveBuildPlugin(cfg.AbsCwd, cfg.TsconfigPath); found {
+			cfg.Opts.TsconfigDowngradeErrors = plugin.DowngradeErrors
 		}
 	}
 
-	// Apply the serve-local session config onto the resolved Options: the
-	// explicit flags win over the tsconfig-seeded defaults resolveSharedConfig
-	// already folded in (i18n locales/sourceLocale).
+	// Apply the serve-local session config onto the resolved Options.
 	if *genDirFlag != "" {
 		genDir := *genDirFlag
 		if !filepath.IsAbs(genDir) {
-			genDir = filepath.Join(cfg.absCwd, genDir)
+			genDir = filepath.Join(cfg.AbsCwd, genDir)
 		}
-		cfg.opts.GenDir = genDir
+		cfg.Opts.GenDir = genDir
 	}
-	cfg.opts.TransformRelative = *transformRelative
-	cfg.opts.OmitSourcesContent = *omitSourcesContent
-	cfg.opts.EnrichFriendly = *enrichFriendly
-	cfg.opts.EnrichMock = *enrichMock
-	cfg.opts.EnrichI18n = *enrichI18n
-	if *enrichLocales != "" {
-		var locales []string
-		for _, locale := range strings.Split(*enrichLocales, ",") {
-			if trimmed := strings.TrimSpace(locale); trimmed != "" {
-				locales = append(locales, trimmed)
-			}
-		}
-		cfg.opts.EnrichLocales = locales
-	}
-	if *enrichSourceLocale != "" {
-		cfg.opts.EnrichSourceLocale = *enrichSourceLocale
-	}
+	cfg.Opts.TransformRelative = *transformRelative
+	cfg.Opts.OmitSourcesContent = *omitSourcesContent
 
 	// Stdin decoder built up front because --sources stdin consumes one
 	// handshake line BEFORE constructing the Program, then keeps the same
@@ -511,7 +508,7 @@ func runServe(args []string) {
 
 	r, err := newStdioSession(*sources, cfg, stdinDec)
 	if err != nil {
-		fatal("%v", err)
+		Fatal("%v", err)
 	}
 	defer r.Close()
 
@@ -522,7 +519,7 @@ func runServe(args []string) {
 	if *outJSON != "" {
 		dump := protocol.Dump{RunTypes: r.Cache().Dump(), Sites: r.Sites()}
 		if err := writeFile(*outJSON, dump.WriteJSON); err != nil {
-			fatal("out-json: %v", err)
+			Fatal("out-json: %v", err)
 		}
 	}
 	if *outModules != "" {
@@ -530,15 +527,15 @@ func runServe(args []string) {
 		// (cross-family fixpoint, cascade, stubs) the wire response uses.
 		response := r.Dispatch(protocol.Request{Op: protocol.OpDump})
 		if response.Error != "" {
-			fatal("out-modules: %s", response.Error)
+			Fatal("out-modules: %s", response.Error)
 		}
 		for basename, source := range response.EntryModules {
 			target := filepath.Join(*outModules, basename+".js")
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				fatal("out-modules: %v", err)
+				Fatal("out-modules: %v", err)
 			}
 			if err := os.WriteFile(target, []byte(source), 0o644); err != nil {
-				fatal("out-modules: %v", err)
+				Fatal("out-modules: %v", err)
 			}
 		}
 	}
@@ -548,12 +545,12 @@ func runServe(args []string) {
 // --sources mode. project builds a Program from the tsconfig's own file list;
 // stdin builds an inferred Program from a one-shot handshake overlay; ops starts
 // with no Program (the client installs one via setSources).
-func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) (*resolver.Session, error) {
+func newStdioSession(sources string, cfg SessionConfig, stdinDec *json.Decoder) (*resolver.Session, error) {
 	switch sources {
 	case "ops":
 		// Persistent server mode: no startup Program. resolver.NewServer cannot
 		// fail (no checker lease yet).
-		return resolver.NewServer(cfg.opts), nil
+		return resolver.NewServer(cfg.Opts), nil
 
 	case "stdin":
 		var handshake struct {
@@ -565,7 +562,7 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 		overlay := make(map[string]string, len(handshake.Sources))
 		fileNames := make([]string, 0, len(handshake.Sources))
 		for rel, content := range handshake.Sources {
-			abs := tspath.ResolvePath(tspath.NormalizePath(cfg.absCwd), rel)
+			abs := tspath.ResolvePath(tspath.NormalizePath(cfg.AbsCwd), rel)
 			overlay[abs] = content
 			fileNames = append(fileNames, abs)
 		}
@@ -573,7 +570,7 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 		// and adopt the full options wholesale, so the one-shot type-checks
 		// exactly like a build. Strict like tsc — a broken resolved config is
 		// fatal; only no-config-anywhere falls back to the inferred defaults.
-		inferredConfig, err := program.ParseInferredConfig(cfg.absCwd, cfg.tsconfigPath)
+		inferredConfig, err := program.ParseInferredConfig(cfg.AbsCwd, cfg.TsconfigPath)
 		if err != nil {
 			return nil, fmt.Errorf("tsconfig: %w", err)
 		}
@@ -582,32 +579,32 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 		// sees without an import and a handshake-rooted program would lose.
 		fileNames = program.UnionRoots(fileNames, inferredConfig.DeclarationFileNames())
 		p, err := program.NewInferred(program.Options{
-			Cwd:            cfg.absCwd,
-			SingleThreaded: cfg.opts.SingleThreaded,
+			Cwd:            cfg.AbsCwd,
+			SingleThreaded: cfg.Opts.SingleThreaded,
 			Overlay:        overlay,
 			Config:         inferredConfig,
 		}, fileNames)
 		if err != nil {
 			return nil, fmt.Errorf("program (inferred): %w", err)
 		}
-		return resolver.New(p, cfg.opts)
+		return resolver.New(p, cfg.Opts)
 
 	default: // "project"
 		// This lane builds the Program from the config's own file list, so a
 		// config must exist — the same refusal tsc gives when discovery finds
 		// nothing.
-		if cfg.tsconfigPath == "" {
-			return nil, fmt.Errorf("no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.absCwd)
+		if cfg.TsconfigPath == "" {
+			return nil, fmt.Errorf("no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.AbsCwd)
 		}
 		p, err := program.New(program.Options{
-			Cwd:            cfg.absCwd,
-			TsconfigPath:   cfg.tsconfigPath,
-			SingleThreaded: cfg.opts.SingleThreaded,
+			Cwd:            cfg.AbsCwd,
+			TsconfigPath:   cfg.TsconfigPath,
+			SingleThreaded: cfg.Opts.SingleThreaded,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("program: %w", err)
 		}
-		return resolver.New(p, cfg.opts)
+		return resolver.New(p, cfg.Opts)
 	}
 }
 
@@ -637,7 +634,7 @@ TypeScript-to-native compiler to build.
 // runCompile is the tsc-like batch build: it runs the two-pass transform, tsgo emit and map composition itself.
 func runCompile(args []string) {
 	fs := flag.NewFlagSet("compile", flag.ExitOnError)
-	s := registerSharedFlags(fs)
+	s := RegisterSharedFlags("compile", fs)
 	genDir := fs.String("gen-dir", "",
 		"where compile writes the generated cache modules (default <cwd>/.mion; also the tsconfig \"genDir\" plugin key, flag overrides it)")
 	noEmit := fs.Bool("no-emit", false,
@@ -645,33 +642,33 @@ func runCompile(args []string) {
 	listFilesOnly := fs.Bool("list-files-only", false,
 		"print the tsconfig's root files, one absolute path per line, and build nothing")
 	logStyle := registerLogStyleFlag(fs)
-	fs.Usage = func() { printUsage(fs, compileUsage) }
+	fs.Usage = func() { PrintUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
 
 	defer startProfiling(s)()
 
-	cfg := resolveSharedConfig(fs, s, *genDir, true)
-	if cfg.tsconfigPath == "" {
-		fatal("compile: no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.absCwd)
+	cfg := ResolveSharedConfig(fs, s, *genDir, true)
+	if cfg.TsconfigPath == "" {
+		Fatal("compile: no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.AbsCwd)
 	}
 	if *listFilesOnly {
-		if err := listRootFiles(cfg.absCwd, cfg.tsconfigPath, os.Stdout); err != nil {
-			fatal("compile: %v", err)
+		if err := listRootFiles(cfg.AbsCwd, cfg.TsconfigPath, os.Stdout); err != nil {
+			Fatal("compile: %v", err)
 		}
 		return
 	}
 	grouped := resolveLogStyle("compile", *logStyle, cfg)
 
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
-		Cwd:          cfg.absCwd,
-		TsconfigPath: cfg.tsconfigPath,
+		Cwd:          cfg.AbsCwd,
+		TsconfigPath: cfg.TsconfigPath,
 		// The flag wins over the tsconfig `genDir`, which wins over <cwd>/.mion.
-		GenDir:       cfg.genDir,
-		ResolverOpts: cfg.opts,
+		GenDir:       cfg.GenDir,
+		ResolverOpts: cfg.Opts,
 		NoEmit:       *noEmit,
 	})
 	if compileErr != nil {
-		fatal("compile: %v", compileErr)
+		Fatal("compile: %v", compileErr)
 	}
 	errorCount := printBuildDiagnostics("compile", cfg, compileResult, grouped)
 	if *noEmit {
@@ -705,28 +702,28 @@ func registerLogStyleFlag(fs *flag.FlagSet) *string {
 }
 
 // resolveLogStyle picks the flag over the tsconfig `logStyle` and stops the run on an unknown value.
-func resolveLogStyle(command, flagValue string, cfg sessionConfig) bool {
-	value := cfg.opts.TsconfigLogStyle
+func resolveLogStyle(command, flagValue string, cfg SessionConfig) bool {
+	value := cfg.Opts.TsconfigLogStyle
 	if flagValue != "" {
 		value = flagValue
 	}
 	grouped, err := diagnostics.ResolveLogStyle(value)
 	if err != nil {
-		fatal(command+": %v", err)
+		Fatal(command+": %v", err)
 	}
 	return grouped
 }
 
 // printBuildDiagnostics prints a compile run's diagnostics the way a bundler build does and returns the error count.
-func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result, grouped bool) int {
+func printBuildDiagnostics(command string, cfg SessionConfig, compileResult *batchcompile.Result, grouped bool) int {
 	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
-	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
+	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.Opts.TsconfigDowngradeErrors)
 	if downgradeErr != nil {
-		fatal(command+": %v", downgradeErr)
+		Fatal(command+": %v", downgradeErr)
 	}
-	showInfo, levelsErr := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels)
+	showInfo, levelsErr := diagnostics.ResolveLevels(cfg.Opts.TsconfigLevels)
 	if levelsErr != nil {
-		fatal(command+": %v", levelsErr)
+		Fatal(command+": %v", levelsErr)
 	}
 	var entries []diagnostics.GroupedEntry
 	// TypeScript errors fail the build as in tsc; downgradeErrors and levels never apply to them.
@@ -755,7 +752,7 @@ func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *bat
 		}
 	}
 	if len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, diagnostics.FormatGrouped(entries, cfg.absCwd))
+		fmt.Fprintln(os.Stderr, diagnostics.FormatGrouped(entries, cfg.AbsCwd))
 	}
 	return errorCount
 }
@@ -776,10 +773,10 @@ func serveRequests(dispatch func(protocol.Request) protocol.Response, dec *json.
 		}
 		resp := dispatch(req)
 		if err := enc.Encode(resp); err != nil {
-			fatal("encode: %v", err)
+			Fatal("encode: %v", err)
 		}
 		if err := flush(); err != nil {
-			fatal("flush: %v", err)
+			Fatal("flush: %v", err)
 		}
 	}
 }
@@ -797,7 +794,7 @@ func writeFile(path string, fn func(io.Writer) error) error {
 	return bw.Flush()
 }
 
-func fatal(format string, args ...any) {
+func Fatal(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	exitAfterProfiling(1)
 }

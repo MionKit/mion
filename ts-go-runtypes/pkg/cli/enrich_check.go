@@ -33,7 +33,7 @@ func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON, requireComplete bo
 	diags := checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength)
 	showInfo, err := ShowInfo(tsconfigPath)
 	if err != nil {
-		fatal("enrich: %v", err)
+		Fatal("enrich: %v", err)
 	}
 	os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, showInfo))
 }
@@ -62,7 +62,7 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig,
 	}
 	prog, res, err := buildProgramMulti(existing, parsed, hashLength)
 	if err != nil {
-		fatal("enrich --no-emit: %v", err)
+		Fatal("enrich --no-emit: %v", err)
 	}
 	defer res.Close()
 
@@ -110,7 +110,7 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 	if asJSON {
 		encoded, err := json.MarshalIndent(diags, "", "  ")
 		if err != nil {
-			fatal("enrich: encode json: %v", err)
+			Fatal("enrich: encode json: %v", err)
 		}
 		fmt.Println(string(encoded))
 	} else {

@@ -81,7 +81,7 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("enrich --i18n: %v", err)
+		Fatal("enrich --i18n: %v", err)
 	}
 	return config, sourceMirrors
 }
@@ -93,7 +93,7 @@ func resolveTranslateLocales(translateValue string, config enrichConfig) []strin
 		return []string{translateValue}
 	}
 	if len(config.I18nLocales) == 0 {
-		fatal("enrich --i18n all: no locales configured — add i18n.locales to the mion tsconfig plugin entry")
+		Fatal("enrich --i18n all: no locales configured — add i18n.locales to the mion tsconfig plugin entry")
 	}
 	return config.I18nLocales
 }
@@ -180,7 +180,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 		}
 		// The rt$ prefix is RESERVED for enrichment meta keys (see enrichgen.Plan).
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
-			fatal("enrich --i18n: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
+			Fatal("enrich --i18n: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
 		}
 		resolvedTypes = append(resolvedTypes, resolvedType{typeName: typeName, resolved: resolved})
 	}
@@ -255,7 +255,7 @@ func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requir
 	locales := resolveTranslateLocales(translateValue, config)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("enrich --i18n --no-emit: %v", err)
+		Fatal("enrich --i18n --no-emit: %v", err)
 	}
 
 	// Reported-only (Warning) unless the project opts in via tsconfig i18n.strict,

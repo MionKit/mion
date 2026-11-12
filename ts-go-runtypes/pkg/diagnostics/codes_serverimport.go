@@ -10,11 +10,14 @@ const (
 )
 
 func init() {
-	register(Definition{
-		Code:   CodeServerImportInClient,
-		Family: FamilyMarker,
-		Level:  LevelRuntimeError,
-		Scope:  ScopeNotSource,
-		Title:  "The API type passed to `initClient` is imported as a value, so the server module ships in the client bundle",
+	Register(Definition{
+		Code:     CodeServerImportInClient,
+		Family:   FamilyMarker,
+		Level:    LevelRuntimeError,
+		Scope:    ScopeNotSource,
+		Title:    "The API type passed to `initClient` is imported as a value, so the server module ships in the client bundle",
+		Headline: "`{name}` is passed to `initClient` but imported as a value from \"{module}\", which can put that server module in the client bundle; use `import type`.",
+		Summary:  "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler can ship that server module, the mion router and everything they import to the browser. It is an error even when your build would drop the import, because a client never imports server code. `import type` is always removed at build time.",
+		Fix:      `import type {MyApi} from '../server/api';`,
 	})
 }

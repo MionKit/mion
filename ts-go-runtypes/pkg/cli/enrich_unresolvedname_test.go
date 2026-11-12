@@ -36,7 +36,7 @@ func writeEnrichFixture(t *testing.T, modelsSource string, extraFiles map[string
 	}
 	absSrc = tspath.NormalizePath(src)
 
-	tsconfigPath := resolveConfigPath(dir, "")
+	tsconfigPath := ResolveConfigPath(dir, "")
 	parsed, err := program.ParseInferredConfig(dir, tsconfigPath)
 	if err != nil {
 		t.Fatalf("parse config: %v", err)

@@ -2,7 +2,7 @@
 //
 // The wire carries code + args only, so the templates reach JS through the GENERATED
 // ./go-generated/diagnosticCatalog.generated.ts and messages can be arbitrarily rich for free.
-// Wording changes go in pkg/diagnostics/messages.go, never here; regenerate with
+// Wording changes go in the code's row in pkg/diagnostics/codes_*.go, never here; regenerate with
 // `pnpm miondevx core codegen diag`.
 
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';

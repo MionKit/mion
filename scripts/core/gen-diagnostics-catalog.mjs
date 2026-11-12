@@ -125,13 +125,13 @@ const goRecords = JSON.parse(goDump);
 const missingHeadlines = goRecords.filter((record) => !record.headline).map((record) => record.code);
 if (missingHeadlines.length) {
   // pkg/diagnostics's TestEveryCodeHasHeadline pins this; fail loudly if it slips.
-  throw new Error(`gen-diag-catalog: codes with no headline in pkg/diagnostics/messages.go: ${missingHeadlines.join(', ')}`);
+  throw new Error(`gen-diag-catalog: codes with no headline in their pkg/diagnostics row: ${missingHeadlines.join(', ')}`);
 }
 
 const missingSummaries = goRecords.filter((record) => !record.summary).map((record) => record.code);
 if (missingSummaries.length) {
   // TestEveryCodeHasSummary pins this too; else the page shows a code with no explanation.
-  throw new Error(`gen-diag-catalog: codes with no summary in pkg/diagnostics/prose.go: ${missingSummaries.join(', ')}`);
+  throw new Error(`gen-diag-catalog: codes with no summary in their pkg/diagnostics row: ${missingSummaries.join(', ')}`);
 }
 
 // ── Artifact 1: the front-end message dictionary ────────────────────────────
@@ -169,7 +169,7 @@ const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core co
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in pkg/diagnostics (wording lives in
-// pkg/diagnostics/messages.go). The wire carries only code + args; the render
+// each code's row in pkg/diagnostics/codes_*.go). The wire carries only code + args; the render
 // helpers in ./diagnosticCatalog.ts fill each \`{name}\` slot with the arg at its
 // index in \`slots\`.
 

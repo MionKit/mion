@@ -17,7 +17,7 @@ code in one file. For example the hand-written render helpers in
 | ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
 | `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `pkg/constants/constants.go`                              |
 | `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `pkg/reflection/runtype.go` + `pkg/reflection/subkind.go` |
-| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics/messages.go`                             |
+| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | the `pkg/diagnostics` code rows                           |
 | `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `pkg/cli/config.go` (`tsRuntypesPlugin` json tags)        |
 
 ## Regenerate

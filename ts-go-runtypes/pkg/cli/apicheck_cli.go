@@ -35,7 +35,7 @@ func runApiCheck(args []string) {
 	fs := flag.NewFlagSet("api-check", flag.ExitOnError)
 	serverDir := fs.String("server-gen-dir", "", "the server build's gen dir (or its api/manifest.json)")
 	clientDir := fs.String("client-gen-dir", "", "the client build's gen dir (or its api/manifest.json)")
-	fs.Usage = func() { printUsage(fs, apiCheckUsage) }
+	fs.Usage = func() { PrintUsage(fs, apiCheckUsage) }
 	_ = fs.Parse(args)
 	if *serverDir == "" || *clientDir == "" {
 		fmt.Fprintln(os.Stderr, "api-check: both --server-gen-dir and --client-gen-dir are required")

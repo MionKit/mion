@@ -17,7 +17,7 @@ func TestResolveLogStyle_FlagWinsOverTsconfig(t *testing.T) {
 		{"grouped", "lines", true},
 		{"lines", "grouped", false},
 	} {
-		cfg := sessionConfig{opts: resolver.Options{TsconfigLogStyle: testCase.tsconfig}}
+		cfg := SessionConfig{Opts: resolver.Options{TsconfigLogStyle: testCase.tsconfig}}
 		if got := resolveLogStyle("compile", testCase.flag, cfg); got != testCase.grouped {
 			t.Errorf("flag %q, tsconfig %q: grouped = %v, want %v", testCase.flag, testCase.tsconfig, got, testCase.grouped)
 		}

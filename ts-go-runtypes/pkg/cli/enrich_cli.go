@@ -16,6 +16,38 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
+// The --enrich-* serve flags configure OpEnrich: the families to maintain, and the per-locale
+// translation-mirror sync whose locales/sourceLocale default from the tsconfig plugin i18n block (project
+// mode). Applied after the plugin merge, so an explicit flag wins over the tsconfig-seeded default.
+func init() {
+	registerSessionFlags(SessionFlags{Name: "enrich", Commands: []string{"serve"}, Register: registerEnrichServeFlags})
+}
+
+func registerEnrichServeFlags(fs *flag.FlagSet) func(cfg *SessionConfig) {
+	enrichFriendly := fs.Bool("enrich-friendly", false, "OpEnrich maintains the FriendlyText mirrors (neither family flag = both)")
+	enrichMock := fs.Bool("enrich-mock", false, "OpEnrich maintains the MockData mirrors (neither family flag = both)")
+	enrichI18n := fs.Bool("enrich-i18n", false, "OpEnrich also syncs the per-locale translation mirrors (scaffold + sync only, never translated content)")
+	enrichLocales := fs.String("enrich-locales", "", "comma-separated target locales for --enrich-i18n (default: the tsconfig i18n.locales)")
+	enrichSourceLocale := fs.String("enrich-source-locale", "", "authoring locale of the source FriendlyText mirrors (default: the tsconfig i18n.sourceLocale)")
+	return func(cfg *SessionConfig) {
+		cfg.Opts.EnrichFriendly = *enrichFriendly
+		cfg.Opts.EnrichMock = *enrichMock
+		cfg.Opts.EnrichI18n = *enrichI18n
+		if *enrichLocales != "" {
+			var locales []string
+			for _, locale := range strings.Split(*enrichLocales, ",") {
+				if trimmed := strings.TrimSpace(locale); trimmed != "" {
+					locales = append(locales, trimmed)
+				}
+			}
+			cfg.Opts.EnrichLocales = locales
+		}
+		if *enrichSourceLocale != "" {
+			cfg.Opts.EnrichSourceLocale = *enrichSourceLocale
+		}
+	}
+}
+
 // runEnrich is registered in main.go's top-level `commands` table, like every mode.
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
@@ -84,7 +116,7 @@ func runEnrich(args []string) {
 	noEmit := fs.Bool("no-emit", false, "report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)")
 	requireComplete := fs.Bool("require-complete", false, "completeness gate: also FAIL on INCOMPLETE enrichment (unfilled @todo scaffolds, missing/out-of-date translations), not just wrong/stale content; implies --no-emit (never writes)")
 	fs.Usage = func() {
-		printUsage(fs, `mion enrich — scaffold / reconcile / check the enrichment mirror files
+		PrintUsage(fs, `mion enrich — scaffold / reconcile / check the enrichment mirror files
 
 Usage:
     mion enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
@@ -103,7 +135,7 @@ Usage:
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
-		fatal("enrich: %v", err)
+		Fatal("enrich: %v", err)
 	}
 
 	// --require-complete is a check modifier: it never writes (implies --no-emit)
@@ -116,7 +148,7 @@ Usage:
 	// i18n completeness gate instead of writing.
 	if *i18n != "" {
 		if *files != "" || *mock || *friendly || *out != "" {
-			fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit / --require-complete")
+			Fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit / --require-complete")
 		}
 		if checkOnly {
 			runI18nCheck(*i18n, *genDirFlag, *tsconfigFlag, *requireComplete)
@@ -130,10 +162,10 @@ Usage:
 	// under --no-emit. It excludes the type-driven modes.
 	if *prune {
 		if *files != "" {
-			fatal("enrich: --prune cannot be combined with --files")
+			Fatal("enrich: --prune cannot be combined with --files")
 		}
 		if *update {
-			fatal("enrich: --prune cannot be combined with --update")
+			Fatal("enrich: --prune cannot be combined with --update")
 		}
 		runEnrichPrune(positional, *genDirFlag, *tsconfigFlag, checkOnly)
 		return
@@ -142,7 +174,7 @@ Usage:
 	// --files batch: JSON skeletons to stdout, never writes.
 	if *files != "" {
 		if *typeFlag == "" {
-			fatal("enrich --files: --type is required")
+			Fatal("enrich --files: --type is required")
 		}
 		runEnrichBatch(strings.Split(*files, ","), *typeFlag, *tsconfigFlag)
 		return
@@ -160,7 +192,7 @@ Usage:
 	// without a <Type> to scaffold.
 	if !checkOnly {
 		if len(positional) == 1 {
-			fatal("enrich: %s: provide a Type to scaffold (enrich <file> <Type>), or --no-emit to check the file", positional[0])
+			Fatal("enrich: %s: provide a Type to scaffold (enrich <file> <Type>), or --no-emit to check the file", positional[0])
 		}
 		fs.Usage()
 		os.Exit(2)
@@ -204,7 +236,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	// so the CLI and the OpEnrich daemon op compute byte-identical mirror specs.
 	prog, res, err := buildProgram(absPath, config.Parsed, config.HashLength)
 	if err != nil {
-		fatal("enrich: %v", err)
+		Fatal("enrich: %v", err)
 	}
 	outPath := ""
 	if out != "" {
@@ -214,7 +246,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	// Release the source Program before the post-write health pass builds its own.
 	res.Close()
 	if planErr != nil {
-		fatal("enrich: %v", planErr)
+		Fatal("enrich: %v", planErr)
 	}
 
 	mirrorPaths := make([]string, 0, len(specs))
@@ -227,7 +259,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 		diags := checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength)
 		showInfo, err := ShowInfo(tsconfigPath)
 		if err != nil {
-			fatal("enrich: %v", err)
+			Fatal("enrich: %v", err)
 		}
 		os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, showInfo))
 	}
@@ -269,22 +301,22 @@ func writeMirrorFile(spec mirror.Spec) bool {
 	if bytes, err := os.ReadFile(spec.MirrorPath); err == nil {
 		existing = string(bytes)
 	} else if !os.IsNotExist(err) {
-		fatal("enrich: read %s: %v", spec.MirrorPath, err)
+		Fatal("enrich: read %s: %v", spec.MirrorPath, err)
 	}
 
 	content, added, err := mirror.Scaffold(spec, existing)
 	if err != nil {
-		fatal("enrich: %v", err)
+		Fatal("enrich: %v", err)
 	}
 	if content == "" {
 		return false // create-only no-op: every requested export already present
 	}
 
 	if err := os.MkdirAll(filepath.Dir(spec.MirrorPath), 0o755); err != nil {
-		fatal("enrich: mkdir %s: %v", filepath.Dir(spec.MirrorPath), err)
+		Fatal("enrich: mkdir %s: %v", filepath.Dir(spec.MirrorPath), err)
 	}
 	if err := os.WriteFile(spec.MirrorPath, []byte(content), 0o644); err != nil {
-		fatal("enrich: write %s: %v", spec.MirrorPath, err)
+		Fatal("enrich: write %s: %v", spec.MirrorPath, err)
 	}
 	verb := "wrote"
 	if existing != "" {
@@ -306,7 +338,7 @@ func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 		absPaths = append(absPaths, tspath.NormalizePath(mustAbs(trimmed)))
 	}
 	if len(absPaths) == 0 {
-		fatal("enrich --files: no files given")
+		Fatal("enrich --files: no files given")
 	}
 	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	// The batch skeletons are structural previews (no committed @rtType ids), but
@@ -315,7 +347,7 @@ func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	config := resolveEnrichConfig(absPaths[0], "", tsconfigPath, parsed)
 	prog, res, err := buildProgramMulti(absPaths, parsed, config.HashLength)
 	if err != nil {
-		fatal("enrich --files: %v", err)
+		Fatal("enrich --files: %v", err)
 	}
 	defer res.Close()
 
@@ -327,7 +359,7 @@ func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	for _, absPath := range absPaths {
 		resolved, err := enrichment.ResolveType(prog, res.Checker(), res.Cache(), absPath, typeName)
 		if err != nil {
-			fatal("enrich --files: %s: %v", absPath, err)
+			Fatal("enrich --files: %s: %v", absPath, err)
 		}
 		key := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
 		out[key] = skeletons{
@@ -337,7 +369,7 @@ func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	}
 	encoded, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
-		fatal("enrich --files: encode json: %v", err)
+		Fatal("enrich --files: encode json: %v", err)
 	}
 	fmt.Println(string(encoded))
 	os.Exit(0)
@@ -389,7 +421,7 @@ func splitArgs(args []string) (positional, flags []string) {
 func mustAbs(path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		fatal("resolve path %q: %v", path, err)
+		Fatal("resolve path %q: %v", path, err)
 	}
 	return canonicalize(abs)
 }

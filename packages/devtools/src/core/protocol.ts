@@ -451,7 +451,7 @@ export interface EnrichFile {
 
 // Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).
 // The user-facing message is NOT carried on the wire: per-code templates live in the generated
-// `./go-generated/diagnosticCatalog.generated.ts` (from pkg/diagnostics/messages.go via
+// `./go-generated/diagnosticCatalog.generated.ts` (from the pkg/diagnostics code rows via
 // `pnpm miondevx core codegen diag`) and fill their `{slot}` names from `args`, in slot order.
 export interface Diagnostic {
   code: string;

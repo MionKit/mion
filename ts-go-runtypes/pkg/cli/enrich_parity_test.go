@@ -64,7 +64,7 @@ func TestEnrichParity_CLIvsDaemon(t *testing.T) {
 	absMain := tspath.NormalizePath(main)
 
 	// The ONE config both sides resolve from (genDir + the non-default hashLength).
-	tsconfigPath := resolveConfigPath(dir, "")
+	tsconfigPath := ResolveConfigPath(dir, "")
 	parsed, err := program.ParseInferredConfig(dir, tsconfigPath)
 	if err != nil {
 		t.Fatalf("parse config: %v", err)
@@ -167,7 +167,7 @@ func TestEnrichParity_DefaultGenDir(t *testing.T) {
 	absSrc := tspath.NormalizePath(filepath.Join(srcDir, "models.ts"))
 	absMain := tspath.NormalizePath(filepath.Join(srcDir, "main.ts"))
 
-	tsconfigPath := resolveConfigPath(dir, "")
+	tsconfigPath := ResolveConfigPath(dir, "")
 	parsed, err := program.ParseInferredConfig(dir, tsconfigPath)
 	if err != nil {
 		t.Fatalf("parse config: %v", err)

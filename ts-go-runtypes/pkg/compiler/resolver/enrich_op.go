@@ -10,6 +10,20 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
 )
 
+// The committed enrichment half of the output root, beside the generated `types/`.
+func init() {
+	RegisterGenDirEntry(GenDirEntry{
+		Name: "enriched",
+		Dir:  true,
+		Bullet: "- `enriched/` — committed enrichment files: `friendly/` (labels and\n" +
+			"  messages), `mock/` (sample data), `i18n/<locale>/` (translations).\n",
+		Readme: "# Enrichment\n" +
+			"\n" +
+			"Reserved by RunTypes for build-time enrichment output.\n" +
+			"Committed; safe to keep in version control.\n",
+	})
+}
+
 // dispatchEnrich answers OpEnrich, the daemon face of the enrichment sync, so a bundler plugin can
 // scaffold / reconcile the FriendlyText / MockData mirrors over the warm connection instead of spawning.
 // It NEVER writes: it returns the computed mirror CONTENT (EnrichFiles) for the caller to write under its
