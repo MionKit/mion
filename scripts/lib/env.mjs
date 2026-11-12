@@ -180,7 +180,7 @@ export const REGISTRY = [
   // — resolver knobs (the mion Go binary) —
   {name: 'MION_DIAG_GRID_FULL', scope: 'dev', task: '-', desc: "set to 1 to run TestNestedDiagCorpus's value call shapes too (main pushes and the release gate do; PRs run the static half)"},
   {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
-  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
+  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding an installed @mionkit/pro-bin-compiler launcher and the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
   {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
 
   // — build/release knobs —

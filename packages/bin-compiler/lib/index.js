@@ -6,6 +6,9 @@ import {fileURLToPath} from 'node:url';
 // Basename inside every platform package's lib/, and of the dev binary at <repo>/mion-bin/.
 const EXE_BASENAME = 'mion';
 
+// An extension launcher: when installed beside this package, its binary (mion plus the extensions) wins.
+const PRO_LAUNCHER = '@mionkit/pro-bin-compiler';
+
 // Points the launcher at a specific resolver build, overriding both lookups below, and the ONLY
 // escape hatch the lint lane has; a bundler plugin's explicit `binary` option still wins over it.
 const OVERRIDE_ENV = 'MION_BIN';
@@ -49,8 +52,34 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// MION_BIN wins when set; an installed tree resolves the optional dependency
-// `@mionjs/native-compiler-<platform>-<arch>`, this repo's source tree the local `mion-bin/mion`.
+// The pro launcher's directory: node_modules/@mionkit/pro-bin-compiler in `start` or an ancestor, as Node looks.
+// A walk, not require.resolve, so an ESM-only exports map needs no `require` condition.
+function findProLauncher(start) {
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, 'node_modules', PRO_LAUNCHER);
+    if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
+    if (path.dirname(dir) === dir) return null;
+  }
+}
+
+// The pro launcher's module, found from the project (process.cwd()) first, then from this package; null when absent.
+// Only a missing package counts as absent: a launcher that fails to load throws, so a broken install is never skipped.
+function loadProLauncher(here) {
+  const dir = findProLauncher(process.cwd()) ?? findProLauncher(here);
+  if (!dir) return null;
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const root = typeof pkg.exports === 'string' ? pkg.exports : pkg.exports?.['.'];
+  const entry = typeof root === 'string' ? root : (root?.import ?? root?.default ?? pkg.main ?? 'index.js');
+  // require(esm) loads an ES module synchronously (Node >= 22.12, inside the >= 24 floor).
+  return module.createRequire(import.meta.url)(path.join(dir, entry));
+}
+
+function ownVersion(here) {
+  return JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version;
+}
+
+// MION_BIN wins when set; then an installed `@mionkit/pro-bin-compiler` (its mion version must equal ours); then
+// the optional dependency `@mionjs/native-compiler-<platform>-<arch>`, or this repo's local `mion-bin/mion`.
 export function getExePath() {
   const overridden = overrideExe();
   if (overridden) {
@@ -58,6 +87,17 @@ export function getExePath() {
   }
 
   const here = path.dirname(fileURLToPath(import.meta.url));
+  const pro = loadProLauncher(here);
+  if (pro) {
+    const version = ownVersion(here);
+    if (pro.mionVersion !== version) {
+      throw new Error(
+        `[mion] ${PRO_LAUNCHER} is built on mion ${pro.mionVersion}, but @mionjs/bin-compiler is ${version}. ` +
+          `Install the matching pair, or remove ${PRO_LAUNCHER} to use the public binary.`,
+      );
+    }
+    return pro.getExePath();
+  }
   const normalized = here.replace(/\\/g, '/');
   const platformKey = `${process.platform}-${process.arch}`;
   const platformPackage = `@mionjs/native-compiler-${platformKey}`;
