@@ -156,16 +156,17 @@ func writeGeneratedDirIgnores(dir string) error {
 
 // EnsureOutputHygiene self-documents the output root on every generate lane, plugin and --compile CLI alike: the
 // root README lists every genDir entry's bullet, and each Dir entry with a README gets its folder and README.
-// Write-if-absent, so a watched file is never churned nor a user's edit clobbered.
+// typesDir comes last: the enrich CLI calls this before any types/ exists, and that failure is the only one it
+// ignores. Write-if-absent, so a watched file is never churned nor a user's edit clobbered.
 func EnsureOutputHygiene(outDir, typesDir string) error {
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return unwritableOutDirError(outDir, err)
+	}
 	if err := writeIfAbsent(filepath.Join(outDir, "README.md"), genDirReadme()); err != nil {
 		return err
 	}
-	if err := writeGeneratedDirIgnores(typesDir); err != nil {
-		return err
-	}
 	for _, entry := range genDirTable.list() {
-		if !entry.Dir || entry.Readme == "" {
+		if !entry.Dir || entry.Readme == "" || entry.Name == typesSubdir {
 			continue
 		}
 		dir := filepath.Join(outDir, entry.Name)
@@ -176,7 +177,10 @@ func EnsureOutputHygiene(outDir, typesDir string) error {
 			return err
 		}
 	}
-	return nil
+	if err := writeGeneratedDirIgnores(typesDir); err != nil {
+		return err
+	}
+	return writeIfAbsent(filepath.Join(typesDir, "README.md"), genDirTable.rows[typesSubdir].Readme)
 }
 
 // unwritableOutDirError wraps a write failure with an actionable message: files-mode has NO
