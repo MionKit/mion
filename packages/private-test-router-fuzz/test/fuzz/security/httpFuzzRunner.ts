@@ -901,7 +901,7 @@ function buildGateRequest(rng: Rng): GateRequest {
   const route = rng.pick(GATE_ROUTES);
   return {
     route,
-    // half the steps use one of the route's own methods: from the whole pool, a POST that passes was ~1% of steps
+    // the whole pool alone made a POST that passes the gate only ~1% of steps
     method: rng.chance(0.5) ? rng.pick(GATE_METHODS[route]) : rng.pick(GATE_METHOD_POOL),
     contentType: rng.pick(GATE_CONTENT_TYPES),
     secFetchSite: rng.pick(GATE_FETCH_SITES),
