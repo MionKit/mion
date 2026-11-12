@@ -85,8 +85,13 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
       const file = context.physicalFilename ?? context.filename ?? '';
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.
       if (!file || file.startsWith('<')) return {};
-      if (!needsResolverPass(text, file, options.markers)) return {};
       const session = sharedSession();
+      // The binary's advertised probes are fetched only for a file the built-in filters skip.
+      if (
+        !needsResolverPass(text, file, options.markers) &&
+        !needsResolverPass(text, file, options.markers, session.probesSync(options))
+      )
+        return {};
       if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);
       return {
         Program: () => {

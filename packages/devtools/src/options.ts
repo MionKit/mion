@@ -90,6 +90,8 @@ export interface MionPresetOptions {
   tsConfig?: string;
   client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
+  /** Code built on the plugin: an extension binary's serve flags and the hooks it runs on the plugin's resolver. */
+  extensions?: TsRuntypesPluginOptions['extensions'];
 }
 
 /** Host hooks (`onSiteFilesChanged`, `onGenerate`) are NOT set here: the vite preset adds them. */
@@ -132,5 +134,6 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
     patternSampleRetries: rt.patternSampleRetries,
     jsonMaxBytes: rt.derivedPayloadLimits,
     jsRuntime: rt.jsRuntime,
+    extensions: options.extensions,
   };
 }

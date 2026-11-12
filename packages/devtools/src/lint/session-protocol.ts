@@ -1,7 +1,7 @@
 // Shapes shared by session.ts (rule thread) and lint-worker.ts; dependency-free so both halves import one contract.
 
 import type {MessagePort} from 'node:worker_threads';
-import type {Diagnostic} from '../core/protocol.ts';
+import type {Capabilities, Diagnostic} from '../core/protocol.ts';
 import type {ResolverClientOptions} from '../core/resolver-client.ts';
 
 // WAKE_INDEX is the slot the worker stores the completed seq into and notifies; the rule thread Atomics.waits on it.
@@ -60,9 +60,21 @@ const LINT_WORKER_REQUEST_KEY_TABLE = {seq: true, file: true, text: true, tsconf
 
 export const LINT_WORKER_REQUEST_KEYS = Object.keys(LINT_WORKER_REQUEST_KEY_TABLE) as (keyof LintWorkerRequest)[];
 
+// A capabilities question: the worker opens its connection with these options, as a file request would, and
+// answers what the binary's extensions add (the probes the pre-filter needs before any file goes over the wire).
+export interface LintWorkerCapabilitiesRequest {
+  seq: number;
+  capabilities: true;
+  tsconfig?: string;
+  binary?: string;
+}
+
 export interface LintWorkerResponse {
   seq: number;
   diagnostics?: Diagnostic[];
+  // The binary's capabilities: on a capabilities request, and on the first file response of a connection, so the
+  // rule thread registers the catalog entries before it renders that file's findings.
+  capabilities?: Capabilities;
   // The tsconfig `downgradeErrors` echo, so the editor shows a lowered code as the build does.
   downgradeErrors?: string[];
   error?: string;

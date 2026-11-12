@@ -29,6 +29,8 @@ const JS_ONLY = new Set([
   'onSiteFilesChanged',
   'onGenerate',
   'enrich',
+  // Host code built on the plugin (serve flags, lifecycle hooks), never a project setting.
+  'extensions',
   'jsRuntime',
   // Host bootstrap: unrefs the resolver child so Bun's runtime loader host can
   // exit. Never a project semantic.

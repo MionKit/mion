@@ -5,10 +5,33 @@
 // Wording changes go in the code's row in pkg/diagnostics/codes_*.go, never here; regenerate with
 // `pnpm miondevx core codegen diag`.
 
-import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
+import {DIAGNOSTIC_CATALOG, type DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.ts';
+import type {CatalogRecord} from './protocol.ts';
 
 export {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 export type {DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.ts';
+
+// Entries the running binary advertised (its capabilities op): an extension binary's own codes. A registered
+// entry wins over the generated one for the same code, so the binary that raises a code owns its text.
+const registered = new Map<string, DiagnosticEntry>();
+
+/** Adds the catalog entries a binary advertised; a later registration of a code replaces the earlier one. */
+export function registerCatalogEntries(records: readonly CatalogRecord[]): void {
+  for (const record of records) {
+    registered.set(record.code, {
+      headline: record.headline,
+      ...(record.slots?.length ? {slots: record.slots} : {}),
+      level: record.level as DiagnosticEntry['level'],
+      family: record.family as DiagnosticEntry['family'],
+      ...(record.completeness ? {completeness: true} : {}),
+    });
+  }
+}
+
+/** The catalog entry for a code: a registered one first, then the generated one. Every catalog read goes here. */
+export function catalogEntry(code: string): DiagnosticEntry | undefined {
+  return registered.get(code) ?? DIAGNOSTIC_CATALOG[code];
+}
 
 const SLOT = /\{([A-Za-z]\w*)\}/g;
 
@@ -23,7 +46,7 @@ export function fillSlots(template: string, slots: readonly string[] | undefined
 
 /** Renders the single-line headline; an unknown code falls back, so a newer binary's code still reads. */
 export function renderHeadline(code: string, args?: readonly string[]): string {
-  const entry = DIAGNOSTIC_CATALOG[code];
+  const entry = catalogEntry(code);
   if (!entry) return `Unrecognised diagnostic code (${code}) — please file an issue.`;
   return fillSlots(entry.headline, entry.slots, args);
 }

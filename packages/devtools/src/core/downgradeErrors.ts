@@ -2,7 +2,7 @@
 // removes one outright). A fatal Error never qualifies, it produced no output. Wire severity is untouched, so the
 // downgrade applies where the halt is decided: here for the bundler plugin, in `mion compile` for its exit code.
 // Go twin: ts-go-runtypes/pkg/diagnostics/downgrade.go.
-import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
+import {catalogEntry} from './diagnosticCatalog.ts';
 import {Level, type Diagnostic} from './protocol.ts';
 
 // Kept for adoption: a project turning mion on cannot yet list the codes it has not met.
@@ -35,7 +35,7 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
   if (value.includes(DOWNGRADE_ALL)) return {all: true, codes: new Set()};
   const codes = new Set<string>();
   for (const code of value) {
-    const entry = DIAGNOSTIC_CATALOG[code];
+    const entry = catalogEntry(code);
     if (!entry) {
       throw new Error(
         `[@mionjs/devtools] downgradeErrors names unknown diagnostic ${JSON.stringify(code)} — copy its name from the message you are silencing (e.g. validate-symbol-root)`
