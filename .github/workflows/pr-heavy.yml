@@ -96,6 +96,10 @@ jobs:
     if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.website-wait.outputs.lanes || needs.lanes.outputs.lanes).website.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # packages:read lets the job token pull the prebuilt shared image.
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/free-disk
@@ -151,6 +155,10 @@ jobs:
     if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # packages:read lets the job token pull the prebuilt shared image.
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
