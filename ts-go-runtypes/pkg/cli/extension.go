@@ -133,15 +133,13 @@ func ReadPlugin(tsconfigPath string) (map[string]json.RawMessage, bool, error) {
 	if !ok {
 		return nil, false, fmt.Errorf("tsconfig %s: cannot parse", tsconfigPath)
 	}
-	for _, raw := range parsed.CompilerOptions.Plugins {
-		var entry map[string]json.RawMessage
-		if json.Unmarshal(raw, &entry) != nil {
-			continue
-		}
-		var name string
-		if json.Unmarshal(entry["name"], &name) == nil && name == "mion" {
-			return entry, true, nil
-		}
+	raw, found := mionPluginEntry(parsed)
+	if !found {
+		return nil, false, nil
 	}
-	return nil, false, nil
+	var entry map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return nil, false, fmt.Errorf("tsconfig %s: mion plugin entry: %w", tsconfigPath, err)
+	}
+	return entry, true, nil
 }
