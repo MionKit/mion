@@ -52,7 +52,6 @@ if (process.env.MION_LINT_PRESPAWN !== '0') {
 parentPort?.postMessage({shimReady: true});
 
 let connection: ResolverConnection | null = null;
-// The connection's capabilities, sent to the rule thread with the first response that follows a new connection.
 let capabilitiesSent = false;
 
 // resolveConfiguredBinary checks the path up front so a typo reports as a config mistake naming the setting, not
@@ -101,7 +100,6 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       scanned = vue?.virtualFile ?? request.file;
       const rel = path.relative(process.cwd(), scanned) || scanned;
       await resolver.setSources({[rel]: vue?.text ?? request.text});
-      // Every advertised extension scan check runs beside mion's own lint-only checks.
       const capabilities = await resolver.capabilities();
       const ext = Object.fromEntries(capabilities.scanChecks.map((check) => [check.name, true]));
       const result = await resolver.scanFiles([rel], {

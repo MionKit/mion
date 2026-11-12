@@ -1,7 +1,5 @@
-// The generic extension surface of @mionjs/devtools: any op through the plugin's own resolver, the
-// capabilities op, runtime-registered catalog entries, the lint worker's ext scan checks and probes, and the
-// MionExtension hooks. Stub transports and a stub binary stand in for an extension binary; the real binary
-// covers the public answers.
+// The generic extension surface of @mionjs/devtools. Stub transports and a stub binary stand in for an extension
+// binary; the real binary covers the public answers.
 import {PassThrough} from 'node:stream';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -149,8 +147,7 @@ describe('runtime catalog entries', () => {
   });
 });
 
-// A stub extension binary: advertises one scan check with a probe and its code, and reports that code only when the
-// request switched the check on through `ext`.
+// Reports its advertised code only when the request switched the check on through `ext`.
 const STUB_BINARY = `#!/usr/bin/env node
 const readline = require('node:readline');
 const lines = readline.createInterface({input: process.stdin});
@@ -324,8 +321,7 @@ describe('MionExtension hooks', () => {
         plugin.buildEnd?.call(ctx);
       }
 
-      // A code the binary advertises is accepted in the plugin option: the factory defers it and buildStart,
-      // after the advertised entries are registered, finds it.
+      // An advertised code is accepted: the factory defers it, and buildStart finds it once the entries are registered.
       const advertisedCode = rawPlugin(root, [], ['internal-test-advertised-code']);
       // Registered after the factory ran, as an advertisement arrives after the spawn.
       registerCatalogEntries([

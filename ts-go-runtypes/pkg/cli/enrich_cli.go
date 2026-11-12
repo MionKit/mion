@@ -16,9 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
-// The --enrich-* serve flags configure OpEnrich: the families to maintain, and the per-locale
-// translation-mirror sync whose locales/sourceLocale default from the tsconfig plugin i18n block (project
-// mode). Applied after the plugin merge, so an explicit flag wins over the tsconfig-seeded default.
+// Applied after the plugin merge, so an explicit --enrich-* flag wins over the tsconfig i18n default (project mode).
 func init() {
 	registerSessionFlags(SessionFlags{Name: "enrich", Commands: []string{"serve"}, Register: registerEnrichServeFlags})
 }

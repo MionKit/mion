@@ -60,8 +60,7 @@ const LINT_WORKER_REQUEST_KEY_TABLE = {seq: true, file: true, text: true, tsconf
 
 export const LINT_WORKER_REQUEST_KEYS = Object.keys(LINT_WORKER_REQUEST_KEY_TABLE) as (keyof LintWorkerRequest)[];
 
-// A capabilities question: the worker opens its connection with these options, as a file request would, and
-// answers what the binary's extensions add (the probes the pre-filter needs before any file goes over the wire).
+// Opens the worker's connection as a file request would; the pre-filter needs the probes before any file is sent.
 export interface LintWorkerCapabilitiesRequest {
   seq: number;
   capabilities: true;
@@ -72,8 +71,7 @@ export interface LintWorkerCapabilitiesRequest {
 export interface LintWorkerResponse {
   seq: number;
   diagnostics?: Diagnostic[];
-  // The binary's capabilities: on a capabilities request, and on the first file response of a connection, so the
-  // rule thread registers the catalog entries before it renders that file's findings.
+  // Also on a connection's first file response, so the rule thread registers catalog entries before rendering it.
   capabilities?: Capabilities;
   // The tsconfig `downgradeErrors` echo, so the editor shows a lowered code as the build does.
   downgradeErrors?: string[];

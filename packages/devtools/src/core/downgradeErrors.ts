@@ -21,10 +21,8 @@ export interface DowngradeSet {
 // NONE is the strict default: nothing is downgraded.
 export const NONE: DowngradeSet = {all: false, codes: new Set()};
 
-// resolveDowngradeErrors resolves the configured value, so a typo fails loudly rather than silently protecting
-// nothing. A Warning code is accepted and does nothing: a code's level may soften between releases and that must
-// never break a build. `deferUnknown` lets a code the catalog does not know yet through: the plugin factory runs
-// before the binary advertised its own codes, and buildStart resolves again, in full, before any output.
+// A typo throws rather than protecting nothing; a Warning code is a no-op, so a softened level never breaks a build.
+// `deferUnknown`: the factory runs before the binary advertises its codes; buildStart resolves in full before output.
 export function resolveDowngradeErrors(
   value: string[] | typeof DOWNGRADE_ALL | undefined,
   {deferUnknown = false}: {deferUnknown?: boolean} = {}

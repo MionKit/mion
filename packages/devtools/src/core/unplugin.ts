@@ -224,8 +224,7 @@ export interface PluginOptions {
   // Enrichment auto-sync (opt-in, default OFF). Bundler-plugin-only, a host/dev-loop behavior, so it has
   // no tsconfig counterpart. See EnrichSyncOptions.
   enrich?: EnrichSyncOptions;
-  // Code built on the plugin (an extension binary's host half): its serve flags and lifecycle hooks, run on
-  // the plugin's own resolver process. JS-only, so it has no tsconfig counterpart.
+  // An extension binary's host half. JS-only, so it has no tsconfig counterpart.
   extensions?: MionExtension[];
 }
 
@@ -338,7 +337,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
   const extensions: MionExtension[] = options.extensions ?? [];
   const extensionArgs = extensions.flatMap((extension) => extension.serveArgs?.() ?? []);
-  // The binary's advertised catalog entries, fetched once per spawned resolver so its own codes render.
+  // Once per spawned resolver, so the binary's own codes render.
   let advertised: Promise<void> | undefined;
   function registerAdvertised(): Promise<void> {
     if (!resolver) return Promise.resolve();

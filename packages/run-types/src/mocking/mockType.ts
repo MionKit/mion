@@ -108,7 +108,7 @@ function isItemCollection(runType: RunType): boolean {
   return kind === RunTypeKind.class && (subKind === RunTypeSubKind.map || subKind === RunTypeSubKind.set);
 }
 
-/** A kind that only forwards to its child (a property, a tuple member, a parameter), so a hook sees the child. **/
+/** These kinds only forward to their child, so a hook sees the child instead. **/
 function isWrapperKind(kind: number): boolean {
   return (
     kind === RunTypeKind.property ||
@@ -141,10 +141,8 @@ function withDataNode(options: RunTypeMockOptions, next: MockDataNode | undefine
 }
 
 // ─────────────────────── MockNodeHook cursor threading ───────────────────────
-// `options.hookCursor` is the caller hook's cursor at the current node, stepped down at the same sites as the data
-// node. Without a hook, or once a `descend` returned undefined, every helper below returns `options` untouched.
+// The hook cursor steps down at the same sites as the data node; with no cursor every helper returns `options` as is.
 
-/** Steps the hook cursor one level down; options are copied only when the cursor changes. **/
 function withHookStep(options: RunTypeMockOptions, step: MockStep): RunTypeMockOptions {
   const hook = options.hook;
   if (!hook || options.hookCursor === undefined || !hook.descend) return options;
@@ -159,7 +157,6 @@ function withoutHook(options: RunTypeMockOptions): RunTypeMockOptions {
   return {...options, hookCursor: undefined};
 }
 
-/** The context a hook call receives, undefined when no hook is attached at this node. **/
 function hookNodeContext(runType: RunType, options: RunTypeMockOptions, random: MockRandom): MockNodeContext | undefined {
   if (!options.hook || options.hookCursor === undefined) return undefined;
   return {
@@ -248,7 +245,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
   // A data-node generator beats the format's own (generator or samples) but keeps its string rules.
   const generatorParams = typeof dataNode?.generator === 'string' && kind === RunTypeKind.string && dataGeneratorParams(runType);
   if (generatorParams) return mockFromGenerator(dataNode!.generator as string, generatorParams, random);
-  // A caller hook supplies a value before the format and kind defaults; wrapper kinds forward to their child.
+  // A caller hook's value comes before the format and kind defaults.
   const hookNode = isWrapperKind(kind) ? undefined : hookNodeContext(runType, options, random);
   if (hookNode && options.hook!.value) {
     const supplied = options.hook!.value(options.hookCursor, hookNode);
@@ -274,7 +271,6 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.string:
       return random.string(mOps.stringLength ?? random.int(1, mOps.maxRandomStringLength), mOps.stringCharSet || stringCharSet);
     case RunTypeKind.number: {
-      // Hook bounds, then data-node min/max (numbers only), override the global bounds.
       const hookBounds = hookNode ? options.hook!.bounds?.(options.hookCursor, hookNode) : undefined;
       const dataMin = typeof dataNode?.min === 'number' ? dataNode.min : mOps.minNumber;
       const dataMax = typeof dataNode?.max === 'number' ? dataNode.max : mOps.maxNumber;

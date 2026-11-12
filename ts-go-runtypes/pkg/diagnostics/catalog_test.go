@@ -30,9 +30,7 @@ func TestDefinitions_AllRegisteredCodesHaveFamilyAndSeverity(t *testing.T) {
 	}
 }
 
-// TestEveryCodeHasHeadline pins the Headline contract: the FE catalog is
-// GENERATED from this package, so a registered code with no Headline would
-// reach users as a bare code with no wording.
+// The FE catalog is GENERATED from this package, so a code with no Headline would reach users as a bare code.
 func TestEveryCodeHasHeadline(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Headline == "" {
@@ -278,12 +276,8 @@ func TestSeverityLabel(t *testing.T) {
 	}
 }
 
-// TestDefinitions_EveryCodeDeclaresScope is the first half of the depth gate:
-// Register already panics on a zero Scope, so this pins the values stay in
-// range and that a ScopeGraph code carrying an Example also carries the
-// NestedExample the resolver-side gate feeds through the scan. Without the
-// nested twin a graph-wide rule can ship tested at the root only, which is
-// how every nested-node bug so far got in.
+// First half of the depth gate: a ScopeGraph code with an Example must carry the NestedExample the resolver-side
+// gate scans, or a graph-wide rule ships tested at the root only (how every nested-node bug so far got in).
 func TestDefinitions_EveryCodeDeclaresScope(t *testing.T) {
 	for code, def := range Definitions {
 		switch def.Scope {
@@ -312,10 +306,7 @@ func TestRegister_PanicsWithoutScope(t *testing.T) {
 	Register(Definition{Code: "internal-test-no-scope", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
 }
 
-// TestEveryCodeDeclaresALevel is the catalog-wide invariant: Register panics
-// without a Level, so a registered code always has one, and Severity is always
-// the projection of it. A hand-written Severity would drift from the level the
-// downgrade and suppression rules read; Register refuses one, and this pins it.
+// A hand-written Severity would drift from the Level the downgrade and suppression rules read; this pins the refusal.
 func TestEveryCodeDeclaresALevel(t *testing.T) {
 	for code, definition := range Definitions {
 		switch definition.Level {
@@ -523,7 +514,6 @@ func TestRegister_ExtensionRow(t *testing.T) {
 	expectPanic(t, "nothing to replace", func() { Register(absent) })
 }
 
-// A row without its text panics, as the old text tables did for a code they could not attach to.
 func TestRegister_RequiresText(t *testing.T) {
 	noHeadline := extensionDefinition("internal-test-no-headline")
 	noHeadline.Headline = ""

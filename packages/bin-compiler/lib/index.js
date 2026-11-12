@@ -52,9 +52,7 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// The project a lookup starts in: the nearest directory outside node_modules that holds a package.json, widened
-// to its workspace root (pnpm-workspace.yaml, or a package.json with `workspaces`). The launcher walk stops there,
-// so a launcher installed in some ancestor (a stray one in $HOME) never takes over a project below it.
+// The launcher walk stops here, so a stray launcher in an ancestor (say $HOME) never takes over a project below it.
 function projectBoundary(start) {
   const project = nearestProject(start);
   if (!project) return null;
@@ -80,9 +78,8 @@ function isWorkspaceRoot(dir) {
   }
 }
 
-// The pro launcher's directory: node_modules/@mionkit/pro-bin-compiler in `start` or an ancestor up to the project
-// boundary, as Node looks. A walk on disk, not require.resolve, so an ESM-only exports map needs no `require`
-// condition; Yarn Plug'n'Play installs, which have no node_modules, are not found.
+// A walk on disk, not require.resolve, so an ESM-only exports map needs no `require` condition.
+// Yarn Plug'n'Play installs have no node_modules, so they are not found.
 function findProLauncher(start) {
   const boundary = projectBoundary(start);
   if (!boundary) return null;
@@ -93,8 +90,7 @@ function findProLauncher(start) {
   }
 }
 
-// The ESM entry an exports target names: a path, the first resolvable of an array, or the `import` / `node` /
-// `default` branch of a conditions object, nested as deep as the map goes. Undefined when none applies.
+// The ESM entry an exports target names, or undefined.
 function exportTarget(target) {
   if (typeof target === 'string') return target;
   if (Array.isArray(target)) {
@@ -124,8 +120,7 @@ function launcherEntry(pkg) {
   return exportTarget(root);
 }
 
-// The pro launcher's module, found from the project (process.cwd()) first, then from this package; null when absent.
-// Only a missing package counts as absent: a launcher that fails to load throws, so a broken install is never skipped.
+// Only a missing package returns null: a launcher that fails to load throws, so a broken install is never skipped.
 function loadProLauncher(here) {
   const dir = findProLauncher(process.cwd()) ?? findProLauncher(here);
   if (!dir) return null;
@@ -138,7 +133,7 @@ function loadProLauncher(here) {
   return module.createRequire(import.meta.url)(path.join(dir, entry));
 }
 
-// Whether a pro launcher is installed for this project, so a caller can skip extension-only work without it.
+// Lets a caller skip extension-only work when no pro launcher is installed.
 export function hasProLauncher() {
   return (findProLauncher(process.cwd()) ?? findProLauncher(path.dirname(fileURLToPath(import.meta.url)))) !== null;
 }
@@ -147,8 +142,6 @@ function ownVersion(here) {
   return JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version;
 }
 
-// MION_BIN wins when set; then an installed `@mionkit/pro-bin-compiler` (its mion version must equal ours); then
-// the optional dependency `@mionjs/native-compiler-<platform>-<arch>`, or this repo's local `mion-bin/mion`.
 export function getExePath() {
   const overridden = overrideExe();
   if (overridden) {

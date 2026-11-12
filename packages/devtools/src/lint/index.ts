@@ -75,8 +75,7 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   return options;
 }
 
-// The public binary advertises no probes: only an explicit binary (settings.mion.binary or MION_BIN) or an installed
-// pro launcher can run extensions. The launcher lookup walks the disk, so it runs once per process.
+// Only an explicit binary or a pro launcher can carry probes; the launcher lookup walks the disk, so it runs once.
 let proLauncherInstalled: boolean | undefined;
 function mayRunExtensions(options: LintSessionOptions): boolean {
   if (options.binary || process.env.MION_BIN?.trim()) return true;
@@ -96,8 +95,7 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.
       if (!file || file.startsWith('<')) return {};
       const session = sharedSession();
-      // A file the built-in filters skip still needs the pass when an advertised extension probe matches it; the
-      // probes cost a resolver spawn, so they are fetched only when the binary can carry extensions.
+      // A probe can admit a skipped file; probes cost a resolver spawn, so fetch them only when extensions can run.
       if (
         !needsResolverPass(text, file, options.markers) &&
         !(mayRunExtensions(options) && session.probesSync(options).some((probe) => probe.test(text)))
