@@ -29,8 +29,8 @@ Map/Set circular-ref skeleton, silent-`any` guards, bare-generic check. These ma
 ### Every diagnostic declares its Scope
 
 - `ScopeRoot`: fires for the root type by design. `ScopeGraph`: anywhere in the type. `ScopeNotSource`: not from a type.
-- `register` panics without it.
-- `ScopeGraph` code with an `Example` in [prose.go](../diagnostics/prose.go) MUST also carry a `NestedExample`:
+- `Register` panics without it.
+- `ScopeGraph` code with an `Example` in its row ([diagnostics](../diagnostics/)) MUST also carry a `NestedExample`:
   same trigger one object deeper.
 - `TestDiagExamples_TriggerAtDepth` in [compiler/resolver](../compiler/resolver/) feeds it through the real scan.
 - That "same test, one level deeper" twin is the cheapest detector: write it for any new rule, gate or not.
