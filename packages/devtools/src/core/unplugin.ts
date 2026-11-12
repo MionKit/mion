@@ -279,7 +279,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // Precedence is tsc-style: the explicit plugin option wins, else the tsconfig `downgradeErrors` echoed on
   // the generate response (adopted in buildStart below), else nothing downgraded. Seeded from the option
   // alone so the transform lane behaves even if buildStart never ran on this host.
-  let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors);
+  let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors, {deferUnknown: true});
   // Same precedence as downgrade: the option, else the tsconfig echo adopted in buildStart.
   let showInfo = resolveShowInfo(options.levels);
   let grouped = resolveGrouped(options.logStyle);
@@ -1002,6 +1002,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ensureResolver();
       // Before the generate, so the binary's own codes render in what it reports.
       await registerAdvertised();
+      // The full check of the option, now that the binary's own codes are known, and before anything is written.
+      if (options.downgradeErrors !== undefined) downgrade = resolveDowngradeErrors(options.downgradeErrors);
       // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here,
       // and the enriched-dir HMR suppression needs it. The VCS-hygiene files (per-folder READMEs, the
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.

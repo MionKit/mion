@@ -621,8 +621,19 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
 
   // Config-shape checks: these throw at the host boundary, before any build, so
   // they need no binary and run everywhere.
-  it('rejects a downgradeErrors code that is not in the catalog', () => {
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL2']})).toThrow(/unknown diagnostic/);
+  // A code the generated catalog does not know may be the binary's own, so the factory lets it through and
+  // buildStart, once the binary advertised its codes, rejects a typo before writing anything.
+  it('rejects a downgradeErrors code that is not in the catalog at buildStart', async () => {
+    const dir = path.join(FIXTURE_DIR, 'unknown-code-program');
+    writeFixture(dir, ERROR_ENTRY_SRC);
+    const plugin = makePlugin(dir, {downgradeErrors: ['VL2']});
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unknown diagnostic "VL2"/);
+      expect(fs.existsSync(path.join(dir, '.mion'))).toBe(false);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
   });
 
   it('rejects a fatal Error: the build produces no code for it', () => {

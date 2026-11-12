@@ -308,6 +308,19 @@ describe('MionExtension hooks', () => {
         plugin.buildEnd?.call(ctx);
       }
 
+      // A code the binary advertises is accepted in the plugin option: the factory defers it and buildStart,
+      // after the advertised entries are registered, finds it.
+      const advertisedCode = rawPlugin(root, [], ['internal-test-advertised-code']);
+      // Registered after the factory ran, as an advertisement arrives after the spawn.
+      registerCatalogEntries([
+        {code: 'internal-test-advertised-code', family: 'marker', level: 'runtimeError', headline: 'Advertised.', summary: 's'},
+      ]);
+      try {
+        await advertisedCode.buildStart?.call(ctx);
+      } finally {
+        advertisedCode.buildEnd?.call(ctx);
+      }
+
       const wildcard = rawPlugin(root, [{name: 'w', buildStart: (hookCtx) => void (buildContext = hookCtx)}], '*');
       try {
         await wildcard.buildStart?.call(ctx);

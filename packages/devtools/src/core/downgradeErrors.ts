@@ -21,10 +21,14 @@ export interface DowngradeSet {
 // NONE is the strict default: nothing is downgraded.
 export const NONE: DowngradeSet = {all: false, codes: new Set()};
 
-// resolveDowngradeErrors resolves the configured value once at plugin-factory time, so a typo fails
-// loudly at the host boundary rather than silently protecting nothing. A Warning code is accepted and
-// does nothing: a code's level may soften between releases and that must never break a build.
-export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | undefined): DowngradeSet {
+// resolveDowngradeErrors resolves the configured value, so a typo fails loudly rather than silently protecting
+// nothing. A Warning code is accepted and does nothing: a code's level may soften between releases and that must
+// never break a build. `deferUnknown` lets a code the catalog does not know yet through: the plugin factory runs
+// before the binary advertised its own codes, and buildStart resolves again, in full, before any output.
+export function resolveDowngradeErrors(
+  value: string[] | typeof DOWNGRADE_ALL | undefined,
+  {deferUnknown = false}: {deferUnknown?: boolean} = {}
+): DowngradeSet {
   if (value === undefined) return NONE;
   if (value === DOWNGRADE_ALL) return {all: true, codes: new Set()};
   if (!Array.isArray(value) || value.some((code) => typeof code !== 'string')) {
@@ -36,6 +40,10 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
   const codes = new Set<string>();
   for (const code of value) {
     const entry = catalogEntry(code);
+    if (!entry && deferUnknown) {
+      codes.add(code);
+      continue;
+    }
     if (!entry) {
       throw new Error(
         `[@mionjs/devtools] downgradeErrors names unknown diagnostic ${JSON.stringify(code)} — copy its name from the message you are silencing (e.g. validate-symbol-root)`
