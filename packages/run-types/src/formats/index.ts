@@ -16,6 +16,8 @@ export type * from './datetime/dateFormats.ts';
 export type * from './numberFormats.ts';
 export type * from './bigintFormats.ts';
 export type * from './refineFormat.ts';
+// Every `rt$errors` key a format's validation errors can carry, per format name.
+export type {FormatErrorKeys} from '../go-generated/formatErrorKeys.generated.ts';
 // The named brand carriers, on the subpath the emitted declarations reference; see the note on
 // their declaration in ../runtypes/typeFormat.ts.
 export type {FormatBrand, NominalBrand} from '../runtypes/typeFormat.ts';

@@ -2,6 +2,8 @@
 // `defaultMockOptions` before walking the runtype graph.
 
 import type {MockData} from '../enrich/mockData.ts';
+import type {StringParams} from '../formats/string/stringFormats.ts';
+import type {RunType} from '../runtypes/types.ts';
 import type {MockRandom} from './mockRandom.ts';
 
 /** Per-call options for value generation, ported field-for-field from the reference implementation. **/
@@ -108,6 +110,44 @@ export interface RunTypeMockOptions<T = unknown> {
   data?: MockData<T>;
   /** Internal, set by the walker: seeded from `data` at walk entry, descended by field name / `rt$items` / element. **/
   dataNode?: MockDataNode;
+  /** Supplies or shapes node values while the walker descends; runs beside `data`. A call-site hook replaces the
+   *  factory's. **/
+  hook?: MockNodeHook;
+  /** Internal, set by the walker: the hook's cursor at the current node, seeded from `hook.root`. **/
+  hookCursor?: unknown;
+}
+
+/** Lets a caller supply or shape a node's value while the walker descends; every member but `root` is optional. **/
+export interface MockNodeHook<C = unknown> {
+  /** The cursor at the walk's root. **/
+  root: C;
+  /** The cursor for one step down; undefined detaches the hook below this node. Absent, the cursor stays. **/
+  descend?(cursor: C, step: MockStep): C | undefined;
+  /** A value for this node, taken before the format and kind defaults, so it runs inside structural-format rejection. **/
+  value?(cursor: C, node: MockNodeContext): {value: unknown} | undefined;
+  /** Bounds for an unbranded number or Date; a format's own bounds are never widened. **/
+  bounds?(cursor: C, node: MockNodeContext): {min?: number | Date; max?: number | Date} | undefined;
+  /** An array's element count, before a formattedArray annotation clamps it. **/
+  length?(cursor: C, node: MockNodeContext): number | undefined;
+}
+
+/** One step of the walk below a node: an object property, an array item, a tuple slot, a Map key or value, a Set
+ *  member. **/
+export type MockStep =
+  | {kind: 'property'; name: string | number}
+  | {kind: 'item'}
+  | {kind: 'slot'; index: number}
+  | {kind: 'mapKey'}
+  | {kind: 'mapValue'}
+  | {kind: 'setValue'};
+
+/** The node a hook call is about. **/
+export interface MockNodeContext {
+  runType: RunType;
+  random: MockRandom;
+  mock: MockOptions;
+  /** Runs a named mock generator under a string format's rules (length, characters). **/
+  generate(name: string, params: StringParams): string;
 }
 
 /** The call-time `data` map is typed loosely so the return type stays structurally stable across `T`; the
