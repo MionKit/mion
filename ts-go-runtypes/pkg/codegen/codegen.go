@@ -34,8 +34,3 @@ func Header(tool, source, regen string) string {
 		"// Source: " + source + ".\n" +
 		"// Regenerate via `" + regen + "` after changing the Go source.\n"
 }
-
-// WriteFile writes content to path, creating or overwriting it.
-func WriteFile(path, content string) error {
-	return os.WriteFile(path, []byte(content), 0o644)
-}
