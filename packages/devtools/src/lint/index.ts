@@ -5,6 +5,7 @@
 import {createRequire} from 'node:module';
 import {isDowngraded, NONE, resolveDowngradeErrors, type DowngradeSet} from '../core/downgradeErrors.ts';
 import {anchoredIn, routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
+import {hasProLauncher} from '@mionjs/bin-compiler';
 import {needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
@@ -74,6 +75,15 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   return options;
 }
 
+// The public binary advertises no probes: only an explicit binary (settings.mion.binary or MION_BIN) or an installed
+// pro launcher can run extensions. The launcher lookup walks the disk, so it runs once per process.
+let proLauncherInstalled: boolean | undefined;
+function mayRunExtensions(options: LintSessionOptions): boolean {
+  if (options.binary || process.env.MION_BIN?.trim()) return true;
+  proLauncherInstalled ??= hasProLauncher();
+  return proLauncherInstalled;
+}
+
 // The shared session memoizes the file's resolver pass, so the four level rules cost one.
 function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
   return {
@@ -86,10 +96,11 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.
       if (!file || file.startsWith('<')) return {};
       const session = sharedSession();
-      // The binary's advertised probes are fetched only for a file the built-in filters skip.
+      // A file the built-in filters skip still needs the pass when an advertised extension probe matches it; the
+      // probes cost a resolver spawn, so they are fetched only when the binary can carry extensions.
       if (
         !needsResolverPass(text, file, options.markers) &&
-        !needsResolverPass(text, file, options.markers, session.probesSync(options))
+        !(mayRunExtensions(options) && session.probesSync(options).some((probe) => probe.test(text)))
       )
         return {};
       if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);

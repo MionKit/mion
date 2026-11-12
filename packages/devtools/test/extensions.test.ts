@@ -7,12 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type {UnpluginContextMeta} from 'unplugin';
-import {afterAll, describe, expect, it} from 'vitest';
+import {afterAll, describe, expect, it, vi} from 'vitest';
 import {unplugin, type MionExtension, type MionExtensionContext} from '../src/core/unplugin.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient} from '../src/core/resolver-client.ts';
 import {catalogEntry, DIAGNOSTIC_CATALOG, registerCatalogEntries, renderHeadline} from '../src/core/diagnosticCatalog.ts';
 import {Family, Level, Severity, type Capabilities, type Request, type Response} from '../src/core/protocol.ts';
 import {needsResolverPass} from '../src/lint/prefilter.ts';
+import {rules} from '../src/lint/index.ts';
+import {runRule} from './eslint/fixture.ts';
 import {LintSession} from '../src/lint/session.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
@@ -167,7 +169,7 @@ describe('lint: advertised scan checks', () => {
     const session = new LintSession();
     try {
       const probes = session.probesSync({binary});
-      expect(needsResolverPass(text, undefined, undefined, probes)).toBe(true);
+      expect(probes.some((probe) => probe.test(text))).toBe(true);
       const outcome = session.lintFileSync(path.join(dir, 'plain.ts'), text, {binary});
       expect('diagnostics' in outcome && outcome.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
         'internal-test-stub-check',
@@ -175,6 +177,30 @@ describe('lint: advertised scan checks', () => {
       expect(renderHeadline('internal-test-stub-check', ['plain.ts'])).toBe('Stub check fired on plain.ts.');
     } finally {
       session.dispose();
+    }
+  });
+});
+
+describe('lint: a file the pre-filter skips', () => {
+  const rule = Object.values(rules)[0]!;
+
+  it('asks for probes only when the binary can carry extensions', () => {
+    const dir = tempDir('rt-ext-skip-');
+    const file = path.join(dir, 'plain.ts');
+    const probes = vi.spyOn(LintSession.prototype, 'probesSync').mockReturnValue([]);
+    const savedBin = process.env['MION_BIN'];
+    delete process.env['MION_BIN'];
+    try {
+      // The public binary from the launcher: no resolver is started for a skipped file.
+      runRule(rule, file, 'export const plain = 1;\n', {});
+      expect(probes).not.toHaveBeenCalled();
+      // An explicit binary may be an extension binary.
+      runRule(rule, file, 'export const plain = 1;\n', {mion: {binary: BIN}});
+      expect(probes).toHaveBeenCalledTimes(1);
+    } finally {
+      probes.mockRestore();
+      if (savedBin === undefined) delete process.env['MION_BIN'];
+      else process.env['MION_BIN'] = savedBin;
     }
   });
 });
