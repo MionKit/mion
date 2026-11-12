@@ -1,16 +1,16 @@
-// Wire types mirroring Go's internal/reflection/runtype.go and internal/protocol/protocol.go.
+// Wire types mirroring Go's pkg/reflection/runtype.go and pkg/protocol/protocol.go.
 // The interfaces are hand-maintained to keep the plugin dep-free; the ReflectionKind enum,
 // KIND_REF sentinel and REFLECTION_SUB_KIND map are generated from the same Go source, so the
 // kind/sub-kind discriminators cannot drift. Child RunType slots on the wire are sentinels
 // (`{kind: -1, id: N}`); consumers re-knot them, or import the generated cache module whose
 // graph is already knotted.
 
-// Generated from internal/reflection/{runtype,subkind}.go, the same source as @mionjs/run-types's
+// Generated from pkg/reflection/{runtype,subkind}.go, the same source as @mionjs/run-types's
 // RunTypeKind / RunTypeSubKind; re-exported here so `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
 import {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind} from './go-generated/reflectionKind.generated.ts';
 export {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind};
 
-// Cache-module settings generated from internal/constants/constants.go, the single source of
+// Cache-module settings generated from pkg/constants/constants.go, the single source of
 // truth; regenerate with `pnpm miondevx core codegen constants`.
 export {
   CACHE_MODULES,
@@ -451,7 +451,7 @@ export interface EnrichFile {
 
 // Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).
 // The user-facing message is NOT carried on the wire: per-code templates live in the generated
-// `./go-generated/diagnosticCatalog.generated.ts` (from internal/diagnostics/messages.go via
+// `./go-generated/diagnosticCatalog.generated.ts` (from pkg/diagnostics/messages.go via
 // `pnpm miondevx core codegen diag`) and fill their `{slot}` names from `args`, in slot order.
 export interface Diagnostic {
   code: string;

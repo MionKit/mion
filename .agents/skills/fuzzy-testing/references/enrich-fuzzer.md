@@ -82,8 +82,8 @@ test('enrichment sync stays consistent under any edit sequence', () => {
   1. `enrich --no-emit` is the wrong instrument for comptime args. A non-literal in a comptime-args `$errors`
      function is policed at **build / transform time** (`marker-comptime-arg-not-literal` / `-too-deep` /
      `-forbidden-construct`), NOT by `enrich --no-emit`.
-     - `--no-emit` treats a function-form `$errors` as opaque and walks past it: `ts-go-runtypes/internal/enrichment/`
-       [validate.go](../../../../ts-go-runtypes/internal/enrichment/validate.go).
+     - `--no-emit` treats a function-form `$errors` as opaque and walks past it: `ts-go-runtypes/pkg/enrichment/`
+       [validate.go](../../../../ts-go-runtypes/pkg/enrichment/validate.go).
      - `enrich-mock-invalid-pool` (pool value vs field type) is build-time too.
      - So a check-driven fuzzer covers R5 for `enrich-text-unknown-field` / `enrich-text-unknown-placeholder` /
        `enrich-mock-unknown-field` only. `marker-comptime-arg-*` / `enrich-mock-invalid-pool` need a second,

@@ -4,7 +4,7 @@
 // (was: whole-union alwaysThrow). An all-stripped union (DataOnly = never) and
 // other collapse-to-never/empty positions still throw. Drives the full
 // vite-plugin pipeline, complementing the Go emitter tests in
-// internal/cachegen/typefunctions/union_dataonly_test.go.
+// pkg/cachegen/typefunctions/union_dataonly_test.go.
 //
 // The collapse cases below also guard against a fixed facts-cache poisoning bug
 // (isJsonCompatible on an unresolved Map/Set inner ref) that corrupted unrelated

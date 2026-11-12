@@ -9,10 +9,7 @@ import {formatGrouped, severityLabel} from '../src/core/groupedLog.ts';
 import {Severity, type DiagnosticRelated} from '../src/core/protocol.ts';
 import type {GroupedEntry} from '../src/core/types.ts';
 
-const RANDOM_CORPUS = path.resolve(
-  import.meta.dirname,
-  '../../../ts-go-runtypes/internal/diagnostics/testdata/grouped/random.json'
-);
+const RANDOM_CORPUS = path.resolve(import.meta.dirname, '../../../ts-go-runtypes/pkg/diagnostics/testdata/grouped/random.json');
 const CORPUS_SIZE = 100;
 const SEED = Number(process.env.MION_FUZZ_SEED ?? 1);
 const ITERATIONS = Number(process.env.MION_FUZZ_ITER ?? 2000);

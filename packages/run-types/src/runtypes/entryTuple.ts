@@ -1,7 +1,7 @@
 // Runtime half of the per-entry virtual modules: the Go binary emits one ES module per cache entry, exporting a
 // positional tuple. ⚠️ SYNC BOUNDARY — the `*_TUPLE_KEYS` arrays below are the single source of slot order,
-// mirrored by the Go emitters in internal/compiler/virtualmodules and
-// internal/cachegen/{runtype,typefunctions,purefunctions}, so a layout change must touch both ends together.
+// mirrored by the Go emitters in pkg/compiler/virtualmodules and
+// pkg/cachegen/{runtype,typefunctions,purefunctions}, so a layout change must touch both ends together.
 // Every tuple shares a fixed head: slot 0 discriminates the layout (the numeric kinds below, or the quoted
 // family tag for type-fn entries), slot 1 a lazy deps thunk, slot 2 the runtype footer ini, slot 3 the cache
 // key; Go trims trailing-undefined slots, which the derived tuple types model as optional tails.
@@ -68,7 +68,7 @@ const RUN_TYPE_FIELD_KEYS = [
 export type RunTypeRowRecord = Pick<RunType, (typeof RUN_TYPE_FIELD_KEYS)[number]>;
 
 // The ref-bearing RunType fields, in the wire order of a bundle `rels` row.
-// ⚠️ MUST match Go's runtype.renderRelations (internal/cachegen/runtype/module.go).
+// ⚠️ MUST match Go's runtype.renderRelations (pkg/cachegen/runtype/module.go).
 // child/children lead — the most common fields — so the typical relRow is one or two slots long; the fields NOT
 // here (classType, literal, formatAnnotation) are JS expressions handled by the residual bundle ini.
 const RUN_TYPE_REL_KEYS = [

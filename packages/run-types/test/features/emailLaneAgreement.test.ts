@@ -2,7 +2,7 @@
 // fuzz oracle O4. The email emitter tested its three roads (pattern, `emailRfc`, the localPart/domain split) in one
 // order for validate and the opposite for the error list, so `EmailAddress<{localPart: {maxLength: 8}}>` answered
 // validate=false with errors=[]. That pair is rejected now, so this spec covers O4 per road; the emitted lanes are
-// pinned in Go (internal/cachegen/typefunctions/formats/string/email_lane_agreement_test.go).
+// pinned in Go (pkg/cachegen/typefunctions/formats/string/email_lane_agreement_test.go).
 
 import type * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';

@@ -42,7 +42,7 @@ export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack
   }
 }
 
-// The formatTransform family tag, mirroring the Go CacheModule tag in internal/constants/constants.go.
+// The formatTransform family tag, mirroring the Go CacheModule tag in pkg/constants/constants.go.
 // Compiled entries register under `<fmtFnHash>_<typeId>`, and the 3-char fnHash folds the binary version, which
 // the runtime can't reconstruct: the lookup must go through findRTForType, never a literal `'fmt_' + id` key.
 const FORMAT_TRANSFORM_FAMILY = 'fmt';

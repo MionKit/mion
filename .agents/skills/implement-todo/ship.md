@@ -42,7 +42,7 @@ Never the same files: `packages/private-examples/` → docs pass; everything els
 3. Read its report. Each shortened/deleted comment: check the code. Dropped a fact the code cannot show
    (reason, constraint, invariant, trap) → put it back, one line. Decide every **Kept** line yourself.
 4. Re-run what it can break: `pnpm run lint`.
-   Go file changed → also `go -C ts-go-runtypes vet ./internal/... ./cmd/...`.
+   Go file changed → also `go -C ts-go-runtypes vet ./pkg/... ./cmd/...`.
    Run the skill's diff guard once more: only comment lines may have changed.
 5. Commit alone: `chore(comments): <area>`.
 

@@ -71,17 +71,17 @@ jobs:
         # The diagnostics grid's value call shapes, which PR CI leaves out to keep the Go step short.
         env:
           MION_DIAG_GRID_FULL: '1'
-        run: go test ./internal/... ./cmd/...
+        run: go test ./pkg/... ./cmd/...
       - name: Go formatting + vet (our code only; never third_party)
         working-directory: ts-go-runtypes
         run: |
-          unformatted="$(gofmt -l cmd internal)"
+          unformatted="$(gofmt -l cmd pkg)"
           if [ -n "$unformatted" ]; then
             echo "These Go files are not gofmt-clean (run: pnpm run format):" >&2
             echo "$unformatted" >&2
             exit 1
           fi
-          go vet ./cmd/... ./internal/...
+          go vet ./cmd/... ./pkg/...
       # Prod parity with ci.yml: the committed Go→TS mirrors must stay in sync.
       # miondevx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)

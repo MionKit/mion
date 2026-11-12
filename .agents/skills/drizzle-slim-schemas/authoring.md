@@ -35,7 +35,7 @@ One block per column function:
   (`references: [() => tableRef(...)]`, `$defaultFn: [() => ...]`).
 - New drizzle modifier needs ALL of:
   - a key in core `ColMods` (`packages/drizzle-orm/src/types.ts`) and in `colModNames` (`src/columns.ts`);
-  - the name in `drizzleModNames` (`ts-go-runtypes/internal/convert/drizzle.go`);
+  - the name in `drizzleModNames` (`ts-go-runtypes/pkg/convert/drizzle.go`);
   - a key in the `*ColMods` bags + props interfaces of builders that have it
     (the `*SharedColMods` base when both spell it alike);
   - its flag in the derivation key lists (`NotNullKeys` / `DefaultKeys` / `ExcludedKeys`).

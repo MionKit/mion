@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // runI18nWrite implements `enrich --i18n <locale|all> [<src>]` scaffold, --update and --prune.

@@ -63,7 +63,7 @@ Never touch:
 
 ```bash
 pnpm run lint                                                   # typecheck plus both linters
-go -C ts-go-runtypes vet ./internal/... ./cmd/...               # when a Go file changed
+go -C ts-go-runtypes vet ./pkg/... ./cmd/...               # when a Go file changed
 pnpm run format                                                 # gofmt and oxfmt, safe here
 git diff -U0 | grep '^[-+]' | grep -v '^[-+][-+]' | grep -v '^[-+]\s*\(//\|/\*\|\*\|$\)'   # must print nothing
 ```

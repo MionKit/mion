@@ -18,7 +18,7 @@
 // postures a consumer can be in:
 //   • WITHOUT any Temporal types: DataOnly still projects (drop arm intact).
 //   • WITH the canonical temporal ambient (the same
-//     ts-go-runtypes/internal/testfixtures/temporal.d.ts both test lanes use):
+//     ts-go-runtypes/pkg/testfixtures/temporal.d.ts both test lanes use):
 //     the projection still holds AND Temporal instances are KEPT verbatim —
 //     the augmentation's entire purpose.
 import {describe, it, expect} from 'vitest';
@@ -29,7 +29,7 @@ import {fileURLToPath} from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DIST_INDEX = resolve(HERE, '../../dist/index.d.ts');
-const TEMPORAL_AMBIENT = resolve(HERE, '../../../../ts-go-runtypes/internal/testfixtures/temporal.d.ts');
+const TEMPORAL_AMBIENT = resolve(HERE, '../../../../ts-go-runtypes/pkg/testfixtures/temporal.d.ts');
 
 // The probes assert with Expect<Equal<…>> so a correct projection compiles
 // CLEAN and any drift (identity collapse included) is a type error.

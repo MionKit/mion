@@ -56,7 +56,7 @@ function readVersion() {
 const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
 
 export function releaseLdflags(version, tsgo) {
-  return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
+  return ['-s', '-w', `-X ${GO_MODULE}/pkg/constants.Version=${version}`, `-X ${GO_MODULE}/pkg/constants.TsgoVersion=${tsgo}`].join(' ');
 }
 
 // The cache digest hashes exactly this command and env, so the two cannot drift.

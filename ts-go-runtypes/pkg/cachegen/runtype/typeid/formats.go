@@ -1,0 +1,813 @@
+package typeid
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/comptimeargs"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/reflection"
+)
+
+// Sentinel property names that mark a brand-shaped object literal as a TypeFormat brand. The JS-side
+// TypeFormat<Base, Name, Params, ...> alias resolves (after tsgo widens intersections) to
+// `Base & {readonly __rtFormatName: Name; readonly __rtFormatParams: Params}`. Two property names rather
+// than one keeps the detection unambiguous for arbitrary user brand objects.
+const (
+	formatNameProp   = "__rtFormatName"
+	formatParamsProp = "__rtFormatParams"
+	// formatBrandProp marks the OPTIONAL nominal-brand member of a TypeFormat (the `BrandName` convention):
+	// `Base & {sentinels} & {__rtFormatBrand: B}`. It is a PURE TS-level discriminator — the scanner reads
+	// only the two sentinels above — so a branded format and its unbranded twin must resolve ONE structural id.
+	formatBrandProp = "__rtFormatBrand"
+	// containsChildProp marks a contains sentinel member
+	// (`Base & {readonly __rtContains?: {rt$child: C; rt$min: N; rt$max?: M}}`), the internal encoding of JSON
+	// Schema contains / minContains / maxContains: the spec object pairs the TRANSLATED child type with its
+	// literal occurrence bounds. Both collapse passes lift it (serialize → node.Contains, id → a `c{…}` fold).
+	containsChildProp = "__rtContains"
+	containsChildKey  = "rt$child"
+	containsMinKey    = "rt$min"
+	containsMaxKey    = "rt$max"
+	// patternPropsProp marks a patternProperties sentinel member: the spec object's PROP NAMES are the key
+	// regex sources and each prop type is a {rt$key: KeyBrand; rt$value: Value} pair. propNamesProp marks a
+	// propertyNames sentinel carrying the key-validating child directly.
+	patternPropsProp = "__rtPatternProps"
+	patternKeyKey    = "rt$key"
+	patternValueKey  = "rt$value"
+	propNamesProp    = "__rtPropNames"
+	// tupleLabelsProp marks the labeled-tuple sentinel member
+	// (`[number, number] & {readonly __rtLabels?: readonly ['x', 'y']}`) — how the value-first object forms
+	// (`tuple({x: …})` / `func({event: …})`) carry slot labels / parameter names, which TS cannot construct on
+	// a tuple type directly. Both collapse passes lift it (serialize → the projected member/parameter names,
+	// id → the per-element label fold the type-first labeled tuple already gets) and the property walks skip
+	// it. The labels tuple covers EVERY element (TS labels all slots or none); a length mismatch means a
+	// hand-rolled sentinel and is ignored whole.
+	tupleLabelsProp = "__rtLabels"
+)
+
+// lateBoundNamePrefix is how tsgo spells a property whose key is a `unique symbol` instead of a string:
+// InternalSymbolNamePrefix, '@', the symbol DECLARATION's name, '@', then a per-program symbol id (see
+// checker.getESSymbolLikeTypeForNode). The trailing id is NOT stable across programs, so the match runs to
+// the second '@' and no further. The prefix is taken from the upstream constant, so a change to it arrives
+// as a compile-time change here instead of a silent mismatch; the '@' separators are still upstream's own
+// convention, which is why TestSymbolKeyedSentinel_MatchesStringKeyed resolves a symbol-keyed brand through
+// the REAL checker — a renamed scheme turns that test red instead of quietly degrading every branded type.
+var lateBoundNamePrefix = ast.InternalSymbolNamePrefix + "@"
+
+// LateBoundNamePrefixForTest exposes the prefix to the package's external test so its failure message can
+// name the exact scheme that stopped matching.
+func LateBoundNamePrefixForTest() string { return lateBoundNamePrefix }
+
+// isSentinelProp: shipped types key `base` by unique symbol, out of string keys; fixtures and the fuzz oracle use a string.
+// Both spellings fold to one id: memberIDs skips the name and the annotation supplies the id.
+func isSentinelProp(name, base string) bool {
+	return name == base || IsUniqueSymbolKey(name, base)
+}
+
+// IsUniqueSymbolKey reports whether a property name is a `unique symbol` key whose declaration is named base.
+func IsUniqueSymbolKey(name, base string) bool {
+	if !strings.HasPrefix(name, lateBoundNamePrefix) {
+		return false
+	}
+	rest := name[len(lateBoundNamePrefix):]
+	return len(rest) > len(base) && strings.HasPrefix(rest, base) && rest[len(base)] == '@'
+}
+
+// IsFormatBrandMember reports whether tsType is a pure TypeFormat nominal-brand member — an object whose
+// ONLY property is `__rtFormatBrand`. tsgo keeps `Base & {sentinels} & {__rtFormatBrand}` as distinct
+// object members, and this one carries no validation semantics, so both collapse passes (serialize side +
+// structural-id side) must SKIP it: leaving it in would fold a brand id into the structural key, so a
+// branded format would stop deduping with its unbranded twin and every predefined `Format*` whose alias
+// carries a brand name would shift id.
+func IsFormatBrandMember(typeChecker *checker.Checker, tsType *checker.Type) bool {
+	if tsType == nil || typeChecker == nil {
+		return false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 {
+		return false
+	}
+	return isSentinelProp(properties[0].Name, formatBrandProp)
+}
+
+// FormatAnnotationFromType returns the canonical FormatAnnotation when an object-literal type carries both
+// sentinel properties (formatNameProp / formatParamsProp), well-formed. nil when the input is not a format
+// brand — callers route those through the normal TypeMeta path.
+func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type) *reflection.FormatAnnotation {
+	if tsType == nil || typeChecker == nil {
+		return nil
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	var nameSymbol, paramsSymbol *ast.Symbol
+	for _, symbol := range properties {
+		switch {
+		case isSentinelProp(symbol.Name, formatNameProp):
+			nameSymbol = symbol
+		case isSentinelProp(symbol.Name, formatParamsProp):
+			paramsSymbol = symbol
+		}
+	}
+	if nameSymbol == nil || paramsSymbol == nil {
+		return nil
+	}
+	// The sentinel props are declared OPTIONAL on TypeFormat (so an unbranded format stays assignable from its
+	// base primitive — `FormatString<P>` ≡ `string`), so tsgo types the symbols as `Name | undefined` /
+	// `Params | undefined`; strip the `undefined` before reading. GetNonNullableType is a no-op on the
+	// already-non-nullable (required-prop) shape, so this stays correct either way.
+	nameType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(nameSymbol))
+	if nameType == nil || nameType.Flags()&checker.TypeFlagsStringLiteral == 0 {
+		return nil
+	}
+	name, ok := nameType.AsLiteralType().Value().(string)
+	if !ok || name == "" {
+		return nil
+	}
+	paramsType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(paramsSymbol))
+	params := literalParamsFromType(typeChecker, paramsType)
+	canonicalizeBoundAliases(params)
+	return &reflection.FormatAnnotation{Name: name, Params: params}
+}
+
+// boundAliasCanonical maps the JSON Schema bound keyword spellings to the
+// engine's canonical short param keys.
+var boundAliasCanonical = map[string]string{
+	"minimum":          "min",
+	"maximum":          "max",
+	"exclusiveMinimum": "gt",
+	"exclusiveMaximum": "lt",
+}
+
+// canonicalizeBoundAliases renames a JSON Schema bound keyword (minimum/maximum/exclusiveMinimum/
+// exclusiveMaximum) to the engine's canonical short key (min/max/gt/lt), so a format written with EITHER
+// spelling folds to one structural id and the emitters — which read only the short keys — work unchanged.
+// A canonical key already present wins, so a redundant double-spelling never overwrites it.
+func canonicalizeBoundAliases(params map[string]any) {
+	for alias, canonical := range boundAliasCanonical {
+		value, hasAlias := params[alias]
+		if !hasAlias {
+			continue
+		}
+		delete(params, alias)
+		if _, hasCanonical := params[canonical]; !hasCanonical {
+			params[canonical] = value
+		}
+	}
+}
+
+// MergeFormatAnnotations merges the format annotations of one collapsed intersection. Same-name
+// annotations merge their param maps (the sibling conjunction case: a `$ref` to a branded number ∧ a local
+// `maximum`); ok=false when the names differ (cross-family stacking needs sub-format nesting that does not
+// exist yet) or when one param key carries two values that cannot be conjoined — a genuine contradiction
+// the caller must surface LOUDLY, since the historical behavior silently kept the LAST annotation and
+// dropped a constraint the schema declared.
+func MergeFormatAnnotations(annotations []*reflection.FormatAnnotation) (*reflection.FormatAnnotation, bool) {
+	if len(annotations) == 0 {
+		return nil, true
+	}
+	merged := &reflection.FormatAnnotation{Name: annotations[0].Name, Params: map[string]any{}}
+	for key, value := range annotations[0].Params {
+		merged.Params[key] = value
+	}
+	for _, annotation := range annotations[1:] {
+		if annotation.Name != merged.Name {
+			return nil, false
+		}
+		for key, value := range annotation.Params {
+			existing, exists := merged.Params[key]
+			if !exists || reflect.DeepEqual(existing, value) {
+				merged.Params[key] = value
+				continue
+			}
+			tightened, ok := mergeParamValue(key, existing, value)
+			if !ok {
+				return nil, false
+			}
+			merged.Params[key] = tightened
+		}
+	}
+	return merged, true
+}
+
+// mergeParamValue resolves ONE param key two same-family annotations disagree on. A conjunction of
+// constraints is the TIGHTER of the two — `min: 20 ∧ min: 30` is `min: 30` — so bound keys fold by max
+// (lower bounds) or min (upper bounds) and `multipleOf` by least common multiple. Every other key must
+// agree exactly; ok=false hands the clash back to the caller. The shape reaching here is ordinary schema
+// authoring: `allOf: [{minimum: 20}, {minimum: 30}]` lowers to two number brands.
+func mergeParamValue(key string, existing, incoming any) (any, bool) {
+	left, leftOK := existing.(float64)
+	right, rightOK := incoming.(float64)
+	if !leftOK || !rightOK {
+		return nil, false
+	}
+	switch key {
+	case "min", "gt", "minLength", "minItems", "minProperties", "minContains":
+		return math.Max(left, right), true
+	case "max", "lt", "maxLength", "maxItems", "maxProperties", "maxContains":
+		return math.Min(left, right), true
+	case "multipleOf":
+		return leastCommonMultiple(left, right)
+	}
+	return nil, false
+}
+
+// leastCommonMultiple folds two `multipleOf` constraints into one: a value divisible by BOTH is exactly a
+// value divisible by their least common multiple. Positive integers only — a fractional multipleOf would
+// need exact rational arithmetic and a product past the exact-integer range would silently lose precision,
+// so both stay clashes the caller reports.
+func leastCommonMultiple(left, right float64) (any, bool) {
+	if left <= 0 || right <= 0 || left != math.Trunc(left) || right != math.Trunc(right) {
+		return nil, false
+	}
+	if left > float64(maxExactInteger) || right > float64(maxExactInteger) {
+		return nil, false
+	}
+	leftInt, rightInt := int64(left), int64(right)
+	reduced := leftInt / greatestCommonDivisor(leftInt, rightInt)
+	if reduced > maxExactInteger/rightInt {
+		return nil, false
+	}
+	return float64(reduced * rightInt), true
+}
+
+// maxExactInteger is the largest integer a float64 represents exactly (JS Number.MAX_SAFE_INTEGER + 1);
+// past it, a folded multiple would not round-trip through the wire.
+const maxExactInteger = int64(1) << 53
+
+func greatestCommonDivisor(left, right int64) int64 {
+	for right != 0 {
+		left, right = right, left%right
+	}
+	return left
+}
+
+// IsFormatSentinelPropName keeps the brand sentinels out of the merged property walks: once the collapse
+// lifts a structural brand (`unknown[] & {__rtFormatName?: …}`) onto node.FormatAnnotation / the id's
+// format key, they must not surface as real members.
+func IsFormatSentinelPropName(name string) bool {
+	return isSentinelProp(name, formatNameProp) || isSentinelProp(name, formatParamsProp) || isSentinelProp(name, formatBrandProp)
+}
+
+// IsContainsSentinelPropName is the contains twin for the property walks; the patternProperties /
+// propertyNames sentinels ride the same skip. A merged property walk over a sentinel'd intersection
+// surfaces the sentinel as a prop, and it must never become a real member or an id contribution.
+func IsContainsSentinelPropName(name string) bool {
+	return isSentinelProp(name, containsChildProp) || isSentinelProp(name, patternPropsProp) ||
+		isSentinelProp(name, propNamesProp)
+}
+
+// PatternPropSpec is one decoded patternProperties entry (see
+// PatternPropsFromMember).
+type PatternPropSpec struct {
+	Source string
+	Key    *checker.Type
+	Value  *checker.Type
+}
+
+// PatternPropsFromMember returns the decoded patternProperties entries of an object-literal type, sorted by
+// source. ok=false when the member is not a patternProperties sentinel.
+func PatternPropsFromMember(typeChecker *checker.Checker, tsType *checker.Type) ([]PatternPropSpec, bool) {
+	if tsType == nil || typeChecker == nil {
+		return nil, false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, patternPropsProp) {
+		return nil, false
+	}
+	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if specType == nil || specType.Flags()&checker.TypeFlagsUndefined != 0 {
+		return nil, false
+	}
+	var specs []PatternPropSpec
+	for _, entryProp := range typeChecker.GetPropertiesOfType(specType) {
+		entryType := typeChecker.GetTypeOfSymbol(entryProp)
+		spec := PatternPropSpec{Source: entryProp.Name}
+		for _, pairProp := range typeChecker.GetPropertiesOfType(entryType) {
+			switch pairProp.Name {
+			case patternKeyKey:
+				spec.Key = typeChecker.GetTypeOfSymbol(pairProp)
+			case patternValueKey:
+				spec.Value = typeChecker.GetTypeOfSymbol(pairProp)
+			}
+		}
+		if spec.Value == nil {
+			continue
+		}
+		specs = append(specs, spec)
+	}
+	sort.Slice(specs, func(i, j int) bool { return specs[i].Source < specs[j].Source })
+	return specs, true
+}
+
+// PropNamesChildFromMember returns the key-validating child of a propertyNames sentinel, nil when the
+// member is something else. Same optional-sentinel discipline as the other slots.
+func PropNamesChildFromMember(typeChecker *checker.Checker, tsType *checker.Type) *checker.Type {
+	if tsType == nil || typeChecker == nil {
+		return nil
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, propNamesProp) {
+		return nil
+	}
+	childType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if childType == nil || childType.Flags()&checker.TypeFlagsUndefined != 0 {
+		return nil
+	}
+	return childType
+}
+
+// TupleLabelsFromMember inspects one intersection CONSTITUENT for the labeled-tuple sentinel shape — an
+// object whose ONLY prop is the optional `__rtLabels` holding a tuple of string literals — and returns the
+// label strings in slot order. ok=false when the member is something else.
+func TupleLabelsFromMember(typeChecker *checker.Checker, tsType *checker.Type) ([]string, bool) {
+	if tsType == nil || typeChecker == nil {
+		return nil, false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, tupleLabelsProp) {
+		return nil, false
+	}
+	labelsType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if labelsType == nil || !checker.IsTupleType(labelsType) {
+		return nil, false
+	}
+	typeArguments := typeChecker.GetTypeArguments(labelsType)
+	labels := make([]string, 0, len(typeArguments))
+	for _, typeArgument := range typeArguments {
+		if typeArgument.Flags()&checker.TypeFlagsStringLiteral == 0 {
+			return nil, false
+		}
+		label, isString := typeArgument.AsLiteralType().Value().(string)
+		if !isString {
+			return nil, false
+		}
+		labels = append(labels, label)
+	}
+	return labels, true
+}
+
+// IsLabelsSentinelPropName is the labeled-tuple twin for the property walks: once the collapse lifts the
+// labels onto the tuple members / the id's per-element fold, the sentinel must not surface as a member.
+func IsLabelsSentinelPropName(name string) bool {
+	return isSentinelProp(name, tupleLabelsProp)
+}
+
+// SplitLabeledTupleIntersection detects the labeled-tuple carrier on a PARAMETER type — an intersection of
+// exactly one tuple member and one `__rtLabels` sentinel member (any/unknown identities tolerated) — and
+// returns the tuple plus the lifted labels. The labels must cover every element (TS labels all slots or
+// none); a mismatch returns ok=false and the caller treats the type as an ordinary intersection.
+func SplitLabeledTupleIntersection(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Type, []string, bool) {
+	if tsType == nil || typeChecker == nil || tsType.Flags()&checker.TypeFlagsIntersection == 0 {
+		return nil, nil, false
+	}
+	var tupleType *checker.Type
+	var labels []string
+	var haveLabels bool
+	for _, member := range tsType.AsUnionOrIntersectionType().Types() {
+		memberFlags := member.Flags()
+		switch {
+		case memberFlags&checker.TypeFlagsAny != 0, memberFlags&checker.TypeFlagsUnknown != 0:
+			// identity under &
+		case checker.IsTupleType(member):
+			if tupleType != nil {
+				return nil, nil, false
+			}
+			tupleType = member
+		default:
+			memberLabels, isLabels := TupleLabelsFromMember(typeChecker, member)
+			if !isLabels || haveLabels {
+				return nil, nil, false
+			}
+			labels, haveLabels = memberLabels, true
+		}
+	}
+	if tupleType == nil || !haveLabels {
+		return nil, nil, false
+	}
+	if len(labels) != len(typeChecker.GetTypeArguments(tupleType)) {
+		return nil, nil, false
+	}
+	return tupleType, labels, true
+}
+
+// ContainsSpecFromMember returns the CHILD type of a contains sentinel plus its literal occurrence bounds
+// (min defaults to 1 — the bare `contains` keyword; max -1 means unbounded). ok=false for anything else.
+func ContainsSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) (child *checker.Type, minCount, maxCount float64, ok bool) {
+	if tsType == nil || typeChecker == nil {
+		return nil, 0, 0, false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, containsChildProp) {
+		return nil, 0, 0, false
+	}
+	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if specType == nil || specType.Flags()&checker.TypeFlagsUndefined != 0 {
+		return nil, 0, 0, false
+	}
+	minCount, maxCount = 1, -1
+	for _, specProp := range typeChecker.GetPropertiesOfType(specType) {
+		switch specProp.Name {
+		case containsChildKey:
+			// rt$child is REQUIRED inside the spec object — read it raw. GetNonNullableType would degrade an
+			// `unknown` child (`contains: true`) to `{}`, deleting the accept-everything semantics.
+			child = typeChecker.GetTypeOfSymbol(specProp)
+		case containsMinKey:
+			if value, isNumber := literalNumberOf(typeChecker, specProp); isNumber {
+				minCount = value
+			}
+		case containsMaxKey:
+			if value, isNumber := literalNumberOf(typeChecker, specProp); isNumber {
+				maxCount = value
+			}
+		}
+	}
+	if child == nil {
+		return nil, 0, 0, false
+	}
+	return child, minCount, maxCount, true
+}
+
+// literalNumberOf reads a number-literal property's value via the canonical
+// type string (the same robust route projectPrimitiveInto takes).
+func literalNumberOf(typeChecker *checker.Checker, symbol *ast.Symbol) (float64, bool) {
+	numberType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+	if numberType == nil || numberType.Flags()&checker.TypeFlagsNumberLiteral == 0 {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(typeChecker.TypeToString(numberType), 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+// literalParamsFromType walks an object-literal type into the FormatAnnotation.Params map via the generic
+// comptimeargs type-literal walk, bound to the format-domain policy: the registerFormatPattern escape hatch
+// (pattern params ride `typeof p` / value initializers — a regex source can't live at the type level) and
+// the TypeToString fallback (non-literal property values keep the canonical type string, so params stay
+// JSON-serialisable and cache-differentiating).
+func literalParamsFromType(typeChecker *checker.Checker, paramsType *checker.Type) map[string]any {
+	return comptimeargs.TypeLiteralObject(typeChecker, paramsType, formatTypeValueOptions(typeChecker))
+}
+
+// formatTypeValueOptions binds the format-domain knobs into the generic walk.
+func formatTypeValueOptions(typeChecker *checker.Checker) comptimeargs.TypeValueOptions {
+	return comptimeargs.TypeValueOptions{
+		PropertyOverride: func(symbol *ast.Symbol) (any, bool) {
+			// Type channel FIRST: a generic FormatPattern<A> (registerFormatPattern) or an inline
+			// {source, flags, …} literal carries the pattern as LITERAL types on the property, so it survives a
+			// published .d.ts and a downstream consumer can still recover alpha/email/url/… patterns.
+			patternType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+			if pattern, ok := formatPatternFromType(typeChecker, patternType); ok {
+				return pattern, true
+			}
+			// AST fallback: the value-first path (`pattern: /…/`, or a registerFormatPattern({…}) const in scan
+			// scope) where the literal lives only in the declaring AST, not the type.
+			if pattern, ok := formatPatternFromSymbol(typeChecker, symbol); ok {
+				return pattern, true
+			}
+			// Neither road read it: marked so the emitter reports format-pattern-unreadable instead of a validator that skips the check.
+			if symbol.Name == "pattern" && patternType != nil && patternType.Flags()&checker.TypeFlagsObject != 0 {
+				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
+			}
+			// A generator must be ONE literal name; a widened `string` or union would otherwise read as a custom name.
+			if symbol.Name == "generator" && patternType != nil && patternType.Flags()&checker.TypeFlagsStringLiteral == 0 {
+				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
+			}
+			return nil, false
+		},
+		NonLiteralFallback: func(tsType *checker.Type) any {
+			return typeChecker.TypeToString(tsType)
+		},
+	}
+}
+
+// formatPatternFromType recovers a pattern bundle from the RESOLVED TYPE of a `pattern` property — the
+// type-level channel that survives a published `.d.ts`, where source/flags/mockSamples/message are LITERAL
+// types on the property (the brand symbol is ignored). Returns (nil, false) when `source` isn't a string
+// literal — the legacy opaque shape (`source: string`) or any non-pattern property — so the caller falls
+// back to the AST channel. Shapes the same map the AST reader returns, so consumers are unchanged.
+func formatPatternFromType(typeChecker *checker.Checker, patternType *checker.Type) (map[string]any, bool) {
+	if patternType == nil || patternType.Flags()&checker.TypeFlagsObject == 0 {
+		return nil, false
+	}
+	source, ok := stringLiteralOf(stringPropertyType(typeChecker, patternType, "source"))
+	if !ok || source == "" {
+		return nil, false
+	}
+	out := map[string]any{"source": source}
+	// flags is ALWAYS present (default "") so a type-first {source, flags:""}
+	// converges with the AST regex reader's {source, flags:""} for an inline /re/.
+	flags, _ := stringLiteralOf(stringPropertyType(typeChecker, patternType, "flags"))
+	out["flags"] = flags
+	if message, ok := stringLiteralOf(stringPropertyType(typeChecker, patternType, "message")); ok {
+		out["message"] = message
+	}
+	if samplesType := stringPropertyType(typeChecker, patternType, "mockSamples"); samplesType != nil {
+		if samples, ok := comptimeargs.TypeLiteralValue(typeChecker, samplesType, comptimeargs.TypeValueOptions{}).([]any); ok && len(samples) > 0 {
+			out["mockSamples"] = samples
+		}
+	}
+	// The opt-out from the build-time backtracking check. Recorded only when it is actually asked for, so a
+	// pattern that never mentions it keeps the id it had.
+	if optOutType := stringPropertyType(typeChecker, patternType, "unsafePattern"); optOutType != nil {
+		if optOut, ok := comptimeargs.TypeLiteralValue(typeChecker, optOutType, comptimeargs.TypeValueOptions{}).(bool); ok && optOut {
+			out["unsafePattern"] = true
+		}
+	}
+	return out, true
+}
+
+// stringPropertyType returns the non-nullable type of property `name` on an object type, or nil when the
+// property is absent. (The checker shim exposes GetPropertiesOfType, not a by-name getter, so we scan.)
+func stringPropertyType(typeChecker *checker.Checker, objectType *checker.Type, name string) *checker.Type {
+	for _, symbol := range typeChecker.GetPropertiesOfType(objectType) {
+		if symbol.Name == name {
+			return typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+		}
+	}
+	return nil
+}
+
+// stringLiteralOf returns the value of a string-literal type, or ("", false).
+func stringLiteralOf(tsType *checker.Type) (string, bool) {
+	if tsType == nil || tsType.Flags()&checker.TypeFlagsStringLiteral == 0 {
+		return "", false
+	}
+	value, ok := tsType.AsLiteralType().Value().(string)
+	return value, ok
+}
+
+// formatPatternFromSymbol recovers a FormatPattern bundle from a param declared as `typeof someConst`,
+// where someConst is initialised by a registerFormatPattern({regexp, mockSamples, message}) call. Returns
+// the RESOLVED literal object {source, flags, mockSamples?, message?} — the AST is only the means of
+// recovery, never stored. (nil, false) when the param isn't a typeof pointing at such a call.
+func formatPatternFromSymbol(typeChecker *checker.Checker, symbol *ast.Symbol) (map[string]any, bool) {
+	if symbol == nil {
+		return nil, false
+	}
+	declarations := symbol.Declarations
+	if symbol.ValueDeclaration != nil {
+		declarations = append([]*ast.Node{symbol.ValueDeclaration}, declarations...)
+	}
+	for _, declaration := range declarations {
+		if declaration == nil {
+			continue
+		}
+		// (a) type-first: `pattern: typeof p` — a TypeQuery type node whose
+		// referenced const is a registerFormatPattern({…}) call.
+		if typeNode := declaration.Type(); typeNode != nil && typeNode.Kind == ast.KindTypeQuery {
+			if typeQuery := typeNode.AsTypeQueryNode(); typeQuery != nil {
+				initializer := constInitializerOf(typeChecker, typeQuery.ExprName)
+				if initializer != nil && initializer.Kind == ast.KindCallExpression {
+					if pattern, ok := formatPatternFromCall(typeChecker, initializer); ok {
+						return pattern, true
+					}
+				}
+			}
+		}
+		// (b) value-first: `pattern: /…/` | `{source,flags}` |
+		// `registerFormatPattern({…})` | `slug` — a value initializer the
+		// preserved property declaration still points at, even though the
+		// property's TYPE has erased to `RegExp`.
+		if initializer := propertyInitializer(declaration); initializer != nil {
+			if pattern, ok := formatPatternFromInitializer(typeChecker, initializer, 0); ok {
+				return pattern, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// constInitializerOf resolves an identifier to the initializer of the `const` it names. nil for
+// non-identifiers, non-const bindings, or initializer-less declarations (a `declare const` in a .d.ts).
+func constInitializerOf(typeChecker *checker.Checker, node *ast.Node) *ast.Node {
+	if node == nil || node.Kind != ast.KindIdentifier {
+		return nil
+	}
+	symbol := typeChecker.GetSymbolAtLocation(node)
+	if symbol == nil {
+		return nil
+	}
+	// `typeof importedConst` resolves to the import-alias symbol whose declaration is the import specifier,
+	// not the const — follow the alias to the original (e.g. a pattern const in string-patterns.ts referenced
+	// from stringFormats.ts), then run the shared const walk.
+	symbol = comptimeargs.ResolveImportAlias(typeChecker, symbol)
+	var initializer *ast.Node
+	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDeclaration *ast.VariableDeclaration) bool {
+		initializer = variableDeclaration.Initializer
+		return false
+	})
+	return initializer
+}
+
+// formatPatternFromCall extracts the resolved literal fields from a registerFormatPattern({regexp,
+// mockSamples, message}) call's first object-literal argument. Requires at least a recoverable `regexp`
+// source — otherwise it isn't a usable pattern.
+func formatPatternFromCall(typeChecker *checker.Checker, call *ast.Node) (map[string]any, bool) {
+	callExpression := call.AsCallExpression()
+	if callExpression == nil || callExpression.Arguments == nil || len(callExpression.Arguments.Nodes) == 0 {
+		return nil, false
+	}
+	argument := callExpression.Arguments.Nodes[0]
+	if argument == nil || argument.Kind != ast.KindObjectLiteralExpression {
+		return nil, false
+	}
+	return formatPatternFromObjectLiteral(typeChecker, argument)
+}
+
+// propertyInitializer returns the value expression a property declaration binds, or nil when it has none
+// (e.g. a PropertySignature in a type). Lets the pattern recovery reach the value a value-first config
+// wrote (`pattern: /…/`) through the symbol declaration a homomorphic Omit/Pick mapped type preserves.
+func propertyInitializer(declaration *ast.Node) *ast.Node {
+	switch declaration.Kind {
+	case ast.KindPropertyAssignment:
+		return declaration.AsPropertyAssignment().Initializer
+	case ast.KindPropertyDeclaration:
+		return declaration.AsPropertyDeclaration().Initializer
+	}
+	return nil
+}
+
+// formatPatternFromInitializer recovers a pattern bundle from a VALUE expression — the form a value-first
+// config uses: a regex literal, a `{source, flags, …}` object, a registerFormatPattern({…}) call, or an
+// identifier for one of those (resolved, then recursed). A regex's source can't ride the type channel (it
+// erases to `RegExp`), but the pattern symbol's declaration is the original value AST node, so the literal
+// is recoverable here even though the property's TYPE is `RegExp`.
+func formatPatternFromInitializer(typeChecker *checker.Checker, initializer *ast.Node, depth int) (map[string]any, bool) {
+	// comptimeargs' wrapper set (`as` / parens / `satisfies`) — recovery must
+	// accept exactly what the CompTimeArgs validation accepted upstream.
+	node := comptimeargs.UnwrapWrappers(initializer)
+	if node == nil || depth > 16 {
+		return nil, false
+	}
+	switch node.Kind {
+	case ast.KindRegularExpressionLiteral:
+		if source, flags, ok := comptimeargs.TraceRegexpLiteral(typeChecker, node); ok {
+			return map[string]any{"source": source, "flags": flags}, true
+		}
+	case ast.KindObjectLiteralExpression:
+		return formatPatternFromObjectLiteral(typeChecker, node)
+	case ast.KindCallExpression:
+		return formatPatternFromCall(typeChecker, node)
+	case ast.KindIdentifier:
+		if next := constInitializerOf(typeChecker, node); next != nil {
+			return formatPatternFromInitializer(typeChecker, next, depth+1)
+		}
+	}
+	return nil, false
+}
+
+// formatPatternFromObjectLiteral reads the {regexp|source, flags, mockSamples, message} fields of an
+// object-literal node into a resolved pattern bundle. Shared by the registerFormatPattern call reader and
+// the value-first inline `pattern: {source, flags}` form. Requires a recoverable `source`.
+func formatPatternFromObjectLiteral(typeChecker *checker.Checker, argument *ast.Node) (map[string]any, bool) {
+	if argument == nil || argument.Kind != ast.KindObjectLiteralExpression {
+		return nil, false
+	}
+	objectLiteral := argument.AsObjectLiteralExpression()
+	if objectLiteral == nil || objectLiteral.Properties == nil {
+		return nil, false
+	}
+	out := map[string]any{}
+	for _, property := range objectLiteral.Properties.Nodes {
+		if property == nil || property.Kind != ast.KindPropertyAssignment {
+			continue
+		}
+		assignment := property.AsPropertyAssignment()
+		if assignment == nil || assignment.Name() == nil || assignment.Initializer == nil {
+			continue
+		}
+		switch assignment.Name().Text() {
+		case "regexp":
+			if source, flags, ok := comptimeargs.TraceRegexpLiteral(typeChecker, assignment.Initializer); ok {
+				out["source"] = source
+				out["flags"] = flags
+			}
+		case "source":
+			// The {source, flags} overload of registerFormatPattern — both
+			// passed as string literals at the call site.
+			if value, ok := comptimeargs.StringLiteralValue(assignment.Initializer); ok {
+				out["source"] = value
+			}
+		case "flags":
+			if value, ok := comptimeargs.StringLiteralValue(assignment.Initializer); ok {
+				out["flags"] = value
+			}
+		case "mockSamples":
+			if samples := comptimeargs.StringArrayLiteralValue(assignment.Initializer); len(samples) > 0 {
+				out["mockSamples"] = samples
+			}
+		case "message":
+			if message, ok := comptimeargs.StringLiteralValue(assignment.Initializer); ok {
+				out["message"] = message
+			}
+		case "unsafePattern":
+			if unwrapped := comptimeargs.UnwrapWrappers(assignment.Initializer); unwrapped != nil && unwrapped.Kind == ast.KindTrueKeyword {
+				out["unsafePattern"] = true
+			}
+		}
+	}
+	if _, ok := out["source"]; !ok {
+		return nil, false
+	}
+	return out, true
+}
+
+// FormatAnnotationStructuralKey returns a canonical, key-order-independent representation of a
+// FormatAnnotation for inclusion in a parent type's structural id. Sorting keys at every nesting level is
+// what makes `{a:1, b:2}` and `{b:2, a:1}` produce the same key — the idempotency contract documented on
+// reflection.RunType's FormatAnnotation field.
+func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) string {
+	if annotation == nil {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString("|fmt:")
+	builder.WriteString(annotation.Name)
+	if len(annotation.Params) > 0 {
+		builder.WriteByte(':')
+		builder.WriteString(canonicalLiteralMap(annotation.Params))
+	}
+	return builder.String()
+}
+
+// mockSamplesKey is the one format param that is NOT id-relevant; every other one is (`message` included). A mock
+// `generator` stays IN: equal ids share one node, so `firstName` / `lastName` twins would share one generator.
+// Samples are generation metadata read only by the mock-data emitter, not validation behaviour, so two
+// formats identical but for their sample pools describe the SAME validator and MUST dedup onto one cache
+// entry. `message` stays folded in because it changes the emitted validator's error `val`, and a pattern's
+// `source`/`flags` stay because they ARE the check. Two sites that dedup onto one entry but declare
+// DIFFERENT sample pools are a build ERROR (diagnostics.CodeFMTSampleConflict), never a guess
+// hidden in the id.
+const mockSamplesKey = "mockSamples"
+
+// canonicalLiteralMap serialises a literal-value map with sorted keys at every nesting depth so equivalent
+// maps hash to the same string. `mockSamples` is skipped at every depth (top-level params, a nested
+// `pattern`, or a `disallowed*`/`allowed*` op object) so samples never enter the id.
+func canonicalLiteralMap(values map[string]any) string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		if key == mockSamplesKey {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		return "{}"
+	}
+	sort.Strings(keys)
+	var builder strings.Builder
+	builder.WriteByte('{')
+	for i, key := range keys {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(strconv.Quote(key))
+		builder.WriteByte(':')
+		builder.WriteString(canonicalLiteralValue(values[key]))
+	}
+	builder.WriteByte('}')
+	return builder.String()
+}
+
+func canonicalLiteralValue(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return "null"
+	case string:
+		return strconv.Quote(typed)
+	case bool:
+		if typed {
+			return "true"
+		}
+		return "false"
+	case float64:
+		// json.Marshal canonicalises ints vs floats (`1` and `1.0` both → "1"), so it gives a stable numeric repr.
+		bytes, err := json.Marshal(typed)
+		if err == nil {
+			return string(bytes)
+		}
+		return fmt.Sprintf("%v", typed)
+	case map[string]any:
+		return canonicalLiteralMap(typed)
+	case []any:
+		var builder strings.Builder
+		builder.WriteByte('[')
+		for i, item := range typed {
+			if i > 0 {
+				builder.WriteByte(',')
+			}
+			builder.WriteString(canonicalLiteralValue(item))
+		}
+		builder.WriteByte(']')
+		return builder.String()
+	default:
+		return strconv.Quote(fmt.Sprintf("%v", value))
+	}
+}

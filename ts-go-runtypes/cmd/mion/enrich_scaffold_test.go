@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // TestWriteMirrorFile_CreateOnly_IdempotentTodo is the create-only first-scaffold

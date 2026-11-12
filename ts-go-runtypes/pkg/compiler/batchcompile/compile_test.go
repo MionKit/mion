@@ -1,0 +1,499 @@
+package batchcompile
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+
+	// Register the concrete format emitters — the in-process test never runs
+	// main.go, whose blank import normally does this.
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/purefnindex"
+	_ "github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/typefunctions/formats/all"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/jsengine"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
+)
+
+// Minimal ambient marker declaration so `mion` resolves in a bare temp
+// project (the marker scanner honors the `declare module` form).
+const runtypesDTS = `declare module '@mionjs/run-types' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+}
+`
+
+const tsconfigJSON = `{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "strict": true
+  },
+  "include": ["src"]
+}
+`
+
+const fooTS = `import {getRunTypeId} from '@mionjs/run-types';
+type User = {id: number; name: string};
+export const userId = getRunTypeId<User>();
+`
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCompile_EmitsJsWithComposedMap is the load-bearing integration test: a
+// real temp project compiles to .js + a source map, and the map — after
+// composing our rewrite map with tsgo's emit map — points at the ORIGINAL .ts
+// line, not the import-shifted rewritten line.
+func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+
+	result, err := Run(Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	// The .js was emitted (types stripped) with the rewrite applied.
+	jsPath := filepath.Join(tmp, "dist", "foo.js")
+	jsBytes, err := os.ReadFile(jsPath)
+	if err != nil {
+		t.Fatalf("read emitted js: %v", err)
+	}
+	js := string(jsBytes)
+	if !strings.Contains(js, "getRunTypeId(") {
+		t.Errorf("emitted js missing the call:\n%s", js)
+	}
+	if !strings.Contains(js, "__rt_") {
+		t.Errorf("emitted js missing the injected binding:\n%s", js)
+	}
+	// rtmod: specifiers must be relativized to the cache dir in the OUTPUT.
+	if strings.Contains(js, "rtmod:") {
+		t.Errorf("emitted js still has a rtmod: specifier (not relativized):\n%s", js)
+	}
+	if !strings.Contains(js, ".mion/types/") {
+		t.Errorf("emitted js import not relativized to the cache dir:\n%s", js)
+	}
+
+	// The composed map must resolve to the ORIGINAL foo.ts (3 lines, 0..2), NOT
+	// the rewritten source (4 lines — an import line prepended). If composition
+	// were missing, a segment would reference original line 3.
+	mapBytes, err := os.ReadFile(jsPath + ".map")
+	if err != nil {
+		t.Fatalf("read emitted map: %v", err)
+	}
+	var sm protocol.SourceMap
+	if err := json.Unmarshal(mapBytes, &sm); err != nil {
+		t.Fatalf("parse map: %v", err)
+	}
+	if len(sm.Sources) != 1 || !strings.HasSuffix(sm.Sources[0], "foo.ts") {
+		t.Errorf("map sources = %v, want [..foo.ts]", sm.Sources)
+	}
+	maxLine, sawCallLine := -1, false
+	for _, position := range sourcerewrite.OriginalPositions(sm.Mappings) {
+		line := position[0]
+		if line > maxLine {
+			maxLine = line
+		}
+		if line == 2 {
+			sawCallLine = true
+		}
+	}
+	if maxLine > 2 {
+		t.Errorf("composed map references original line %d — composition failed (rewritten line leaked)", maxLine)
+	}
+	if !sawCallLine {
+		t.Errorf("composed map has no segment for the call line (original line 2)")
+	}
+
+	// Cache modules were generated to <genDir>/types.
+	if len(result.Caches) == 0 {
+		t.Errorf("no cache modules generated")
+	}
+	if entries, _ := os.ReadDir(filepath.Join(tmp, ".mion", "types")); len(entries) == 0 {
+		t.Errorf("no cache module files written under .mion/types")
+	}
+}
+
+// patternDTS extends the ambient marker module with createValidateFn — a
+// FUNCTION-family marker: pattern validation runs inside the format
+// emitters, which only render for function-cache demand (a getRunTypeId-only
+// file emits zero function entries and would never reach it).
+const patternDTS = `declare module '@mionjs/run-types' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export type InjectTypeFnArgs<T, F1 extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1]};
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
+  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
+}
+`
+
+// patternTS declares a stringFormat whose pattern uses a JS-only lookbehind
+// and carries a mockSample that does NOT match it. Both marker call shapes
+// reference the format (marker coverage rule): static with the type
+// argument, reflect with an annotated value.
+const patternTS = `import {createValidateFn} from '@mionjs/run-types';
+type TypeFormat<Base, Name extends string, Params> = Base & {
+  readonly __rtFormatName?: Name;
+  readonly __rtFormatParams?: Params;
+};
+type Code = TypeFormat<string, 'stringFormat', {
+  pattern: {source: '(?<=x)y'; flags: ''; mockSamples: ['nope']};
+}>;
+export const isCodeStatic = createValidateFn<Code>();
+const sample: Code = 'y';
+export const isCodeReflect = createValidateFn(sample);
+`
+
+// TestCompile_ValidatesJsOnlyPatternSamples pins the headline of the JS-engine
+// move: the standalone compile verb — which has no lint lane — now really
+// validates samples of patterns RE2 could never compile. Before, this exact
+// fixture was unverifiable on this path (fail-closed format-no-js-runtime, or a silent skip
+// under the removed allowUncheckedPatterns); now the mismatching sample is a
+// plain format-sample-mismatch. Runs the real node sidecar; skipped only where none exists.
+func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("no node in PATH")
+	}
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), patternDTS)
+	writeFile(t, filepath.Join(tmp, "src", "pattern.ts"), patternTS)
+
+	result, err := Run(Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		NoEmit:       true,
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			JSEngine:   jsengine.NewSidecar(""),
+		},
+	})
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	var formatSampleMismatch *diagnostics.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == diagnostics.CodeFMTSampleMismatch {
+			formatSampleMismatch = &result.Diagnostics[i]
+			break
+		}
+		if result.Diagnostics[i].Code == diagnostics.CodeFMTMissingJsRuntime {
+			t.Fatalf("engine should have run (node is present), got format-no-js-runtime: %+v", result.Diagnostics[i])
+		}
+	}
+	if formatSampleMismatch == nil {
+		t.Fatalf("expected an %s for the mismatching lookbehind sample, got %+v",
+			diagnostics.CodeFMTSampleMismatch, result.Diagnostics)
+	}
+	if len(formatSampleMismatch.Args) == 0 || formatSampleMismatch.Args[0] != "nope" {
+		t.Errorf("expected offending sample 'nope' in args, got %+v", formatSampleMismatch.Args)
+	}
+}
+
+// tsgo emits from a parallel work group, so the WriteFile callback runs on many
+// goroutines at once. An unguarded map there is a FATAL "concurrent map writes"
+// runtime error, not a recoverable one, so it takes the whole compile down: it
+// surfaced as an intermittent convert-cli panic under full-suite load.
+// Unsynchronized, this hammering reliably trips the runtime's concurrent-write
+// detector even without -race.
+func TestEmitCapture_ConcurrentWritesAreSafe(t *testing.T) {
+	const writers = 32
+	const perWriter = 64
+
+	capture := newEmitCapture()
+	var wg sync.WaitGroup
+	for writer := 0; writer < writers; writer++ {
+		wg.Add(1)
+		go func(writer int) {
+			defer wg.Done()
+			for i := 0; i < perWriter; i++ {
+				capture.add(fmt.Sprintf("out/%d-%d.js", writer, i), "emitted")
+			}
+		}(writer)
+	}
+	wg.Wait()
+
+	if len(capture.files) != writers*perWriter {
+		t.Fatalf("captured %d files, want %d", len(capture.files), writers*perWriter)
+	}
+	for writer := 0; writer < writers; writer++ {
+		name := fmt.Sprintf("out/%d-0.js", writer)
+		if capture.files[name] != "emitted" {
+			t.Fatalf("%s missing from the capture", name)
+		}
+	}
+}
+
+// The artifact lands next to the emit, where `files: ["dist"]` publishes it; `--no-emit` writes nothing.
+func TestCompile_WritesPureFnArtifactIntoOutDir(t *testing.T) {
+	markerFiles, err := testfixtures.RealMarkerPackage()
+	if err != nil {
+		t.Fatalf("real marker package unavailable: %v", err)
+	}
+	tmp := t.TempDir()
+	for rel, content := range markerFiles {
+		writeFile(t, filepath.Join(tmp, filepath.FromSlash(rel)), content)
+	}
+	writeFile(t, filepath.Join(tmp, "package.json"), `{"name":"@acme/lib","type":"module"}`)
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "slug.ts"), `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const slugify = registerPureFn((s: string): string => s.toLowerCase());
+`)
+	opts := Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	}
+	artifactDir := filepath.Join(tmp, "dist", constants.PureFnArtifactDir)
+	noEmit := opts
+	noEmit.NoEmit = true
+	if _, err := Run(noEmit); err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if _, err := os.Stat(artifactDir); !os.IsNotExist(err) {
+		t.Fatalf("--no-emit must write no artifact: %v", err)
+	}
+	if _, err := Run(opts); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	onDisk, err := os.ReadFile(filepath.Join(artifactDir, constants.PureFnArtifactIndexFile))
+	if err != nil {
+		t.Fatalf("index not written: %v", err)
+	}
+	index, err := purefnindex.ParseArtifactIndex(onDisk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.Package != "@acme/lib" || len(index.PureFns) != 1 || index.PureFns[0].BindingName != "slugify" || index.PureFns[0].File != "src/slug.ts" {
+		t.Errorf("index = %+v", index)
+	}
+	modulePath := filepath.FromSlash(purefnindex.ModulePath(index.PureFns[0].ID))
+	module, err := os.ReadFile(filepath.Join(artifactDir, modulePath))
+	if err != nil {
+		t.Fatalf("module not written: %v", err)
+	}
+	canonical, err := os.ReadFile(filepath.Join(tmp, ".mion", "types", constants.PureFnModuleDir, modulePath))
+	if err != nil || string(canonical) != string(module) {
+		t.Errorf("the outDir module must equal the cache module under genDir: %v", err)
+	}
+	if entry, err := purefnindex.ReadModule(index.PureFns[0].ID, string(module)); err != nil || !strings.Contains(entry.Code, "toLowerCase") {
+		t.Errorf("module = %+v (err %v)", entry, err)
+	}
+}
+
+// TestCompile_NoEmitCountsCheckedFiles pins the `--no-emit` summary count to files, never to diagnostics.
+func TestCompile_NoEmitCountsCheckedFiles(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bar.ts"), `import {getRunTypeId} from '@mionjs/run-types';
+const sample = {id: 1, name: 'a'};
+export const sampleId = getRunTypeId(sample);
+`)
+
+	result, err := Run(Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		NoEmit:       true,
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("want a clean project, got %v", result.Diagnostics)
+	}
+	if result.CheckedFiles != 2 {
+		t.Fatalf("CheckedFiles = %d, want 2 (foo.ts, bar.ts; the .d.ts is not counted)", result.CheckedFiles)
+	}
+}
+
+// badTS fails plain tsc with TS2345 and holds no mion marker.
+const badTS = `export function double(value: number): number {
+  return value * 2;
+}
+export const twice = double('2');
+`
+
+func typeErrorOptions(tmp string, mutate func(*Options)) Options {
+	opts := Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	}
+	if mutate != nil {
+		mutate(&opts)
+	}
+	return opts
+}
+
+func assertOneTS2345(t *testing.T, result *Result) {
+	t.Helper()
+	if result.TypeErrorCount != 1 || len(result.TypeDiagnostics) != 1 {
+		t.Fatalf("want one type error, got %d: %v", result.TypeErrorCount, result.TypeDiagnostics)
+	}
+	want := "src/bad.ts(4,29): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'."
+	if result.TypeDiagnostics[0] != want {
+		t.Fatalf("type diagnostic = %q, want %q", result.TypeDiagnostics[0], want)
+	}
+}
+
+// TestCompile_ReportsTypeErrorsAndStillEmits: as in tsc, without noEmitOnError the .js is still written.
+func TestCompile_ReportsTypeErrorsAndStillEmits(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, nil))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	assertOneTS2345(t, result)
+	if _, err := os.Stat(filepath.Join(tmp, "dist", "bad.js")); err != nil {
+		t.Errorf("bad.js must still be emitted without noEmitOnError: %v", err)
+	}
+}
+
+// TestCompile_NoEmitOnErrorWritesNothing: a type error under noEmitOnError skips the caches too.
+func TestCompile_NoEmitOnErrorWritesNothing(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), strings.Replace(tsconfigJSON, `"strict": true`, `"strict": true, "noEmitOnError": true`, 1))
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, nil))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	assertOneTS2345(t, result)
+	for _, dir := range []string{"dist", ".mion"} {
+		if _, err := os.Stat(filepath.Join(tmp, dir)); !os.IsNotExist(err) {
+			t.Errorf("%s must not exist under noEmitOnError with a type error (stat err %v)", dir, err)
+		}
+	}
+}
+
+// TestCompile_NoEmitReportsTypeErrors: `--no-emit` checks types the way `tsc --noEmit` does.
+func TestCompile_NoEmitReportsTypeErrors(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "bad.ts"), badTS)
+
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	assertOneTS2345(t, result)
+}
+
+// TestCompile_TypeDiagnosticsKeepMessageChain: the nested detail lines tsc prints under a diagnostic survive.
+func TestCompile_TypeDiagnosticsKeepMessageChain(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "chain.ts"), `type User = {id: number; name: string};
+export const user: User = {id: 1, name: 2};
+const users: {list: User[]} = {list: [{id: 1, name: 'a'}]};
+export const nested: {list: {id: string}[]} = users;
+`)
+
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if result.TypeErrorCount != 2 {
+		t.Fatalf("want two type errors, got %d: %v", result.TypeErrorCount, result.TypeDiagnostics)
+	}
+	if !strings.Contains(result.TypeDiagnostics[1], "\n  ") {
+		t.Errorf("want an indented chain line under the nested error, got %q", result.TypeDiagnostics[1])
+	}
+}
+
+// TestCompile_TypeEntriesMatchTheLines: the grouped log prints TypeScript's errors from TypeEntries, so each entry must match its line.
+func TestCompile_TypeEntriesMatchTheLines(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "chain.ts"), `type User = {id: number; name: string};
+export const user: User = {id: 1, name: 2};
+const users: {list: User[]} = {list: [{id: 1, name: 'a'}]};
+export const nested: {list: {id: string}[]} = users;
+`)
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if len(result.TypeEntries) != len(result.TypeDiagnostics) || len(result.TypeEntries) != 2 {
+		t.Fatalf("want one entry per line, got %d entries for %q", len(result.TypeEntries), result.TypeDiagnostics)
+	}
+	for index, entry := range result.TypeEntries {
+		want := fmt.Sprintf("src/chain.ts(%d,%d): error %s: %s", entry.Site.StartLine, entry.Site.StartCol, entry.Name, entry.Template)
+		if result.TypeDiagnostics[index] != want || entry.Severity != diagnostics.SeverityError || !strings.HasPrefix(entry.Name, "TS") {
+			t.Errorf("entry %d = %+v does not match its line %q", index, entry, result.TypeDiagnostics[index])
+		}
+	}
+	if !strings.Contains(result.TypeEntries[1].Template, "\n  ") {
+		t.Errorf("the entry keeps the message chain, got %q", result.TypeEntries[1].Template)
+	}
+}

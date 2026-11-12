@@ -16,9 +16,9 @@ import (
 	"path/filepath"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/drizzlemigrate"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/drizzlemigrate"
 )
 
 // migrateReport is the --report payload: what moved, and what refused.

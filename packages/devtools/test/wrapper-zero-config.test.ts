@@ -13,7 +13,7 @@
 // node_modules) declared the wrapper.
 //
 // The fixture is a self-contained mini project (own tsconfig + the ambient
-// marker overlay, mirroring internal/testfixtures/runtypes.d.ts) rather than a
+// marker overlay, mirroring pkg/testfixtures/runtypes.d.ts) rather than a
 // file inside the marker package's own test program: cross-file wrapper sites
 // are currently NOT resolved inside the marker package's self-referential
 // program, while every consumer-shaped program resolves them fine.

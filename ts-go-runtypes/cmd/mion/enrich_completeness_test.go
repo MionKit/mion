@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
 )
 
 // mkEnrichDiag builds a minimal registered diagnostic for the given code.

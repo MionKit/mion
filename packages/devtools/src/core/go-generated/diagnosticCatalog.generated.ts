@@ -1,8 +1,8 @@
 // GENERATED FILE. DO NOT EDIT. Run `pnpm miondevx core codegen diag` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
-// exported from the authoritative catalog in internal/diagnostics (wording lives in
-// internal/diagnostics/messages.go). The wire carries only code + args; the render
+// exported from the authoritative catalog in pkg/diagnostics (wording lives in
+// pkg/diagnostics/messages.go). The wire carries only code + args; the render
 // helpers in ./diagnosticCatalog.ts fill each `{name}` slot with the arg at its
 // index in `slots`.
 

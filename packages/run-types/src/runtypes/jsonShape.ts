@@ -17,7 +17,7 @@ import type {DataOnlyNativeExtra} from './dataOnly.ts';
 
 /** `JSONShape<T>` — the RunTypes JSON WIRE shape of `T`: what `createJsonEncoderFn<T>()` writes and
  *  `createJsonDecoderFn<T>()` reads back. `DataOnly`'s wire twin: every JS-only leaf maps to its JSON
- *  encoding, mirroring the Go emitters (internal/cachegen/typefunctions/json_prepare.go / json_restore.go)
+ *  encoding, mirroring the Go emitters (pkg/cachegen/typefunctions/json_prepare.go / json_restore.go)
  *  leaf for leaf, unions included (union_flat.go).
  *  ⚠️ NOT the shape of arbitrary third-party JSON: a plain client does not wrap unions in envelopes.
  *  ⚠️ NEVER REFLECT it: `createValidateFn<JSONShape<T>>()` would validate the wire spelling with every brand deleted.

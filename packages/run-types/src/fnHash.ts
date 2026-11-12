@@ -3,7 +3,7 @@
 // the plugin (it needs the type-checker, so read it from getRunTypeId / an InjectRunTypeId marker),
 // but the fnHash is a pure function of the family + its compile-time options and is STABLE across
 // mion releases, since its salt no longer folds the binary version (see
-// internal/cachegen/operations/fnhash.go). So a framework holding an injected typeId can rebuild the
+// pkg/cachegen/operations/fnhash.go). So a framework holding an injected typeId can rebuild the
 // key itself (`getFnHash('validate') + '_' + typeId`) instead of hand-pinning a `family → prefix`
 // map that used to churn on every version bump. Values come from the Go-generated fnHashes table
 // (source of truth: operations.FnHashFor); nothing is hashed at runtime.

@@ -1,5 +1,5 @@
 // gen-sourcerewrite-fixtures regenerates the rewrite + source-map fixtures the
-// internal/compiler/sourcerewrite tests pin against:
+// pkg/compiler/sourcerewrite tests pin against:
 //
 //   - testdata/<name>.json      — one object per primary case (TestApply_Fixtures,
 //     TestComputeEdits_MatchesApply)
@@ -42,8 +42,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
 )
 
 // fixture is the JSON shape each fixture file (or array element) carries. It
@@ -285,13 +285,13 @@ func marshalPretty(value any) []byte {
 
 // testdataDir anchors the output directory to THIS source file (via runtime.Caller)
 // so the generator works from any CWD: cmd/gen-sourcerewrite-fixtures → the package's
-// testdata dir is ../../internal/compiler/sourcerewrite/testdata.
+// testdata dir is ../../pkg/compiler/sourcerewrite/testdata.
 func testdataDir() string {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		log.Fatal("gen-sourcerewrite-fixtures: runtime.Caller failed")
 	}
-	return filepath.Join(filepath.Dir(thisFile), "..", "..", "internal", "compiler", "sourcerewrite", "testdata")
+	return filepath.Join(filepath.Dir(thisFile), "..", "..", "pkg", "compiler", "sourcerewrite", "testdata")
 }
 
 func main() {

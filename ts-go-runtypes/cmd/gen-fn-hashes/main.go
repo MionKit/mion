@@ -1,7 +1,7 @@
 // gen-fn-hashes regenerates the TS mirror of the operation registry's
 // version-independent fnHashes at packages/run-types/src/go-generated/fnHashes.generated.ts.
 //
-// internal/cachegen/operations is the single source of truth for every RT
+// pkg/cachegen/operations is the single source of truth for every RT
 // operation and its fnHash (fnhash.go). This program enumerates the registry via
 // operations.All() and emits, for each marker fnKey, the `variant token → fnHash`
 // table the mion runtime's getFnHash resolves against. Because the fnHash

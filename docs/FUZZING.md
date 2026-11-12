@@ -176,7 +176,7 @@ Every lane runs at one of three budgets:
 
 | Tier | Set by | Where it runs | Rough size |
 | --- | --- | --- | --- |
-| default | nothing — the value baked into each test | `pnpm test`, `go test ./internal/...` | a handful of iterations: proof the harness runs, not coverage |
+| default | nothing — the value baked into each test | `pnpm test`, `go test ./pkg/...` | a handful of iterations: proof the harness runs, not coverage |
 | quick | `--quick` | **every PR**, in ci.yml | ~2x the default; ~3 min of runner time, split across the two CI jobs |
 | soak | `--soak` | release-gate.yml, and on demand via fuzz-soak.yml | one runner per lane under a 45-min cap; ~96 runner-minutes for a full round |
 
@@ -208,7 +208,7 @@ widens the two at once; asking one invocation for different budgets on both
 (`fuzz convert convertcli --quick`) is a hard error rather than a silent pick.
 
 The `convert` suite is the format-conversion sweep and lives Go-side
-(`ts-go-runtypes/internal/convert/fuzz_atoms_test.go`, where the printers
+(`ts-go-runtypes/pkg/convert/fuzz_atoms_test.go`, where the printers
 live): each iteration generates a random declaration file (atoms, literals,
 formats, containers, functions — named and optional-param arms — labeled and
 unlabeled tuples, Temporal leaves nested anywhere (all 8 unbranded
@@ -235,7 +235,7 @@ spelling and back. The inline probe is the only one exercising call-site
 conversion — the other two exercise the paths that skip it.
 
 Every lane also runs under the ordinary test commands — `go test
-./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
+./pkg/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
 the rest — at its DEFAULT budget. `miondevx core fuzz` is the tier / replay front
 door over those same commands, not a gate (`race` is the one lane it gates,
 since nothing else sets `MION_FUZZ_RACE=1`).

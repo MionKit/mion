@@ -30,7 +30,7 @@ export type PluralTemplate = {other: FriendlyTemplate} & Partial<Record<PluralCa
 export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
 /** The count-bearing constraint keys — the only ones whose template may be a
- *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
+ *  plural object. Mirror of Go's `CountBearing` (pkg/enrichment/classify.go). */
 type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
 /** Keys are optional because the compiler warns about a missing one (enrich-text-missing-message).

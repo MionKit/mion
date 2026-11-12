@@ -185,7 +185,7 @@ jobs:
         if: fromJSON(env.MION_LANES)['go-static'].run
         working-directory: ts-go-runtypes
         run: |
-          unformatted="$(gofmt -l cmd internal)"
+          unformatted="$(gofmt -l cmd pkg)"
           if [ -n "$unformatted" ]; then
             echo "These Go files are not gofmt-clean (run: pnpm run format):" >&2
             echo "$unformatted" >&2
@@ -194,7 +194,7 @@ jobs:
       - name: Go vet (our code only; never third_party)
         if: fromJSON(env.MION_LANES)['go-static'].run
         working-directory: ts-go-runtypes
-        run: $MION_WATCH go-static -- go vet ./cmd/... ./internal/...
+        run: $MION_WATCH go-static -- go vet ./cmd/... ./pkg/...
       - name: Record gofmt and vet as green
         if: success() && fromJSON(env.MION_LANES)['go-static'].run && !contains(env.MION_TAKEN_OVER, 'go-static')
         uses: ./.github/actions/save-lane-green

@@ -18,14 +18,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
 )
 
 // The enrichment layout constants, the enrichConfig type, its path helpers, and
-// the pure scaffold planner now live in the shared internal/enrichment/enrichgen
+// the pure scaffold planner now live in the shared pkg/enrichment/enrichgen
 // leaf package, so the OpEnrich daemon op and the CLI `enrich` verb compute
 // byte-identical mirrors over one implementation. These aliases keep the CLI call
 // sites terse; the JSONC plugin side-read below stays here (it is disk I/O the

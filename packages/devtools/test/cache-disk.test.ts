@@ -80,7 +80,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     }
     expect(rtFiles.length).toBeGreaterThan(0);
     const parsed = JSON.parse(fs.readFileSync(rtFiles[0], 'utf8'));
-    // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go), whose history lists every bump.
+    // Mirrors disk.FormatVersion (pkg/cachegen/diskcache/format.go), whose history lists every bump.
     expect(parsed.version).toBe(25);
     expect(typeof parsed.structuralID).toBe('string');
     expect(parsed.structuralID.length).toBeGreaterThan(0);
@@ -144,7 +144,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     // as ResolverClient does but adding the extra arg. For now,
     // accept that we can only assert the default path exists; the
     // hash-length isolation is covered by the Go-side fingerprint test
-    // (internal/cachegen/diskcache/disk_test.go::TestFingerprint_OptionIsolation).
+    // (pkg/cachegen/diskcache/disk_test.go::TestFingerprint_OptionIsolation).
     expect(fs.existsSync(cacheDirDefault)).toBe(true);
     expect(fs.readdirSync(cacheDirDefault).length).toBe(1);
     // Empty alt dir would also have been created if we'd run the alt

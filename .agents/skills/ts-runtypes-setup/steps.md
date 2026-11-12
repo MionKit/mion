@@ -23,7 +23,7 @@ Order of `main`. Each step skips when already satisfied.
 5. tsgolint pin: `scripts/core/ensure-tsgolint.mjs` (`--check` in check mode).
 6. `pnpm install --frozen-lockfile` if workspace `node_modules` missing.
 7. husky hooks: `pnpm exec husky` (`ignoreScripts: true` blocks auto-wiring). Failure non-fatal: CI still gates.
-8. Go resolver binary → `mion-bin/mion`. Skips if newer than every file under `cmd/` + `internal/`.
+8. Go resolver binary → `mion-bin/mion`. Skips if newer than every file under `cmd/` + `pkg/`.
 9. `packages/devtools/dist`: marker package typecheck consumes it. Needed for `pnpm test` + both smokes.
 10. Playwright's Chromium (`scripts/lib/playwright-chromium.mjs`): the build the root `@playwright/cli` pin wants,
     for card shots, card tests and `playwright-cli`. Skips when installed. Same helper as the Claude web setup.
@@ -37,7 +37,7 @@ Order of `main`. Each step skips when already satisfied.
 - ⚠️ NEVER `--recursive`: fetches the 620MB `typescript-go/_submodules/TypeScript` (original microsoft/TypeScript).
 - That corpus feeds only `typescript-go`'s conformance runner (`internal/testrunner`), never `go build ./cmd/mion`.
 - Checker lib `.d.ts` files are committed in `typescript-go/internal/bundled/libs`, baked in via `go:embed`.
-- Verified safe: binary builds + full `go test ./internal/...` passes without the corpus.
+- Verified safe: binary builds + full `go test ./pkg/...` passes without the corpus.
 - Clone rejected → retry with `GIT_CONFIG_GLOBAL=/dev/null`.
   - Why: managed hosts (e.g. Claude Code on the web) inject a git `insteadOf` routing `github.com` through a
     credential proxy scoped to THIS repo → 403 on the PUBLIC tsgolint submodule.

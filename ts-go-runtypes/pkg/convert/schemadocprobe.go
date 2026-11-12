@@ -1,0 +1,47 @@
+package convert
+
+// schemadocprobe.go renders a file's declarations through the runtime schema-document renderer
+// (pkg/schemadoc) and never prints convert output. It lives here because resolving declarations
+// to reflection nodes needs this package's recognizer and resolver harness.
+
+import (
+	"fmt"
+
+	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/runtype"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/reflection"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/schemadoc"
+)
+
+// SchemaDocPair is one declaration's rendered schema document.
+type SchemaDocPair struct {
+	Decl     string
+	Renderer string
+}
+
+// SchemaDocProbe renders every resolvable non-generic declaration of absPath
+// through schemadoc.RenderDocument.
+func SchemaDocProbe(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) ([]SchemaDocPair, error) {
+	sourceFile := prog.SourceFile(absPath)
+	if sourceFile == nil {
+		return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
+	}
+	decls := recognizeFile(sourceFile, typeChecker, markerOpts)
+	var pairs []SchemaDocPair
+	for _, decl := range decls {
+		if decl.Generic {
+			continue
+		}
+		resolved, resolveErr := resolveDecl(typeChecker, cache, decl)
+		if resolveErr != nil {
+			continue
+		}
+		doc := schemadoc.RenderDocument(resolved.Node, func(node *reflection.RunType) *reflection.RunType {
+			return resolved.Resolve(node.ID)
+		})
+		pairs = append(pairs, SchemaDocPair{Decl: declLabel(decl), Renderer: doc.Source})
+	}
+	return pairs, nil
+}

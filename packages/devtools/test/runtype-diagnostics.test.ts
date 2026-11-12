@@ -506,7 +506,7 @@ export const enc = createJsonEncoderFn<{root: Node}>(undefined, {strategy: 'muta
 
   // The matching NEGATIVE case — same code and site, different args, both
   // surviving — is covered by TestDedupe_KeepsSameSiteDifferentArgs in
-  // internal/diagnostics/dedupe_test.go rather than here, because the pipeline
+  // pkg/diagnostics/dedupe_test.go rather than here, because the pipeline
   // cannot currently produce that shape end-to-end: Walker.EmitDiagnostic's
   // per-walk latch is keyed on the CODE alone, so a single walk emits any given
   // code at most once whatever its args. Asserting it at this layer would pin

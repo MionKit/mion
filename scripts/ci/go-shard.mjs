@@ -3,10 +3,10 @@
 import {GO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, runAsync} from '../lib/proc.mjs';
 
-const PATTERNS = ['./internal/...', './cmd/...'];
+const PATTERNS = ['./pkg/...', './cmd/...'];
 const MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 // The packages whose tests run one at a time for minutes (resolver 261 s, convert 250 s, apitypes 133 s in CI).
-export const HEAVY = [`${MODULE}/internal/compiler/resolver`, `${MODULE}/internal/convert`, `${MODULE}/internal/compiler/apitypes`];
+export const HEAVY = [`${MODULE}/pkg/compiler/resolver`, `${MODULE}/pkg/convert`, `${MODULE}/pkg/compiler/apitypes`];
 // What `go test -run` selects: tests, examples and fuzz seed corpora. Benchmarks only run with -bench.
 const RUNNABLE = /^(Test|Example|Fuzz)\w*$/;
 // The line `go test -list` ends each package's names with.

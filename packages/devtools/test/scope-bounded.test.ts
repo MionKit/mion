@@ -4,7 +4,7 @@
 // type alias the file happens to declare.
 //
 // Tightens the Go-side TestScope_UnreferencedTypesAreNotProjected (in
-// internal/compiler/resolver/perfile_test.go) with a full-pipeline assertion:
+// pkg/compiler/resolver/perfile_test.go) with a full-pipeline assertion:
 // the cache module body has to evaluate cleanly and its populated
 // cache table must NOT carry any node for the unreferenced aliases.
 
