@@ -198,4 +198,15 @@ describe('getExePath — @mionkit/pro-bin-compiler', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('@mionkit/pro-bin-compiler at');
   });
+
+  it('ignores a launcher installed above the project', () => {
+    const outer = projectWithPro(MATCHING);
+    const project = path.join(outer, 'nested/project');
+    fs.mkdirSync(project, {recursive: true});
+    fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({name: 'plain', private: true}));
+    expect(lookup(project).stdout.trim()).toBe(DEV_EXE);
+    // A workspace member still finds the launcher its workspace root installs.
+    fs.writeFileSync(path.join(outer, 'pnpm-workspace.yaml'), "packages: ['nested/*']\n");
+    expect(lookup(project).stdout.trim()).toBe('/pro/bin/mion-pro');
+  });
 });

@@ -52,13 +52,44 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// The pro launcher's directory: node_modules/@mionkit/pro-bin-compiler in `start` or an ancestor, as Node looks.
-// A walk, not require.resolve, so an ESM-only exports map needs no `require` condition.
+// The project a lookup starts in: the nearest directory outside node_modules that holds a package.json, widened
+// to its workspace root (pnpm-workspace.yaml, or a package.json with `workspaces`). The launcher walk stops there,
+// so a launcher installed in some ancestor (a stray one in $HOME) never takes over a project below it.
+function projectBoundary(start) {
+  const project = nearestProject(start);
+  if (!project) return null;
+  for (let dir = project; ; dir = path.dirname(dir)) {
+    if (isWorkspaceRoot(dir)) return dir;
+    if (path.dirname(dir) === dir) return project;
+  }
+}
+
+function nearestProject(start) {
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    if (!dir.split(path.sep).includes('node_modules') && fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    if (path.dirname(dir) === dir) return null;
+  }
+}
+
+function isWorkspaceRoot(dir) {
+  if (fs.existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return true;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).workspaces !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+// The pro launcher's directory: node_modules/@mionkit/pro-bin-compiler in `start` or an ancestor up to the project
+// boundary, as Node looks. A walk on disk, not require.resolve, so an ESM-only exports map needs no `require`
+// condition; Yarn Plug'n'Play installs, which have no node_modules, are not found.
 function findProLauncher(start) {
+  const boundary = projectBoundary(start);
+  if (!boundary) return null;
   for (let dir = start; ; dir = path.dirname(dir)) {
     const candidate = path.join(dir, 'node_modules', PRO_LAUNCHER);
     if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
-    if (path.dirname(dir) === dir) return null;
+    if (dir === boundary || path.dirname(dir) === dir) return null;
   }
 }
 
