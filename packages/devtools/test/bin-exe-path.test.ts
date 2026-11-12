@@ -106,3 +106,70 @@ describe('mion CLI — MION_BIN reaches the exec', () => {
     expect(result.stderr).toContain('MION_BIN=');
   });
 });
+
+// An installed pro launcher takes over the lookup. Each case runs getExePath in a child whose cwd holds a stub
+// `node_modules/@mionkit/pro-bin-compiler`, since vitest workers cannot chdir.
+describe('getExePath — @mionkit/pro-bin-compiler', () => {
+  const LAUNCHER = path.join(REPO_ROOT, 'packages/bin-compiler/lib/index.js');
+  const OWN_VERSION: string = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'packages/bin-compiler/package.json'), 'utf8')
+  ).version;
+
+  function projectWithPro(body: string): string {
+    const project = makeTempDir();
+    const pro = path.join(project, 'node_modules/@mionkit/pro-bin-compiler');
+    fs.mkdirSync(path.join(pro, 'lib'), {recursive: true});
+    fs.writeFileSync(
+      path.join(pro, 'package.json'),
+      JSON.stringify({name: '@mionkit/pro-bin-compiler', type: 'module', exports: {'.': {import: './lib/index.js'}}})
+    );
+    fs.writeFileSync(path.join(pro, 'lib/index.js'), body);
+    return project;
+  }
+
+  function lookup(cwd: string, env: Record<string, string | undefined> = {}) {
+    const script = `import {getExePath} from ${JSON.stringify(LAUNCHER)};\nconsole.log(getExePath());\n`;
+    const childEnv: Record<string, string | undefined> = {...process.env, ...env};
+    if (env['MION_BIN'] === undefined) delete childEnv['MION_BIN'];
+    return spawnSync(process.execPath, ['--input-type=module', '-e', script], {cwd, encoding: 'utf8', env: childEnv});
+  }
+
+  it('returns the pro launcher binary when its mion version matches', () => {
+    const project = projectWithPro(
+      `export const mionVersion = ${JSON.stringify(OWN_VERSION)};\nexport function getExePath() { return '/pro/bin/mion-pro'; }\n`
+    );
+    const result = lookup(project);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe('/pro/bin/mion-pro');
+  });
+
+  it('MION_BIN beats the pro launcher', () => {
+    const project = projectWithPro(
+      `export const mionVersion = ${JSON.stringify(OWN_VERSION)};\nexport function getExePath() { return '/pro/bin/mion-pro'; }\n`
+    );
+    expect(lookup(project, {MION_BIN: DEV_EXE}).stdout.trim()).toBe(DEV_EXE);
+  });
+
+  it('throws naming both versions on a mismatch', () => {
+    const project = projectWithPro(
+      `export const mionVersion = '0.0.1-other';\nexport function getExePath() { return '/pro/bin/mion-pro'; }\n`
+    );
+    const result = lookup(project);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('0.0.1-other');
+    expect(result.stderr).toContain(`@mionjs/bin-compiler is ${OWN_VERSION}`);
+  });
+
+  it('propagates a throwing pro launcher', () => {
+    const project = projectWithPro(
+      `export const mionVersion = ${JSON.stringify(OWN_VERSION)};\nexport function getExePath() { throw new Error('pro launcher broke'); }\n`
+    );
+    const result = lookup(project);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pro launcher broke');
+  });
+
+  it('changes nothing without a pro launcher', () => {
+    expect(lookup(makeTempDir()).stdout.trim()).toBe(DEV_EXE);
+  });
+});
