@@ -1,9 +1,8 @@
-package main
+package cli
 
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -120,33 +119,5 @@ func TestReportEnrichDiagnostics_TextHidesInfo(t *testing.T) {
 	stdout, _ = captureReport(t, diags, true, false)
 	if !strings.Contains(stdout, `"enrich-text-plural-without-count"`) {
 		t.Errorf("the JSON report must keep Info:\n%s", stdout)
-	}
-}
-
-// The tsconfig plugin key decides the enrich report's Info, and a wrong value is refused like `mion compile` does.
-func TestTsconfigShowInfo(t *testing.T) {
-	dir := canonicalTempDir(t)
-	cases := []struct {
-		name, tsconfig string
-		want           bool
-		wantErr        bool
-	}{
-		{"no plugin entry", `{"compilerOptions":{}}`, false, false},
-		{"no levels key", `{"compilerOptions":{"plugins":[{"name":"mion"}]}}`, false, false},
-		{"levels all", `{"compilerOptions":{"plugins":[{"name":"mion","levels":"all"}]}}`, true, false},
-		{"wrong value", `{"compilerOptions":{"plugins":[{"name":"mion","levels":"warning"}]}}`, false, true},
-	}
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			path := filepath.Join(dir, strings.ReplaceAll(testCase.name, " ", "-")+".json")
-			writeTestFile(t, path, testCase.tsconfig)
-			got, err := tsconfigShowInfo(path)
-			if (err != nil) != testCase.wantErr || got != testCase.want {
-				t.Errorf("tsconfigShowInfo = %v, %v; want %v, error %v", got, err, testCase.want, testCase.wantErr)
-			}
-		})
-	}
-	if got, err := tsconfigShowInfo(""); got || err != nil {
-		t.Errorf("no tsconfig must hide Info: %v, %v", got, err)
 	}
 }

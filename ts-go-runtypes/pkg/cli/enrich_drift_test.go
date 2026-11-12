@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"path/filepath"
@@ -10,7 +10,7 @@ import (
 
 // checkMirrorFileTest is what runMirrorDriftCheck does per mirror file, with the tsconfig read from the t.Chdir'd cwd.
 func checkMirrorFileTest(mirrorFile string) []driftFinding {
-	tsconfigPath, parsed := resolveEnrichProject("")
+	tsconfigPath, parsed := ResolveProject("")
 	return checkMirrorFile(mirrorFile, "", tsconfigPath, parsed)
 }
 

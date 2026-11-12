@@ -13,12 +13,12 @@ code in one file. For example the hand-written render helpers in
 
 ## What's here
 
-| File                                | Generator                                                           | Go source of truth                                                  |
-| ----------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `pkg/constants/constants.go`                                   |
+| File                                | Generator                                                           | Go source of truth                                        |
+| ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `pkg/constants/constants.go`                              |
 | `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `pkg/reflection/runtype.go` + `pkg/reflection/subkind.go` |
-| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics/messages.go`                                  |
-| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `cmd/mion/config.go` (`tsRuntypesPlugin` json tags)                 |
+| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics/messages.go`                             |
+| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `pkg/cli/config.go` (`tsRuntypesPlugin` json tags)        |
 
 ## Regenerate
 

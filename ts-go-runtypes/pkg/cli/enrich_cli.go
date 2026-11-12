@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -187,7 +187,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 		wantFriendly, wantMock = true, true
 	}
 
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	config := resolveEnrichConfig(absPath, genDirFlag, tsconfigPath, parsed)
 
 	// Self-document the genDir tree when actually writing: the root + enriched
@@ -225,7 +225,11 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 	// Check flag: report the target mirrors' health, write nothing.
 	if checkOnly {
 		diags := checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength)
-		os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
+		showInfo, err := ShowInfo(tsconfigPath)
+		if err != nil {
+			fatal("enrich: %v", err)
+		}
+		os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, showInfo))
 	}
 
 	// Write lane: write / reconcile each family mirror.
@@ -304,7 +308,7 @@ func runEnrichBatch(files []string, typeName, tsconfigFlag string) {
 	if len(absPaths) == 0 {
 		fatal("enrich --files: no files given")
 	}
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	// The batch skeletons are structural previews (no committed @rtType ids), but
 	// thread the project hashLength anyway so a future hash-bearing skeleton stays
 	// build-consistent; resolveEnrichConfig anchors on the first file.
@@ -388,43 +392,4 @@ func mustAbs(path string) string {
 		fatal("resolve path %q: %v", path, err)
 	}
 	return canonicalize(abs)
-}
-
-// enrichCwd is the working directory every enrich verb resolves against, in the
-// ONE canonical symlink space. os.Getwd is not stable enough to compare against
-// on its own: it prefers $PWD when that is valid, so the cwd it reports is
-// symlink-spelled under an interactive shell but fully kernel-resolved when the
-// process was started with a chdir that left $PWD stale (any spawn that passes a
-// cwd option). Canonicalizing both ends — here and in mustAbs — is what makes
-// RootDir and an absolute file argument comparable no matter how we were invoked.
-func enrichCwd(what string) string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		fatal("%s: getwd: %v", what, err)
-	}
-	return canonicalize(cwd)
-}
-
-// canonicalize rewrites an absolute path into the ONE canonical symlink space
-// (see enrichCwd). Without it a path the user spelled through a symlink — macOS
-// hands out /var/folders/... for a $TMPDIR that really is /private/var/folders/...
-// — can share no prefix with RootDir, so the mirror's RootDir-relative sub-path
-// escapes with ".." and MirrorRel silently collapses it to the source's base
-// name, mapping two same-named sources onto one mirror. Symlinks are resolved on
-// the longest EXISTING prefix so a not-yet-created leaf (an `--out` target) keeps
-// its spelling appended.
-func canonicalize(abs string) string {
-	tail := ""
-	for current := abs; ; {
-		resolved, err := filepath.EvalSymlinks(current)
-		if err == nil {
-			return filepath.Join(resolved, tail)
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			return abs
-		}
-		tail = filepath.Join(filepath.Base(current), tail)
-		current = parent
-	}
 }

@@ -6,7 +6,7 @@
 // the run rewrote as JSON. The drizzle-e2e lane crosses that report against the
 // manifests, so a migrated builder no vendored suite exercises is caught rather
 // than quietly counted as covered.
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -82,7 +82,7 @@ drizzle; any such refusal makes the exit code non-zero.
 	for _, file := range files {
 		absFiles = append(absFiles, tspath.NormalizePath(mustAbs(file)))
 	}
-	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	_, parsed := ResolveProject(*tsconfigFlag)
 	cwd := filepath.Dir(absFiles[0])
 	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots(absFiles, convertConfigRoots(parsed, rootDir, *outDirFlag)))
 	if progErr != nil {

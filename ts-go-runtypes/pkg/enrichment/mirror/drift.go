@@ -15,7 +15,7 @@ import (
 
 // drift.go is the shared core of the breadcrumb-drift checks, both the CLI check lane and the resolver's checkEnrich pass:
 // does the mirror's source breadcrumb still resolve (enrich-mirror-source-missing), and does that source still declare every imported type (enrich-mirror-type-missing)?
-// enrich-mirror-moved, mirror LOCATION drift, needs the project's genDir config and so stays with the CLI in cmd/mion.
+// enrich-mirror-moved, mirror LOCATION drift, needs the project's genDir config and so stays with the CLI in pkg/cli.
 
 // breadcrumbPattern matches a mirror's source breadcrumb, group 1 the type names and group 2 the module specifier.
 // It is deliberately line-oriented and tolerant; only the first such line is read, the DSL and value imports are ignored.

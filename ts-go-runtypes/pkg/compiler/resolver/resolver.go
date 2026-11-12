@@ -490,3 +490,38 @@ func (sess *Session) MarkerOptions() marker.Options { return sess.marker }
 func (sess *Session) Sites() []protocol.Site {
 	return append([]protocol.Site(nil), sess.sites...)
 }
+
+// programSourceFiles skips declaration files, as scanAllProgramFiles does: the largest ASTs, and nothing a pass reads.
+func (sess *Session) programSourceFiles() []string {
+	if sess.Program == nil || sess.Program.TS == nil {
+		return nil
+	}
+	sourceFiles := sess.Program.TS.SourceFiles()
+	files := make([]string, 0, len(sourceFiles))
+	for _, sourceFile := range sourceFiles {
+		if sourceFile == nil || sourceFile.IsDeclarationFile {
+			continue
+		}
+		if name := sourceFile.FileName(); name != "" {
+			files = append(files, name)
+		}
+	}
+	return files
+}
+
+// ensureInferredConfig lazily parses and caches the session's tsconfig, so every lane resolves
+// rootDir / genDir exactly as the build does; (nil, nil) means no config was named and the fixed inferred
+// defaults apply. Also freezes configDeclarationRoots, the `.d.ts` subset every setSources-built Program
+// unions into its roots.
+func (sess *Session) ensureInferredConfig(cwd string) (*program.InferredConfig, error) {
+	if !sess.inferredConfigDone {
+		inferredConfig, err := program.ParseInferredConfig(cwd, sess.opts.TsconfigPath)
+		if err != nil {
+			return nil, err
+		}
+		sess.inferredConfig = inferredConfig
+		sess.inferredConfigDone = true
+		sess.configDeclarationRoots = inferredConfig.DeclarationFileNames()
+	}
+	return sess.inferredConfig, nil
+}
