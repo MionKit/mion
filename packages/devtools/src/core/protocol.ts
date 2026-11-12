@@ -320,8 +320,7 @@ export interface Request {
   ext?: Record<string, unknown>;
 }
 
-// Capabilities mirrors Go protocol.Capabilities: what the binary's extensions add, mion's own rows never listed.
-// The public binary answers every list empty.
+// Mirrors Go protocol.Capabilities: extension rows only, so the public binary answers every list empty.
 export interface Capabilities {
   extensions: {name: string; version: string}[];
   ops: string[];

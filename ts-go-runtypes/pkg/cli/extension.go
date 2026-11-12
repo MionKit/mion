@@ -10,9 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
 )
 
-// Extension is what a binary built on mion adds; cmd/mion passes none. Every row joins the same table as
-// mion's own rows: a name mion already has panics unless the row sets Replace, and Replace on a name mion
-// does not have panics too, so the bump that deletes a built-in forces the switch back to a plain row.
+// Extension is what a binary built on mion adds; cmd/mion passes none. Rows follow resolver.Registry's Replace rules.
 // An extension never feeds a typeID, fnHash or disk fingerprint: it must never change a public answer.
 // Every row, and any diagnostics.Register* call, happens before cli.Main serves: the tables are not locked.
 type Extension struct {
@@ -39,8 +37,7 @@ type PluginKey struct {
 	Replace bool
 }
 
-// SessionFlags is a group of flags on the commands that build a session ("serve", "compile", …): Register
-// adds them to the command's FlagSet and returns what applies them once the config is resolved.
+// SessionFlags is a group of flags on session-building commands; Register returns what applies them once resolved.
 type SessionFlags struct {
 	Name     string
 	Commands []string // "serve", "compile": where the flags exist

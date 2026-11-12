@@ -579,8 +579,7 @@ func sameTransformPath(tagged, requested, requestedAbs string) bool {
 	return strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
 }
 
-// dispatch is the un-instrumented op lookup: every op, built-in or extension, is a row of the op table.
-// metrics may be nil (the no-IncludeMetrics fast path); phase recordings are guarded per site.
+// dispatch is the un-instrumented op lookup; metrics may be nil (no IncludeMetrics), so phase recordings are guarded.
 func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metrics) protocol.Response {
 	op, ok := opTable.Get(request.Op)
 	if !ok {
@@ -622,8 +621,7 @@ func (sess *Session) opScanFiles(request protocol.Request, metrics *protocol.Met
 	addedRunTypes := len(added) > 0
 	combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
 	combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
-	// Run after cache.Added(before): a check can intern types (enrichment, route rules), which must stay out of the
-	// HMR signals.
+	// After cache.Added(before): a check can intern types (enrichment, route rules) that must stay out of HMR signals.
 	for _, check := range scanCheckTable.List() {
 		if check.Enabled(request) {
 			combinedDiagnostics = append(combinedDiagnostics, check.Run(sess, request.Files)...)

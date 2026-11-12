@@ -217,9 +217,8 @@ type Response struct {
 	Error        string        `json:"error,omitempty"`
 }
 
-// Capabilities lists the extension rows a binary registered (mion's own rows never appear), so a host can
-// reach them: the ops it may send, the scan checks to switch on through Request.Ext, the codes to render.
-// The public binary answers every list empty.
+// Capabilities lists only the extension rows a binary registered, so a host can reach them; the public binary
+// answers every list empty.
 type Capabilities struct {
 	Extensions  []ExtensionInfo            `json:"extensions"`
 	Ops         []string                   `json:"ops"`

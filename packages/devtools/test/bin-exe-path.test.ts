@@ -107,8 +107,7 @@ describe('mion CLI — MION_BIN reaches the exec', () => {
   });
 });
 
-// An installed pro launcher takes over the lookup. Each case runs getExePath in a child whose cwd holds a stub
-// `node_modules/@mionkit/pro-bin-compiler`, since vitest workers cannot chdir.
+// Each case runs getExePath in a child process, since vitest workers cannot chdir.
 describe('getExePath — @mionkit/pro-bin-compiler', () => {
   const LAUNCHER = path.join(REPO_ROOT, 'packages/bin-compiler/lib/index.js');
   const OWN_VERSION: string = JSON.parse(
