@@ -62,7 +62,7 @@ var systemNoiseEntries = map[string]bool{
 
 // isIgnorableOutputEntry reports a RunTypes-owned member or harmless OS noise, which never trips the guard.
 func isIgnorableOutputEntry(name string) bool {
-	if _, owned := genDirTable.rows[name]; owned || systemNoiseEntries[name] {
+	if _, owned := genDirTable.Get(name); owned || systemNoiseEntries[name] {
 		return true
 	}
 	return strings.HasPrefix(name, "._") // macOS AppleDouble resource-fork sibling
@@ -91,7 +91,7 @@ func ensureOutDirAvailable(outDir string) error {
 		}
 		// A Dir entry (`types`, `enriched`, …) counts as ours only as a directory; a plain file by that name would otherwise
 		// fail later at MkdirAll with an opaque "not a directory" error.
-		if row, owned := genDirTable.rows[name]; owned && row.Dir && !entry.IsDir() {
+		if row, owned := genDirTable.Get(name); owned && row.Dir && !entry.IsDir() {
 			return fmt.Errorf("refusing to generate RunTypes output into %s: %q exists but is not a directory. "+
 				"RunTypes manages `%s/` as a generated output subdirectory, so a plain file by that name means `genDir` points at a pre-existing directory. "+
 				"Remove or rename the file, or point `genDir` at a dedicated folder used only for RunTypes output.",
@@ -165,7 +165,7 @@ func EnsureOutputHygiene(outDir, typesDir string) error {
 	if err := writeIfAbsent(filepath.Join(outDir, "README.md"), genDirReadme()); err != nil {
 		return err
 	}
-	for _, entry := range genDirTable.list() {
+	for _, entry := range genDirTable.List() {
 		if !entry.Dir || entry.Readme == "" || entry.Name == typesSubdir {
 			continue
 		}
@@ -180,7 +180,7 @@ func EnsureOutputHygiene(outDir, typesDir string) error {
 	if err := writeGeneratedDirIgnores(typesDir); err != nil {
 		return err
 	}
-	return writeIfAbsent(filepath.Join(typesDir, "README.md"), genDirTable.rows[typesSubdir].Readme)
+	return writeIfAbsent(filepath.Join(typesDir, "README.md"), typesReadme())
 }
 
 // unwritableOutDirError wraps a write failure with an actionable message: files-mode has NO
@@ -391,4 +391,10 @@ func pruneStaleModules(typesDir string, live map[string]string, ext string) erro
 		}
 		return os.Remove(path)
 	})
+}
+
+// typesReadme is the types/ row's own README.
+func typesReadme() string {
+	row, _ := genDirTable.Get(typesSubdir)
+	return row.Readme
 }

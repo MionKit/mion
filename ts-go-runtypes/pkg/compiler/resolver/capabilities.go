@@ -26,12 +26,12 @@ func (sess *Session) opCapabilities(protocol.Request, *protocol.Metrics) protoco
 		ScanChecks:  []protocol.ScanCheckInfo{},
 		Diagnostics: diagnostics.Catalog(func(definition diagnostics.Definition) bool { return definition.Owner != "" }),
 	}
-	for _, op := range opTable.list() {
+	for _, op := range opTable.List() {
 		if op.Owner != "" {
 			capabilities.Ops = append(capabilities.Ops, op.Name)
 		}
 	}
-	for _, check := range scanCheckTable.list() {
+	for _, check := range scanCheckTable.List() {
 		if check.Owner != "" {
 			capabilities.ScanChecks = append(capabilities.ScanChecks, protocol.ScanCheckInfo{
 				Name: check.Name, Family: diagnostics.FamilyLabel(check.Family), Probe: check.Probe,
