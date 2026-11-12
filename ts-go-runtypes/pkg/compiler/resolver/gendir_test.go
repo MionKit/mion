@@ -35,6 +35,21 @@ func TestGenDir_MionReadmeUnchanged(t *testing.T) {
 	}
 }
 
+// The enrich CLI self-documents a genDir that does not exist yet, before any types/: the root README and the
+// enriched/ folder must still land, and only the missing types/ fails.
+func TestGenDir_HygieneOnAMissingDir(t *testing.T) {
+	outDir := filepath.Join(t.TempDir(), "gen")
+	if err := EnsureOutputHygiene(outDir, filepath.Join(outDir, typesSubdir)); err == nil {
+		t.Fatal("types/ does not exist, so its ignores cannot be written")
+	}
+	if got := readFile(t, filepath.Join(outDir, "README.md")); got != mionGenDirReadme {
+		t.Fatalf("genDir README on a fresh dir:\n%s", got)
+	}
+	if readFile(t, filepath.Join(outDir, "enriched", "README.md")) == "" {
+		t.Fatal("enriched/README.md not written on a fresh dir")
+	}
+}
+
 func TestGenDir_ExtensionEntry(t *testing.T) {
 	withTables(t)
 	RegisterGenDirEntry(GenDirEntry{Name: "extra", Dir: true, Owner: "ext", Bullet: "- `extra/` — an extension's output.\n", Readme: "# Extra\n"})
