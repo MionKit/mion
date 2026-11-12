@@ -162,3 +162,22 @@ func TestReadPlugin(t *testing.T) {
 func TestExtension_NeedsAName(t *testing.T) {
 	mustPanic(t, "an extension needs a Name", func() { install(Extension{}) })
 }
+
+// ReadPlugin, findTsRuntypesPlugin and unknownPluginKeys share one search: the first entry named mion wins, and an
+// entry that is not an object is skipped by all of them.
+func TestPluginEntry_OneSearch(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
+		`{"compilerOptions":{"plugins":["junk",{"name":"other","x":1},{"name":"mion","genDir":"g","xFirst":1},{"name":"mion","xSecond":1}]}}`)
+	entry, found, err := ReadPlugin(filepath.Join(dir, "tsconfig.json"))
+	if err != nil || !found || string(entry["xFirst"]) != "1" {
+		t.Fatalf("ReadPlugin = %v, %v, %v", entry, found, err)
+	}
+	parsed, _ := parseTsconfig(filepath.Join(dir, "tsconfig.json"))
+	if plugin, found, err := findTsRuntypesPlugin(parsed); err != nil || !found || plugin.GenDir != "g" {
+		t.Fatalf("findTsRuntypesPlugin = %+v, %v, %v", plugin, found, err)
+	}
+	if got := unknownPluginKeys(dir, "tsconfig.json"); !slices.Equal(got, []string{"xFirst"}) {
+		t.Fatalf("unknownPluginKeys = %v", got)
+	}
+}
