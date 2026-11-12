@@ -17,6 +17,18 @@ import {rules} from '../src/lint/index.ts';
 import {runRule} from './eslint/fixture.ts';
 import {LintSession} from '../src/lint/session.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
+import type * as PublicApi from '../src/index.ts';
+
+// Every type a hook's context exposes is importable from the package root (checked by tsc).
+type HookTypes = [
+  PublicApi.MionExtensionContext,
+  PublicApi.ResolverConnection,
+  PublicApi.Diagnostic,
+  PublicApi.DiagnosticEntry,
+  PublicApi.Response,
+  PublicApi.Capabilities,
+];
+const hookTypesExported: HookTypes | null = null;
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/run-types');
@@ -54,6 +66,10 @@ function stubClient(answer: (request: Request) => Response): {client: ResolverSt
 const NO_CAPABILITIES: Capabilities = {extensions: [], ops: [], scanChecks: [], diagnostics: []};
 
 describe('ResolverConnection.request / capabilities', () => {
+  it('exports every type a hook works with from the package root', () => {
+    expect(hookTypesExported).toBeNull();
+  });
+
   it('sends any op unchanged, with its files and ext', async () => {
     const {client, sent} = stubClient((request) => (request.op === 'xOp' ? {ext: {echo: request.ext}} : {}));
     const response = await client.request('xOp', {files: ['a.ts'], ext: {flag: true}});
