@@ -115,13 +115,20 @@ describe('getExePath — @mionkit/pro-bin-compiler', () => {
     fs.readFileSync(path.join(REPO_ROOT, 'packages/bin-compiler/package.json'), 'utf8')
   ).version;
 
-  function projectWithPro(body: string): string {
-    const project = makeTempDir();
+  const MATCHING = `export const mionVersion = ${JSON.stringify(OWN_VERSION)};\nexport function getExePath() { return '/pro/bin/mion-pro'; }\n`;
+
+  // A project (its own package.json) holding a stub launcher whose manifest carries `exportsField`.
+  function projectWithPro(
+    body: string,
+    exportsField: unknown = {'.': {import: './lib/index.js'}},
+    project = makeTempDir()
+  ): string {
+    fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({name: 'consumer', private: true}));
     const pro = path.join(project, 'node_modules/@mionkit/pro-bin-compiler');
     fs.mkdirSync(path.join(pro, 'lib'), {recursive: true});
     fs.writeFileSync(
       path.join(pro, 'package.json'),
-      JSON.stringify({name: '@mionkit/pro-bin-compiler', type: 'module', exports: {'.': {import: './lib/index.js'}}})
+      JSON.stringify({name: '@mionkit/pro-bin-compiler', type: 'module', main: './lib/index.js', exports: exportsField})
     );
     fs.writeFileSync(path.join(pro, 'lib/index.js'), body);
     return project;
@@ -171,5 +178,24 @@ describe('getExePath — @mionkit/pro-bin-compiler', () => {
 
   it('changes nothing without a pro launcher', () => {
     expect(lookup(makeTempDir()).stdout.trim()).toBe(DEV_EXE);
+  });
+
+  it('reads every exports shape that names an ESM entry', () => {
+    for (const exportsField of [
+      './lib/index.js',
+      {import: './lib/index.js'},
+      {'.': {import: {types: './lib/index.d.ts', default: './lib/index.js'}}},
+      {'.': [{import: './lib/index.js'}]},
+      undefined,
+    ]) {
+      const result = lookup(projectWithPro(MATCHING, exportsField));
+      expect(result.stdout.trim(), JSON.stringify(exportsField)).toBe('/pro/bin/mion-pro');
+    }
+  });
+
+  it('names the package when its exports offer no loadable entry', () => {
+    const result = lookup(projectWithPro(MATCHING, {'.': {require: './lib/index.cjs'}}));
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('@mionkit/pro-bin-compiler at');
   });
 });
