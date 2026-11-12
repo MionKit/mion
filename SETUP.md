@@ -354,7 +354,7 @@ printf '%s\n%s\n' \
 
 ### Pointing a consumer project at a specific binary (`MION_BIN`)
 
-Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` resolves, first match wins: `MION_BIN`, then an installed `@mionkit/pro-bin-compiler` launcher (its `mionVersion` must equal `@mionjs/bin-compiler`'s version, or the lookup throws), then the per-platform `@mionjs/native-compiler-<os>-<arch>` package. **`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
+Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` resolves, first match wins: `MION_BIN`, then an installed `@mionkit/pro-bin-compiler` launcher (its `mionVersion` must equal `@mionjs/bin-compiler`'s version, or the lookup throws; it is looked for in `node_modules` from the working directory up to the project's workspace root, so one installed above the project is ignored and a Yarn Plug'n'Play install is not found), then the per-platform `@mionjs/native-compiler-<os>-<arch>` package. **`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
 
 ```bash
 MION_BIN=/abs/path/to/mion pnpm run lint     # in the consumer project
