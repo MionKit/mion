@@ -19,16 +19,8 @@ import (
 // withCliTables restores the cli tables when the test ends; resolver rows persist, so each test names its own.
 func withCliTables(t *testing.T) {
 	t.Helper()
-	commands, flags, keys := cloneTable(commandTable), cloneTable(sessionFlagsTable), cloneTable(pluginKeyTable)
-	t.Cleanup(func() { *commandTable, *sessionFlagsTable, *pluginKeyTable = commands, flags, keys })
-}
-
-func cloneTable[T any](rows *table[T]) table[T] {
-	copied := make(map[string]T, len(rows.rows))
-	for name, row := range rows.rows {
-		copied[name] = row
-	}
-	return table[T]{kind: rows.kind, order: slices.Clone(rows.order), rows: copied}
+	commands, flags, keys := commandTable.Clone(), sessionFlagsTable.Clone(), pluginKeyTable.Clone()
+	t.Cleanup(func() { *commandTable, *sessionFlagsTable, *pluginKeyTable = *commands, *flags, *keys })
 }
 
 func mustPanic(t *testing.T, want string, call func()) {
@@ -76,7 +68,7 @@ func TestExtension_DuplicateAndReplace(t *testing.T) {
 	mustPanic(t, "duplicate registration of command serve", func() { registerCommand(Command{Name: "serve", Run: run}) })
 	mustPanic(t, "nothing to replace", func() { registerCommand(Command{Name: "xabsent", Run: run, Replace: true}) })
 	registerCommand(Command{Name: "serve", Help: "serve       replaced", Run: run, Replace: true})
-	if commandTable.rows["serve"].Help != "serve       replaced" || commandTable.order[0] != "serve" {
+	if row, _ := commandTable.Get("serve"); row.Help != "serve       replaced" || commandTable.Names()[0] != "serve" {
 		t.Fatal("Replace must swap the row in place")
 	}
 

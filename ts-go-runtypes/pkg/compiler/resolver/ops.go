@@ -29,51 +29,14 @@ type ScanCheck struct {
 	Replace bool
 }
 
-// registry is one extension table: rows by name in registration order. A name already present panics unless the
-// row replaces it, and replacing an absent name panics, so the bump that deletes a built-in forces a plain row.
-type registry[T any] struct {
-	kind  string
-	order []string
-	rows  map[string]T
-}
-
-func newRegistry[T any](kind string) *registry[T] {
-	return &registry[T]{kind: kind, rows: map[string]T{}}
-}
-
-func (table *registry[T]) add(name string, row T, replace bool) {
-	if name == "" {
-		panic("resolver: " + table.kind + " registered without a name")
-	}
-	_, exists := table.rows[name]
-	switch {
-	case exists && !replace:
-		panic("resolver: duplicate registration of " + table.kind + " " + name)
-	case !exists && replace:
-		panic("resolver: " + table.kind + " " + name + " is not registered, so there is nothing to replace")
-	case !exists:
-		table.order = append(table.order, name)
-	}
-	table.rows[name] = row
-}
-
-// list returns the rows in registration order; a replaced row keeps its slot.
-func (table *registry[T]) list() []T {
-	out := make([]T, 0, len(table.order))
-	for _, name := range table.order {
-		out = append(out, table.rows[name])
-	}
-	return out
-}
-
 var (
-	opTable        = newRegistry[Op]("op")
-	scanCheckTable = newRegistry[ScanCheck]("scan check")
+	opTable        = NewRegistry[Op]("op")
+	scanCheckTable = NewRegistry[ScanCheck]("scan check")
 )
 
 // RegisterOp adds an op to the table dispatch looks every request up in.
 func RegisterOp(op Op) {
-	opTable.add(op.Name, op, op.Replace)
+	opTable.Add(op.Name, op, op.Replace)
 }
 
 // RegisterScanCheck adds a pass to every scanFiles request it is enabled on.
@@ -81,7 +44,7 @@ func RegisterScanCheck(check ScanCheck) {
 	if check.Enabled == nil {
 		check.Enabled = protocol.ExtFlag(check.Name)
 	}
-	scanCheckTable.add(check.Name, check, check.Replace)
+	scanCheckTable.Add(check.Name, check, check.Replace)
 }
 
 // mion's own ops and checks are rows of the same tables, so a built-in and an extension take one code path.

@@ -305,7 +305,7 @@ var pluginKeyTags = func() map[string]bool {
 // knownPluginKey reports a key the mion plugin entry recognises: a struct tag or a registered PluginKey. Used to
 // warn on a likely-typo'd key.
 func knownPluginKey(key string) bool {
-	_, registered := pluginKeyTable.rows[key]
+	_, registered := pluginKeyTable.Get(key)
 	return pluginKeyTags[key] || registered
 }
 

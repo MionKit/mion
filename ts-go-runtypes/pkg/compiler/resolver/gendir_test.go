@@ -79,7 +79,7 @@ func TestGenDir_ExtensionEntry(t *testing.T) {
 	}
 
 	RegisterGenDirEntry(GenDirEntry{Name: "extra", Owner: "ext", Replace: true})
-	if row := genDirTable.rows["extra"]; row.Dir || row.Bullet != "" {
+	if row, _ := genDirTable.Get("extra"); row.Dir || row.Bullet != "" {
 		t.Fatalf("Replace must swap the row: %+v", row)
 	}
 	expectRegistryPanic(t, func() { RegisterGenDirEntry(GenDirEntry{Name: "extra"}) })
