@@ -54,8 +54,8 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
     broker started from `next.config` + a `turbopack.rules` loader.
     Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first: invariants there look like cleanups but are not.
 - [bin-compiler](bin-compiler/) (`@mionjs/bin-compiler`): platform launcher + the `mion` CLI command.
-  - `getExePath()` resolves the prebuilt resolver binary from per-platform
-    `@mionjs/native-compiler-<os>-<arch>` optional deps.
+  - `getExePath()` order: `MION_BIN` > an installed `@mionkit/pro-bin-compiler` (same mion version, else it
+    throws) > the per-platform `@mionjs/native-compiler-<os>-<arch>` optional deps.
   - NEVER add a postinstall downloader: `ignoreScripts: true` blocks it.
   - `constants.Version` is folded into typeID hashes. `constants.TsgoVersion` = metadata, NEVER enters the hash.
 - [examples](private-examples/) (`@mionjs/examples`): MERGED compilable TS examples (mion + runtypes) for both docs

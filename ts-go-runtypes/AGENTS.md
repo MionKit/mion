@@ -35,12 +35,14 @@ Pattern = TypeScript's own (its node builder + `.d.ts` emitter).
 
 ## Directory map
 
-- [cmd/](cmd/): resolver binary (`mion`), WASM twin (`mion-wasm`), `gen-*` / `extract-*` codegen commands:
+- [cmd/](cmd/): resolver binary (`mion`, a few lines over [pkg/cli](pkg/cli/)), WASM twin (`mion-wasm`),
+  `gen-*` / `extract-*` codegen commands (shared helpers: [pkg/codegen](pkg/codegen/)):
   fn-hashes, diag-catalog, ts-constants, builtin-purefn ids, run-type-kind, type-formats, plugin-keys,
   sourcerewrite-fixtures, fn-bodies.
-- [pkg/](pkg/): pipeline packages (below). Our only writable Go tree besides `cmd/`.
+- [pkg/](pkg/): pipeline packages (below). Our only writable Go tree besides `cmd/`. Importable by another module,
+  with no stability promise across mion versions: a binary built on mion pins a tag.
 - `go build` outputs ignored ([.gitignore](.gitignore)): extensionless file at module root or in `cmd/<x>/` = binary.
-- Run every command from source (`go run ./cmd/<x>`). A committed binary fails the `check:tree` sweep.
+  Run every command from source (`go run ./cmd/<x>`). A committed binary fails the `check:tree` sweep.
 - ⚠️ [third_party/](third_party/): `oxc-project/tsgolint` submodule (nests `microsoft/typescript-go`). OFF-LIMITS.
   - Never edit anything under it, patches at `third_party/tsgolint/patches/` included.
   - `git submodule update` discards local edits. `.gitmodules` `ignore = dirty` hides them from `git status`.
@@ -52,11 +54,23 @@ Pattern = TypeScript's own (its node builder + `.d.ts` emitter).
   operations, diskcache, hashid).
 - [enrichment/](pkg/enrichment/): FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen).
   `enrichgen` = shared plan/config/check leaf the CLI verb and daemon op both call → they never drift.
-- [diagnostics/](pkg/diagnostics/): diagnostic catalog + severity messages, shared by resolver and lint plugin.
+- [cli/](pkg/cli/): the `mion` command line (verbs, flags, the tsconfig plugin reader), `cli.Main`.
+- [diagnostics/](pkg/diagnostics/): diagnostic catalog, one row per code with its text, shared by resolver and lint.
 - [reflection/](pkg/reflection/): canonical RunType reflection model every stage shares
   (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).
 - [protocol/](pkg/protocol/): Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
 - Auxiliary, small, no cross-package state: `constants`, `jsquote`, `testfixtures` (F1..F17 fixtures), `textpos`.
+
+## Extension points
+
+A binary built on mion calls `cli.Main(args, cli.Extension{…})`; `cmd/mion` passes none.
+
+- One table per kind: verbs (`cli.Command`), tsconfig plugin keys, serve/compile flags (`cli.SessionFlags`), ops
+  (`resolver.Op`), scan checks, genDir entries, diagnostic codes, areas and families (`diagnostics.Register*`).
+- mion's own rows sit in the SAME tables: one code path. A registered name panics unless the row sets `Replace`;
+  `Replace` on an absent name panics too, so the bump that deletes a built-in forces a plain row.
+- The `capabilities` op lists the extension rows only (`Owner != ""`); the public binary answers it empty.
+- ⚠️ An extension never feeds a typeID, fnHash or disk fingerprint (`Options.Ext` included): no public answer moves.
 
 ## Area rules
 
