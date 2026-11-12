@@ -234,20 +234,29 @@ func (key *downgradeErrorsKey) UnmarshalJSON(data []byte) error {
 // naming another plugin are skipped, since a language-service plugin the
 // project uses for something else is none of our business.
 func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool, error) {
+	raw, found := mionPluginEntry(parsed)
+	if !found {
+		return tsRuntypesPlugin{}, false, nil
+	}
+	var plugin tsRuntypesPlugin
+	if err := json.Unmarshal(raw, &plugin); err != nil {
+		return tsRuntypesPlugin{}, false, fmt.Errorf("tsconfig mion plugin entry: %w", err)
+	}
+	return plugin, true, nil
+}
+
+// mionPluginEntry is the raw compilerOptions.plugins[] entry whose "name" is "mion", the one search every reader of
+// the entry shares.
+func mionPluginEntry(parsed tsconfigShape) (json.RawMessage, bool) {
 	for _, raw := range parsed.CompilerOptions.Plugins {
 		var named struct {
 			Name string `json:"name"`
 		}
-		if err := json.Unmarshal(raw, &named); err != nil || named.Name != "mion" {
-			continue
+		if err := json.Unmarshal(raw, &named); err == nil && named.Name == "mion" {
+			return raw, true
 		}
-		var plugin tsRuntypesPlugin
-		if err := json.Unmarshal(raw, &plugin); err != nil {
-			return tsRuntypesPlugin{}, false, fmt.Errorf("tsconfig mion plugin entry: %w", err)
-		}
-		return plugin, true, nil
 	}
-	return tsRuntypesPlugin{}, false, nil
+	return nil, false
 }
 
 // resolveBuildPlugin reads the compilerOptions.plugins[name=mion] entry
@@ -315,33 +324,23 @@ func knownPluginKey(key string) bool {
 // project without the plugin never warns. The build path surfaces these on
 // stderr; an unknown key is otherwise silently ignored.
 func unknownPluginKeys(absCwd, tsconfigFlag string) []string {
-	raw, err := os.ReadFile(buildTsconfigPath(absCwd, tsconfigFlag))
-	if err != nil {
+	parsed, ok := parseTsconfig(buildTsconfigPath(absCwd, tsconfigFlag))
+	if !ok {
 		return nil
 	}
-	var parsed struct {
-		CompilerOptions struct {
-			Plugins []map[string]json.RawMessage `json:"plugins"`
-		} `json:"compilerOptions"`
-	}
-	if json.Unmarshal([]byte(stripJSONC(string(raw))), &parsed) != nil {
+	raw, found := mionPluginEntry(parsed)
+	var entry map[string]json.RawMessage
+	if !found || json.Unmarshal(raw, &entry) != nil {
 		return nil
 	}
-	for _, entry := range parsed.CompilerOptions.Plugins {
-		var name string
-		if json.Unmarshal(entry["name"], &name) != nil || name != "mion" {
-			continue
+	var unknown []string
+	for key := range entry {
+		if !knownPluginKey(key) {
+			unknown = append(unknown, key)
 		}
-		var unknown []string
-		for key := range entry {
-			if !knownPluginKey(key) {
-				unknown = append(unknown, key)
-			}
-		}
-		sort.Strings(unknown)
-		return unknown
 	}
-	return nil
+	sort.Strings(unknown)
+	return unknown
 }
 
 // stripJSONC removes // line comments, /* block */ comments, and trailing
