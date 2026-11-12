@@ -7,66 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
-	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
 )
 
-// record carries Family and Level as labels so the JS side never mirrors the numeric enum values.
-// Severity stays off: it derives from Level, and only the live wire diagnostic needs it.
-type record struct {
-	Code         string   `json:"code"`
-	Family       string   `json:"family"`
-	Level        string   `json:"level"`
-	Completeness bool     `json:"completeness,omitempty"`
-	Internal     bool     `json:"internal,omitempty"`
-	Headline     string   `json:"headline"`
-	Slots        []string `json:"slots,omitempty"`
-	Summary      string   `json:"summary"`
-	Fix          string   `json:"fix,omitempty"`
-	Example      string   `json:"example,omitempty"`
-}
-
-// familyLabel maps the numeric Family to a stable lowercase string.
-func familyLabel(family diagnostics.Family) string {
-	switch family {
-	case diagnostics.FamilyPureFn:
-		return "purefn"
-	case diagnostics.FamilyMarker:
-		return "marker"
-	case diagnostics.FamilyRunType:
-		return "runtype"
-	case diagnostics.FamilyEnrich:
-		return "enrich"
-	case diagnostics.FamilyDrizzle:
-		return "drizzle"
-	case diagnostics.FamilyMionRoute:
-		return "mionroute"
-	}
-	return "unknown"
-}
-
 func main() {
-	records := make([]record, 0, len(diagnostics.Definitions))
-	for _, definition := range diagnostics.Definitions {
-		records = append(records, record{
-			Code:         definition.Code,
-			Family:       familyLabel(definition.Family),
-			Level:        diagnostics.LevelLabel(definition.Level),
-			Completeness: definition.Completeness,
-			Internal:     strings.HasPrefix(definition.Headline, "Internal error:"),
-			Headline:     definition.Headline,
-			Slots:        definition.Slots,
-			Summary:      definition.Summary,
-			Fix:          definition.Fix,
-			Example:      definition.Example,
-		})
-	}
-	sort.Slice(records, func(left, right int) bool {
-		return records[left].Code < records[right].Code
-	})
-
+	// Only mion's own codes: an extension's codes ride its binary's capabilities op.
+	records := diagnostics.Catalog(func(definition diagnostics.Definition) bool { return definition.Owner == "" })
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(records); err != nil {

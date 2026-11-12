@@ -64,7 +64,7 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 	for _, target := range targets {
 		files, err := collectMirrorFiles(target)
 		if err != nil {
-			fatal("enrich --no-emit: %v", err)
+			Fatal("enrich --no-emit: %v", err)
 		}
 		mirrorFiles = append(mirrorFiles, files...)
 	}
@@ -84,7 +84,7 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")
 		if encodeErr != nil {
-			fatal("enrich --no-emit: encode json: %v", encodeErr)
+			Fatal("enrich --no-emit: encode json: %v", encodeErr)
 		}
 		fmt.Println(string(encoded))
 	} else {

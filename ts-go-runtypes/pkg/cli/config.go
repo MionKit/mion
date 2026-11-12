@@ -145,7 +145,7 @@ type tsconfigShape struct {
 // "tsconfig not found at <path>" there). Resolving rather than fataling here lets
 // the serve daemon report a bad --tsconfig per-op (on setSources) and stay alive
 // to heal, instead of crashing at startup.
-func resolveConfigPath(absCwd, tsconfigFlag string) string {
+func ResolveConfigPath(absCwd, tsconfigFlag string) string {
 	if trimmed := strings.TrimSpace(tsconfigFlag); trimmed != "" {
 		if filepath.IsAbs(trimmed) {
 			return trimmed
@@ -165,10 +165,10 @@ func resolveConfigPath(absCwd, tsconfigFlag string) string {
 // nil config means no tsconfig anywhere (the inferred-defaults fallback).
 func ResolveProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd := projectCwd("tsconfig discovery")
-	tsconfigPath := resolveConfigPath(cwd, tsconfigFlag)
+	tsconfigPath := ResolveConfigPath(cwd, tsconfigFlag)
 	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath)
 	if err != nil {
-		fatal("%v", err)
+		Fatal("%v", err)
 	}
 	return tsconfigPath, parsed
 }
@@ -268,7 +268,7 @@ func resolveBuildPlugin(absCwd, tsconfigFlag string) (tsRuntypesPlugin, bool) {
 	}
 	plugin, found, err := findTsRuntypesPlugin(parsed)
 	if err != nil {
-		fatal("tsconfig %s: %v", buildTsconfigPath(absCwd, tsconfigFlag), err)
+		Fatal("tsconfig %s: %v", buildTsconfigPath(absCwd, tsconfigFlag), err)
 	}
 	return plugin, found
 }
@@ -288,10 +288,9 @@ func buildTsconfigPath(absCwd, tsconfigFlag string) string {
 	return tsconfigPath
 }
 
-// knownPluginKeys is the set of JSON keys the mion plugin entry
-// recognises, derived by reflection from tsRuntypesPlugin's json tags so it can
-// never drift from the struct. Used to warn on a likely-typo'd key.
-var knownPluginKeys = func() map[string]bool {
+// pluginKeyTags is the set of JSON keys of tsRuntypesPlugin, derived by reflection from its json tags so it can
+// never drift from the struct.
+var pluginKeyTags = func() map[string]bool {
 	keys := map[string]bool{}
 	pluginType := reflect.TypeOf(tsRuntypesPlugin{})
 	for i := 0; i < pluginType.NumField(); i++ {
@@ -302,6 +301,13 @@ var knownPluginKeys = func() map[string]bool {
 	}
 	return keys
 }()
+
+// knownPluginKey reports a key the mion plugin entry recognises: a struct tag or a registered PluginKey. Used to
+// warn on a likely-typo'd key.
+func knownPluginKey(key string) bool {
+	_, registered := pluginKeyTable.rows[key]
+	return pluginKeyTags[key] || registered
+}
 
 // unknownPluginKeys returns the keys in the mion plugin entry that the
 // build path does not recognise (sorted) — almost always a typo. Empty when no
@@ -328,7 +334,7 @@ func unknownPluginKeys(absCwd, tsconfigFlag string) []string {
 		}
 		var unknown []string
 		for key := range entry {
-			if !knownPluginKeys[key] {
+			if !knownPluginKey(key) {
 				unknown = append(unknown, key)
 			}
 		}
@@ -447,7 +453,7 @@ func resolveClientRoutes(flag, key string) (constants.ClientRoutesMode, bool) {
 func projectCwd(what string) string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatal("%s: getwd: %v", what, err)
+		Fatal("%s: getwd: %v", what, err)
 	}
 	return canonicalize(cwd)
 }

@@ -50,11 +50,11 @@ func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed 
 	if tsconfigPath != "" {
 		pluginTsconfig, ok := parseTsconfig(tsconfigPath)
 		if !ok {
-			fatal("tsconfig %s: cannot parse", tsconfigPath)
+			Fatal("tsconfig %s: cannot parse", tsconfigPath)
 		}
 		plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
 		if err != nil {
-			fatal("tsconfig %s: %v", tsconfigPath, err)
+			Fatal("tsconfig %s: %v", tsconfigPath, err)
 		}
 		if ok {
 			pluginSettings = pluginSettingsFrom(plugin)

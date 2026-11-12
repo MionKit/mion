@@ -2,7 +2,7 @@
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in pkg/diagnostics (wording lives in
-// pkg/diagnostics/messages.go). The wire carries only code + args; the render
+// each code's row in pkg/diagnostics/codes_*.go). The wire carries only code + args; the render
 // helpers in ./diagnosticCatalog.ts fill each `{name}` slot with the arg at its
 // index in `slots`.
 

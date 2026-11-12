@@ -9,7 +9,7 @@ import (
 )
 
 // TestDiagExamples_TriggerTheirCode is the standardized error-example suite.
-// pkg/diagnostics/prose.go gives diagnostic codes an Example: a complete
+// pkg/diagnostics code rows give diagnostic codes an Example: a complete
 // TypeScript snippet (import + type + marker call) meant to trigger exactly
 // that code. This test feeds each Example through the real scan pipeline and
 // asserts the code fires at its registered severity, so a shipped example can
@@ -28,7 +28,7 @@ func TestDiagExamples_TriggerTheirCode(t *testing.T) {
 	}
 	sort.Strings(codes)
 	if len(codes) == 0 {
-		t.Fatal("no diagnostic Examples registered — prose.go should populate at least the validation family")
+		t.Fatal("no diagnostic Examples registered — the code rows should populate at least the validation family")
 	}
 
 	for _, code := range codes {
@@ -93,7 +93,7 @@ func TestDiagExamples_TriggerAtDepth(t *testing.T) {
 	}
 	sort.Strings(codes)
 	if len(codes) == 0 {
-		t.Fatal("no NestedExample registered; prose.go should carry one per ScopeGraph code that has an Example")
+		t.Fatal("no NestedExample registered; the code rows should carry one per ScopeGraph code that has an Example")
 	}
 	for _, code := range codes {
 		definition := diagnostics.Definitions[code]

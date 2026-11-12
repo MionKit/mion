@@ -40,50 +40,50 @@ default the package.json "types" entry, then the one file exporting an API.
 
 func runApiTypes(args []string) {
 	fs := flag.NewFlagSet("api-types", flag.ExitOnError)
-	shared := registerSharedFlags(fs)
+	shared := RegisterSharedFlags("api-types", fs)
 	outFlag := fs.String("out", "api-types", "the package directory to write (replaced on every run)")
 	nameFlag := fs.String("name", "", "the package name (default: the server package name plus -types)")
 	versionFlag := fs.String("version", "", "the package version (default: the server package version)")
 	logStyle := registerLogStyleFlag(fs)
 	entryFlag := fs.String("entry", "", "the source file exporting the API (default: package.json \"types\", then the one file exporting an API)")
-	fs.Usage = func() { printUsage(fs, apiTypesUsage) }
+	fs.Usage = func() { PrintUsage(fs, apiTypesUsage) }
 	_ = fs.Parse(args)
 
 	defer startProfiling(shared)()
 
-	cfg := resolveSharedConfig(fs, shared, "", true)
-	if cfg.tsconfigPath == "" {
-		fatal("api-types: no tsconfig.json found searching upward from %s — pass --tsconfig", cfg.absCwd)
+	cfg := ResolveSharedConfig(fs, shared, "", true)
+	if cfg.TsconfigPath == "" {
+		Fatal("api-types: no tsconfig.json found searching upward from %s — pass --tsconfig", cfg.AbsCwd)
 	}
 	// Checked before the temp dir exists: printBuildDiagnostics exits on these, and an exit skips the cleanup.
-	if _, err := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors); err != nil {
-		fatal("api-types: %v", err)
+	if _, err := diagnostics.ResolveDowngrade(cfg.Opts.TsconfigDowngradeErrors); err != nil {
+		Fatal("api-types: %v", err)
 	}
-	if _, err := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels); err != nil {
-		fatal("api-types: %v", err)
+	if _, err := diagnostics.ResolveLevels(cfg.Opts.TsconfigLevels); err != nil {
+		Fatal("api-types: %v", err)
 	}
 	grouped := resolveLogStyle("api-types", *logStyle, cfg)
 	genDir, err := os.MkdirTemp("", "mion-api-types-")
 	if err != nil {
-		fatal("api-types: %v", err)
+		Fatal("api-types: %v", err)
 	}
 	defer os.RemoveAll(genDir)
-	declarationDir := filepath.Join(cfg.absCwd, ".mion-api-types")
+	declarationDir := filepath.Join(cfg.AbsCwd, ".mion-api-types")
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
-		Cwd: cfg.absCwd, TsconfigPath: cfg.tsconfigPath, GenDir: genDir, ResolverOpts: cfg.opts,
+		Cwd: cfg.AbsCwd, TsconfigPath: cfg.TsconfigPath, GenDir: genDir, ResolverOpts: cfg.Opts,
 		DeclarationsOnly: true, DeclarationDir: declarationDir,
 	})
 	if compileErr != nil {
 		os.RemoveAll(genDir)
-		fatal("api-types: %v", compileErr)
+		Fatal("api-types: %v", compileErr)
 	}
 	if printBuildDiagnostics("api-types", cfg, compileResult, grouped) > 0 {
 		os.RemoveAll(genDir)
 		exitAfterProfiling(1)
 	}
-	if err := buildApiTypes(cfg.absCwd, cfg.tsconfigPath, declarationDir, compileResult, *outFlag, *nameFlag, *versionFlag, *entryFlag); err != nil {
+	if err := buildApiTypes(cfg.AbsCwd, cfg.TsconfigPath, declarationDir, compileResult, *outFlag, *nameFlag, *versionFlag, *entryFlag); err != nil {
 		os.RemoveAll(genDir)
-		fatal("api-types: %v", err)
+		Fatal("api-types: %v", err)
 	}
 }
 

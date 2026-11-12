@@ -9,7 +9,7 @@ import (
 // Runtime alwaysThrow message wording: the Go emitter writes the COMPLETE message into the entry (see
 // buildAlwaysThrowMessage), so the shipped marker package throws it carrying no diagnostic catalog of its
 // own. This is the only user-facing wording the Go binary owns, and it stays tiny: the root-throw families
-// share one formulaic headline, byte-identical to the build-time one in pkg/diagnostics/messages.go so
+// share one formulaic headline, byte-identical to the build-time one in pkg/diagnostics (the code rows) so
 // build log and runtime throw agree. The full catalog lives once in the @mionjs/devtools plugin, and the
 // Go↔plugin wire carries only the code.
 

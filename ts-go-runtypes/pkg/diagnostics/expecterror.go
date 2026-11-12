@@ -246,7 +246,7 @@ func (scope PassScope) canJudge(directive Directive) bool {
 		if scope.Lacks != 0 {
 			return false
 		}
-		for _, family := range allFamilies {
+		for _, family := range allFamilies() {
 			if !scope.Families[family] {
 				return false
 			}
@@ -261,8 +261,6 @@ func (scope PassScope) canJudge(directive Directive) bool {
 	}
 	return true
 }
-
-var allFamilies = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute, FamilyDrizzle}
 
 // directiveKey addresses one silenced line. Diagnostics and directives are
 // matched on the file path as SPELLED in the site, which is the caller's own

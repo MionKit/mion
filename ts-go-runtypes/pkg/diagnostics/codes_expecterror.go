@@ -22,10 +22,24 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeExpectErrorUnused, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` silenced nothing: delete it or fix the code it names"},
-		{Code: CodeExpectErrorNotSuppressible, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` names a code that can never be suppressed"},
-		{Code: CodeExpectErrorUnknownCode, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` names a diagnostic code that does not exist"},
+		{Code: CodeExpectErrorUnused, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` silenced nothing: delete it or fix the code it names",
+			// No Examples: the harness scans a single FILE, but "did this comment silence anything" is only
+			// answerable against a whole program, so these are raised on the whole-program pass and covered
+			// by expecterror_test.go.
+			Headline: "Unused `@mion-expect-error {name}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+			Summary:  "A `@mion-expect-error` comment hid nothing: the code it names was not reported on the line below. Like `@ts-expect-error`, a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
+			Fix:      "// @mion-expect-error validate-symbol-root\nexport const report = createValidateFn<symbol>();",
+		},
+		{Code: CodeExpectErrorNotSuppressible, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` names a code that can never be suppressed",
+			Headline: "`@mion-expect-error {name}` cannot silence that code: it is reported even when everything else is silenced.",
+			Summary:  "A `@mion-expect-error` comment named a code that is always reported. An Error code means the build produced no code for that call, so hiding it would ship missing output. The `comment-*` names check these comments, so they cannot be hidden either. Fix the reported call instead.",
+		},
+		{Code: CodeExpectErrorUnknownCode, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`@mion-expect-error` names a diagnostic code that does not exist",
+			Headline: "`@mion-expect-error {name}` names a diagnostic that does not exist; check the spelling against the name in the message you are silencing.",
+			Summary:  "A `@mion-expect-error` comment names a code mion does not have, usually a typo, so it hides nothing. Copy the code from the message you are hiding, for example `validate-symbol-root` in `error validate-symbol-root: Type ... can never be validated`.",
+			Fix:      "// @mion-expect-error validate-symbol-root",
+		},
 	} {
-		register(definition)
+		Register(definition)
 	}
 }

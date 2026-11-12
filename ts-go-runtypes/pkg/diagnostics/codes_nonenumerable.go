@@ -12,11 +12,16 @@ const (
 )
 
 func init() {
-	register(Definition{
-		Code:   CodeNonEnumerableRequiresOptional,
-		Family: FamilyRunType,
-		Level:  LevelWarning,
-		Scope:  ScopeGraph,
-		Title:  "@nonEnumerable requires an optional property",
+	Register(Definition{
+		Code:     CodeNonEnumerableRequiresOptional,
+		Family:   FamilyRunType,
+		Level:    LevelWarning,
+		Scope:    ScopeGraph,
+		Title:    "@nonEnumerable requires an optional property",
+		Headline: "Property `{property}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{property}?`) or remove the tag.",
+		Summary:  "The `@nonEnumerable` tag skips a property that is not an enumerable own property of the value, but only when the property is optional. On a required property the tag is ignored and the property is always sent. Add `?` to the property, or remove the tag.",
+		Fix: `interface Session {
+  /** @nonEnumerable */ token?: string;
+}`,
 	})
 }

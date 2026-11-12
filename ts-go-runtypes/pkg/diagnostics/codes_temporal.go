@@ -11,11 +11,14 @@ const (
 )
 
 func init() {
-	register(Definition{
-		Code:   CodeTemporalNotLoaded,
-		Family: FamilyMarker,
-		Level:  LevelRuntimeError,
-		Scope:  ScopeGraph,
-		Title:  "Temporal type resolved to 'any': add \"ESNext.Temporal\" to compilerOptions.lib",
+	Register(Definition{
+		Code:     CodeTemporalNotLoaded,
+		Family:   FamilyMarker,
+		Level:    LevelRuntimeError,
+		Scope:    ScopeGraph,
+		Title:    "Temporal type resolved to 'any': add \"ESNext.Temporal\" to compilerOptions.lib",
+		Headline: "Temporal type `{type}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
+		Summary:  "`Temporal.*` types only work when the Temporal lib is loaded. Without it the type becomes `any` and the validator accepts everything. Add `\"ESNext.Temporal\"` to `lib` in your tsconfig.",
+		Fix:      "{\"compilerOptions\": {\"lib\": [\"ES2023\", \"ESNext.Temporal\"]}}",
 	})
 }

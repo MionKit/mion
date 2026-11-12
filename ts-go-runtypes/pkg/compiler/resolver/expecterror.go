@@ -56,11 +56,10 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 		if request.IncludeEntryModules || request.IncludeRtDiagnostics {
 			families[diagnostics.FamilyRunType] = true
 		}
-		if request.CheckEnrich {
-			families[diagnostics.FamilyEnrich] = true
-		}
-		if request.CheckRouterRules {
-			families[diagnostics.FamilyMionRoute] = true
+		for _, check := range scanCheckTable.list() {
+			if check.Enabled(request) {
+				families[check.Family] = true
+			}
 		}
 		files := make(map[string]bool, len(request.Files))
 		for _, file := range request.Files {

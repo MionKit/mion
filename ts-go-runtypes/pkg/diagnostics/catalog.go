@@ -1,6 +1,6 @@
 // Package diagnostics is the one catalog of every diagnostic the Go binary emits, so codes, levels and messages
 // are auditable in one place. Level, severity and family go on the wire as uint8, mirrored TS-side as literal
-// unions; the codes_*.go files register through init().
+// unions; the codes_*.go files Register through init().
 package diagnostics
 
 import (
@@ -115,7 +115,7 @@ const (
 
 // Scope says where in a marker's type a code's trigger can sit, and is what the depth gate in
 // pkg/compiler/resolver/diag_examples_test.go reads. REQUIRED on every registered code
-// (register panics on the zero value), because a whole-type rule keeps getting implemented for the
+// (Register panics on the zero value), because a whole-type rule keeps getting implemented for the
 // root node only; a ScopeGraph code with an Example must also carry a NestedExample firing one
 // object deeper. Not on the wire.
 type Scope uint8
@@ -168,16 +168,16 @@ type Diagnostic struct {
 	Downgraded bool `json:"downgraded,omitempty"`
 }
 
-// Definition is one code's catalog entry; messages.go folds on Headline, prose.go the website text (Summary mandatory).
+// Definition is one code's catalog entry, text included (see Register).
 // A `{name}` in Headline is a slot; Slots lists them in first-appearance order, the order of Diagnostic.Args.
 // pkg/compiler/resolver/diag_examples_test.go asserts every non-empty Example really fires this code.
 type Definition struct {
 	Code   string
 	Family Family
 	// Level is the code's level and the field a code author
-	// WRITES (see Level). Required: register panics on the zero value.
+	// WRITES (see Level). Required: Register panics on the zero value.
 	Level Level
-	// Severity is DERIVED from Level by register; never write it in a codes_*.go
+	// Severity is DERIVED from Level by Register; never write it in a codes_*.go
 	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
 	// Completeness marks INCOMPLETE (not-yet-authored) enrichment rather than WRONG content
@@ -191,7 +191,7 @@ type Definition struct {
 	// finding still fails the build it was raised in.
 	Transient bool
 	// Scope is where the trigger can sit in the marker's type (see Scope).
-	// Required: register panics without it.
+	// Required: Register panics without it.
 	Scope Scope
 	// Raised narrows which passes can raise the code; the zero value is every pass. A directive naming a code
 	// the pass cannot raise is never judged unused there (see PassScope).
@@ -208,6 +208,51 @@ type Definition struct {
 	// Required for a ScopeGraph code that carries an Example; the depth gate
 	// feeds it through the scan and asserts the code still fires.
 	NestedExample string
+	// Owner is "" for mion's own codes, else the name of the extension that registers it; the generated
+	// catalog lists only mion's, an extension advertises its own through the capabilities op.
+	Owner string
+	// Replace lets Register swap an existing code; never stored.
+	Replace bool
+}
+
+// CatalogEntry is one code as the generated front-end catalog and the capabilities op carry it: Family and
+// Level as labels, so the JS side never mirrors the numeric enum values. Severity stays off: it derives from
+// Level, and only the live wire diagnostic needs it.
+type CatalogEntry struct {
+	Code         string   `json:"code"`
+	Family       string   `json:"family"`
+	Level        string   `json:"level"`
+	Completeness bool     `json:"completeness,omitempty"`
+	Internal     bool     `json:"internal,omitempty"`
+	Headline     string   `json:"headline"`
+	Slots        []string `json:"slots,omitempty"`
+	Summary      string   `json:"summary"`
+	Fix          string   `json:"fix,omitempty"`
+	Example      string   `json:"example,omitempty"`
+}
+
+// Catalog lists the codes keep accepts as CatalogEntry rows, sorted by code.
+func Catalog(keep func(Definition) bool) []CatalogEntry {
+	entries := []CatalogEntry{}
+	for _, definition := range Definitions {
+		if !keep(definition) {
+			continue
+		}
+		entries = append(entries, CatalogEntry{
+			Code:         definition.Code,
+			Family:       FamilyLabel(definition.Family),
+			Level:        LevelLabel(definition.Level),
+			Completeness: definition.Completeness,
+			Internal:     strings.HasPrefix(definition.Headline, "Internal error:"),
+			Headline:     definition.Headline,
+			Slots:        definition.Slots,
+			Summary:      definition.Summary,
+			Fix:          definition.Fix,
+			Example:      definition.Example,
+		})
+	}
+	slices.SortFunc(entries, func(left, right CatalogEntry) int { return strings.Compare(left.Code, right.Code) })
+	return entries
 }
 
 // Raised is a bit set of the conditions a code needs before a pass can raise it.
@@ -224,15 +269,94 @@ const (
 // and it is read-only afterwards.
 var Definitions = map[string]Definition{}
 
-// slugRE is a kebab-case name that starts with an area prefix; each area is a section of the All Diagnostics page.
-var slugRE = regexp.MustCompile(`^(?:drizzle|config|marker|comment|validate|validation-errors|json-prepare|json-restore|data|unknown-keys|format|purefn|override|rpc-handler|rpc-batch|rpc-client|enrich-text|enrich-mock|enrich-mirror|internal)(?:-[a-z0-9]+)+$`)
+// areas are the code-name prefixes, each a section of the All Diagnostics page; RegisterArea adds one.
+var areas = []string{"drizzle", "config", "marker", "comment", "validate", "validation-errors", "json-prepare", "json-restore", "data", "unknown-keys", "format", "purefn", "override", "rpc-handler", "rpc-batch", "rpc-client", "enrich-text", "enrich-mock", "enrich-mirror", "internal"}
 
-func register(definition Definition) {
+// slugRE is a kebab-case name that starts with an area prefix; built from areas, rebuilt by RegisterArea.
+var slugRE = buildSlugRE()
+
+func buildSlugRE() *regexp.Regexp {
+	quoted := make([]string, len(areas))
+	for i, area := range areas {
+		quoted[i] = regexp.QuoteMeta(area)
+	}
+	return regexp.MustCompile(`^(?:` + strings.Join(quoted, "|") + `)(?:-[a-z0-9]+)+$`)
+}
+
+// RegisterArea adds a code-name prefix. A prefix already listed panics unless replace; replace on an unlisted
+// prefix panics too, so a row that stopped overriding anything is caught.
+func RegisterArea(prefix string, replace bool) {
+	known := slices.Contains(areas, prefix)
+	switch {
+	case known && !replace:
+		panic("diag: duplicate registration of area " + prefix)
+	case !known && replace:
+		panic("diag: area " + prefix + " is not registered, so there is nothing to replace")
+	case !known:
+		areas = append(areas, prefix)
+		slugRE = buildSlugRE()
+	}
+}
+
+// familyLabels names each Family on the generated catalog and the website; RegisterFamily adds one.
+var familyLabels = map[Family]string{
+	FamilyPureFn:    "purefn",
+	FamilyMarker:    "marker",
+	FamilyRunType:   "runtype",
+	FamilyEnrich:    "enrich",
+	FamilyMionRoute: "mionroute",
+	FamilyDrizzle:   "drizzle",
+}
+
+// familyOrder is the registration order of familyLabels, which allFamilies follows.
+var familyOrder = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute, FamilyDrizzle}
+
+// RegisterFamily adds a Family with its stable lowercase label, under the same duplicate / replace rules as
+// RegisterArea.
+func RegisterFamily(family Family, label string, replace bool) {
+	_, known := familyLabels[family]
+	switch {
+	case known && !replace:
+		panic(fmt.Sprintf("diag: duplicate registration of family %d", family))
+	case !known && replace:
+		panic(fmt.Sprintf("diag: family %d is not registered, so there is nothing to replace", family))
+	case !known:
+		familyOrder = append(familyOrder, family)
+	}
+	familyLabels[family] = label
+}
+
+// FamilyLabel returns a Family's stable lowercase label, "unknown" for an unregistered one.
+func FamilyLabel(family Family) string {
+	if label, ok := familyLabels[family]; ok {
+		return label
+	}
+	return "unknown"
+}
+
+// allFamilies lists every registered Family in registration order.
+func allFamilies() []Family {
+	return slices.Clone(familyOrder)
+}
+
+// Register adds one code. A row carries its own text: Headline (user vocabulary and the user-visible consequence,
+// no compiler internals; `pnpm miondevx core codegen diag` exports it for the bundler and lint plugins) and the
+// website text, Summary mandatory (what triggers it, what it means, the fix; plain language, no internals, no
+// dashes chaining clauses; backticks render as code, wider examples go in Fix). pkg/compiler/resolver/
+// diag_examples_test.go asserts each Example fires its code, so write it as a complete file: `mion` import, type,
+// marker call. Register derives Severity and Slots.
+//
+// A code mion already has panics unless the row sets Replace; Replace on an absent code panics too.
+func Register(definition Definition) {
 	if !slugRE.MatchString(definition.Code) {
 		panic("diag: code " + definition.Code + " is not a kebab-case name with an area prefix (slugRE)")
 	}
-	if _, exists := Definitions[definition.Code]; exists {
+	_, exists := Definitions[definition.Code]
+	if exists && !definition.Replace {
 		panic("diag: duplicate registration of code " + definition.Code)
+	}
+	if !exists && definition.Replace {
+		panic("diag: code " + definition.Code + " is not registered, so there is nothing to replace")
 	}
 	if definition.Scope == 0 {
 		panic("diag: code " + definition.Code + " declares no Scope (ScopeRoot / ScopeGraph / ScopeNotSource)")
@@ -243,7 +367,15 @@ func register(definition Definition) {
 	if definition.Severity != 0 {
 		panic("diag: code " + definition.Code + " writes Severity; it is derived from Level")
 	}
+	if definition.Headline == "" {
+		panic("diag: code " + definition.Code + " has no Headline")
+	}
+	if definition.Summary == "" {
+		panic("diag: code " + definition.Code + " has no Summary")
+	}
 	definition.Severity = severityOf(definition.Level)
+	definition.Slots = headlineSlots(definition.Headline)
+	definition.Replace = false
 	Definitions[definition.Code] = definition
 }
 

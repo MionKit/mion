@@ -28,7 +28,7 @@ func runConvert(args []string) {
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	reportFlag := flagSet.String("report", "", "write a JSON report of what converted and what refused to this path")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `mion convert — rewrite type declarations between the two authoring forms
+		PrintUsage(flagSet, `mion convert — rewrite type declarations between the two authoring forms
 
 Usage:
     mion convert --to builders src/models.ts src/api.ts
@@ -45,11 +45,11 @@ any error makes the exit code non-zero.
 	}
 	positional, flags := splitArgs(args)
 	if parseErr := flagSet.Parse(flags); parseErr != nil {
-		fatal("convert: %v", parseErr)
+		Fatal("convert: %v", parseErr)
 	}
 	target, targetErr := convert.ParseTarget(*toFlag)
 	if targetErr != nil {
-		fatal("convert: %v", targetErr)
+		Fatal("convert: %v", targetErr)
 	}
 	if len(positional) == 0 {
 		flagSet.Usage()
@@ -60,7 +60,7 @@ any error makes the exit code non-zero.
 	if *outDirFlag != "" {
 		copied, copyErr := copyIntoOutDir(rootDir, *outDirFlag, files)
 		if copyErr != nil {
-			fatal("convert: %v", copyErr)
+			Fatal("convert: %v", copyErr)
 		}
 		files = copied
 	}
@@ -78,18 +78,18 @@ any error makes the exit code non-zero.
 	// conversion SET below stays absFiles — only what the checker sees widens.
 	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots(absFiles, convertConfigRoots(parsed, rootDir, *outDirFlag)))
 	if progErr != nil {
-		fatal("convert: build program: %v", progErr)
+		Fatal("convert: build program: %v", progErr)
 	}
 	session, resolverErr := resolver.New(prog, resolver.Options{Cwd: cwd})
 	if resolverErr != nil {
-		fatal("convert: build resolver: %v", resolverErr)
+		Fatal("convert: build resolver: %v", resolverErr)
 	}
 	defer session.Close()
 
 	options := convert.Options{Target: target}
 	conversionSet, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absFiles)
 	if setErr != nil {
-		fatal("convert: %v", setErr)
+		Fatal("convert: %v", setErr)
 	}
 	errorCount := 0
 	pendingChanges := 0
@@ -100,7 +100,7 @@ any error makes the exit code non-zero.
 	for _, absPath := range absFiles {
 		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath, options, conversionSet)
 		if convertErr != nil {
-			fatal("convert: %v", convertErr)
+			Fatal("convert: %v", convertErr)
 		}
 		for _, diagnostic := range result.Diags {
 			severity := "warning"
@@ -124,17 +124,17 @@ any error makes the exit code non-zero.
 			continue
 		}
 		if writeErr := os.WriteFile(absPath, []byte(result.Output), 0o644); writeErr != nil {
-			fatal("convert: write %s: %v", absPath, writeErr)
+			Fatal("convert: write %s: %v", absPath, writeErr)
 		}
 		fmt.Printf("rewrote %s\n", relPath(absPath))
 	}
 	if *reportFlag != "" {
 		encoded, marshalErr := json.MarshalIndent(report, "", "  ")
 		if marshalErr != nil {
-			fatal("convert: encode report: %v", marshalErr)
+			Fatal("convert: encode report: %v", marshalErr)
 		}
 		if writeErr := os.WriteFile(*reportFlag, append(encoded, '\n'), 0o644); writeErr != nil {
-			fatal("convert: write report %s: %v", *reportFlag, writeErr)
+			Fatal("convert: write report %s: %v", *reportFlag, writeErr)
 		}
 	}
 	if errorCount > 0 {
@@ -205,22 +205,22 @@ func expandConvertArgs(positional []string, outDir string) (string, []string) {
 			return nil
 		})
 		if walkErr != nil {
-			fatal("convert: %v", walkErr)
+			Fatal("convert: %v", walkErr)
 		}
 		if len(files) == 0 {
-			fatal("convert: no .ts/.tsx files under %s", rootDir)
+			Fatal("convert: no .ts/.tsx files under %s", rootDir)
 		}
 		return rootDir, files
 	}
 	if outDir != "" {
-		fatal("convert: --out-dir requires a single directory argument")
+		Fatal("convert: --out-dir requires a single directory argument")
 	}
 	for _, file := range positional {
 		if isDirArg(file) {
-			fatal("convert: pass either one directory or a list of files, not both (%s is a directory)", file)
+			Fatal("convert: pass either one directory or a list of files, not both (%s is a directory)", file)
 		}
 		if !isConvertibleSource(file) {
-			fatal("convert: %s is not a .ts/.tsx source file", file)
+			Fatal("convert: %s is not a .ts/.tsx source file", file)
 		}
 	}
 	return "", positional

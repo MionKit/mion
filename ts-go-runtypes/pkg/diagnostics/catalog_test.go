@@ -30,13 +30,13 @@ func TestDefinitions_AllRegisteredCodesHaveFamilyAndSeverity(t *testing.T) {
 	}
 }
 
-// TestEveryCodeHasHeadline pins the messages.go contract: the FE catalog is
+// TestEveryCodeHasHeadline pins the Headline contract: the FE catalog is
 // GENERATED from this package, so a registered code with no Headline would
 // reach users as a bare code with no wording.
 func TestEveryCodeHasHeadline(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Headline == "" {
-			t.Errorf("code %q: no Headline, add it to headlineByCode in messages.go", code)
+			t.Errorf("code %q: no Headline, add it to the code's row", code)
 		}
 	}
 }
@@ -122,7 +122,7 @@ func TestHeadlinesNameNoInternalJsonFamily(t *testing.T) {
 func TestEveryCodeHasSummary(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Summary == "" {
-			t.Errorf("code %q: no Summary, add it to proseByCode in prose.go", code)
+			t.Errorf("code %q: no Summary, add it to the code's row", code)
 			continue
 		}
 		if strings.Contains(def.Summary, "\n") {
@@ -279,7 +279,7 @@ func TestSeverityLabel(t *testing.T) {
 }
 
 // TestDefinitions_EveryCodeDeclaresScope is the first half of the depth gate:
-// register already panics on a zero Scope, so this pins the values stay in
+// Register already panics on a zero Scope, so this pins the values stay in
 // range and that a ScopeGraph code carrying an Example also carries the
 // NestedExample the resolver-side gate feeds through the scan. Without the
 // nested twin a graph-wide rule can ship tested at the root only, which is
@@ -298,7 +298,7 @@ func TestDefinitions_EveryCodeDeclaresScope(t *testing.T) {
 			t.Errorf("code %q: NestedExample on a %d-scoped code; only a ScopeGraph code has a deeper twin", code, def.Scope)
 		}
 		if def.Scope == ScopeGraph && def.Example != "" && def.NestedExample == "" {
-			t.Errorf("code %q: ScopeGraph with an Example needs a NestedExample (the same trigger one object deeper) in prose.go", code)
+			t.Errorf("code %q: ScopeGraph with an Example needs a NestedExample (the same trigger one object deeper) in the code's row", code)
 		}
 	}
 }
@@ -309,13 +309,13 @@ func TestRegister_PanicsWithoutScope(t *testing.T) {
 			t.Fatal("expected panic on a Definition with no Scope")
 		}
 	}()
-	register(Definition{Code: "internal-test-no-scope", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
+	Register(Definition{Code: "internal-test-no-scope", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
 }
 
-// TestEveryCodeDeclaresALevel is the catalog-wide invariant: register panics
+// TestEveryCodeDeclaresALevel is the catalog-wide invariant: Register panics
 // without a Level, so a registered code always has one, and Severity is always
 // the projection of it. A hand-written Severity would drift from the level the
-// downgrade and suppression rules read; register refuses one, and this pins it.
+// downgrade and suppression rules read; Register refuses one, and this pins it.
 func TestEveryCodeDeclaresALevel(t *testing.T) {
 	for code, definition := range Definitions {
 		switch definition.Level {
@@ -348,20 +348,20 @@ func TestEveryCodeDeclaresALevel(t *testing.T) {
 func TestRegisterRejectsWrittenSeverity(t *testing.T) {
 	defer func() {
 		if recover() == nil {
-			t.Fatal("register must refuse a hand-written Severity")
+			t.Fatal("Register must refuse a hand-written Severity")
 		}
 	}()
-	register(Definition{Code: "internal-test-written-severity", Family: FamilyMarker, Level: LevelWarning, Severity: SeverityError, Scope: ScopeNotSource})
+	Register(Definition{Code: "internal-test-written-severity", Family: FamilyMarker, Level: LevelWarning, Severity: SeverityError, Scope: ScopeNotSource})
 }
 
 // TestRegisterRequiresLevel is the Scope rule's twin.
 func TestRegisterRequiresLevel(t *testing.T) {
 	defer func() {
 		if recover() == nil {
-			t.Fatal("register must refuse a code with no Level")
+			t.Fatal("Register must refuse a code with no Level")
 		}
 	}()
-	register(Definition{Code: "internal-test-no-level", Family: FamilyMarker, Scope: ScopeNotSource})
+	Register(Definition{Code: "internal-test-no-level", Family: FamilyMarker, Scope: ScopeNotSource})
 }
 
 // TestLevelsThatMoved pins the codes the level splits moved, with the reason for each, so no edit quietly re-lumps them.
@@ -464,10 +464,118 @@ func TestRegister_PanicsOnABadName(t *testing.T) {
 			defer func() {
 				recovered := recover()
 				if message, _ := recovered.(string); !strings.Contains(message, "is not a kebab-case name with an area prefix") {
-					t.Errorf("register(%q) panic = %v, want the bad-name panic", code, recovered)
+					t.Errorf("Register(%q) panic = %v, want the bad-name panic", code, recovered)
 				}
 			}()
-			register(Definition{Code: code, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource})
+			Register(Definition{Code: code, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource})
 		})
+	}
+}
+
+// registerTemporarily registers definition and removes it when the test ends.
+func registerTemporarily(t *testing.T, definition Definition) {
+	t.Helper()
+	previous, existed := Definitions[definition.Code]
+	Register(definition)
+	t.Cleanup(func() {
+		if existed {
+			Definitions[definition.Code] = previous
+		} else {
+			delete(Definitions, definition.Code)
+		}
+	})
+}
+
+// expectPanic fails unless call panics with a message containing want.
+func expectPanic(t *testing.T, want string, call func()) {
+	t.Helper()
+	defer func() {
+		message, _ := recover().(string)
+		if !strings.Contains(message, want) {
+			t.Errorf("panic = %q, want one containing %q", message, want)
+		}
+	}()
+	call()
+}
+
+func extensionDefinition(code string) Definition {
+	return Definition{Code: code, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "t",
+		Headline: "Value `{value}` of `{name}` is wrong, `{value}` again.", Summary: "s", Owner: "ext"}
+}
+
+// An extension row carries its own text: Register derives Slots and Severity, and the duplicate / Replace rules hold.
+func TestRegister_ExtensionRow(t *testing.T) {
+	registerTemporarily(t, extensionDefinition("internal-test-extension-row"))
+	got := Definitions["internal-test-extension-row"]
+	if !slices.Equal(got.Slots, []string{"value", "name"}) || got.Severity != SeverityWarning || got.Owner != "ext" || got.Replace {
+		t.Fatalf("registered row = %+v", got)
+	}
+	expectPanic(t, "duplicate registration of code", func() { Register(extensionDefinition("internal-test-extension-row")) })
+
+	replaced := extensionDefinition("internal-test-extension-row")
+	replaced.Headline, replaced.Replace = "Replaced `{other}`.", true
+	Register(replaced)
+	if got := Definitions["internal-test-extension-row"]; got.Headline != "Replaced `{other}`." || !slices.Equal(got.Slots, []string{"other"}) {
+		t.Fatalf("Replace did not swap the row: %+v", got)
+	}
+	absent := extensionDefinition("internal-test-never-registered")
+	absent.Replace = true
+	expectPanic(t, "nothing to replace", func() { Register(absent) })
+}
+
+// A row without its text panics, as the old text tables did for a code they could not attach to.
+func TestRegister_RequiresText(t *testing.T) {
+	noHeadline := extensionDefinition("internal-test-no-headline")
+	noHeadline.Headline = ""
+	expectPanic(t, "has no Headline", func() { Register(noHeadline) })
+	noSummary := extensionDefinition("internal-test-no-summary")
+	noSummary.Summary = ""
+	expectPanic(t, "has no Summary", func() { Register(noSummary) })
+}
+
+func TestRegisterArea(t *testing.T) {
+	saved, savedRE := slices.Clone(areas), slugRE
+	t.Cleanup(func() { areas, slugRE = saved, savedRE })
+	expectPanic(t, "is not a kebab-case name", func() { Register(extensionDefinition("extarea-thing")) })
+	RegisterArea("extarea", false)
+	registerTemporarily(t, extensionDefinition("extarea-thing"))
+	expectPanic(t, "duplicate registration of area", func() { RegisterArea("extarea", false) })
+	RegisterArea("extarea", true)
+	expectPanic(t, "nothing to replace", func() { RegisterArea("otherarea", true) })
+}
+
+func TestRegisterFamily(t *testing.T) {
+	savedOrder := slices.Clone(familyOrder)
+	t.Cleanup(func() {
+		familyOrder = savedOrder
+		delete(familyLabels, Family(200))
+		familyLabels[FamilyMarker] = "marker"
+	})
+	RegisterFamily(Family(200), "extfamily", false)
+	if FamilyLabel(Family(200)) != "extfamily" || !slices.Contains(allFamilies(), Family(200)) {
+		t.Fatalf("an extension family must be labelled and join allFamilies: %v", allFamilies())
+	}
+	expectPanic(t, "duplicate registration of family", func() { RegisterFamily(Family(200), "again", false) })
+	RegisterFamily(FamilyMarker, "markers", true)
+	if FamilyLabel(FamilyMarker) != "markers" {
+		t.Fatal("Replace must swap the label")
+	}
+	expectPanic(t, "nothing to replace", func() { RegisterFamily(Family(201), "x", true) })
+	if FamilyLabel(Family(202)) != "unknown" {
+		t.Fatal("an unregistered family reads as unknown")
+	}
+}
+
+// The generated catalog lists mion's codes only, so a registered extension code leaves it unchanged.
+func TestCatalog_OwnerFilter(t *testing.T) {
+	mionOnly := func(definition Definition) bool { return definition.Owner == "" }
+	before := Catalog(mionOnly)
+	registerTemporarily(t, extensionDefinition("internal-test-owned-code"))
+	if after := Catalog(mionOnly); !slices.EqualFunc(before, after, func(a, b CatalogEntry) bool { return a.Code == b.Code }) {
+		t.Fatal("an extension code must not reach mion's generated catalog")
+	}
+	owned := Catalog(func(definition Definition) bool { return definition.Owner != "" })
+	if len(owned) != 1 || owned[0].Code != "internal-test-owned-code" || owned[0].Family != "marker" || owned[0].Level != "warning" {
+		t.Fatalf("owned catalog = %+v", owned)
 	}
 }
