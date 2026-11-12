@@ -4,7 +4,7 @@ Read before adding a diagnostic code or picking its Level.
 
 ## ⚠️ Every diagnostic declares its Level
 
-- A code declares one of FOUR levels in [catalog.go](catalog.go). `register` panics without one.
+- A code declares one of FOUR levels in [catalog.go](catalog.go). `Register` panics without one.
 - `Severity` is derived from the Level, never written.
 - Why two error levels: "no code produced" and "code produced but broken" want opposite things from a consumer.
 - Scope + `NestedExample` rules: [reflection/AGENTS.md](../reflection/AGENTS.md). Read before registering a code.

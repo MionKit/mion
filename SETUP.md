@@ -354,7 +354,7 @@ printf '%s\n%s\n' \
 
 ### Pointing a consumer project at a specific binary (`MION_BIN`)
 
-Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` resolves the per-platform `@mionjs/native-compiler-<os>-<arch>` package. **`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
+Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` resolves, first match wins: `MION_BIN`, then an installed `@mionkit/pro-bin-compiler` launcher (its `mionVersion` must equal `@mionjs/bin-compiler`'s version, or the lookup throws), then the per-platform `@mionjs/native-compiler-<os>-<arch>` package. **`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
 
 ```bash
 MION_BIN=/abs/path/to/mion pnpm run lint     # in the consumer project
@@ -362,7 +362,7 @@ MION_BIN=/abs/path/to/mion pnpm run lint     # in the consumer project
 
 Use it to validate an **unpublished** build in a real consumer (packing `RunTypes/{core,devtools,bin}` as `file:` tarballs leaves no platform package to resolve, so the lint lane would otherwise fail), to bisect a resolver regression without editing `node_modules`, or to run a binary delivered out-of-band. A value that is missing, not a file, or not executable throws — a typo never falls through to a different binary.
 
-A lint config can pin the same thing without an env var: **`settings.mion.binary`** (alongside `timeoutMs` and `tsconfig`) in `.oxlintrc.json` / `eslint.config.js`. It **wins over `MION_BIN`**, mirroring the bundler lane where an explicit `binary` option beats the launcher, so the full order is `settings.mion.binary` → plugin `binary` option → `MION_BIN` → in-repo dev binary → platform package. A configured path that is not there fails the lint run naming the setting. Any OTHER key under `settings.mion` (a typo, say) is ignored, with one warning per run on stderr.
+A lint config can pin the same thing without an env var: **`settings.mion.binary`** (alongside `timeoutMs` and `tsconfig`) in `.oxlintrc.json` / `eslint.config.js`. It **wins over `MION_BIN`**, mirroring the bundler lane where an explicit `binary` option beats the launcher, so the full order is `settings.mion.binary` → plugin `binary` option → `MION_BIN` → pro launcher → in-repo dev binary → platform package. A configured path that is not there fails the lint run naming the setting. Any OTHER key under `settings.mion` (a typo, say) is ignored, with one warning per run on stderr.
 
 > ⚠️ The resolver's version folds into every typeId, so an override of a different version produces cache entries that diverge from a normal install. Clear `node_modules/.cache/ts-runtypes` when switching back.
 
