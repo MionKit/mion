@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -31,7 +31,7 @@ type driftFinding struct {
 // enrich-mirror-moved lives here, as only the CLI knows the genDir config; the rest come from mirror.CheckBreadcrumbDrift.
 // With no argument it walks the enrich dir from cwd's tsconfig; mirrorDriftExitCode picks the exit code.
 func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	var targets []string
 	if len(positional) > 0 {
 		candidate := tspath.NormalizePath(mustAbs(positional[0]))
@@ -54,7 +54,7 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 			targets = []string{candidate}
 		}
 	} else {
-		cwd := enrichCwd("enrich --no-emit")
+		cwd := projectCwd("enrich --no-emit")
 		// Resolve the enrich dir from cwd's tsconfig — the default scan root.
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 		targets = []string{config.EnrichDir}

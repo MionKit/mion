@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"os"
@@ -54,7 +54,7 @@ func translateFixture(t *testing.T, strict bool) (enrichConfig, string, string) 
 func TestTranslateTargets_PositionalMapsToFriendlyMirror(t *testing.T) {
 	config, source, sourceMirror := translateFixture(t, false)
 
-	tsconfigPath, parsed := resolveEnrichProject("")
+	tsconfigPath, parsed := ResolveProject("")
 	gotConfig, targets := translateTargets([]string{source}, "", tsconfigPath, parsed)
 	if gotConfig.EnrichDir != config.EnrichDir {
 		t.Errorf("EnrichDir = %q, want %q", gotConfig.EnrichDir, config.EnrichDir)

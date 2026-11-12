@@ -6,7 +6,7 @@ Fuzzer + first run: [enrich-fuzzer.md](enrich-fuzzer.md).
 
 ## Grounding
 
-- CLI: `ts-go-runtypes/cmd/mion/` [enrich_cli.go](../../../../ts-go-runtypes/cmd/mion/enrich_cli.go)
+- CLI: `ts-go-runtypes/pkg/cli/` [enrich_cli.go](../../../../ts-go-runtypes/pkg/cli/enrich_cli.go)
   (+ `enrich_reconcile.go`, `enrich_check.go`).
 - Value-preserving merge: `ts-go-runtypes/pkg/enrichment/mirror/`
   [reconcile.go](../../../../ts-go-runtypes/pkg/enrichment/mirror/reconcile.go).

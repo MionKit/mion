@@ -5,9 +5,8 @@
 // (comments and trailing commas stripped) exists ONLY for the `plugins[]`
 // mion entry — our params riding tsconfig's language-service plugin
 // slot, which tsc ignores and tsgo does not parse. The enrich-specific
-// resolution (enrichConfig, resolveEnrichConfig, mirrorPath) rides along here
-// for now.
-package main
+// resolution lives in enrich_config.go.
+package cli
 
 import (
 	"encoding/json"
@@ -21,27 +20,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
 )
-
-// The enrichment layout constants, the enrichConfig type, its path helpers, and
-// the pure scaffold planner now live in the shared pkg/enrichment/enrichgen
-// leaf package, so the OpEnrich daemon op and the CLI `enrich` verb compute
-// byte-identical mirrors over one implementation. These aliases keep the CLI call
-// sites terse; the JSONC plugin side-read below stays here (it is disk I/O the
-// leaf package deliberately does not do — the CLI feeds it in via PluginSettings).
-const (
-	defaultGenDirName   = enrichgen.DefaultGenDirName
-	enrichedSubdir      = enrichgen.EnrichedSubdir
-	familyFriendly      = enrichgen.FamilyFriendly
-	familyMock          = enrichgen.FamilyMock
-	defaultI18nDirName  = enrichgen.DefaultI18nDirName
-	defaultSourceLocale = enrichgen.DefaultSourceLocale
-)
-
-// enrichConfig is the resolved enrichment configuration for an enrich target,
-// aliased to the shared type so the CLI and the daemon resolve it identically.
-type enrichConfig = enrichgen.Config
 
 // tsRuntypesPlugin is the shape of the `mion` entry under
 // compilerOptions.plugins[]. It is the single canonical config surface for the
@@ -146,15 +125,6 @@ type validatePluginConfig struct {
 	NumberMode string `json:"numberMode"`
 }
 
-// i18nPluginConfig is the plugin's `i18n` object, e.g. { "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }.
-// sourceLocale picks the scaffold's plural arms and is never in locales; strict fails `enrich --i18n --no-emit` findings.
-// The runtime is always lenient, and <genDir>/enriched/i18n/<locale>/ is convention, never configurable.
-type i18nPluginConfig struct {
-	SourceLocale string   `json:"sourceLocale"`
-	Locales      []string `json:"locales"`
-	Strict       bool     `json:"strict"`
-}
-
 // tsconfigShape decodes ONLY the plugins slot — the mion entry, our
 // params. Every TypeScript-owned compilerOptions value comes from tsgo's parse.
 type tsconfigShape struct {
@@ -168,7 +138,7 @@ type tsconfigShape struct {
 // --tsconfig (anchored under absCwd) wins; else program.DiscoverTsconfig's
 // upward walk from absCwd; else "" (no config anywhere — the inferred-defaults
 // posture). Called from exactly one entry per lane: main's resolver
-// subcommands, and resolveEnrichProject for the enrich verbs.
+// subcommands, and ResolveProject for the project-reading verbs.
 //
 // It resolves the PATH only; existence is enforced downstream by
 // program.ParseInferredConfig / program.New (a missing NAMED path becomes a loud
@@ -185,16 +155,16 @@ func resolveConfigPath(absCwd, tsconfigFlag string) string {
 	return program.DiscoverTsconfig(absCwd)
 }
 
-// resolveEnrichProject resolves the ONE tsconfig for an enrich command run and
-// parses it EXACTLY ONCE, returning both the path and the frozen config to thread
-// into resolveEnrichConfig (genDir/rootDir/hashLength) AND buildProgram (type
-// resolution) — which used to parse the config twice. The config's own module
+// ResolveProject resolves the ONE tsconfig for a command run (enrich, convert,
+// drizzle-migrate, an extension verb) and parses it EXACTLY ONCE, returning both
+// the path and the frozen config to thread into resolveEnrichConfig
+// (genDir/rootDir/hashLength) AND buildProgram (type resolution). The config's own module
 // resolution conditions are adopted wholesale, so enrich resolves exactly like a
 // build; a project that dogfoods its in-tree src opts in via
 // customConditions:["source"] in the tsconfig (enrich never forces it). "" path +
 // nil config means no tsconfig anywhere (the inferred-defaults fallback).
-func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig) {
-	cwd := enrichCwd("tsconfig discovery")
+func ResolveProject(tsconfigFlag string) (string, *program.InferredConfig) {
+	cwd := projectCwd("tsconfig discovery")
 	tsconfigPath := resolveConfigPath(cwd, tsconfigFlag)
 	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath)
 	if err != nil {
@@ -203,33 +173,8 @@ func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig)
 	return tsconfigPath, parsed
 }
 
-// resolveEnrichConfig computes the enrichment config for an enrich target file.
-// It performs the one bit of disk I/O the pure enrichgen.ResolveConfig cannot —
-// the JSONC side-read of the tsconfig's mion plugin entry (our params
-// riding tsconfig's language-service plugin slot; tsc ignores it and tsgo does
-// not parse it) — then delegates the (pure) path math to the shared leaf package,
-// so the daemon op resolves the same layout. Strict like tsc: a resolved config
-// that does not parse is fatal; only no-config-anywhere falls back to defaults.
-func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig) enrichConfig {
-	var pluginSettings enrichgen.PluginSettings
-	if tsconfigPath != "" {
-		pluginTsconfig, ok := parseTsconfig(tsconfigPath)
-		if !ok {
-			fatal("tsconfig %s: cannot parse", tsconfigPath)
-		}
-		plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
-		if err != nil {
-			fatal("tsconfig %s: %v", tsconfigPath, err)
-		}
-		if ok {
-			pluginSettings = pluginSettingsFrom(plugin)
-		}
-	}
-	return enrichgen.ResolveConfig(absTargetFile, genDirFlag, tsconfigPath, parsed, pluginSettings)
-}
-
-// tsconfigShowInfo reads the mion plugin's `levels` key; no tsconfig or no plugin entry hides Info.
-func tsconfigShowInfo(tsconfigPath string) (bool, error) {
+// ShowInfo reads the mion plugin's `levels` key; no tsconfig or no plugin entry hides Info.
+func ShowInfo(tsconfigPath string) (bool, error) {
 	if tsconfigPath == "" {
 		return false, nil
 	}
@@ -242,64 +187,6 @@ func tsconfigShowInfo(tsconfigPath string) (bool, error) {
 		return false, err
 	}
 	return diagnostics.ResolveLevels(plugin.Levels)
-}
-
-func mustTsconfigShowInfo(tsconfigPath string) bool {
-	showInfo, err := tsconfigShowInfo(tsconfigPath)
-	if err != nil {
-		fatal("enrich: %v", err)
-	}
-	return showInfo
-}
-
-// pluginSettingsFrom projects the CLI's JSONC-read mion plugin entry onto
-// the shared enrichgen.PluginSettings the resolver consumes.
-func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
-	settings := enrichgen.PluginSettings{
-		GenDir:     plugin.GenDir,
-		ModuleMode: plugin.ModuleMode,
-		EmitMode:   plugin.EmitMode,
-		InlineMode: plugin.InlineMode,
-	}
-	if plugin.HashLength != nil {
-		settings.HashLength = *plugin.HashLength
-	}
-	if plugin.I18n != nil {
-		settings.I18n = &enrichgen.I18nSettings{
-			SourceLocale: plugin.I18n.SourceLocale,
-			Locales:      plugin.I18n.Locales,
-			Strict:       plugin.I18n.Strict,
-		}
-	}
-	return settings
-}
-
-// ensureFamilyReadme self-documents an enrichment family dir (or the i18n
-// translation root) the moment it is created: every conventional dir under
-// genDir carries a README explaining what it is. Write-if-absent so an edit is
-// never clobbered; best-effort (a failure surfaces on the mirror write itself).
-func ensureFamilyReadme(config enrichConfig, family string) {
-	texts := map[string][2]string{
-		familyFriendly: {filepath.Join(config.EnrichDir, familyFriendly),
-			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `mion enrich`; the values are\nyours to edit. Commit these files.\n"},
-		familyMock: {filepath.Join(config.EnrichDir, familyMock),
-			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `mion enrich`; the values are yours\nto edit. Commit these files.\n"},
-		defaultI18nDirName: {config.I18nDir,
-			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --i18n <locale>`. Commit these files.\n"},
-	}
-	entry, ok := texts[family]
-	if !ok {
-		return
-	}
-	dir, text := entry[0], entry[1]
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return
-	}
-	readme := filepath.Join(dir, "README.md")
-	if _, err := os.Stat(readme); err == nil {
-		return
-	}
-	_ = os.WriteFile(readme, []byte(text), 0o644)
 }
 
 // parseTsconfig reads and tolerantly parses a JSONC tsconfig.json (comments +
@@ -548,4 +435,43 @@ func resolveClientRoutes(flag, key string) (constants.ClientRoutesMode, bool) {
 		mode = constants.ClientRoutesBundle
 	}
 	return mode, true
+}
+
+// projectCwd is the working directory every project-reading verb resolves against, in the
+// ONE canonical symlink space. os.Getwd is not stable enough to compare against
+// on its own: it prefers $PWD when that is valid, so the cwd it reports is
+// symlink-spelled under an interactive shell but fully kernel-resolved when the
+// process was started with a chdir that left $PWD stale (any spawn that passes a
+// cwd option). Canonicalizing both ends — here and in mustAbs — is what makes
+// RootDir and an absolute file argument comparable no matter how we were invoked.
+func projectCwd(what string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fatal("%s: getwd: %v", what, err)
+	}
+	return canonicalize(cwd)
+}
+
+// canonicalize rewrites an absolute path into the ONE canonical symlink space
+// (see projectCwd). Without it a path the user spelled through a symlink — macOS
+// hands out /var/folders/... for a $TMPDIR that really is /private/var/folders/...
+// — can share no prefix with RootDir, so the mirror's RootDir-relative sub-path
+// escapes with ".." and MirrorRel silently collapses it to the source's base
+// name, mapping two same-named sources onto one mirror. Symlinks are resolved on
+// the longest EXISTING prefix so a not-yet-created leaf (an `--out` target) keeps
+// its spelling appended.
+func canonicalize(abs string) string {
+	tail := ""
+	for current := abs; ; {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			return filepath.Join(resolved, tail)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return abs
+		}
+		tail = filepath.Join(filepath.Base(current), tail)
+		current = parent
+	}
 }

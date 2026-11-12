@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -159,9 +159,9 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 		if err := os.Chdir(childDir); err != nil {
 			return
 		}
-		// The discover + tsgo parse now lives in resolveEnrichProject — the
+		// The discover + tsgo parse lives in ResolveProject — the
 		// garbage discovered tsconfig makes ParseInferredConfig fatal there.
-		resolveEnrichProject("")
+		ResolveProject("")
 		return // unreachable if fatal fired
 	}
 
@@ -424,15 +424,15 @@ func TestImportSpecifier(t *testing.T) {
 
 // resolveEnrichConfigTest resolves + parses the tsconfig from the (t.Chdir'd)
 // cwd and builds the enrich config, mirroring what an enrich verb does — the
-// test twin of resolveEnrichProject followed by resolveEnrichConfig, so the
+// test twin of ResolveProject followed by resolveEnrichConfig, so the
 // config is parsed exactly once.
 func resolveEnrichConfigTest(target, genDirFlag string) enrichConfig {
-	tsconfigPath, parsed := resolveEnrichProject("")
+	tsconfigPath, parsed := ResolveProject("")
 	return resolveEnrichConfig(target, genDirFlag, tsconfigPath, parsed)
 }
 
 // canonicalTempDir is t.TempDir() in the ONE canonical symlink space the enrich
-// verbs resolve into (see enrichCwd). A raw t.TempDir() is not comparable against
+// verbs resolve into (see projectCwd). A raw t.TempDir() is not comparable against
 // a resolved config on macOS, where $TMPDIR is handed out as /var/folders/... for
 // a directory that really lives at /private/var/folders/....
 func canonicalTempDir(t *testing.T) string {
@@ -491,5 +491,55 @@ func TestResolveClientRoutes(t *testing.T) {
 		if _, ok := resolveClientRoutes("", mode); ok {
 			t.Errorf("key %q: an unknown mode is refused", mode)
 		}
+	}
+}
+
+// The tsconfig plugin key decides a report's Info, and a wrong value or a broken tsconfig is refused like
+// `mion compile` does.
+func TestShowInfo(t *testing.T) {
+	dir := canonicalTempDir(t)
+	cases := []struct {
+		name, tsconfig string
+		want           bool
+		wantErr        bool
+	}{
+		{"no plugin entry", `{"compilerOptions":{}}`, false, false},
+		{"no levels key", `{"compilerOptions":{"plugins":[{"name":"mion"}]}}`, false, false},
+		{"levels all", `{"compilerOptions":{"plugins":[{"name":"mion","levels":"all"}]}}`, true, false},
+		{"wrong value", `{"compilerOptions":{"plugins":[{"name":"mion","levels":"warning"}]}}`, false, true},
+		{"broken tsconfig", `{"compilerOptions": {`, false, true},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			path := filepath.Join(dir, strings.ReplaceAll(testCase.name, " ", "-")+".json")
+			writeTestFile(t, path, testCase.tsconfig)
+			got, err := ShowInfo(path)
+			if (err != nil) != testCase.wantErr || got != testCase.want {
+				t.Errorf("ShowInfo = %v, %v; want %v, error %v", got, err, testCase.want, testCase.wantErr)
+			}
+		})
+	}
+	if got, err := ShowInfo(""); got || err != nil {
+		t.Errorf("no tsconfig must hide Info: %v, %v", got, err)
+	}
+}
+
+// convert and drizzle-migrate resolve their project through ResolveProject: an explicit --tsconfig anchors under the
+// cwd, else tsc's upward discovery, and the config is parsed once for the Program.
+func TestResolveProject(t *testing.T) {
+	dir := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{"compilerOptions":{"strict":true},"include":["src"]}`)
+	writeTestFile(t, filepath.Join(dir, "custom.json"), `{"compilerOptions":{"strict":false},"include":["src"]}`)
+	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), "export const a = 1;\n")
+	nested := filepath.Join(dir, "src")
+	t.Chdir(nested)
+
+	discovered, parsed := ResolveProject("")
+	if discovered != filepath.Join(dir, "tsconfig.json") || parsed == nil {
+		t.Fatalf("discovery = %q (%v), want the tsconfig.json above the cwd", discovered, parsed)
+	}
+	explicit, parsed := ResolveProject("../custom.json")
+	if explicit != filepath.Join(nested, "..", "custom.json") || parsed == nil {
+		t.Fatalf("explicit = %q (%v), want ../custom.json anchored under the cwd", explicit, parsed)
 	}
 }

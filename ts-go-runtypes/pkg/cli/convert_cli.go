@@ -3,7 +3,7 @@
 // reflection graph. CLI-only by design (a migration, not a build step):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
 // copy, `--check` for a write-nothing report.
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -69,7 +69,7 @@ any error makes the exit code non-zero.
 	for _, file := range files {
 		absFiles = append(absFiles, tspath.NormalizePath(mustAbs(file)))
 	}
-	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	_, parsed := ResolveProject(*tsconfigFlag)
 	cwd := filepath.Dir(absFiles[0])
 	// Root the WHOLE config file list beside the conversion targets (one-shot
 	// tool, so the parse cost is paid once): ambient declarations the project
