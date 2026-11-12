@@ -3,7 +3,7 @@
 // which overrides the binary's built-in default. The host plugins
 // (@mionjs/devtools) forward a --flag ONLY for an option the user set
 // explicitly, so an unset host option falls through to the tsconfig entry.
-package main
+package cli
 
 import (
 	"path/filepath"

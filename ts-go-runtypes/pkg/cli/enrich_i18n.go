@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 // runI18nWrite implements `enrich --i18n <locale|all> [<src>]` scaffold, --update and --prune.
 // Translations are emitted from the TYPE; the friendly mirror only says which types to emit, never the content.
 func runI18nWrite(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	// The i18n root is a conventional dir under genDir — self-document it the
@@ -77,7 +77,7 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 		config := resolveEnrichConfig(src, genDirFlag, tsconfigPath, parsed)
 		return config, []string{config.MirrorPath(familyFriendly, src)}
 	}
-	cwd := enrichCwd("enrich --i18n")
+	cwd := projectCwd("enrich --i18n")
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
@@ -249,8 +249,8 @@ var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 // passes --require-complete (then everything is an Error and the exit code drives
 // CI). Rendering at runtime stays lenient either way.
 func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
-	cwd := enrichCwd("enrich --i18n --no-emit")
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	cwd := projectCwd("enrich --i18n --no-emit")
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))

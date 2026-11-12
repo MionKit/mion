@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -28,10 +28,14 @@ import (
 // unfilled @todo also fails.
 func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON, requireComplete bool) {
 	absPath := tspath.NormalizePath(mustAbs(fileArg))
-	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 	config := resolveEnrichConfig(absPath, "", tsconfigPath, parsed)
 	diags := checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength)
-	os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
+	showInfo, err := ShowInfo(tsconfigPath)
+	if err != nil {
+		fatal("enrich: %v", err)
+	}
+	os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, showInfo))
 }
 
 // checkMirrorFilesDiagnostics builds ONE inferred Program over the given mirror

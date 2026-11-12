@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
@@ -141,24 +140,6 @@ func (sess *Session) demandedExportedTypes(absPath string, demanded map[string]b
 	return out
 }
 
-// programSourceFiles skips declaration files, as scanAllProgramFiles does: the largest ASTs, and nothing a pass reads.
-func (sess *Session) programSourceFiles() []string {
-	if sess.Program == nil || sess.Program.TS == nil {
-		return nil
-	}
-	sourceFiles := sess.Program.TS.SourceFiles()
-	files := make([]string, 0, len(sourceFiles))
-	for _, sourceFile := range sourceFiles {
-		if sourceFile == nil || sourceFile.IsDeclarationFile {
-			continue
-		}
-		if name := sourceFile.FileName(); name != "" {
-			files = append(files, name)
-		}
-	}
-	return files
-}
-
 // materializeMirror computes one mirror's desired content, the SYNC semantic: value-preserving
 // property-merge Reconcile for an existing mirror, create-only Scaffold for a missing or empty one (the
 // CLI's updateMirrorFile fallback shape). Disk-free, existing content and sibling sources are injected.
@@ -176,21 +157,4 @@ func materializeMirror(spec mirror.Spec, existing string, readSource func(string
 		return existing, false
 	}
 	return out, true
-}
-
-// ensureInferredConfig lazily parses and caches the session's tsconfig, so the enrich lane resolves
-// rootDir / genDir exactly as the build does; (nil, nil) means no config was named and the fixed inferred
-// defaults apply. Also freezes configDeclarationRoots, the `.d.ts` subset every setSources-built Program
-// unions into its roots.
-func (sess *Session) ensureInferredConfig(cwd string) (*program.InferredConfig, error) {
-	if !sess.inferredConfigDone {
-		inferredConfig, err := program.ParseInferredConfig(cwd, sess.opts.TsconfigPath)
-		if err != nil {
-			return nil, err
-		}
-		sess.inferredConfig = inferredConfig
-		sess.inferredConfigDone = true
-		sess.configDeclarationRoots = inferredConfig.DeclarationFileNames()
-	}
-	return sess.inferredConfig, nil
 }

@@ -1,7 +1,7 @@
 // Concurrent-CLI race harness for the enrich-mirror reconciler. Fires several
 // `enrich --update` processes at ONE fixture simultaneously (the save + format-on-save
 // double-fire a dev HMR loop produces) and races a source rewrite against them. The
-// ATOMIC mirror write (write-temp + os.Rename, in cmd/mion/enrich_reconcile.go)
+// ATOMIC mirror write (write-temp + os.Rename, in pkg/cli/enrich_reconcile.go)
 // is the enabler: with it, the worst a race can do is last-writer-wins of a CONVERGENT
 // reconcile, so after the dust settles the mirror still PARSES, CONVERGES (a further
 // --update is a byte-identical no-op), and preserves every authored value. Without

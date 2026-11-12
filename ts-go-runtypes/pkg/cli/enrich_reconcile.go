@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -166,8 +166,8 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 	if len(positional) > 0 {
 		target = tspath.NormalizePath(mustAbs(positional[0]))
 	} else {
-		cwd := enrichCwd("enrich --prune")
-		tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+		cwd := projectCwd("enrich --prune")
+		tsconfigPath, parsed := ResolveProject(tsconfigFlag)
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 		target = config.EnrichDir
 	}
