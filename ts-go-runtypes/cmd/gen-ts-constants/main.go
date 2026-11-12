@@ -30,7 +30,7 @@ const (
 
 func main() {
 	for path, content := range map[string]string{vitePluginConstantsPath: buildVitePluginConstants(), batchKeyConstantsPath: buildBatchKeyConstants()} {
-		if err := codegen.WriteFile(filepath.Join(codegen.RepoRoot(), path), content); err != nil {
+		if err := os.WriteFile(filepath.Join(codegen.RepoRoot(), path), []byte(content), 0o644); err != nil {
 			fmt.Fprintln(os.Stderr, "gen-ts-constants:", err)
 			os.Exit(1)
 		}
