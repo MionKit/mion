@@ -158,3 +158,7 @@ func TestReadPlugin(t *testing.T) {
 		t.Fatal("a broken tsconfig is an error")
 	}
 }
+
+func TestExtension_NeedsAName(t *testing.T) {
+	mustPanic(t, "an extension needs a Name", func() { install(Extension{}) })
+}

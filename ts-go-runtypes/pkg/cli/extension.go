@@ -14,6 +14,7 @@ import (
 // mion's own rows: a name mion already has panics unless the row sets Replace, and Replace on a name mion
 // does not have panics too, so the bump that deletes a built-in forces the switch back to a plain row.
 // An extension never feeds a typeID, fnHash or disk fingerprint: it must never change a public answer.
+// Every row, and any diagnostics.Register* call, happens before cli.Main serves: the tables are not locked.
 type Extension struct {
 	Name, Version string // "mion-pro", its own version; mion's rides pkg/constants
 	Commands      []Command
@@ -69,8 +70,12 @@ func registerPluginKey(key PluginKey) {
 	pluginKeyTable.Add(key.Name, key, key.Replace)
 }
 
-// install adds an extension's rows; the resolver rows take its name as their Owner.
+// install adds an extension's rows; the resolver rows take its name as their Owner. An empty name panics: its rows
+// would read as mion's own and the capabilities op would hide them.
 func install(extension Extension) {
+	if extension.Name == "" {
+		panic("mion: an extension needs a Name")
+	}
 	resolver.RegisterExtension(extension.Name, extension.Version)
 	for _, command := range extension.Commands {
 		registerCommand(command)
