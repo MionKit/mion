@@ -31,12 +31,12 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {resolverDigest} from '../core/build.mjs';
 import {platformPackageName, selectPlatforms} from '../lib/binary-platforms.mjs';
+import {mionVersion, versionLdflags} from '../lib/go-stamp.mjs';
 import {tsgolintCommit} from '../lib/tsgolint.mjs';
 import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
-const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
 const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin-compiler');
@@ -45,18 +45,18 @@ const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
 const BIN_CACHE_DIR = path.join(REPO_ROOT, '.cache/release-bin');
 
 function readVersion() {
-  const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8'));
-  if (!manifest.version || manifest.version === 'independent') {
+  const version = mionVersion(REPO_ROOT);
+  if (version === 'independent') {
     throw new Error('version.json has no fixed lockstep version to stamp binary packages with.');
   }
-  return manifest.version;
+  return version;
 }
 
 // Fixed length, so the ldflags and the cache digest never vary between clones.
 const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
 
 export function releaseLdflags(version, tsgo) {
-  return ['-s', '-w', `-X ${GO_MODULE}/pkg/constants.Version=${version}`, `-X ${GO_MODULE}/pkg/constants.TsgoVersion=${tsgo}`].join(' ');
+  return ['-s', '-w', ...versionLdflags(version, tsgo)].join(' ');
 }
 
 // The cache digest hashes exactly this command and env, so the two cannot drift.

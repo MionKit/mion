@@ -8,6 +8,8 @@ import {afterAll, describe, expect, it} from 'vitest';
 // @ts-expect-error plain ESM dev script, no types
 import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '../../../scripts/lib/go-inputs.mjs';
 // @ts-expect-error plain ESM dev script, no types
+import {mionVersion, versionLdflags} from '../../../scripts/lib/go-stamp.mjs';
+// @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
 import {
   CODE_DIGEST_INPUTS,
@@ -150,8 +152,10 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
   });
 
   // constants.Version is folded into typeIDs, so a version bump must never restore an old binary.
-  it('carries the root package.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
-    const version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
+  it('carries the version.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
+    const version = JSON.parse(readFileSync(join(REPO_ROOT, 'version.json'), 'utf8')).version;
+    // One stamp reader for dev and release builds, so both hash every type alike.
+    expect(goVersionLdflags()).toBe(versionLdflags(mionVersion(REPO_ROOT), goVersionLdflags().slice(-7)).join(' '));
     expect(goVersionLdflags()).toContain(`constants.Version=${version} `);
     // `--short` grows with the object count, which would split one commit into two keys.
     expect(goVersionLdflags()).toMatch(/constants\.TsgoVersion=[0-9a-f]{7}$/);
