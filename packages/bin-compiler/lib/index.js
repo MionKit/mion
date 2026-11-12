@@ -62,14 +62,47 @@ function findProLauncher(start) {
   }
 }
 
+// The ESM entry an exports target names: a path, the first resolvable of an array, or the `import` / `node` /
+// `default` branch of a conditions object, nested as deep as the map goes. Undefined when none applies.
+function exportTarget(target) {
+  if (typeof target === 'string') return target;
+  if (Array.isArray(target)) {
+    for (const item of target) {
+      const found = exportTarget(item);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (target && typeof target === 'object') {
+    for (const condition of ['import', 'node', 'default']) {
+      const found = exportTarget(target[condition]);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+// The package's root entry: `exports` (the `.` subpath, or the sugar form with no subpaths), else `main`.
+function launcherEntry(pkg) {
+  const exports = pkg.exports;
+  if (exports === undefined) return pkg.main ?? 'index.js';
+  const root =
+    exports && typeof exports === 'object' && !Array.isArray(exports) && Object.keys(exports).some((key) => key.startsWith('.'))
+      ? exports['.']
+      : exports;
+  return exportTarget(root);
+}
+
 // The pro launcher's module, found from the project (process.cwd()) first, then from this package; null when absent.
 // Only a missing package counts as absent: a launcher that fails to load throws, so a broken install is never skipped.
 function loadProLauncher(here) {
   const dir = findProLauncher(process.cwd()) ?? findProLauncher(here);
   if (!dir) return null;
   const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-  const root = typeof pkg.exports === 'string' ? pkg.exports : pkg.exports?.['.'];
-  const entry = typeof root === 'string' ? root : (root?.import ?? root?.default ?? pkg.main ?? 'index.js');
+  const entry = launcherEntry(pkg);
+  if (!entry) {
+    throw new Error(`[mion] ${PRO_LAUNCHER} at ${dir} exports no entry this launcher can load (an import or default path).`);
+  }
   // require(esm) loads an ES module synchronously (Node >= 22.12, inside the >= 24 floor).
   return module.createRequire(import.meta.url)(path.join(dir, entry));
 }
