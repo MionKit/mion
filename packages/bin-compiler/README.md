@@ -9,13 +9,6 @@ binary itself rides as a per-platform optional dependency named
 `@mionjs/native-compiler-<os>-<arch>`, so your package manager downloads only the one
 your machine needs. This package ships **zero runtime dependencies**.
 
-The binary it picks, first match wins:
-
-1. The `MION_BIN` environment variable (must name an executable file).
-2. An installed `@mionkit/pro-bin-compiler` launcher. Its mion version must equal
-   this package's version, or the lookup throws.
-3. The platform package.
-
 ## Documentation
 
 Install, guides, and the factory reference live at
