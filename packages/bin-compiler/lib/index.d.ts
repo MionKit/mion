@@ -7,3 +7,7 @@
 // optional dependency (or the locally built `mion-bin/mion` inside this repo).
 // Throws when no compatible binary is installed.
 export declare function getExePath(): string;
+
+// True when an `@mionkit/pro-bin-compiler` launcher is installed for this
+// project (the lookup getExePath uses), so a caller can skip extension-only work.
+export declare function hasProLauncher(): boolean;

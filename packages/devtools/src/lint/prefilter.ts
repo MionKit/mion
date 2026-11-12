@@ -47,19 +47,12 @@ export function declaresUnsafePropertyName(text: string): boolean {
 }
 
 // One pass per file serves every rule, so a file goes over the wire when any family could report on it.
-// `probes` are the binary's advertised scan-check probes (compiled with `m`), so an extension check's files pass too.
-export function needsResolverPass(
-  text: string,
-  file?: string,
-  markers?: MarkerGateOptions,
-  probes: readonly RegExp[] = []
-): boolean {
+export function needsResolverPass(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return (
     referencesMarkerModule(text, file, markers) ||
     looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
     declaresUnsafePropertyName(text) ||
-    mayHoldDrizzleSchemas(text) ||
-    probes.some((probe) => probe.test(text))
+    mayHoldDrizzleSchemas(text)
   );
 }
