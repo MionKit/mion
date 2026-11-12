@@ -1,4 +1,4 @@
-// Mirrors internal/compiler/resolver/extends_test.go; AGENTS.md requires paired marker forms.
+// Mirrors pkg/compiler/resolver/extends_test.go; AGENTS.md requires paired marker forms.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

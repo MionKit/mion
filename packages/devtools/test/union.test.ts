@@ -1,5 +1,5 @@
 // End-to-end union round-trip tests. Mirrors the Go-side suite in
-// internal/compiler/resolver/union_safeorder_test.go but exercises the full
+// pkg/compiler/resolver/union_safeorder_test.go but exercises the full
 // pipeline (rewrite → resolver → runTypeCacheSource → eval module → assert
 // on the materialised RunType). The serialize-time analysis populates
 // safeUnionChildren and unionDiscriminators on the union node — every

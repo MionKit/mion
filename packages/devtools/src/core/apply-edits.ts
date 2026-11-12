@@ -1,4 +1,4 @@
-// Applies the resolver's edit list (internal/compiler/sourcerewrite/edits.go) in JS, so the rewritten file
+// Applies the resolver's edit list (pkg/compiler/sourcerewrite/edits.go) in JS, so the rewritten file
 // and its source map never cross the wire. Must call appendLeft / update in the same order as Go's Apply,
 // or the two modes stop being byte-identical. Offsets are UTF-16 code units, already converted on the Go side.
 import {EditBuffer, type SourceMap} from './edit-buffer.ts';

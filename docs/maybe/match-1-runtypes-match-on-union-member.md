@@ -67,9 +67,9 @@ than falling into `otherwise`"; that is the consumer's own rule, not part of `ma
 The implementer plans the details. Pointers verified at the time of writing:
 
 - The member pick already exists as a piece of the JSON walkers:
-  `ts-go-runtypes/internal/cachegen/typefunctions/json_prepare.go` (`unionMemberValidateCheck`,
+  `ts-go-runtypes/pkg/cachegen/typefunctions/json_prepare.go` (`unionMemberValidateCheck`,
   inline leaf checks or the cross-family `val_<member>` entry), driven by the safe member order
-  and discriminator detection in `ts-go-runtypes/internal/cachegen/runtype/union_safeorder.go`
+  and discriminator detection in `ts-go-runtypes/pkg/cachegen/runtype/union_safeorder.go`
   (`SafeUnionChildren` / `UnionDiscriminators`). A standalone family, `unionIndex` or similar,
   is mostly wiring: one row in `cachegen/typefunctions/families.go`, one operation in
   `cachegen/operations/operations.go`, a `createX` factory in
@@ -82,7 +82,7 @@ The implementer plans the details. Pointers verified at the time of writing:
   two calls. An `unknown` subject has no union to generate for; there each branch falls back
   to its own validate entry, run in written order.
 - Chained method markers already work: the scanner reads the resolved call signature
-  (`ts-go-runtypes/internal/compiler/resolver/scan.go`, `Checker_getResolvedSignature`) and
+  (`ts-go-runtypes/pkg/compiler/resolver/scan.go`, `Checker_getResolvedSignature`) and
   `mion.route()` is itself a method marker (`packages/rpc-router/src/types/mionRouter.ts`). So
   `.when<T>()` needs no resolver change, but a `when` in ARGUMENT position of another call
   needs its paired test (Marker test coverage rule, both `getRunTypeId` shapes).

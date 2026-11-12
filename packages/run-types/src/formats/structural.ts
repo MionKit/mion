@@ -17,7 +17,7 @@ type Flatten<T> = {[K in keyof T]: T[K]};
 // value-first halves live BELOW the region). The resolver matches a symbol-keyed property on its
 // declaration NAME, so a sentinel symbol declared locally is recognised exactly like the shipped one.
 
-/** Kept in sync with the Go emitters (internal/cachegen/typefunctions/formats/structural) and the generated catalog. */
+/** Kept in sync with the Go emitters (pkg/cachegen/typefunctions/formats/structural) and the generated catalog. */
 export const FORMATTED_ARRAY_NAME = 'formattedArray';
 export const FORMATTED_OBJECT_NAME = 'formattedObject';
 

@@ -140,7 +140,7 @@ Some of what it drops is expensive to regenerate (the playground WASM needs a co
 ## Test
 
 ```bash
-go -C ts-go-runtypes test ./internal/...        # Go suite
+go -C ts-go-runtypes test ./pkg/...        # Go suite
 pnpm test                                       # all JS packages (Vitest projects)
 pnpm miondevx core test-pr [--base <ref>]       # only what the branch changed + its dependents
 pnpm --filter @mionjs/devtools test         # single package
@@ -330,9 +330,9 @@ pnpm run commit                # commitizen — interactive prompt for a conform
 
 ```bash
 printf '%s\n%s\n' \
-  '{"op":"scanFiles","files":["ts-go-runtypes/internal/testfixtures/f17_runtype_id.ts"]}' \
+  '{"op":"scanFiles","files":["ts-go-runtypes/pkg/testfixtures/f17_runtype_id.ts"]}' \
   '{"op":"dump"}' \
-  | mion-bin/mion serve --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
+  | mion-bin/mion serve --tsconfig ts-go-runtypes/pkg/testfixtures/tsconfig.json \
   > cache.json
 ```
 
@@ -410,7 +410,7 @@ pnpm miondevx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
 pnpm miondevx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
 ```
 
-It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `mion-bin/mion`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/bin-compiler/package.json](packages/bin-compiler/package.json), and runs the full `go test ./internal/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
+It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `mion-bin/mion`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/bin-compiler/package.json](packages/bin-compiler/package.json), and runs the full `go test ./pkg/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
 
 The one step that can fail is patch re-application: the patches live inside the tsgolint repo and travel with the pinned rev, so they normally match the `typescript-go` they ship with, but if upstream drifted the command stops with the `git apply --3way --reject` recovery flow (see [Patching](#patching-tsgolints-typescript-go) below).
 

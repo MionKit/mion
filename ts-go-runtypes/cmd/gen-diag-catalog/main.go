@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
 )
 
 // record carries Family and Level as labels so the JS side never mirrors the numeric enum values.

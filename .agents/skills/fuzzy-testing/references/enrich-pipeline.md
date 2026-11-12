@@ -8,12 +8,12 @@ Fuzzer + first run: [enrich-fuzzer.md](enrich-fuzzer.md).
 
 - CLI: `ts-go-runtypes/cmd/mion/` [enrich_cli.go](../../../../ts-go-runtypes/cmd/mion/enrich_cli.go)
   (+ `enrich_reconcile.go`, `enrich_check.go`).
-- Value-preserving merge: `ts-go-runtypes/internal/enrichment/mirror/`
-  [reconcile.go](../../../../ts-go-runtypes/internal/enrichment/mirror/reconcile.go).
+- Value-preserving merge: `ts-go-runtypes/pkg/enrichment/mirror/`
+  [reconcile.go](../../../../ts-go-runtypes/pkg/enrichment/mirror/reconcile.go).
 - Node shapes: `packages/run-types/src/enrich/`
   [friendlyText.ts](../../../../packages/run-types/src/enrich/friendlyText.ts) + `mockData.ts`.
-- Comptime-args validation: `ts-go-runtypes/internal/compiler/comptimeargs/`
-  [comptimeargs.go](../../../../ts-go-runtypes/internal/compiler/comptimeargs/comptimeargs.go).
+- Comptime-args validation: `ts-go-runtypes/pkg/compiler/comptimeargs/`
+  [comptimeargs.go](../../../../ts-go-runtypes/pkg/compiler/comptimeargs/comptimeargs.go).
 - Example tests already pin single cases: `packages/run-types/test/suites/enrich/`
   [enrichReconcile.test.ts](../../../../packages/run-types/test/suites/enrich/enrichReconcile.test.ts),
   `enrichGen.test.ts`, `enrichCheck.test.ts`. The fuzzer generalises them to "holds for every edit sequence".

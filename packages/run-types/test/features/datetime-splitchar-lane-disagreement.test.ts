@@ -1,7 +1,7 @@
 // O4 regression: validate(v) must always equal getValidationErrors(v).length === 0.
 // The dateTime error lane used a plain `.indexOf('T')` while validate searched `/[Tt]/`, so
 // RFC 3339's `1963-06-19t08:30:06z` passed validate and still drew a splitChar error.
-// Go twin: ts-go-runtypes/internal/cachegen/typefunctions/formats/datetime/splitsearch_test.go.
+// Go twin: ts-go-runtypes/pkg/cachegen/typefunctions/formats/datetime/splitsearch_test.go.
 
 import {describe, test, expect} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';

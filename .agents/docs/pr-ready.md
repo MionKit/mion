@@ -6,7 +6,7 @@ Never open a PR unless it is PR ready. Read before opening a PR or labelling one
 
 - Front-end tests exist and pass: every new or changed behaviour has Vitest coverage under
   [packages/](../../packages/) (`.spec.ts` / `.test.ts`). Run the whole JS suite: `pnpm test`.
-  Go-side changes also need `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
+  Go-side changes also need `go -C ts-go-runtypes test ./pkg/... ./cmd/...`.
 - Docs updated, especially the website: content tree [container/website/content/](../../container/website/content/),
   per [website-writing.md](website-writing.md).
 - Docs simplified: `docs-simplifier` subagent (never the writing session) over every touched page + example,

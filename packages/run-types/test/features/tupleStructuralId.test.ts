@@ -13,7 +13,7 @@
 // return the same object). This is DETERMINISTIC — it does not depend on which
 // validator won the collided slot — and mirrors how the id-integrity suite
 // uses `.toBe` for the converse (same-id) check. Go-side twin:
-// internal/cachegen/runtype/typeid/structural_test.go
+// pkg/cachegen/runtype/typeid/structural_test.go
 // → TestStructural_TupleRestNotDeduplicatedWithFixed.
 
 import {createValidateFn} from '@mionjs/run-types';

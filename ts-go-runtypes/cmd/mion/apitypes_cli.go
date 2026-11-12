@@ -10,12 +10,12 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/batchcompile"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/apimeta"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/apitypes"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/batchcompile"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
 )
 
 const apiTypesUsage = `mion api-types — build a types-only package for an API's clients

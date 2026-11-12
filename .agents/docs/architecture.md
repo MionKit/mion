@@ -35,9 +35,9 @@ Load-bearing pipeline rules. Read before touching markers, rewrites, caches, val
 - Validation runs on the restored value → the decoder guards the wire shape.
 - A JSON restore arm converts only the exact wire form (a Date from a string, a bigint from a whole-number string,
   a Map/Set from an array). Anything else is left for validate.
-- Kinds that convert: `reflection.MustValidateJson` (`ts-go-runtypes/internal/reflection/must_validate_json.go`).
+- Kinds that convert: `reflection.MustValidateJson` (`ts-go-runtypes/pkg/reflection/must_validate_json.go`).
 - Arm shipped without its guard → a Go test + the `GC-GUARD` generated-code oracle fail.
-- Rule details: [typefunctions/AGENTS.md](../../ts-go-runtypes/internal/cachegen/typefunctions/AGENTS.md).
+- Rule details: [typefunctions/AGENTS.md](../../ts-go-runtypes/pkg/cachegen/typefunctions/AGENTS.md).
 
 ## Request pipeline
 

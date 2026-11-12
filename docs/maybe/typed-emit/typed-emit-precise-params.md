@@ -23,7 +23,7 @@ Other locals and expressions keep what TypeScript infers: there is no extra data
 - Encoders (prepare / stringify) are fully typed: input `T` at each node, output the node's JSON wire
   type. Decoders (parse / restore) take the wire type and return `T`. The wire type comes from a
   per-node wire printer built on `JSONShape<T>` (Date stays an ISO string); build that first.
-- Print each parameter's type inline from the RunType node it receives (`internal/convert` printer),
+- Print each parameter's type inline from the RunType node it receives (`pkg/convert` printer),
   replacing `v: any`, ctxFn `any` params and the loose-family `as unknown as` casts
   (`typefunctions/tsmark.go`, `walker.go`, `createFnInContext`, the emitters). Pure-fn and rtUtils
   calls follow the exact typing of those calls. The `T_<id>` type modules may then shrink to boundary

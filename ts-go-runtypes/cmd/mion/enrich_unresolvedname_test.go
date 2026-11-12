@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
 )
 
 // The enrich lane's half of the program-roots fix (ambient declarations):

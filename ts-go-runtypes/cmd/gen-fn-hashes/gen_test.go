@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
 )
 
 // TestFnHashesFileInSync asserts the committed fnHashes.generated.ts carries

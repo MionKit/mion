@@ -1,4 +1,4 @@
-// Copies @mionjs/go-be-sidecar's single-file vite build to ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs
+// Copies @mionjs/go-be-sidecar's single-file vite build to ts-go-runtypes/pkg/jsengine/sidecar.bundle.mjs
 // for go:embed. Committed so `go build` / `go test` never need node; `core codegen sidecar --check` diffs it.
 
 import {execFileSync} from 'node:child_process';
@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const builtBundle = resolve(repoRoot, 'packages/private-go-be-sidecar/dist/sidecar.mjs');
-const committedBundle = resolve(repoRoot, 'ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs');
+const committedBundle = resolve(repoRoot, 'ts-go-runtypes/pkg/jsengine/sidecar.bundle.mjs');
 
 execFileSync('pnpm', ['--filter', '@mionjs/go-be-sidecar', 'run', 'build'], {cwd: repoRoot, stdio: 'inherit'});
 

@@ -1,6 +1,6 @@
 // End-to-end intersection × property modifier conflict round-trip
 // tests. Mirrors the Go-side suite in
-// internal/compiler/resolver/intersection_modifier_conflicts_test.go.
+// pkg/compiler/resolver/intersection_modifier_conflicts_test.go.
 //
 // These tests pin the TS checker's intersection modifier resolution
 // rules to our wire format. If TS changes how it resolves these

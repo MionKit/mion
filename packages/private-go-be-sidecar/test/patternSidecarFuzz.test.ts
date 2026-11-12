@@ -1,7 +1,7 @@
 // Robustness fuzz for the sidecar the Go resolver embeds: throw random
 // garbage — arbitrary pattern sources and flags (including invalid regex
 // syntax), pathological samples, oversized batches — at the COMMITTED
-// bundle (ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs, the exact
+// bundle (ts-go-runtypes/pkg/jsengine/sidecar.bundle.mjs, the exact
 // bytes go:embed ships) running under the real node, and assert the
 // resolver-side contract can never break: every request line gets exactly
 // one well-formed response line, every job gets exactly one verdict shape,
@@ -15,7 +15,7 @@ import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {entrySeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts';
 
-const BUNDLE = resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs');
+const BUNDLE = resolve(import.meta.dirname, '../../../ts-go-runtypes/pkg/jsengine/sidecar.bundle.mjs');
 const SEED = entrySeed('sidecar');
 const BATCHES = 12;
 const JOBS_PER_BATCH = 40;

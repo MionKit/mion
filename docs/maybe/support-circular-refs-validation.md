@@ -73,10 +73,10 @@ decision made DURING the real validation descent:
   `(v, cyS)`, entry check `if (cyS.indexOf(v) !== -1) return true`, push/pop
   around the body. This breaks the current "variants only change the root
   body; children are always plain" invariant
-  ([typefunctions/module.go](../../ts-go-runtypes/internal/cachegen/typefunctions/module.go)
+  ([typefunctions/module.go](../../ts-go-runtypes/pkg/cachegen/typefunctions/module.go)
   `collectFamilyDemand` / `renderEntry`) — the main new machinery.
 - **Skeleton reuse:** `BuildCircularSkeleton`
-  ([circular_skeleton.go](../../ts-go-runtypes/internal/cachegen/typefunctions/circular_skeleton.go))
+  ([circular_skeleton.go](../../ts-go-runtypes/pkg/cachegen/typefunctions/circular_skeleton.go))
   already computes the tracked-node set; only entries for types on cycle paths
   fork — everything acyclic stays shared with the plain variant.
 - **Semantics:** assume-true-on-re-entry is coinductive (greatest fixpoint —

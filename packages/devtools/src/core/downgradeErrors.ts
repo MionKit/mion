@@ -1,7 +1,7 @@
 // `downgradeErrors` reports a named RuntimeError code as a Warning: it DOWNGRADES, never hides (`@mion-expect-error`
 // removes one outright). A fatal Error never qualifies, it produced no output. Wire severity is untouched, so the
 // downgrade applies where the halt is decided: here for the bundler plugin, in `mion compile` for its exit code.
-// Go twin: ts-go-runtypes/internal/diagnostics/downgrade.go.
+// Go twin: ts-go-runtypes/pkg/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {Level, type Diagnostic} from './protocol.ts';
 

@@ -37,7 +37,7 @@ wire_husky() {
 build_go_binary() {
   command -v go >/dev/null 2>&1 || { warn "go missing - skipping binary build"; return 0; }
   local bin="$REPO_DIR/mion-bin/mion"
-  if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" \
+  if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/pkg" \
     -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "Go binary up-to-date (mion-bin/mion)"
     return 0

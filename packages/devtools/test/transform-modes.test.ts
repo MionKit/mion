@@ -387,7 +387,7 @@ getRunTypeId<Guard>();
   );
 
   // FNV-1a/32 cross-language vectors: the FE hasher MUST agree with the Go
-  // SourceHash (internal/compiler/sourcerewrite/edits_test.go pins the same set).
+  // SourceHash (pkg/compiler/sourcerewrite/edits_test.go pins the same set).
   register('sourceHash matches the Go FNV-1a/32 vectors', () => {
     expect(sourceHash('')).toBe('811c9dc5');
     expect(sourceHash('a')).toBe('e40c292c');

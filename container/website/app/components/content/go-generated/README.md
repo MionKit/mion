@@ -12,7 +12,7 @@ mix generated and hand-written data in one file.
 
 | File | Generator | Go source of truth |
 | --- | --- | --- |
-| `diagnostics-catalog.json` | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics` (messages + prose) |
+| `diagnostics-catalog.json` | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics` (messages + prose) |
 
 This is the same generator run that emits the devtools front-end dictionary
 (`packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts`); it fans

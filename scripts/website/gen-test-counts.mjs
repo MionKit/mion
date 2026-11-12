@@ -57,7 +57,7 @@ function countFrontEndTests() {
 // targets are counted by the fuzz suite's own page, not here.
 function countGoTests() {
   if (!which('go')) throw new Error('go is not on PATH');
-  const listed = capture('go', ['-C', join(REPO_ROOT, 'ts-go-runtypes'), 'test', '-list', '.*', './internal/...'], {maxBuffer: 64 * 1024 * 1024});
+  const listed = capture('go', ['-C', join(REPO_ROOT, 'ts-go-runtypes'), 'test', '-list', '.*', './pkg/...'], {maxBuffer: 64 * 1024 * 1024});
   if (listed.status !== 0) throw new Error(`go test -list failed (exit ${listed.status})`);
   const lines = listed.stdout.split('\n');
   const tests = lines.filter((line) => /^Test\w/.test(line)).length;

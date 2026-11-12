@@ -45,7 +45,7 @@ Metadata `spec` (set by `create-todo`) is the switch. It decides how much diggin
 **Tests: required for every fix + feature.** A rule: PR-readiness gate rejects an untested fix or feature. Layer:
 
 - JS/plugin change → Vitest (`.spec.ts` / `.test.ts`) under `packages/`.
-- Go change → `go -C ts-go-runtypes test ./internal/...`.
+- Go change → `go -C ts-go-runtypes test ./pkg/...`.
 - Marker API (`getRunTypeId`, the `createX` factories) → BOTH call shapes:
   static `getRunTypeId<T>()` and value-first `getRunTypeId(value)`.
   Marker test coverage rule: [ts-go-runtypes/AGENTS.md](../../../ts-go-runtypes/AGENTS.md).

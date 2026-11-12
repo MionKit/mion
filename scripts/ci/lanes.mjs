@@ -83,7 +83,7 @@ export const SKIP_DEFAULTS = 'skip-defaults';
 const DEFAULTS = {unless: SKIP_DEFAULTS};
 export const LANES = {
   // ci.yml
-  // The repo paths the Go suites read through internal/testfixtures/testdata/repo (repoLinks).
+  // The repo paths the Go suites read through pkg/testfixtures/testdata/repo (repoLinks).
   // One item per shard (scripts/ci/go-shard.mjs), each run by its own go-suite matrix job.
   go: {
     job: 'go suite',

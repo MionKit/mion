@@ -11,14 +11,14 @@ never mix generated and manual code in one file.
 
 ## What's here
 
-| File                                 | Generator                   | Go source of truth                                                            |
-| ------------------------------------ | --------------------------- | ----------------------------------------------------------------------------- |
-| `runTypeKind.generated.ts`           | `cmd/gen-run-type-kind`     | `internal/reflection/runtype.go` + `internal/reflection/subkind.go`           |
-| `fnHashes.generated.ts`              | `cmd/gen-fn-hashes`         | `internal/cachegen/operations` (registry + fnhash salt)                       |
-| `typeFormats.generated.ts`           | `cmd/gen-type-formats`      | `internal/cachegen/typefunctions/formats` (emitter registry)                  |
-| `formatErrorKeys.generated.ts`       | `cmd/gen-format-error-keys` | `internal/cachegen/typefunctions/formats` (error keys + samples)              |
-| `mockGenerators.generated.ts`        | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (the `GEN` names) |
-| `builtinMockGenerators.generated.ts` | `cmd/gen-mock-generators`   | `internal/cachegen/typefunctions/formats/mockgenerators.go` (names)           |
+| File                                 | Generator                   | Go source of truth                                                       |
+| ------------------------------------ | --------------------------- | ------------------------------------------------------------------------ |
+| `runTypeKind.generated.ts`           | `cmd/gen-run-type-kind`     | `pkg/reflection/runtype.go` + `pkg/reflection/subkind.go`                |
+| `fnHashes.generated.ts`              | `cmd/gen-fn-hashes`         | `pkg/cachegen/operations` (registry + fnhash salt)                       |
+| `typeFormats.generated.ts`           | `cmd/gen-type-formats`      | `pkg/cachegen/typefunctions/formats` (emitter registry)                  |
+| `formatErrorKeys.generated.ts`       | `cmd/gen-format-error-keys` | `pkg/cachegen/typefunctions/formats` (error keys + samples)              |
+| `mockGenerators.generated.ts`        | `cmd/gen-mock-generators`   | `pkg/cachegen/typefunctions/formats/mockgenerators.go` (the `GEN` names) |
+| `builtinMockGenerators.generated.ts` | `cmd/gen-mock-generators`   | `pkg/cachegen/typefunctions/formats/mockgenerators.go` (names)           |
 
 ## Regenerate
 

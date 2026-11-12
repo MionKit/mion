@@ -68,7 +68,7 @@ export const URL_FILE_PATTERN = registerFormatPattern({
 // HOSTNAME_PATTERN is RFC 1123, which DOMAIN_PATTERN is not: a domain wants a dotted name with a TLD,
 // a hostname may be a single label (`localhost`, `db1`), so keeping both leaves `TF.Domain` untouched.
 // STRING_DURATION_PATTERN is RFC 3339 Appendix A, NOT the grammar of the `now±P…` relative bound specs
-// (parseISODuration, internal/cachegen/typefunctions/formats/datetime/bounds.go): RFC 3339 nests its
+// (parseISODuration, pkg/cachegen/typefunctions/formats/datetime/bounds.go): RFC 3339 nests its
 // components, never skipping, and forbids the week form from combining with anything, so `P1Y2D` and
 // `PT1H2S` are invalid here while staying perfectly good bound specs. Two grammars on purpose.
 // URI_PATTERN is RFC 3986 and accepts ANY scheme (`mailto:`, `urn:`, `tel:`), where URL_PATTERN above

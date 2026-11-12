@@ -1,5 +1,5 @@
 // End-to-end TypeScript utility-type round-trip tests. Mirrors the
-// Go-side suite in internal/compiler/resolver/modifier_utilities_test.go.
+// Go-side suite in pkg/compiler/resolver/modifier_utilities_test.go.
 //
 // No serialize-side code knows about Required<T>/Readonly<T>/Partial<T>;
 // the TS checker resolves them and we read the resulting symbol's flags

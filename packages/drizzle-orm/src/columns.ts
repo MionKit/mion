@@ -25,7 +25,7 @@ export const rtSqlTextKey: unique symbol = Symbol('rtSqlText');
 // ── Modifiers ────────────────────────────────────────────────────────────────
 // Props mix config and modifiers: varchar('n', {length: 100, notNull: true}) is Varchar<{length: 100; notNull: true}>.
 // A modifier's args are a TUPLE, so `default: [true]` stays apart from a flag.
-// Every reader splits by colModNames: ./columnRecorder.ts, ./fromType.ts, ts-go-runtypes/internal/convert/drizzle.go.
+// Every reader splits by colModNames: ./columnRecorder.ts, ./fromType.ts, ts-go-runtypes/pkg/convert/drizzle.go.
 // colMods.spec.ts gates the list against the dialect manifests and every config key.
 
 /** Every modifier method name a column type can carry, across all dialects. */

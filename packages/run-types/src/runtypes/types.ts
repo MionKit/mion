@@ -47,7 +47,7 @@ export interface CompiledPureFunction extends PureFunctionData {
 // ########################################### Run types ##############################################
 
 /** The sentinel-lifted structural constraint checks a RunType can carry — the runtime mirror of the Go-side
- *  SchemaChecks group (internal/reflection/runtype.go). Every member comes from a `__rt…` sentinel, folds into
+ *  SchemaChecks group (pkg/reflection/runtype.go). Every member comes from a `__rt…` sentinel, folds into
  *  the structural id, and drives validate/validationErrors only; the runtime cache also reads them for mocking.
  *  Declaration-level grouping only: RunType extends this, so the runtime objects stay flat. */
 export interface SchemaChecks {

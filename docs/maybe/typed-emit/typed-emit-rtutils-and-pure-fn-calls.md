@@ -18,17 +18,17 @@ exact type, so a TypeScript-to-native compiler sees a fully typed call graph.
 ## Direction
 
 - rtUtils call sites in generated code: `registerRTLookup` and `UsePureFn`
-  (`ts-go-runtypes/internal/cachegen/typefunctions/emitter.go`), the JSON composites
+  (`ts-go-runtypes/pkg/cachegen/typefunctions/emitter.go`), the JSON composites
   (`json_composite.go`), overrides (`override.go`, `utl.usePureFn`), and the runtype bundle `ini`
-  (`rtu.useRunType`, `internal/compiler/entrymodules/entrymodules.go`).
+  (`rtu.useRunType`, `pkg/compiler/entrymodules/entrymodules.go`).
 - Lookup types today come from `KeyLookupType` (`typefunctions/tsmark.go`): `any` inputs on purpose,
   because bodies hold `any`. Once bodies are typed per node, the lookup can take the child's exact
   input type. Plan the order together with typed bodies.
 - `rtUtils` generics (`packages/run-types/src/runtypes/rtUtils.ts`: `getRT`, `getPureFn`, `usePureFn`,
   `useRunType`) should infer from the call or take an exact generic, never need a cast.
 - Pure fns: the id is known at compile time, and so is the source node it was extracted from
-  (`internal/cachegen/purefunctions`). Resolve its parameter and return types with the checker and
-  print them inline, the node-level way the type printer already prints types (`internal/convert`).
+  (`pkg/cachegen/purefunctions`). Resolve its parameter and return types with the checker and
+  print them inline, the node-level way the type printer already prints types (`pkg/convert`).
   Never import the author's declarations (circular imports, unexported types).
 - The implementer plans the details.
 

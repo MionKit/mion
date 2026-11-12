@@ -17,12 +17,12 @@ stays self-contained.
 
 ## Direction
 
-- Today `createPureFnTS` (`ts-go-runtypes/internal/cachegen/purefunctions/typedcode.go`) runs
+- Today `createPureFnTS` (`ts-go-runtypes/pkg/cachegen/purefunctions/typedcode.go`) runs
   `tsannotate.Function` over the stripped JS body; the original source node is available where the
-  body is extracted (`internal/cachegen/purefunctions`).
+  body is extracted (`pkg/cachegen/purefunctions`).
 - Walk the original function's syntax, ask the checker for the type at each annotated node
   (parameters, return, locals, generics, casts), and print it inline with the type printer
-  (`internal/convert`, the data-only / reference flags `NewTypeModulePrinter` uses).
+  (`pkg/convert`, the data-only / reference flags `NewTypeModulePrinter` uses).
 - A type the printer cannot express inline (a recursive type) needs a rule: a local alias inside the
   module, or `any` with a warning. The implementer decides.
 - The code string and the pure-fn id hash (built from the stripped body) must not change; the

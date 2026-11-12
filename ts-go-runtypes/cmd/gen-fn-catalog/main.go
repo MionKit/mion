@@ -1,4 +1,4 @@
-// gen-fn-catalog prints internal/cachegen/operations as JSON so the "All Compiled Functions" page cannot drift.
+// gen-fn-catalog prints pkg/cachegen/operations as JSON so the "All Compiled Functions" page cannot drift.
 // Run it with `pnpm miondevx core codegen fncatalog`: scripts/core/gen-fn-catalog.mjs writes the dump under
 // components/content/go-generated/, and server/utils/function-catalog.ts renders it.
 package main
@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/operations"
 )
 
 // fn is the per-function shape the page renders. Tag is the short name the EMITTED code

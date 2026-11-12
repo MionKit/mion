@@ -1,5 +1,5 @@
 // Typecheck gate: every Go format maps to its params type here, and each param is sampled or excluded with a reason
-// in ts-go-runtypes/internal/cachegen/typefunctions/formats/errorkeys_samples.go. The type-only value is
+// in ts-go-runtypes/pkg/cachegen/typefunctions/formats/errorkeys_samples.go. The type-only value is
 // referenced by `test` so lint leaves it.
 
 import {expect, test} from 'vitest';

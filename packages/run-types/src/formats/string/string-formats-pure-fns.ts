@@ -60,7 +60,7 @@ export const isUUID = registerPureFnFactory(function () {
 // `minLength` / `maxLength` / `length` count CODE POINTS, not UTF-16 code units, which is what JSON
 // Schema specifies: `'💩💩'` is two code points but `.length === 4`, so a plain `.length` check calls
 // it too long under `maxLength: 2`. Only the ambiguous side of each bound routes through here (see
-// lengthConditions in internal/cachegen/typefunctions/formats/string/stringformat.go; bounds a plain
+// lengthConditions in pkg/cachegen/typefunctions/formats/string/stringformat.go; bounds a plain
 // `.length` already decides never reach this fn). Two regimes: a short string counts faster in a
 // charCode loop than the fixed cost of a regex call, a long all-BMP one is one native regex scan.
 export const codePointLength = registerPureFnFactory(function () {

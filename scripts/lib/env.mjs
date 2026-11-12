@@ -17,9 +17,9 @@ import {fileURLToPath} from 'node:url';
 
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// The Go tree lives under ts-go-runtypes/ (cmd/, internal/, third_party/, go.*).
+// The Go tree lives under ts-go-runtypes/ (cmd/, pkg/, third_party/, go.*).
 // Every `go`/`gofmt` invocation runs with cwd: GO_ROOT so the `./cmd/...` and
-// `./internal/...` package specs resolve; binary output stays under REPO_ROOT/bin.
+// `./pkg/...` package specs resolve; binary output stays under REPO_ROOT/bin.
 export const GO_ROOT = join(REPO_ROOT, 'ts-go-runtypes');
 
 
@@ -186,7 +186,7 @@ export const REGISTRY = [
   // — build/release knobs —
   {name: 'MION_NPM_PROVENANCE', scope: 'dev', task: 'publish-npm', desc: 'Attach npm provenance on the CI stage-publish (default off). Needs a PUBLIC repo — npm refuses provenance from a private source repo; set the CI repo variable to 1 once this repo is public'},
   {name: 'MION_ALLOW_UNVERIFIED_PUBLISH', scope: 'dev', task: 'publish-npm', desc: 'Set to 1 to publish tarballs with no e2e receipt (scripts/release/receipt.mjs receiptOptOut, the env twin of --no-receipt). The receipt is what makes "e2e passed" a checkable precondition rather than a convention, so this is an escape hatch for a broken gate, never a normal step'},
-  {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE a golden corpus instead of failing on drift: the schema documents (ts-go-runtypes/internal/convert/schemadocprobe_test.go) the diagnostic slot order (ts-go-runtypes/internal/diagnostics/catalog_test.go rewrites testdata/slots.json) and the grouped log (internal/diagnostics/grouped_test.go rewrites testdata/grouped/cases.json, packages/devtools/test/grouped-log.fuzz.test.ts rewrites testdata/grouped/random.json). Only after an INTENTIONAL change: the corpus is what catches an accidental one'},
+  {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE a golden corpus instead of failing on drift: the schema documents (ts-go-runtypes/pkg/convert/schemadocprobe_test.go) the diagnostic slot order (ts-go-runtypes/pkg/diagnostics/catalog_test.go rewrites testdata/slots.json) and the grouped log (pkg/diagnostics/grouped_test.go rewrites testdata/grouped/cases.json, packages/devtools/test/grouped-log.fuzz.test.ts rewrites testdata/grouped/random.json). Only after an INTENTIONAL change: the corpus is what catches an accidental one'},
 
   // — lint knobs (the @mionjs/devtools OXlint/ESLint plugin) —
   {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},

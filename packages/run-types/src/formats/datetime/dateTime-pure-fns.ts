@@ -1,6 +1,6 @@
 // Registration module for the date / time pure fns the Go-side date/time/dateTime/nativeDate emitters
 // reach via `utl.getPureFn(<the id below>)`. The Go path constant `dateTimePureFnFilePath` in
-// internal/cachegen/typefunctions/formats/datetime/shared.go MUST match this file's location or the
+// pkg/cachegen/typefunctions/formats/datetime/shared.go MUST match this file's location or the
 // pure-fn extractor won't ship these bodies. Importing this file from ../index.ts guarantees the
 // registrations run before any user code references a date/time/dateTime/Date format type.
 
@@ -328,7 +328,7 @@ export const isTimeString_mmss = registerPureFnFactory(function () {
 // These convert a validated value (or a relative `now±P…` spec) to a numeric comparison key. The Go
 // emitter bakes absolute bounds as precomputed numbers on the SAME scale, so a min/max check is a
 // plain `key(value) >= bakedMin` / `<= relativeNowKey(spec)`.
-// Scales (must match internal/cachegen/typefunctions/formats/datetime/literals.go):
+// Scales (must match pkg/cachegen/typefunctions/formats/datetime/literals.go):
 //   - date / dateTime / native Date → epoch milliseconds (UTC)
 //   - time                          → milliseconds-of-day
 // Canonical fills for partial layouts: missing year → 2000, missing day → 1, inlined in each factory

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // checkMirrorFileTest is what runMirrorDriftCheck does per mirror file, with the tsconfig read from the t.Chdir'd cwd.
