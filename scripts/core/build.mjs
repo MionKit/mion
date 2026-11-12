@@ -96,9 +96,7 @@ function fail(msg) {
 
 // ── go ───────────────────────────────────────────────────────────────────────
 
-// Embed the mion version into the binary so the on-disk RT cache is isolated
-// across releases (pkg/constants/version.go). The tsgo revision is pure
-// metadata (surfaced by --version), never folded into the typeID hash.
+// The mion version isolates the on-disk RT cache across releases (pkg/constants/version.go).
 export function goVersionLdflags() {
   let version = 'dev';
   try {

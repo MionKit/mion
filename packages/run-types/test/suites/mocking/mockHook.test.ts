@@ -1,6 +1,4 @@
-// The generic per-node mock hook: a caller supplies or shapes a node's value while the walker descends, beside the
-// `data` option. Both createMockDataFn call shapes are covered (the marker coverage rule): the value-first schema
-// form and the static `<T>()` form.
+// Covers both createMockDataFn call shapes (the marker coverage rule): the value-first schema and the static `<T>()`.
 
 import {describe, expect, it} from 'vitest';
 import {createMockDataFn, type MockNodeHook, type MockStep} from '@mionjs/run-types/mocking';

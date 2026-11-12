@@ -283,8 +283,7 @@ func buildSlugRE() *regexp.Regexp {
 	return regexp.MustCompile(`^(?:` + strings.Join(quoted, "|") + `)(?:-[a-z0-9]+)+$`)
 }
 
-// RegisterArea adds a code-name prefix. A prefix already listed panics unless replace; replace on an unlisted
-// prefix panics too, so a row that stopped overriding anything is caught.
+// RegisterArea adds a code-name prefix; replace on an unlisted prefix panics, so a stale override is caught.
 func RegisterArea(prefix string, replace bool) {
 	known := slices.Contains(areas, prefix)
 	switch {
@@ -311,8 +310,7 @@ var familyLabels = map[Family]string{
 // familyOrder is the registration order of familyLabels, which allFamilies follows.
 var familyOrder = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute, FamilyDrizzle}
 
-// RegisterFamily adds a Family with its stable lowercase label, under the same duplicate / replace rules as
-// RegisterArea.
+// RegisterFamily adds a Family with its stable lowercase label, under RegisterArea's duplicate / replace rules.
 func RegisterFamily(family Family, label string, replace bool) {
 	_, known := familyLabels[family]
 	switch {
@@ -344,9 +342,7 @@ func allFamilies() []Family {
 // website text, Summary mandatory (what triggers it, what it means, the fix; plain language, no internals, no
 // dashes chaining clauses; backticks render as code, wider examples go in Fix). pkg/compiler/resolver/
 // diag_examples_test.go asserts each Example fires its code, so write it as a complete file: `mion` import, type,
-// marker call. Register derives Severity and Slots.
-//
-// A code mion already has panics unless the row sets Replace; Replace on an absent code panics too.
+// marker call.
 func Register(definition Definition) {
 	if !slugRE.MatchString(definition.Code) {
 		panic("diag: code " + definition.Code + " is not a kebab-case name with an area prefix (slugRE)")

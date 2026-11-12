@@ -131,8 +131,7 @@ export interface MockNodeHook<C = unknown> {
   length?(cursor: C, node: MockNodeContext): number | undefined;
 }
 
-/** One step of the walk below a node: an object property, an array item, a tuple slot, a Map key or value, a Set
- *  member. **/
+/** One step of the walk below a node: property, array item, tuple slot, Map key or value, Set member. **/
 export type MockStep =
   | {kind: 'property'; name: string | number}
   | {kind: 'item'}

@@ -325,8 +325,7 @@ export interface ResolverConnection {
   setSources(sources: Record<string, string>): Promise<void>;
   reset(): Promise<void>;
   tsCompile(): Promise<number>;
-  // Sends any op as-is, for an op an extension binary registers; the binary answers `unknown op: <op>` when it has
-  // none, which a binary without extensions turns into a hint naming the pro binary.
+  // For an op an extension binary registers; on a binary without extensions an unknown op throws a pro-binary hint.
   request(op: string, fields?: {files?: string[]; ext?: Record<string, unknown>}): Promise<Response>;
   // What the binary's extensions add; every list empty on the public binary. Fetched once per connection.
   capabilities(): Promise<Capabilities>;
@@ -545,7 +544,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.enrichI18n) args.push('--enrich-i18n');
   if (opts.enrichLocales && opts.enrichLocales.length > 0) args.push('--enrich-locales', opts.enrichLocales.join(','));
   if (opts.enrichSourceLocale) args.push('--enrich-source-locale', opts.enrichSourceLocale);
-  // Last, so an extension binary's own serve flags never shadow one of mion's.
+  // An extension binary's own serve flags; Go's flag package keeps the last value, so a repeat here wins.
   if (opts.extraArgs) args.push(...opts.extraArgs);
   return args;
 }

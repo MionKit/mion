@@ -1,9 +1,6 @@
-// Renders a diagnostic code + args into the user-facing text the bundler plugin and the lint plugin print.
-//
-// The wire carries code + args only, so the templates reach JS through the GENERATED
-// ./go-generated/diagnosticCatalog.generated.ts and messages can be arbitrarily rich for free.
-// Wording changes go in the code's row in pkg/diagnostics/codes_*.go, never here; regenerate with
-// `pnpm miondevx core codegen diag`.
+// Renders a diagnostic code + args into the text the bundler and lint plugins print. The wire carries code + args
+// only; the templates come from the GENERATED ./go-generated/diagnosticCatalog.generated.ts. Wording changes go in
+// the code's row in pkg/diagnostics/codes_*.go, never here; regenerate with `pnpm miondevx core codegen diag`.
 
 import {DIAGNOSTIC_CATALOG, type DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.ts';
 import type {CatalogRecord} from './protocol.ts';
@@ -11,11 +8,10 @@ import type {CatalogRecord} from './protocol.ts';
 export {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 export type {DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.ts';
 
-// Entries the running binary advertised (its capabilities op): an extension binary's own codes. A registered
-// entry wins over the generated one for the same code, so the binary that raises a code owns its text.
+// Advertised codes (capabilities op) beat the generated entry, so the binary that raises a code owns its text.
 const registered = new Map<string, DiagnosticEntry>();
 
-/** Adds the catalog entries a binary advertised; a later registration of a code replaces the earlier one. */
+/** Adds the catalog entries a binary advertised. */
 export function registerCatalogEntries(records: readonly CatalogRecord[]): void {
   for (const record of records) {
     registered.set(record.code, {
@@ -28,7 +24,7 @@ export function registerCatalogEntries(records: readonly CatalogRecord[]): void 
   }
 }
 
-/** The catalog entry for a code: a registered one first, then the generated one. Every catalog read goes here. */
+/** Every catalog read goes through here. */
 export function catalogEntry(code: string): DiagnosticEntry | undefined {
   return registered.get(code) ?? DIAGNOSTIC_CATALOG[code];
 }

@@ -1,11 +1,6 @@
-// config.go is the ts-runtypes-params reader for the CLI. Config RESOLUTION is
-// TypeScript's, shared by every lane (explicit --tsconfig, else
-// program.DiscoverTsconfig's tsc-style upward walk from cwd), and
-// TypeScript-owned values come from tsgo's own parse; the JSONC reader here
-// (comments and trailing commas stripped) exists ONLY for the `plugins[]`
-// mion entry — our params riding tsconfig's language-service plugin
-// slot, which tsc ignores and tsgo does not parse. The enrich-specific
-// resolution lives in enrich_config.go.
+// config.go reads the `mion` entry of tsconfig's plugins[]: TypeScript resolves the config and tsgo parses every
+// TypeScript-owned value; the JSONC reader here exists ONLY for that entry, which tsc ignores and tsgo does not
+// parse. The enrich-specific resolution lives in enrich_config.go.
 package cli
 
 import (
@@ -133,18 +128,10 @@ type tsconfigShape struct {
 	} `json:"compilerOptions"`
 }
 
-// resolveConfigPath is THE config-resolution policy for every CLI lane — the
-// single "explicit flag, else discover" function, exactly tsc's: an explicit
-// --tsconfig (anchored under absCwd) wins; else program.DiscoverTsconfig's
-// upward walk from absCwd; else "" (no config anywhere — the inferred-defaults
-// posture). Called from exactly one entry per lane: main's resolver
-// subcommands, and ResolveProject for the project-reading verbs.
-//
-// It resolves the PATH only; existence is enforced downstream by
-// program.ParseInferredConfig / program.New (a missing NAMED path becomes a loud
-// "tsconfig not found at <path>" there). Resolving rather than fataling here lets
-// the serve daemon report a bad --tsconfig per-op (on setSources) and stay alive
-// to heal, instead of crashing at startup.
+// ResolveConfigPath is THE config-resolution policy of every CLI lane, called once per lane, exactly tsc's;
+// "" means no config anywhere (inferred defaults). It resolves the PATH only, so the serve daemon reports a bad
+// --tsconfig per-op (on setSources) and heals instead of crashing at startup; program.ParseInferredConfig /
+// program.New fail loudly on a missing named path.
 func ResolveConfigPath(absCwd, tsconfigFlag string) string {
 	if trimmed := strings.TrimSpace(tsconfigFlag); trimmed != "" {
 		if filepath.IsAbs(trimmed) {
@@ -155,14 +142,9 @@ func ResolveConfigPath(absCwd, tsconfigFlag string) string {
 	return program.DiscoverTsconfig(absCwd)
 }
 
-// ResolveProject resolves the ONE tsconfig for a command run (enrich, convert,
-// drizzle-migrate, an extension verb) and parses it EXACTLY ONCE, returning both
-// the path and the frozen config to thread into resolveEnrichConfig
-// (genDir/rootDir/hashLength) AND buildProgram (type resolution). The config's own module
-// resolution conditions are adopted wholesale, so enrich resolves exactly like a
-// build; a project that dogfoods its in-tree src opts in via
-// customConditions:["source"] in the tsconfig (enrich never forces it). "" path +
-// nil config means no tsconfig anywhere (the inferred-defaults fallback).
+// ResolveProject parses the ONE tsconfig of a command run EXACTLY ONCE, for resolveEnrichConfig and buildProgram.
+// Its module resolution conditions are adopted wholesale, so enrich resolves like a build; in-tree src opts in via
+// customConditions:["source"] (enrich never forces it). "" + nil means no tsconfig anywhere.
 func ResolveProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd := projectCwd("tsconfig discovery")
 	tsconfigPath := ResolveConfigPath(cwd, tsconfigFlag)
@@ -245,8 +227,7 @@ func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool, error) 
 	return plugin, true, nil
 }
 
-// mionPluginEntry is the raw compilerOptions.plugins[] entry whose "name" is "mion", the one search every reader of
-// the entry shares.
+// mionPluginEntry is the one search for the `mion` plugins[] entry that every reader shares.
 func mionPluginEntry(parsed tsconfigShape) (json.RawMessage, bool) {
 	for _, raw := range parsed.CompilerOptions.Plugins {
 		var named struct {
@@ -297,8 +278,7 @@ func buildTsconfigPath(absCwd, tsconfigFlag string) string {
 	return tsconfigPath
 }
 
-// pluginKeyTags is the set of JSON keys of tsRuntypesPlugin, derived by reflection from its json tags so it can
-// never drift from the struct.
+// pluginKeyTags is derived by reflection from tsRuntypesPlugin's json tags, so it never drifts from the struct.
 var pluginKeyTags = func() map[string]bool {
 	keys := map[string]bool{}
 	pluginType := reflect.TypeOf(tsRuntypesPlugin{})
@@ -311,8 +291,7 @@ var pluginKeyTags = func() map[string]bool {
 	return keys
 }()
 
-// knownPluginKey reports a key the mion plugin entry recognises: a struct tag or a registered PluginKey. Used to
-// warn on a likely-typo'd key.
+// knownPluginKey: any other key is warned about as a likely typo.
 func knownPluginKey(key string) bool {
 	_, registered := pluginKeyTable.Get(key)
 	return pluginKeyTags[key] || registered
@@ -442,13 +421,9 @@ func resolveClientRoutes(flag, key string) (constants.ClientRoutesMode, bool) {
 	return mode, true
 }
 
-// projectCwd is the working directory every project-reading verb resolves against, in the
-// ONE canonical symlink space. os.Getwd is not stable enough to compare against
-// on its own: it prefers $PWD when that is valid, so the cwd it reports is
-// symlink-spelled under an interactive shell but fully kernel-resolved when the
-// process was started with a chdir that left $PWD stale (any spawn that passes a
-// cwd option). Canonicalizing both ends — here and in mustAbs — is what makes
-// RootDir and an absolute file argument comparable no matter how we were invoked.
+// projectCwd is in the ONE canonical symlink space: os.Getwd prefers a valid $PWD, so it is symlink-spelled under a
+// shell but kernel-resolved after a spawn with a cwd option. Canonicalizing here and in mustAbs makes RootDir and an
+// absolute file argument comparable.
 func projectCwd(what string) string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -457,14 +432,9 @@ func projectCwd(what string) string {
 	return canonicalize(cwd)
 }
 
-// canonicalize rewrites an absolute path into the ONE canonical symlink space
-// (see projectCwd). Without it a path the user spelled through a symlink — macOS
-// hands out /var/folders/... for a $TMPDIR that really is /private/var/folders/...
-// — can share no prefix with RootDir, so the mirror's RootDir-relative sub-path
-// escapes with ".." and MirrorRel silently collapses it to the source's base
-// name, mapping two same-named sources onto one mirror. Symlinks are resolved on
-// the longest EXISTING prefix so a not-yet-created leaf (an `--out` target) keeps
-// its spelling appended.
+// canonicalize: a symlink-spelled path (macOS /var/folders for /private/var/folders) shares no prefix with RootDir,
+// so MirrorRel collapses it to its base name and two same-named sources share one mirror.
+// Resolves the longest EXISTING prefix, so a not-yet-created leaf (an `--out` target) keeps its spelling.
 func canonicalize(abs string) string {
 	tail := ""
 	for current := abs; ; {

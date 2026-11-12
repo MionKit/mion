@@ -36,7 +36,7 @@ export class LintSession {
   private readonly cache = new Map<string, LintOutcome>();
   // Sticky engine failure: once the bridge is known-broken, later files reuse the reason instead of re-paying it.
   private dead: string | null = null;
-  // The advertised scan-check probes, fetched once (probesSync); empty when the engine cannot answer.
+  // Fetched once by probesSync; empty when the engine cannot answer.
   private probes: RegExp[] | null = null;
 
   // start resolves once the worker signals shimReady; the plugin entry awaits it at load so the launcher fork
@@ -77,9 +77,7 @@ export class LintSession {
     return outcome;
   }
 
-  // probesSync returns the binary's advertised scan-check probes (compiled with `m`), fetched on the first call
-  // through the worker's connection, which it opens with these options exactly as a first file would. The
-  // advertised catalog entries are registered here, on the thread that renders the findings.
+  // Opens the worker's connection as a first file would, and registers catalog entries on the thread that renders.
   probesSync(options: LintSessionOptions = {}): readonly RegExp[] {
     if (this.probes) return this.probes;
     const response = this.dead
@@ -181,8 +179,7 @@ export class LintSession {
   }
 }
 
-// probesOf compiles the advertised probes and registers the advertised catalog entries; a probe that is not a
-// valid regex is skipped, since the Go side stays authoritative about what its check reports.
+// An invalid probe is skipped: the Go side stays authoritative about what its check reports.
 function probesOf(capabilities: Capabilities | undefined): RegExp[] {
   if (!capabilities) return [];
   registerCatalogEntries(capabilities.diagnostics);

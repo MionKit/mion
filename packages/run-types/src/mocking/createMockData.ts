@@ -70,8 +70,7 @@ export function createMockDataFn<T>(
 }
 
 /** Shallow merge of the `mock` slot, so nested pool arrays are replaced when supplied, never merged.
- *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends, and a `hook`
- *  seeds `hookCursor` from its `root`. **/
+ *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends. **/
 function mergeMockOptions(
   factoryOpts: RunTypeMockOptions<unknown> | undefined,
   callOpts: DeepPartial<RunTypeMockOptions<unknown>> | undefined

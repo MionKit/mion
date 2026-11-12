@@ -39,11 +39,8 @@ func outputPath() string {
 	return filepath.Join(monorepoRoot(), "packages", "devtools", "src", "core", "go-generated", "tsconfig-plugin-keys.generated.ts")
 }
 
-// parsePluginKeys walks config.go and returns the json tag names of every field
-// on the tsRuntypesPlugin struct, sorted, skipping "" and "-". This mirrors the
-// runtime pluginKeyTags reflection in config.go — same struct, same rule — but
-// via the AST, so this generator needs no import of pkg/cli (and with it the
-// whole compiler).
+// parsePluginKeys mirrors pluginKeyTags in config.go through the AST (same struct, same rule), so this generator
+// needs no import of pkg/cli and with it the whole compiler.
 func parsePluginKeys() ([]string, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, configSourcePath(), nil, 0)

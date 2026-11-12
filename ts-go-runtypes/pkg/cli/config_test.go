@@ -147,11 +147,8 @@ func TestResolveEnrichConfig_DefaultGenDirLocation(t *testing.T) {
 	}
 }
 
-// TestResolveEnrichConfig_GarbageTsconfig: an unparseable DISCOVERED tsconfig is
-// fatal — strict like tsc, never a silent fall-back to defaults that could
-// resolve types differently. resolveEnrichConfig calls Fatal() (os.Exit), so
-// the assertion runs in a re-exec'd subprocess (same pattern as
-// TestUpdate_FatalOnUnparseableFile).
+// An unparseable DISCOVERED tsconfig is fatal, strict like tsc, never a silent fall-back to defaults. Fatal()
+// exits, so the assertion runs in a re-exec'd subprocess (as in TestUpdate_FatalOnUnparseableFile).
 func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 	if childDir := os.Getenv("MION_CFGFAIL_DIR"); childDir != "" {
 		// Discovery anchors at the process cwd (exactly tsc) — enter the
@@ -159,8 +156,7 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 		if err := os.Chdir(childDir); err != nil {
 			return
 		}
-		// The discover + tsgo parse lives in ResolveProject — the
-		// garbage discovered tsconfig makes ParseInferredConfig fatal there.
+		// ParseInferredConfig is fatal on the garbage tsconfig.
 		ResolveProject("")
 		return // unreachable if fatal fired
 	}
@@ -422,19 +418,13 @@ func TestImportSpecifier(t *testing.T) {
 	}
 }
 
-// resolveEnrichConfigTest resolves + parses the tsconfig from the (t.Chdir'd)
-// cwd and builds the enrich config, mirroring what an enrich verb does — the
-// test twin of ResolveProject followed by resolveEnrichConfig, so the
-// config is parsed exactly once.
+// resolveEnrichConfigTest is the test twin of an enrich verb's config resolution, which parses the tsconfig once.
 func resolveEnrichConfigTest(target, genDirFlag string) enrichConfig {
 	tsconfigPath, parsed := ResolveProject("")
 	return resolveEnrichConfig(target, genDirFlag, tsconfigPath, parsed)
 }
 
-// canonicalTempDir is t.TempDir() in the ONE canonical symlink space the enrich
-// verbs resolve into (see projectCwd). A raw t.TempDir() is not comparable against
-// a resolved config on macOS, where $TMPDIR is handed out as /var/folders/... for
-// a directory that really lives at /private/var/folders/....
+// canonicalTempDir is t.TempDir() in projectCwd's symlink space; on macOS a raw one is /var/... for /private/var/....
 func canonicalTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())

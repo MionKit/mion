@@ -621,8 +621,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
 
   // Config-shape checks: these throw at the host boundary, before any build, so
   // they need no binary and run everywhere.
-  // A code the generated catalog does not know may be the binary's own, so the factory lets it through and
-  // buildStart, once the binary advertised its codes, rejects a typo before writing anything.
+  // An unknown code may be the binary's own, so the factory defers it and buildStart rejects a typo before writing.
   it('rejects a downgradeErrors code that is not in the catalog at buildStart', async () => {
     const dir = path.join(FIXTURE_DIR, 'unknown-code-program');
     writeFixture(dir, ERROR_ENTRY_SRC);

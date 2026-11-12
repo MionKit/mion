@@ -1,15 +1,5 @@
-// Package cli is the body of the mion command: it answers compile-time type-reflection queries for
-// runtypes. Its mode is the first word (a tsgo-style args[0] subcommand):
-//
-//	serve      hold a Program + checker in memory and speak newline-delimited
-//	           JSON on stdio (the resolver protocol the bundler plugin drives)
-//	compile    tsc-like batch compile: transform + emit .js with composed
-//	           source maps + generated cache modules to disk (--no-emit: diagnostics only)
-//	enrich     scaffold / reconcile / check the enrichment mirror files
-//	           (--no-emit: enrichment-health diagnostics only, write nothing)
-//
-// Shared knobs (--tsconfig, --cwd, --emit-mode, …) mean the same thing under
-// every subcommand. cmd/mion is a thin main over Main.
+// Package cli is the body of the mion command: it answers compile-time type-reflection queries for runtypes.
+// Its mode is the first word (a tsgo-style args[0] subcommand); cmd/mion is a thin main over Main.
 package cli
 
 import (
@@ -127,10 +117,7 @@ func Main(args []string, extensions ...Extension) {
 	command.Run(args[1:])
 }
 
-// SharedFlags are the resolver-configuring knobs common to every Program-building verb,
-// registered on each subcommand's own FlagSet by RegisterSharedFlags so a knob
-// spells and means the same thing wherever it appears. Each SessionFlags row
-// registered for the command rides along.
+// SharedFlags are the knobs every Program-building verb shares, so a knob spells and means the same thing everywhere.
 type SharedFlags struct {
 	tsconfig             string
 	clientRoutes         string
@@ -258,8 +245,7 @@ func startProfiling(s *SharedFlags) func() {
 	return stopProfiling
 }
 
-// SessionConfig is the resolved config + options a Program-building subcommand
-// (serve / compile / an extension verb) consumes — the output of the ONE shared config pipeline.
+// SessionConfig is what ResolveSharedConfig, the ONE config pipeline, hands every Program-building subcommand.
 type SessionConfig struct {
 	AbsCwd       string
 	TsconfigPath string
@@ -457,10 +443,8 @@ func runServe(args []string) {
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
-	// Session config the wire deliberately does NOT carry (the wire carries
-	// events — which files, which op; the session carries config). --gen-dir is
-	// the explicit output-root override (the host plugin's genDir option); the
-	// --enrich-* flags are the `enrich` SessionFlags row (enrich_cli.go).
+	// The wire carries events, the session config: --gen-dir (the host plugin's genDir option) and, through the
+	// `enrich` SessionFlags row (enrich_cli.go), the --enrich-* flags.
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
@@ -487,7 +471,6 @@ func runServe(args []string) {
 		}
 	}
 
-	// Apply the serve-local session config onto the resolved Options.
 	if *genDirFlag != "" {
 		genDir := *genDirFlag
 		if !filepath.IsAbs(genDir) {

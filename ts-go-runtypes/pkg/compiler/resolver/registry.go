@@ -5,10 +5,8 @@ import (
 	"slices"
 )
 
-// Registry is one extension table: rows by name in registration order. A name already present panics unless the
-// row replaces it, and replacing an absent name panics, so the bump that deletes a built-in forces a plain row.
-// Every table a binary built on mion fills (the resolver's and pkg/cli's) is one of these. Rows are registered
-// before cli.Main serves, so the tables need no lock.
+// Registry is every extension table (the resolver's and pkg/cli's). Replace on an absent name panics, so the bump
+// that deletes a built-in forces a plain row. Rows are registered before cli.Main serves, so no lock.
 type Registry[T any] struct {
 	kind  string
 	order []string
