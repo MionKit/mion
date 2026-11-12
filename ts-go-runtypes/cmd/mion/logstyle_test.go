@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/resolver"
 )
 
 // TestResolveLogStyle_FlagWinsOverTsconfig: the flag overrides the tsconfig key, and neither set groups.

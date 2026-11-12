@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // TestStripJSONC verifies comment + trailing-comma stripping is string-aware.

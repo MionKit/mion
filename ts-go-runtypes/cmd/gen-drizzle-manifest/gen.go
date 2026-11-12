@@ -13,7 +13,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
 )
 
 // entrySourceFor renders the virtual root the checker program type-checks:

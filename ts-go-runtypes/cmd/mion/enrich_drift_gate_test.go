@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
 )
 
 // TestHygieneSeverity pins the drift report's severity POLICY for the tag-hygiene

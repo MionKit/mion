@@ -4,7 +4,7 @@
 // operation that iterates STRING keys no longer sees them.
 // Zero runtime footprint by construction: `declare const` emits nothing and every use site imports them with `import type`.
 // ⚠️ These NAMES are a wire contract with the resolver: `isSentinelProp`
-// (ts-go-runtypes/internal/cachegen/runtype/typeid/formats.go) matches on the declaration name, so renaming one here means renaming
+// (ts-go-runtypes/pkg/cachegen/runtype/typeid/formats.go) matches on the declaration name, so renaming one here means renaming
 // its constant there, or the brand stops being recognised and silently degrades to its base type.
 // The plain string spelling stays recognised on the Go side on purpose: it lets a hand-written `.d.ts` fixture and the fuzz suites'
 // INDEPENDENT type-first oracle spell a sentinel without importing this module. Both spellings fold to the same structural id, the

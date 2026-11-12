@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // TestGroupByDeclFile buckets a topologically-ordered closure by declaration

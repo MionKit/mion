@@ -123,8 +123,7 @@ describe('the lane table', () => {
 
   // Every repo path a Go test reads goes through testfixtures repoLinks (pinned by its own Go test).
   it('feeds every repo path the Go suites read into the go lane', () => {
-    const links =
-      /var repoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/internal/testfixtures/repo.go'))?.[1] ?? '';
+    const links = /var repoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/pkg/testfixtures/repo.go'))?.[1] ?? '';
     const linked = [...links.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
     expect(linked).toEqual(expect.arrayContaining(['packages/run-types', 'packages/core', 'version.json']));
     for (const path of linked)
@@ -150,8 +149,8 @@ describe('the lane table', () => {
   // None of these reaches a binary the other lanes run, so only the lanes that run Go itself re-run.
   it('keeps Go tests, testdata and the generators out of every lane that only runs the binaries', () => {
     for (const path of [
-      'ts-go-runtypes/internal/reflection/kind_test.go',
-      'ts-go-runtypes/internal/cachegen/testdata/golden.json',
+      'ts-go-runtypes/pkg/reflection/kind_test.go',
+      'ts-go-runtypes/pkg/cachegen/testdata/golden.json',
       'ts-go-runtypes/cmd/gen-ts-constants/main.go',
     ]) {
       for (const [name, lane] of Object.entries(LANES) as [string, {paths: unknown[]}][]) {
@@ -159,7 +158,7 @@ describe('the lane table', () => {
       }
     }
     for (const path of [
-      'ts-go-runtypes/internal/reflection/kind.go',
+      'ts-go-runtypes/pkg/reflection/kind.go',
       'ts-go-runtypes/cmd/mion/main.go',
       'ts-go-runtypes/third_party/tsgolint',
     ]) {
@@ -178,7 +177,7 @@ describe('the lane table', () => {
     expect(feeds('drizzle', 'container/drizzle-e2e/cloudflare/Containerfile')).toEqual(['d1', 'durable']);
     expect(feeds('drizzle', 'packages/drizzle-orm/src/table.ts')).toEqual(['pg', 'mysql', 'sqlite', 'd1', 'durable']);
     expect(feeds('bench', 'packages/core/src/errors.ts')).toEqual(['mion']);
-    expect(feeds('bench', 'ts-go-runtypes/internal/reflection/kind.go')).toEqual(['mion']);
+    expect(feeds('bench', 'ts-go-runtypes/pkg/reflection/kind.go')).toEqual(['mion']);
     expect(feeds('bench', 'container/benchmarks/competitors/zod/cases.ts')).toEqual(['zod']);
     expect(feeds('bench', 'container/benchmarks/shared/cases/objects.ts')).toEqual(['mion', 'zod', 'typebox', 'ajv', 'typia']);
     expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
@@ -197,7 +196,7 @@ describe('the lane table', () => {
     const {hashes} = laneHashes('HEAD');
     for (const lane of ['go', 'js-fuzz']) {
       const items = Object.keys(LANES[lane].items);
-      for (const path of ['ts-go-runtypes/internal/reflection/kind.go', 'packages/run-types/src/index.ts', 'pnpm-lock.yaml']) {
+      for (const path of ['ts-go-runtypes/pkg/reflection/kind.go', 'packages/run-types/src/index.ts', 'pnpm-lock.yaml']) {
         expect(
           items.filter((item) => itemFeeds(LANES[lane], item, path)),
           `${lane} ${path}`
@@ -1159,7 +1158,7 @@ describe('the converted-suites refusal count runs per PR', () => {
       'packages/run-types/test/suites/strict-validation/Strict.ts',
       'packages/run-types/src/index.ts',
       'packages/run-types/test/features/unsupported-conversion.test.ts',
-      'ts-go-runtypes/internal/convert/print.go',
+      'ts-go-runtypes/pkg/convert/print.go',
       'scripts/core/converted-suites.mjs',
     ])
       expect(matches(input, LANES['go-tools'].paths), input).toBe(true);

@@ -23,7 +23,7 @@ The implementer plans the details. What was checked:
   resolver pass per file, each finding reported under the rule of its level. So the check is a new
   diagnostic code the resolver emits at marker call sites, at `LevelInfo` so it stays hidden until a
   project turns on `mion/info`.
-- **The walk already knows the answer.** `internal/cachegen/jsonsize` returns, for every reflection
+- **The walk already knows the answer.** `pkg/cachegen/jsonsize` returns, for every reflection
   root, whether the type is bounded and the FIRST unbounded member path with its reason
   (`items[].name: string without maxLength`, `<value>: Map without maxSize`). The diagnostic
   carries that path; no second walk.

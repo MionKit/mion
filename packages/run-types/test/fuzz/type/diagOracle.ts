@@ -5,7 +5,7 @@ import type {Violation} from '../value/fuzzOracle.ts';
 import {snapshot} from '../value/fuzzOracle.ts';
 import type {WiredFns} from './typeFuzzHarness.ts';
 
-/** The codes an alwaysThrow entry carries (internal/diagnostics/codes_runtype.go). **/
+/** The codes an alwaysThrow entry carries (pkg/diagnostics/codes_runtype.go). **/
 const ALWAYS_THROW_CODE =
   /^(?:(?:validate|validation-errors|json-prepare|json-prepare-clone|json-restore)-[a-z-]+-root|unknown-keys-(?:object-union|symbol-key|private-fields|shared-value-refused)|internal-kind-not-compilable)$/;
 /** The notes a family leaves when it drops a member DataOnly strips. **/

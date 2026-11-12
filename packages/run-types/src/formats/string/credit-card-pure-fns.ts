@@ -4,7 +4,7 @@
 // and the shape to copy for the next format that outgrows them: one module, re-exported from
 // `src/formats/index.ts`, which also side-effect imports it so the registrations happen before any
 // user code touches it. The Go emitter records this path as the pure fns' canonical source
-// (creditCardPureFnFilePath in internal/cachegen/typefunctions/formats/string/creditcard.go), so keep
+// (creditCardPureFnFilePath in pkg/cachegen/typefunctions/formats/string/creditcard.go), so keep
 // the two in sync if either moves.
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';

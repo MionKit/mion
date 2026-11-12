@@ -1,6 +1,6 @@
 // Type-level contract for `JSONShape<T>` — the RunTypes JSON wire twin of
 // DataOnly. Each leaf mapping mirrors the Go serializer emitters
-// (internal/cachegen/typefunctions/json_prepare.go / json_restore.go), and the
+// (pkg/cachegen/typefunctions/json_prepare.go / json_restore.go), and the
 // pins here are the TS half of that agreement; the runtime half lives in
 // test/features/jsonShapeWire.test.ts, which encodes real values and matches
 // them against literals typed as JSONShape<T> — the two files meet at the same

@@ -197,7 +197,7 @@ homepage's "Tested to the highest standard" tiles used to carry hand-typed numbe
 - **Producer** — [gen-test-counts.mjs](../scripts/website/gen-test-counts.mjs),
   run as `pnpm miondevx website test-counts`. It counts without running anything:
   `vitest list --json` collects every test the config would run, and
-  `go test -list '.*' ./internal/...` prints the declared test functions. Because
+  `go test -list '.*' ./pkg/...` prints the declared test functions. Because
   collection still compiles the sources, it needs the resolver binary and the
   marker/plugin dists, which is why the website build runs it after the stage that
   builds them.

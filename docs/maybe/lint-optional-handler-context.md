@@ -19,7 +19,7 @@ context (`(ctx = fallback, tag?: string)`) does the same. Nothing tells the auth
 
 ## Direction
 
-- New code in the `rpc-handler-*` family (`ts-go-runtypes/internal/diagnostics/codes_mionroute.go`), e.g.
+- New code in the `rpc-handler-*` family (`ts-go-runtypes/pkg/diagnostics/codes_mionroute.go`), e.g.
   `rpc-handler-optional-context`, reported on the context param of a route, query, mutation, middleware or
   headers middleware handler that is optional or has a default. A raw middleware's context too, for consistency.
   Level: `LevelRuntimeError`, like its siblings (the build compiles the wrong params type, so the route is broken).

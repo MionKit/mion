@@ -375,7 +375,7 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
       'docs/FUZZING.md',
       '.agents/skills/foo/SKILL.md',
       'docs/maybe/parked.md',
-      'ts-go-runtypes/internal/x/x.go',
+      'ts-go-runtypes/pkg/x/x.go',
     ];
     expect(specReferenceOffenders(files.map((file) => ({file, text})))).toEqual(files);
     expect(specReferenceOffenders([{file: 'a.ts', text: todoRef}])).toEqual(['a.ts']);
@@ -2365,7 +2365,7 @@ describe('Go build outputs under ts-go-runtypes are ignored', () => {
       'ts-go-runtypes/AGENTS.md',
       'ts-go-runtypes/cmd/mion/main.go',
       'ts-go-runtypes/cmd/mion/testdata/fixture',
-      'ts-go-runtypes/internal/reflection/x.go',
+      'ts-go-runtypes/pkg/reflection/x.go',
     ]) {
       expect(ignored(path), path).toBe(false);
     }

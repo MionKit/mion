@@ -1,6 +1,6 @@
 // Command gen-builtin-purefns writes the ids of the package's own pure functions twice from one
 // extractor pass over packages/run-types/src, so the two sets cannot disagree: Go consts in
-// internal/cachegen/purefnids, and pure-fn-ids.generated.ts for the package's own registration
+// pkg/cachegen/purefnids, and pure-fn-ids.generated.ts for the package's own registration
 // call sites, which the compiler never rewrites and which therefore pass their id explicitly.
 // Bodies are not generated; the package's own build writes them into its mion-pure-fns/ artifact.
 // Run `pnpm miondevx core codegen builtinpurefns [--check]`; edit the src, never the generated files.
@@ -20,10 +20,10 @@ import (
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/purefnindex"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/textpos"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	// segment of every id this generator emits.
 	markerPackageName = "@mionjs/run-types"
 	markerPkgRel      = "../packages/run-types"
-	idsOutputRel      = "internal/cachegen/purefnids/ids.generated.go"
+	idsOutputRel      = "pkg/cachegen/purefnids/ids.generated.go"
 	idsTsOutputRel    = "../packages/run-types/src/runtypes/pure-fn-ids.generated.ts"
 )
 
@@ -263,6 +263,6 @@ func parseCheckEntries(entries []purefunctions.Entry) error {
 	if len(failures) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source",
+	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix pkg/cachegen/purefunctions/striptypes.go (add the missing type position), not the source",
 		len(failures), strings.Join(failures, "\n"))
 }

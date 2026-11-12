@@ -77,21 +77,21 @@ describe('playground WASM asset state', () => {
 // playground suites vanish from the run. `go build` compiles neither of these.
 describe('what counts as a wasm input', () => {
   it('ignores _test.go, which go build never compiles', () => {
-    expect(isWasmInput('ts-go-runtypes/internal/compiler/resolver/atomic_test.go')).toBe(false);
-    expect(isWasmInput('ts-go-runtypes/internal/compiler/resolver/atomic.go')).toBe(true);
+    expect(isWasmInput('ts-go-runtypes/pkg/compiler/resolver/atomic_test.go')).toBe(false);
+    expect(isWasmInput('ts-go-runtypes/pkg/compiler/resolver/atomic.go')).toBe(true);
   });
 
   it('ignores testdata/, which the go tool skips entirely', () => {
-    expect(isWasmInput('ts-go-runtypes/internal/cachegen/testdata/golden.json')).toBe(false);
-    expect(isWasmInput('ts-go-runtypes/internal/cachegen/runtype.go')).toBe(true);
+    expect(isWasmInput('ts-go-runtypes/pkg/cachegen/testdata/golden.json')).toBe(false);
+    expect(isWasmInput('ts-go-runtypes/pkg/cachegen/runtype.go')).toBe(true);
   });
 
   it('keeps non-Go files that a //go:embed could pull in', () => {
-    expect(isWasmInput('ts-go-runtypes/internal/diagnostics/catalog.json')).toBe(true);
+    expect(isWasmInput('ts-go-runtypes/pkg/diagnostics/catalog.json')).toBe(true);
     expect(isWasmInput('ts-go-runtypes/go.sum')).toBe(true);
   });
 
   it('does not match a directory merely containing the word testdata', () => {
-    expect(isWasmInput('ts-go-runtypes/internal/testdata-helpers/gen.go')).toBe(true);
+    expect(isWasmInput('ts-go-runtypes/pkg/testdata-helpers/gen.go')).toBe(true);
   });
 });

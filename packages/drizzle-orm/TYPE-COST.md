@@ -281,7 +281,7 @@ the design.**
 ### What the new shape let us delete
 
 Both graph walkers, `membersOf` in `fromType.ts` and `properties` in
-`internal/convert/drizzle.go`, flattened intersection arms because a table used to be
+`pkg/convert/drizzle.go`, flattened intersection arms because a table used to be
 `Cols & {meta}`. Neither is reachable now: probed by making each branch throw, 243 unit
 tests, a wide `drizzletypes` fuzz and all 228 tables of drizzle's own suites pass without
 hitting either. Gone, with `reflectedKinds.intersection`, `RtTable`, `RtView` and the three

@@ -341,7 +341,7 @@ ensure_go() {
 #    typescript-go's OWN conformance test runner (internal/testrunner), never our
 #    `go build ./cmd/mion` - the checker's lib .d.ts files are committed in
 #    typescript-go/internal/bundled/libs and baked in via go:embed. Verified: the
-#    binary builds and the full `go test ./internal/...` suite passes without it.
+#    binary builds and the full `go test ./pkg/...` suite passes without it.
 # -----------------------------------------------------------------------------
 provision_submodules_light() {
   bold "Submodules (tsgolint + typescript-go; skipping the 620MB TypeScript corpus)"
@@ -446,7 +446,7 @@ build_go_binary() {
   bold "Go resolver binary -> mion-bin/mion"
   command -v go >/dev/null 2>&1 || { err "go missing - cannot build the binary"; FAILED=1; return 1; }
   local bin="$REPO_DIR/mion-bin/mion"
-  if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
+  if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/pkg" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "binary up-to-date"; return 0
   fi
   [ "$CHECK_ONLY" = 1 ] && { warn "binary missing or stale - re-run without --check"; return 0; }

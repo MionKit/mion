@@ -830,7 +830,7 @@ export const ATOMIC = {
     // The bare `object` primitive (protocol.KindObject) reuses the `objectLiteral`
     // emit token — there is NO distinct `object`/`nonNullObject` token. The gate
     // `typeof v === 'object' && v !== null` lives at nodes/atomic/object.ts and the
-    // failure surfaces as `objectLiteral` (see internal/cachegen/typefunctions/validationerrors.go
+    // failure surfaces as `objectLiteral` (see pkg/cachegen/typefunctions/validationerrors.go
     // KindObject case). Do not "fix" this to `object`.
     getExpectedErrors: () => [
       [{path: [], expected: 'objectLiteral'}],

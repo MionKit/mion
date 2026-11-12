@@ -1,5 +1,5 @@
 // The import map `mion drizzle-migrate` rewrites with
-// (ts-go-runtypes/internal/drizzlemigrate/importmap.json) is GENERATED from
+// (ts-go-runtypes/pkg/drizzlemigrate/importmap.json) is GENERATED from
 // drizzle-dialects.json plus the four manifests, and embedded in the shipped
 // binary. That embedding is what makes it worth a test here: the generator's own
 // --check catches drift between the map and the manifests, but nothing else
@@ -18,7 +18,7 @@ import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const IMPORT_MAP = join(REPO_ROOT, 'ts-go-runtypes/internal/drizzlemigrate/importmap.json');
+const IMPORT_MAP = join(REPO_ROOT, 'ts-go-runtypes/pkg/drizzlemigrate/importmap.json');
 const DIALECTS = join(REPO_ROOT, 'drizzle-dialects.json');
 
 const readJson = (file: string) => JSON.parse(readFileSync(file, 'utf8'));

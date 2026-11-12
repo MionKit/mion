@@ -1,5 +1,5 @@
 // Relative-bound runtime spec — the `now±P…` half of the date/time
-// min/max feature. The Go matrix (internal/compiler/resolver/
+// min/max feature. The Go matrix (pkg/compiler/resolver/
 // datetime_bound_validation_test.go) proves the build-time validation;
 // this spec proves the EMITTED check evaluates the relative bound
 // against the runtime clock correctly. `Date.now()` / `new Date()` are

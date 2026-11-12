@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // driftFinding mirrors enrichment.Finding but is file-anchored; Line/Col are 1-based, zero for file-level enrich-mirror-unreadable.

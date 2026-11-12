@@ -29,20 +29,20 @@ describe('the hash mode of each lane', () => {
     for (const file of [
       'packages/core/src/index.ts',
       'scripts/ci/lanes.mjs',
-      'ts-go-runtypes/internal/reflection/kind.go',
+      'ts-go-runtypes/pkg/reflection/kind.go',
       'packages/devtools/lib/index.cjs',
     ]) {
       expect(TOKEN_HASHED(file), file).toBe(true);
     }
     for (const file of [
-      'ts-go-runtypes/internal/testfixtures/temporal.d.ts',
+      'ts-go-runtypes/pkg/testfixtures/temporal.d.ts',
       'packages/devtools/test-fixtures/a.ts',
-      'ts-go-runtypes/internal/convert/testdata/a.ts',
+      'ts-go-runtypes/pkg/convert/testdata/a.ts',
       'packages/devtools/test/__snapshots__/a.ts',
       'packages/private-examples/src/a.ts',
       'packages/private-drizzle-example-app/src/server/users.routes.ts',
       'container/pre-publish-e2e/build-all.mjs',
-      'ts-go-runtypes/internal/cachegen/purefnids/ids.generated.go',
+      'ts-go-runtypes/pkg/cachegen/purefnids/ids.generated.go',
       'packages/run-types/src/go-generated/fnHashes.generated.ts',
       'container/pre-publish-e2e/apps/smoke-next/app/page.tsx',
       'container/benchmarks/_deps/competitors/zod/a.ts',
@@ -57,7 +57,7 @@ describe('the hash mode of each lane', () => {
 describe('laneHashes', () => {
   const entries = [
     {objectname: 'a'.repeat(40), path: 'packages/core/src/index.ts'},
-    {objectname: 'b'.repeat(40), path: 'ts-go-runtypes/internal/reflection/kind.go'},
+    {objectname: 'b'.repeat(40), path: 'ts-go-runtypes/pkg/reflection/kind.go'},
   ];
   const withDigests = (byKey: Map<string, string>, mode: 't' | 'r' = 't') =>
     laneHashes(undefined, {entries, digests: {mode, byKey}}).hashes;
@@ -107,12 +107,12 @@ describe('a comment-only commit', () => {
     };
     try {
       git('init', '-q');
-      commit({'packages/x/src/a.ts': 'export const a = 1;\n', 'ts-go-runtypes/internal/x/a.go': 'package x\n\nvar A = 1\n'});
+      commit({'packages/x/src/a.ts': 'export const a = 1;\n', 'ts-go-runtypes/pkg/x/a.go': 'package x\n\nvar A = 1\n'});
       commit({
         'packages/x/src/a.ts': '// why\n\nexport const a = 1; // one\n',
-        'ts-go-runtypes/internal/x/a.go': '// Package x.\npackage x\n\n\nvar A = 1 // one\n',
+        'ts-go-runtypes/pkg/x/a.go': '// Package x.\npackage x\n\n\nvar A = 1 // one\n',
       });
-      commit({'packages/x/src/a.ts': 'export const a = 2;\n', 'ts-go-runtypes/internal/x/a.go': 'package x\n\nvar A = 2\n'});
+      commit({'packages/x/src/a.ts': 'export const a = 2;\n', 'ts-go-runtypes/pkg/x/a.go': 'package x\n\nvar A = 2\n'});
       const [base, comments, code] = ['HEAD~2', 'HEAD~1', 'HEAD'].map((ref) => laneHashes(ref, {cwd: repo}));
       expect(base.mode, 'mion-bin/code-digest is missing: run pnpm run check:builds').toBe('t');
       for (const name of laneNames('tokens')) expect(comments.hashes[name], name).toBe(base.hashes[name]);

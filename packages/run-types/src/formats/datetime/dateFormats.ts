@@ -1,5 +1,5 @@
 // `Date<P>` brands the JS `Date` OBJECT (not a string) with the string date/time formats' min/max params
-// (./dateTimeParams.ts). Validation is emitted in Go (internal/cachegen/typefunctions/formats/datetime/nativeDate.go);
+// (./dateTimeParams.ts). Validation is emitted in Go (pkg/cachegen/typefunctions/formats/datetime/nativeDate.go);
 // the default JSON codec already handles Date. `TypeFormat` is a value import to keep reflection reachable for tsgo.
 
 import {TypeFormat} from '../../runtypes/typeFormat.ts';

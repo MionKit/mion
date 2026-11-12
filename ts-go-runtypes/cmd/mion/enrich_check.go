@@ -7,10 +7,10 @@ import (
 	"sort"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 // The single-file enrichment-health check is the CLI half of the shared

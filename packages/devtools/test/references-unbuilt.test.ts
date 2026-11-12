@@ -9,7 +9,7 @@
 // resolver now drops project references when building its program (they are a
 // tsc --build orchestration concept; bundlers never honor them), so the scan
 // sees the same sources the bundler executes. Pinned Go-side in
-// internal/compiler/program/references_test.go; this covers the plugin path
+// pkg/compiler/program/references_test.go; this covers the plugin path
 // end-to-end through the shipped binary.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import os from 'node:os';

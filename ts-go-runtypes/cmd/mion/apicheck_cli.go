@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/apimeta"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
 )
 
 const apiCheckUsage = `mion api-check — compare a client's bundled API against the server's

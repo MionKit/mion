@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
 )
 
 // TestMockGeneratorsFilesInSync fails when a committed TS mirror differs from the generator's output.

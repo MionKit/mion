@@ -15,9 +15,9 @@ code in one file. For example the hand-written render helpers in
 
 | File                                | Generator                                                           | Go source of truth                                                  |
 | ----------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `internal/constants/constants.go`                                   |
-| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `internal/reflection/runtype.go` + `internal/reflection/subkind.go` |
-| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics/messages.go`                                  |
+| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `pkg/constants/constants.go`                                   |
+| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `pkg/reflection/runtype.go` + `pkg/reflection/subkind.go` |
+| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics/messages.go`                                  |
 | `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `cmd/mion/config.go` (`tsRuntypesPlugin` json tags)                 |
 
 ## Regenerate

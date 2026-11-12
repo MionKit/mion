@@ -278,6 +278,6 @@ type always resolves to the same id, and a builder-form schema and its equivalen
 type-form spelling still land on the **same** id. That convergence is pinned by
 [`test/suites/id-integrity/`](../../test/suites/id-integrity/),
 [`test/types/staticEquivalence.test.ts`](../../test/types/staticEquivalence.test.ts), and
-the Go translator's round-trip in `ts-go-runtypes/internal/convert`, which rewrites a
+the Go translator's round-trip in `ts-go-runtypes/pkg/convert`, which rewrites a
 marker call between the two forms and asserts no id is lost or invented. Run all three
 after any change here.

@@ -58,14 +58,14 @@ export const DECLARED = {
   'packages/run-types/test/types/builderCostReport.ts': [],
   // Reads the playground component as text, to check every tour step's target exists.
   'packages/run-types/test/playground/tour.test.ts': ['container/website/app/components/playground/PlaygroundStage.client.vue'],
-  'packages/run-types/test/types/dataonlyTemporalPosture.test.ts': ['packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
+  'packages/run-types/test/types/dataonlyTemporalPosture.test.ts': ['packages/run-types/dist', 'ts-go-runtypes/pkg/testfixtures/temporal.d.ts'],
   // TypeScript programs over the mion packages; the files read only their own package.json and write reports.
   'packages/private-type-budget/test/': [...MION_PROGRAM, 'packages/private-type-budget/package.json'],
   'packages/devtools/src/core/resolver-client.ts': [GO_BINS],
   // Localhost only; the server's code is already in the key of every file that talks to it.
   'packages/platform-node/src/mionHttp.ts': [],
   // Overlays the built run-types declarations and the Temporal fixture into temp projects it writes itself.
-  'packages/devtools/test/helpers/inline.ts': [GO_BINS, 'packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
+  'packages/devtools/test/helpers/inline.ts': [GO_BINS, 'packages/run-types/dist', 'ts-go-runtypes/pkg/testfixtures/temporal.d.ts'],
   // tsc (from the lockfile) over typed modules that import run-types through a symlink to the package.
   'packages/devtools/test/helpers/typedEmit.ts': [...RUN_TYPES_PROGRAM, 'packages/run-types/dist'],
 };

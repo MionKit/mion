@@ -3,8 +3,8 @@
 // The build rejects a `pattern` that a crafted input can make backtrack
 // exponentially: the emitted validator runs that regex on every value it
 // sees, so a runaway pattern is a way to stall whatever ships it. The Go
-// side owns the check itself (internal/regexsafety) and the diagnostic
-// matrix (internal/compiler/resolver/format_pattern_safety_test.go).
+// side owns the check itself (pkg/regexsafety) and the diagnostic
+// matrix (pkg/compiler/resolver/format_pattern_safety_test.go).
 //
 // What this spec proves is the opt-out: `unsafePattern: true` on the
 // pattern, on BOTH roads a pattern reaches the build by — the inline

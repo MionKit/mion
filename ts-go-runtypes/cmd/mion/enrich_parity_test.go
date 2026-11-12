@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
 )
 
 // parityMarkerOverlay fakes the marker package (the ambient declare-module form

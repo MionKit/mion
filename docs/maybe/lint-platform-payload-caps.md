@@ -22,7 +22,7 @@ The implementer plans the details. What was checked:
 - **A resolver diagnostic, not a hand-written ESLint rule.** mion's lint rules
   (`packages/devtools/src/lint/`) are transport for the Go resolver's diagnostics: one pass per
   file, reported under the rule of each finding's level, with mion's own route checks living in
-  `ts-go-runtypes/internal/compiler/routerrules`. A hand-written rule comparing literals was
+  `ts-go-runtypes/pkg/compiler/routerrules`. A hand-written rule comparing literals was
   built and removed on purpose; the check belongs with the others, in Go, emitted at
   `mion.route()` / `mion.middleware()` call sites and at the adapter's `createXHandler` /
   `startXServer` call.

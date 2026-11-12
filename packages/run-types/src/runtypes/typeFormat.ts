@@ -2,7 +2,7 @@ import type {__rtFormatName, __rtFormatParams, __rtFormatBrand} from './sentinel
 
 // TypeFormat is the brand marker for runtype-format types (String, UUIDv4, Email, …); the concrete formats live under `src/formats/`.
 // The brand is a plain two-property object, `__rtFormatName` + `__rtFormatParams`, both SYMBOL keys so branding leaves a type's string keys untouched.
-// The tsgo-backed format scanner (ts-go-runtypes/internal/cachegen/runtype/typeid/formats.go) looks for exactly those two and lifts them
+// The tsgo-backed format scanner (ts-go-runtypes/pkg/cachegen/runtype/typeid/formats.go) looks for exactly those two and lifts them
 // into the RunType's FormatAnnotation field.
 
 // Primitives plus native `Date`: the Go-side scanner lifts the brand off a `Date & {brand}` intersection the same way it does for `string & {brand}`.
@@ -15,7 +15,7 @@ export type TypeFormatParams = Record<string, unknown>;
 // The sentinels are `readonly` so the tag survives `as const` widening and excess-property checks don't mistake them for regular properties.
 // They are OPTIONAL by default, so an unbranded format stays mutually assignable with its base: formats are RUNTIME contracts
 // enforced by the generated validator, not compile-time guards.
-// (tsgo widens the optional props to `Name | undefined`; the scanner strips the `undefined` — see internal/cachegen/runtype/typeid/formats.go.)
+// (tsgo widens the optional props to `Name | undefined`; the scanner strips the `undefined` — see pkg/cachegen/runtype/typeid/formats.go.)
 // Passing `BrandName` opts INTO a REQUIRED `__rtFormatBrand` marker, no longer assignable from a bare primitive, so values must pass a
 // validation/cast boundary; the Go-side detection ignores it, so branding stays a pure TS-level discriminator.
 export type TypeFormat<

@@ -44,7 +44,7 @@ The implementer plans the details. Build the tuple feature first, then rewrite t
 - Only a tuple keeps order and length: `as const`, or a tuple type annotation. A plain `const list = [a, b]` is typed
   `(A | B)[]` and stays a "list built at runtime" error.
 - Read each tuple element's type the way items are read today (`itemRouteIds` in
-  `ts-go-runtypes/internal/compiler/requestbatch/routes.go`), unions included. The rejection for a non-literal
+  `ts-go-runtypes/pkg/compiler/requestbatch/routes.go`), unions included. The rejection for a non-literal
   routes argument sits in `extractOne` (`requestbatch/batch.go`).
 - Mappings: read `inputFrom()` off the tuple's initializer when it is a visible array literal; otherwise rely on the
   lookup key's runtime check. Never drop a mapping silently.

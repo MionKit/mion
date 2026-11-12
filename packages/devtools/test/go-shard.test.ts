@@ -17,7 +17,7 @@ import {
 type Plan = {light: string[]; heavy: {pkg: string; tests: string[]}[]};
 
 const [resolver, convert, apitypes] = HEAVY as string[];
-const light = ['m/cmd/a', 'm/cmd/b', 'm/internal/c', 'm/internal/d', 'm/internal/e'];
+const light = ['m/cmd/a', 'm/cmd/b', 'm/pkg/c', 'm/pkg/d', 'm/pkg/e'];
 const packages = [...light, resolver, convert, apitypes].sort();
 const testsOf = new Map([
   [resolver, ['TestA', 'TestB', 'TestC', 'TestD', 'FuzzE', 'ExampleF', 'TestG']],

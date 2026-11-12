@@ -1,6 +1,6 @@
 // gen-run-type-kind regenerates the TWO TS mirrors of ReflectionKind /
-// ReflectionSubKind from internal/reflection/runtype.go and
-// internal/reflection/subkind.go:
+// ReflectionSubKind from pkg/reflection/runtype.go and
+// pkg/reflection/subkind.go:
 //
 //   - packages/run-types/src/go-generated/runTypeKind.generated.ts — the marker package's
 //     `RunTypeKind` / `RunTypeSubKind` const objects.

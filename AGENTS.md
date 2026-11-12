@@ -50,7 +50,7 @@ Removed/renamed option, setting key, config key, lint rule, export, alias, CLI f
 - Before committing: `pnpm run lint` + `pnpm run format`, fix errors first. `pnpm run lint` = both linters + typecheck.
 - Format = `pnpm run format`. Never hand-format, never widen its scope. `pnpm run check-format` = read-only twin.
   - oxfmt over `packages/**/*.ts`, Prettier over `packages/**/*.md` (markdown only),
-    `gofmt -w` over `ts-go-runtypes/cmd` + `ts-go-runtypes/internal`.
+    `gofmt -w` over `ts-go-runtypes/cmd` + `ts-go-runtypes/pkg`.
   - Excluded on purpose: website / docs / scripts / `.claude` markdown (Prettier mangles MDC `::` components),
     vendored `third_party/` + `_deps/`, lockfiles, `testdata` golden fixtures.
   - Formatting seems needed outside that scope → STOP, surface it. Never run oxfmt / Prettier / gofmt by hand.

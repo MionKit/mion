@@ -331,7 +331,7 @@ strip every one), and type-blind **junk** for robustness only.
   stream the `{checkUnknowns: true}` validator accepts `clone(v)`).
 - `referenceClone.ts` — the reference interpreter: mirrors the Go emitter's
   per-kind arms in
-  [`remove_unknown_keys.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go)
+  [`remove_unknown_keys.go`](../../../../ts-go-runtypes/pkg/cachegen/typefunctions/remove_unknown_keys.go)
   one-for-one, trading every output-shape decision for the dumbest possible
   implementation (no caching, no fastpaths) so a disagreement is eyeballable.
 - `extrasValue.ts` — the clone-fuzz twin of `invalidValue.ts`: injects 1–3
@@ -351,7 +351,7 @@ ONE generator covers the FULL space: each iteration draws from `typeGen`
 (the convert lane's generation space) and derives the builder spellings with
 the REAL `mion convert --to builders` CLI — no hand-written builder
 printer exists here, so there is nothing to drift from the product converter
-(`internal/convert/printbuilder.go`), and every fixture's builder spelling is
+(`pkg/convert/printbuilder.go`), and every fixture's builder spelling is
 byte-for-byte what a user's conversion would produce. The converted output IS
 the static spelling (`const rt = …; type T = InferType<typeof rt>;` with the
 calls naming `T`); the value spelling is a tail swap of the lane's own three
@@ -505,7 +505,7 @@ generated type that is not valid TypeScript is dropped by the `tsValidate.ts` ga
 
 ### `apitypes` — the types-only package ships what the API reaches, nothing else
 
-A Go lane (`ts-go-runtypes/internal/compiler/apitypes/fuzz_trim_test.go`) over the trimmer behind
+A Go lane (`ts-go-runtypes/pkg/compiler/apitypes/fuzz_trim_test.go`) over the trimmer behind
 `mion api-types`. Each iteration writes a random graph of `.d.ts` files whose types name each other
 in every position a type can take (members, generics and defaults, heritage, unions, conditional
 and mapped types, `typeof`, `keyof`, `import()` types, namespaces, overloads, merges, augmentations,
@@ -571,7 +571,7 @@ pnpm miondevx core fuzz <lane…> [--quick|--soak]
   integration file; `--quick` and `--soak` turn up its iteration/duration env.
 - `race` is the only path that sets `MION_FUZZ_RACE=1`.
 - `all` runs EVERY lane at its default budget: the whole `test/fuzz` tree, both
-  sidecar lanes, the race test, and both Go sweeps under `internal/convert`
+  sidecar lanes, the race test, and both Go sweeps under `pkg/convert`
   (including the lane-less schemadoc determinism sweep). It takes no tier flag —
   a quick or soak round is per-lane, so the time-boxed lanes never share CPU.
 - Several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`) pay
@@ -579,7 +579,7 @@ pnpm miondevx core fuzz <lane…> [--quick|--soak]
   sequentially and says so.
 
 `pnpm test` alone already runs every fixed-iteration batch (roundtrip,
-non-data, and the smoke/gate tests included), and `go test ./internal/...`
+non-data, and the smoke/gate tests included), and `go test ./pkg/...`
 runs the Go-side `convert` sweep. So `miondevx core fuzz` is not what makes a lane
 run — it is the **tier / replay** front door, and `race` is the only lane it
 gates (nothing else sets `MION_FUZZ_RACE=1`).

@@ -4,7 +4,7 @@
 // into the emitted annotation), so mocking works with nothing declared.
 // Pools are random per build unless a literal `{mock: {seed}}` at a
 // createMockDataFn call site pins them (the CompTimeHints lane). The Go
-// matrix (internal/compiler/resolver/format_sample_validation_test.go)
+// matrix (pkg/compiler/resolver/format_sample_validation_test.go)
 // proves the build-time enrichment, the seeded/unseeded pool semantics
 // across builds, and the format-sample-generation-failed failure lanes; this spec proves the
 // EMITTED artifacts behave within a build: mocks match the regex, validate

@@ -1,4 +1,4 @@
-// Mirrors internal/compiler/resolver/intersection_collapse_test.go; see AGENTS.md marker coverage.
+// Mirrors pkg/compiler/resolver/intersection_collapse_test.go; see AGENTS.md marker coverage.
 // Collapse rules: internal/serialize/intersection_collapse.go.
 
 import {describe, expect} from 'vitest';

@@ -2,7 +2,7 @@
 
 - Every mion lint finding = a diagnostic the Go resolver already emits. Rules here are transport only.
 - One resolver pass per linted file → `diagnosticRouting.ts` sends each wire diagnostic to the rule of its level.
-- mion's route checks live in `ts-go-runtypes/internal/compiler/routerrules`.
+- mion's route checks live in `ts-go-runtypes/pkg/compiler/routerrules`.
 - Linter scans one file at a time → whole-program findings (batch id collision, bundled-API check)
   show only in the build.
 

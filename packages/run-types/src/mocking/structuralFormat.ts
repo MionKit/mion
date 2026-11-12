@@ -1,4 +1,4 @@
-// Runtime twins of the structural format checks the Go emitters compile (internal/cachegen/typefunctions/formats/structural),
+// Runtime twins of the structural format checks the Go emitters compile (pkg/cachegen/typefunctions/formats/structural),
 // so the mock walker can answer them at generation time. The generated VALIDATORS never import this, their checks are compiled.
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 

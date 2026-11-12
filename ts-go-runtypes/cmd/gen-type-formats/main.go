@@ -1,7 +1,7 @@
 // gen-type-formats regenerates the TS mirror of the Go format registry at
 // packages/run-types/src/go-generated/typeFormats.generated.ts.
 //
-// internal/cachegen/typefunctions/formats is the single source of truth for
+// pkg/cachegen/typefunctions/formats is the single source of truth for
 // every built-in type format: each emitter registers its canonical Name() +
 // base Kind() from an init(). This program blank-imports the formats/all
 // aggregator so every emitter registers, enumerates the registry via

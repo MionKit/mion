@@ -35,10 +35,10 @@ afterAll(() => rmSync(scratch, {recursive: true, force: true}));
 
 describe('go-inputs — what the digest sees', () => {
   it('excludes only what the go tool itself ignores', () => {
-    expect(isGoInput('ts-go-runtypes/internal/x/x.go')).toBe(true);
-    expect(isGoInput('ts-go-runtypes/internal/x/x_test.go')).toBe(false);
-    expect(isGoInput('ts-go-runtypes/internal/x/testdata/fixture.ts')).toBe(false);
-    expect(isGoInput('ts-go-runtypes/internal/x/asset.json')).toBe(true);
+    expect(isGoInput('ts-go-runtypes/pkg/x/x.go')).toBe(true);
+    expect(isGoInput('ts-go-runtypes/pkg/x/x_test.go')).toBe(false);
+    expect(isGoInput('ts-go-runtypes/pkg/x/testdata/fixture.ts')).toBe(false);
+    expect(isGoInput('ts-go-runtypes/pkg/x/asset.json')).toBe(true);
     expect(isGoInput('ts-go-runtypes/go.mod')).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe('go-inputs — the playground wrapper', () => {
   it('the wasm digest is the shared digest over the wasm input list plus the tsgolint commit', () => {
     expect(WASM_INPUTS).toEqual([
       'ts-go-runtypes/cmd/mion-wasm',
-      'ts-go-runtypes/internal',
+      'ts-go-runtypes/pkg',
       'ts-go-runtypes/go.mod',
       'ts-go-runtypes/go.sum',
       'ts-go-runtypes/go.work',
@@ -197,10 +197,10 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(resolverDigest()).not.toBe(extractDigest());
   });
 
-  // The gate restores only code-digest, so an internal/ edit must not move its key and drop the gate to raw hashing.
-  it('keys code-digest on its own inputs, without internal/', () => {
+  // The gate restores only code-digest, so a pkg/ edit must not move its key and drop the gate to raw hashing.
+  it('keys code-digest on its own inputs, without pkg/', () => {
     expect(CODE_DIGEST_INPUTS).toEqual(['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)]);
-    expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/internal');
+    expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/pkg');
     expect(codeDigestDigest()).not.toBe(extractDigest());
     expect(codeDigestCacheKey()).toMatch(new RegExp(`^mion-code-digest-${process.platform}-${process.arch}-[0-9a-f]{32}$`));
   });

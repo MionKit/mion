@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
 )
 
 // RAW_CODE in scripts/ci/lanes.mjs: paths the lanes hash raw, some holding deliberately broken code.
