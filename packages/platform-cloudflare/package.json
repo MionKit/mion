@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-cloudflare",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "type": "module",
   "description": "mion adapter for Cloudflare Workers",
   "keywords": [

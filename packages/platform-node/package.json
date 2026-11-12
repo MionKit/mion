@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-node",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "type": "module",
   "description": "mion HTTP Server for quick Api development.",
   "keywords": [
