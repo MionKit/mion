@@ -138,6 +138,11 @@ function loadProLauncher(here) {
   return module.createRequire(import.meta.url)(path.join(dir, entry));
 }
 
+// Whether a pro launcher is installed for this project, so a caller can skip extension-only work without it.
+export function hasProLauncher() {
+  return (findProLauncher(process.cwd()) ?? findProLauncher(path.dirname(fileURLToPath(import.meta.url)))) !== null;
+}
+
 function ownVersion(here) {
   return JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version;
 }
