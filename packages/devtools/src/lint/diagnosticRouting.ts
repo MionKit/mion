@@ -3,7 +3,7 @@
 // is one sink over this module; another transport reuses it unchanged.
 
 import path from 'node:path';
-import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
+import {catalogEntry, renderHeadline} from '../core/diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from '../core/downgradeErrors.ts';
 import {Level, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
@@ -94,7 +94,7 @@ function ruleNameFor(diagnostic: Diagnostic): RuleName {
 // locations inline, lint reports having no related-location field. The unknown-code arm is unreachable in a
 // released install (binary and catalog publish together) but a locally built mion-bin/mion can run ahead of it.
 export function renderMessage(diagnostic: Diagnostic): string {
-  const known = diagnostic.code in DIAGNOSTIC_CATALOG;
+  const known = catalogEntry(diagnostic.code) !== undefined;
   const headline = known
     ? renderHeadline(diagnostic.code, diagnostic.args)
     : '(message unavailable — regenerate the catalog via `pnpm miondevx core codegen diag`)';

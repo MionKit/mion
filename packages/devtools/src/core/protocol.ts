@@ -272,8 +272,21 @@ export interface FormatAnnotation {
   params?: Record<string, unknown>;
 }
 
+// mion's own ops; an extension binary answers more, which `ResolverConnection.request` sends by name.
+export type BuiltinOp =
+  | 'scanFiles'
+  | 'dump'
+  | 'setSources'
+  | 'reset'
+  | 'tsCompile'
+  | 'transform'
+  | 'generate'
+  | 'enrich'
+  | 'capabilities';
+
 export interface Request {
-  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
+  // Any op string: the binary looks it up in its op table and answers `unknown op: <op>` when it has none.
+  op: BuiltinOp | (string & {});
   // The op's file input: the files to scan (scanFiles), rewrite (transform) or enrichment-check (enrich).
   // The response's sites cover every listed file, each tagged with .file; the include* flags project
   // runTypes / entryModules over these files only, never the session-wide cache (use dump for that).
@@ -303,6 +316,32 @@ export interface Request {
   emitEdits?: boolean;
   // enrich carries NOTHING beyond `files` (empty = whole program): the families, i18n locales and output root ride
   // the spawn flags (--gen-dir / --enrich-*), defaulting from the tsconfig plugin entry.
+  // An extension's own request fields, keyed by name: a registered scan check is switched on by `ext[name] = true`.
+  ext?: Record<string, unknown>;
+}
+
+// Capabilities mirrors Go protocol.Capabilities: what the binary's extensions add, mion's own rows never listed.
+// The public binary answers every list empty.
+export interface Capabilities {
+  extensions: {name: string; version: string}[];
+  ops: string[];
+  // `probe` is JS regex source (compile with the `m` flag): a file it matches needs the resolver pass in lint.
+  scanChecks: {name: string; family: string; probe?: string}[];
+  diagnostics: CatalogRecord[];
+}
+
+// CatalogRecord mirrors Go diagnostics.CatalogEntry, the shape the generated catalog is built from.
+export interface CatalogRecord {
+  code: string;
+  family: string;
+  level: string;
+  completeness?: boolean;
+  internal?: boolean;
+  headline: string;
+  slots?: string[];
+  summary: string;
+  fix?: string;
+  example?: string;
 }
 
 // Metrics mirrors Go protocol.Metrics, present only when the request set includeMetrics.
@@ -391,6 +430,10 @@ export interface Response {
   tsCompileMs?: number;
   // Present only when the request set includeMetrics.
   metrics?: Metrics;
+  // An extension op's own answer fields, keyed by name.
+  ext?: Record<string, unknown>;
+  // capabilities only.
+  capabilities?: Capabilities;
   error?: string;
 }
 

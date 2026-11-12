@@ -35,6 +35,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   onSiteFilesChanged: true,
   onGenerate: true,
   enrich: true,
+  extensions: true,
 } satisfies Record<keyof PluginOptions, true>;
 
 // The plugin-option parity test compares this list to the generated TSCONFIG_PLUGIN_KEYS, so an option
