@@ -75,7 +75,7 @@ const die = (msg, code = 1) => {
 // are TIME-BOXED — CPU contention silently buys LESS coverage in the same wall
 // clock, so never run two of them concurrently (ci.yml soaks them one at a
 // time; the soak workflows give each lane its own runner). The count-based
-// lanes (sequences / iterations) have fixed coverage — contention only costs
+// lanes (fixed iteration counts) have fixed coverage — contention only costs
 // wall clock, so they may share a runner.
 //
 // ⚠ MION_FUZZ_ITER drives convert, convertcli, apiids and apitypes: exported in a shell it widens all four.
@@ -105,11 +105,6 @@ const FUZZ = {
   secgen: {patterns: ['security/generatedCodeFuzz.integration'], quick: {MION_FUZZ_SECGEN_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECGEN_SOAK_MS: '60000'}},
   // The mion side: hostile requests through the router in process + raw sockets at the node adapter
   sechttp: {patterns: ['security/httpFuzz.integration'], quick: {MION_FUZZ_SECHTTP_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECHTTP_SOAK_MS: '60000'}},
-  enrich: {patterns: ['enrichFuzz.integration'], quick: {MION_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {MION_FUZZ_ENRICH_SEQUENCES: '400', MION_FUZZ_ENRICH_MAXCMDS: '24'}},
-  i18n: {patterns: ['i18nFuzz.integration'], quick: {MION_FUZZ_I18N_SEQUENCES: '12'}, soak: {MION_FUZZ_I18N_SEQUENCES: '400', MION_FUZZ_I18N_MAXCMDS: '24'}},
-  typemod: {patterns: ['typeModFuzz.integration'], quick: {MION_FUZZ_TYPEMOD_SEQUENCES: '12'}, soak: {MION_FUZZ_TYPEMOD_REPORT: '1', MION_FUZZ_TYPEMOD_SEQUENCES: '400', MION_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
-  // race is the ONLY path that sets MION_FUZZ_RACE=1 — without it enrichRace self-skips.
-  race: {patterns: ['enrichRace'], env: {MION_FUZZ_RACE: '1'}, quick: {MION_FUZZ_RACE_ITERATIONS: '5', MION_FUZZ_RACE_FANOUT: '8'}, soak: {MION_FUZZ_RACE_ITERATIONS: '25', MION_FUZZ_RACE_FANOUT: '8'}},
   // Robustness fuzz of the committed go:embed sidecar bundle under real node
   // (garbage patterns/flags/samples + oversized batches; MION_FUZZ_SEED replays).
   sidecar: {patterns: ['patternSidecarFuzz']},
@@ -138,7 +133,7 @@ const FUZZ = {
   drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // Every lane at its default budget; `-run TestFuzz_` also catches the lane-less schemadoc determinism sweep.
   // No tier blocks: a quick/soak round is per lane so the time-boxed lanes never share CPU (rule above).
-  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./pkg/convert/', './pkg/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1']},
+  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], goTest: ['./pkg/convert/', './pkg/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1']},
 };
 // Go→TS mirrors. miondevx runs each generator DIRECTLY — the whole point is that
 // adding a mirror is ONE entry here, with no companion `gen:*` package.json
@@ -161,7 +156,7 @@ const CODEGEN = {
   // each emitter under pkg/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
   typeformats: {run: [...GO_RUN, './cmd/gen-type-formats'], stdoutTo: 'packages/run-types/src/go-generated/typeFormats.generated.ts', outputs: ['packages/run-types/src/go-generated/typeFormats.generated.ts'], fmt: ['packages/run-types/src/go-generated/typeFormats.generated.ts']},
-  // Per-format FriendlyText error keys plus the params the samples cover (a type test fails on any other param).
+  // Per-format validation-error keys plus the params the samples cover (a type test fails on any other param).
   errorkeys: {run: [...GO_RUN, './cmd/gen-format-error-keys'], stdoutTo: 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts', outputs: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts'], fmt: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts']},
   // GEN namespace + length / character table from formats.MockGenerators; the generator writes both outputs itself.
   mockgenerators: {run: [...GO_RUN, './cmd/gen-mock-generators'], outputs: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts'], fmt: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts']},
@@ -243,7 +238,7 @@ function runFuzz(args) {
   const env = {};
   for (const lane of lanes) {
     if (tier && !FUZZ[lane][tier]) die(`fuzz suite '${lane}' has no ${tier} budget${lane === 'all' ? ' on purpose — budget tiers are per-lane so the time-boxed lanes never share CPU (see the FUZZ registry note)' : ''}`);
-    for (const [key, value] of Object.entries({...(FUZZ[lane].env ?? {}), ...(tier ? FUZZ[lane][tier] : {})})) {
+    for (const [key, value] of Object.entries(tier ? FUZZ[lane][tier] : {})) {
       // convert + convertcli share MION_FUZZ_ITER, so one invocation cannot give
       // them different budgets — fail loudly instead of silently picking one.
       if (key in env && env[key] !== value) die(`'${lanes.join(' ')}' collide on ${key} (${env[key]} vs ${value}) — run those lanes separately`);

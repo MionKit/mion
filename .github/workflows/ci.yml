@@ -7,7 +7,7 @@ name: ci
 #   go-checks         — gofmt + vet, and the JS checks that need Go (codegen and drizzle-manifest drift,
 #                       the build-gate tests, the Go shard coverage check)
 #   go-suite          — the Go suite in 3 shards (scripts/ci/go-shard.mjs), a matrix job per shard
-#   js-fuzz-sweep     — the count-based JS fuzz sweep + the race lane
+#   js-fuzz-sweep     — the count-based JS fuzz sweep
 #   js-fuzz-timeboxed — the time-boxed JS fuzz lanes
 #   js-static         — check-format + lint/typecheck + code-import and examples gates + contracts + link test
 #   js-suite          — the rest of the JS suite + bun:test
@@ -311,7 +311,7 @@ jobs:
       minutes: 70
 
   # The count-based lanes at their QUICK budgets (fixed coverage, so vitest's file parallelism only costs wall
-  # clock), plus the fuzz-adjacent regression/smoke/unit tests in the same tree, plus the race lane.
+  # clock), plus the fuzz-adjacent regression/smoke/unit tests in the same tree.
   js-fuzz-sweep:
     name: js fuzz sweep
     needs: [lanes, js-fuzz-wait, go-build]
@@ -329,22 +329,14 @@ jobs:
       # The env values mirror the registry's quick blocks; values, exclude list
       # and the trailing slash on `test/fuzz/` (it keeps the devtools
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
-      # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli|apiids> --quick`.
+      # Local replay: `pnpm miondevx core fuzz <convertcli|apiids> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
         if: fromJSON(env.MION_LANES)['js-fuzz'].run && contains(fromJSON(env.MION_LANES)['js-fuzz'].runItems, 'sweep')
         env:
-          MION_FUZZ_ENRICH_SEQUENCES: '12'
-          MION_FUZZ_I18N_SEQUENCES: '12'
-          MION_FUZZ_TYPEMOD_SEQUENCES: '12'
           MION_FUZZ_ITER: '10'
         run: >-
           pnpm exec vitest run test/fuzz/
           --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,type/jsonSizeBound,type/typedEmitFuzz,elision/elisionFuzz,security/jsonDecodeFuzz,security/formatPatternFuzz,security/generatedCodeFuzz,security/httpFuzz}.integration.test.ts'
-      # enrichRace self-skips unless MION_FUZZ_RACE=1; the sweep above never sets it, so the concurrency coverage
-      # rides here at the race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
-      - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
-        if: fromJSON(env.MION_LANES)['js-fuzz'].run && contains(fromJSON(env.MION_LANES)['js-fuzz'].runItems, 'sweep')
-        run: pnpm miondevx core fuzz race --quick
       - name: Record the JS fuzz sweep as green
         if: success() && contains(fromJSON(env.MION_LANES)['js-fuzz'].runItems, 'sweep')
         uses: ./.github/actions/save-lane-green

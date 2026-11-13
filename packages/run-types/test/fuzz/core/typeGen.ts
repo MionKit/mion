@@ -122,22 +122,6 @@ export type FormatLeafName =
   | 'base64'
   | 'jsonContent';
 
-/** The subset the SCRATCH-DIR lanes (enrich / typemod) may draw: their
- *  fixtures live in temp dirs with no mion install, so they carry
- *  FUZZ_FORMAT_SCRATCH_PREAMBLE (a local raw-sentinel `TF` namespace) instead
- *  of the import — and that namespace only spells the param brands
- *  (String / Number / Integer), deliberately: the named-format brands'
- *  raw spellings are exactly the multi-kilobyte hand copies this roster
- *  design exists to forbid. **/
-export const SCRATCH_FORMAT_LEAVES: readonly FormatLeafName[] = [
-  'emailish',
-  'minLen50',
-  'maxLen8',
-  'patternA',
-  'integer',
-  'min0max100',
-];
-
 /** Structural constraint params the generator can attach to an array / Set /
  *  Map / record shape. Rendered through the SHIPPED `TF.FormattedArray` /
  *  `TF.FormattedSet` / `TF.FormattedMap` / `TF.FormattedObject` wrappers;
@@ -470,27 +454,6 @@ export const FUZZ_FORMAT_PREAMBLE = "import type * as TF from './src/formats/ind
  *  same shipped types, resolved the way a consumer install resolves them. **/
 export const FUZZ_FORMAT_PREAMBLE_PACKAGE = "import type * as TF from '@mionjs/run-types/formats';";
 
-/** The SCRATCH-DIR twin: enrich / typemod fixtures live in temp dirs where a
- *  relative './src/...' import cannot resolve, so they carry a local `TF`
- *  namespace restating ONLY the param brands' raw sentinel encoding (the
- *  only spellings SCRATCH_FORMAT_LEAVES can render).
- *
- *  ⚠️ EXCEPTION, NOT THE RULE. Fuzz fixtures use the real shipped types,
- *  imported (FUZZ_FORMAT_PREAMBLE above) — restating one is allowed ONLY
- *  where an import physically cannot resolve, and must be pinned against the
- *  shipped encoding so drift fails loudly (here:
- *  scratchFormatPreamble.test.ts). Do not add spellings here to make a new
- *  leaf reach the scratch lanes; see "Real types, never copies" in
- *  test/fuzz/README.md. **/
-export const FUZZ_FORMAT_SCRATCH_PREAMBLE = [
-  'namespace TF {',
-  '  type Fmt<Base, Name extends string, Params extends object> = Base & {readonly __rtFormatName?: Name; readonly __rtFormatParams?: Params};',
-  "  export type String<P extends object> = Fmt<string, 'stringFormat', P>;",
-  "  export type Number<P extends object> = Fmt<number, 'numberFormat', P>;",
-  '  export type Integer = Number<{integer: true}>;',
-  '}',
-].join('\n');
-
 /** Does this shape carry a structural params bag? The kinds that CAN are the
  *  four the generator decorates, and this is the ONE place that list lives.
  *  A copy of it drifted once (the elision lane's E3 gate listed only array and
@@ -667,9 +630,7 @@ export interface GenOptions {
    *  `jsonMaxBytes` to check the serializer against; pair it with a
    *  `formatLeafPool` of bounded leaves (BOUNDED_FORMAT_LEAVES). **/
   boundedSizes?: boolean;
-  /** The format leaves this lane may draw (default: all of FORMAT_LEAF_NAMES).
-   *  The scratch-dir lanes pass SCRATCH_FORMAT_LEAVES — the only leaves their
-   *  import-free preamble can spell. **/
+  /** The format leaves this lane may draw (default: all of FORMAT_LEAF_NAMES). **/
   formatLeafPool?: readonly FormatLeafName[];
   /** Emit LABELED tuples sometimes (`[k0: A, k1: B]` — every slot named, the
    *  TS all-or-nothing rule). Labels fold into the structural id, so every
@@ -919,7 +880,7 @@ function compatibleParents(first: Decl, second: Decl): boolean {
 /** Merge the bases' flattened members into one inherited list, deduped by name
  *  (a diamond inherits its shared ancestor's member ONCE, which is what the
  *  checker does). First declaration wins, so the merge is order-stable. **/
-export function inheritedProps(bases: Decl[]): PropShape[] {
+function inheritedProps(bases: Decl[]): PropShape[] {
   const out: PropShape[] = [];
   const seen = new Set<string>();
   for (const base of bases) {
@@ -1613,8 +1574,7 @@ export function renderDecl(decl: Decl): string {
  *  When the type carries format / structural shapes, the decls block LEADS
  *  with the import preamble (the shipped brands), so every
  *  resolver lane's `${decls}` interpolation stays correct with no per-harness
- *  wiring. Scratch-dir lanes render their own decls with
- *  FUZZ_FORMAT_SCRATCH_PREAMBLE instead. **/
+ *  wiring. **/
 export function renderGenerated(gen: GeneratedType, preamble: string = FUZZ_FORMAT_PREAMBLE): {decls: string; rootExpr: string} {
   const decls = gen.decls.map(renderDecl).join('\n');
   const withPreamble = usesFormatLeaves(gen) ? `${preamble}\n${decls}` : decls;

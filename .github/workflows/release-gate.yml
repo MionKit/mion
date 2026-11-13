@@ -116,10 +116,6 @@ jobs:
           path: logs/cli-crashes/
           if-no-files-found: ignore
           retention-days: 14
-      # pnpm test above never sets MION_FUZZ_RACE, so enrichRace self-skips there;
-      # the concurrency coverage rides here. Equivalent to `pnpm miondevx core fuzz race`.
-      - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
-        run: MION_FUZZ_RACE=1 pnpm exec vitest run enrichRace
       # Re-run the full main gate here too (lint/typecheck/format) so a prod PR
       # catches anything that ever slipped onto main; runs after pnpm test so the
       # dists the typecheck reads are already built.
@@ -177,7 +173,7 @@ jobs:
   # is still in review. The `--soak` budgets in miondevx's FUZZ registry
   # (scripts/miondevx.mjs) are the RELEASE tier, and this job is its release half;
   # fuzz-soak.yml is the other half, running the same lanes on demand for the
-  # cost of twelve short jobs instead of the whole gate, so findings can be
+  # cost of one short job per lane instead of the whole gate, so findings can be
   # drained between releases rather than piling up against one. The gate's
   # `workflow_dispatch` also makes the whole gate runnable by hand on any
   # branch (`gh workflow run release-gate.yml --ref <branch>`).

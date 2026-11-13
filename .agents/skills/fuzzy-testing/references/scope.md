@@ -23,7 +23,7 @@ declare function decode(wire: string): User;
   - return value → compare / assert properties.
   - thrown error + its type → catch, classify (expected vs uncaught).
   - written files → read back (in-memory FS: cheap + isolated).
-  - diagnostics list → assert codes / severity (the enrichment pipeline's main output).
+  - diagnostics list → assert codes / severity.
   - stdout, exit code, logs / events → capture a buffer.
   - coverage → instrument to steer generation (optional, advanced).
 - Code hides its effects (real disk, stdout)? Wrap so they come back as a value. That wrapper is part of your tooling.

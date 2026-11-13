@@ -19,7 +19,7 @@ Sweep ALL shapes: cover them, never stop at the first hit. Most code fits 3 to 5
 2. ② do it then undo it (round-trip): inverse op (encode/decode, parse/print, gen/read) gives back the start?
    Highest payoff. e.g. `encode(decode(w)) === w`.
 3. ③ doing it twice (idempotence): second pass changes nothing, `f(f(x)) === f(x)`?
-   e.g. a second `--update` is byte-identical.
+   e.g. converting an already-converted file again is a byte no-op.
 4. ④ a fact always holds (invariant): output still valid, a count adds up, a length or bound holds?
 5. ⑤ compare to a trusted source (differential): second impl, old version, or two paths to the same answer?
    e.g. vs `JSON.parse`, vs the previous implementation.
@@ -29,7 +29,7 @@ Sweep ALL shapes: cover them, never stop at the first hit. Most code fits 3 to 5
    e.g. an authored value survives an unrelated edit.
 8. ⑧ reject bad input (negative space): which inputs are illegal, what should happen?
    Rule = reject with a specific, actionable signal. Never a crash, never a silent accept.
-   e.g. unknown field ⇒ `enrich-mock-unknown-field` / `enrich-text-unknown-field`.
+   e.g. unknown field ⇒ one diagnostic code that names the field.
 
 - After a pass ask: "anything I'm missing that should always hold here?" Stop when fitting shapes are covered.
 
@@ -62,8 +62,9 @@ Sweep ALL shapes: cover them, never stop at the first hit. Most code fits 3 to 5
   Never trade toward false alarms.
 - Tell the user plainly, then prove it: break the expected output on purpose, watch the rule go red with the right
   signal, put it back. A rule never seen failing is not trustworthy yet.
-- e.g. enrich fuzzer: asserted bogus code `enrich-mock-bogus`, watched it fail + shrink to one event.
-  Proof the check was live, not passing for the wrong reason.
+- e.g. `packages/run-types/test/fuzz/elision/elisionOracle.unit.test.ts`: feeds each rule a broken output,
+  watches it go red.
+  Proof the check is live, not passing for the wrong reason.
 - This repo's soundness guards:
   - `invalidValue.ts` corrupts only where `proven` is true (provably invalid in isolation).
     Never under union / any / index-sig.

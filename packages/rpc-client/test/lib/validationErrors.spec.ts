@@ -12,7 +12,7 @@ import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 
-// mion owns only the raw shape `.typeErrors()` returns; rendering is RunTypes' `createFriendlyText` or the app's own.
+// mion owns only the raw shape `.typeErrors()` returns; rendering it is the app's job.
 
 describe('client-side validation errors', () => {
   type MyApi = TestServerApi;
@@ -90,7 +90,7 @@ describe('client-side validation errors', () => {
     });
 
     // Canary (R20): pins the EXACT raw mion error shape (expected base type + format
-    // {name, formatPath, val}) that a friendly-text renderer consumes. Runs the real engine, so
+    // {name, formatPath, val}) that an error renderer consumes. Runs the real engine, so
     // an upstream error-shape change fails here. Client param errors are relative to the
     // positional params tuple (paths like [0, 'name']).
     it('pins the raw engine error shape for the format matrix', async () => {

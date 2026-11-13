@@ -24,7 +24,7 @@ This repo already has three makers. Report them before building anything:
   `fc.commands([...])` + a model. The bug only shows after a sequence.
   Template: [model-based.ts](../templates/model-based.ts).
 - E. Two coupled things that EVOLVE via edits → a random list of EDIT events + a small state model. Build it.
-  Worked case: [enrich-pipeline.md](enrich-pipeline.md).
+  Same template as D, each edit event a command: [model-based.ts](../templates/model-based.ts).
 
 ## Code per kind
 

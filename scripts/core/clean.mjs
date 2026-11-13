@@ -80,7 +80,6 @@ const GROUPS = [
       'packages/**/.mion-*',
       // harvested batch manifests
       'packages/**/.mion',
-      'packages/run-types/test/suites/enrich/.tmp',
     ],
   },
 ];
