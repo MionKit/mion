@@ -41,17 +41,12 @@ const MION_PROGRAM = [
 export const DECLARED = {
   // Teardown only: deletes the genDirs after the whole run.
   'scripts/lib/vitest-clean-gendir.ts': [],
-  // `mion enrich` over temp files typed against run-types, through the package's own tsconfig.
-  'packages/run-types/test/util/enrichGen.ts': [GO_BINS, ...RUN_TYPES_PROGRAM, 'packages/run-types/tsconfig.json', 'tsconfig.json'],
-  // `extract-fn-bodies` over a case file the test already imports.
-  'packages/run-types/test/util/enrichCases.ts': [GO_BINS],
   'packages/run-types/test/types/compileHarness.ts': RUN_TYPES_PROGRAM,
   'packages/run-types/test/types/builderCostHarness.ts': RUN_TYPES_PROGRAM,
   // Reads only `ts.version`, for its report.
   'packages/run-types/test/types/builderCost.compile.test.ts': RUN_TYPES_PROGRAM,
   // Each reads one src file as text, and src is already declared.
   'packages/run-types/test/types/dataonlyHarness.ts': RUN_TYPES_PROGRAM,
-  'packages/run-types/test/types/enrichHarness.ts': RUN_TYPES_PROGRAM,
   'packages/run-types/test/types/stripMetaHarness.ts': RUN_TYPES_PROGRAM,
   'packages/run-types/test/types/substituteSelfHarness.ts': RUN_TYPES_PROGRAM,
   // Writes its report and reads nothing.

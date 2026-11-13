@@ -5,7 +5,7 @@
 //
 // Random runtypes come from the shared `core/runTypeGen.ts` generator (built
 // directly, no Go binary). It drives the walker `mockRunType(runType, options,
-// [])` — the same lower-level entry the MockData unit tests use — because
+// [])` — the same lower-level entry the mock unit tests use — because
 // `createMockDataFn` needs a plugin-injected id a runtime-built graph can't carry.
 // A fresh `new MockRandom(seed)` per generation seeds the options bag exactly as
 // createMockDataFn would, so this measures the same code.

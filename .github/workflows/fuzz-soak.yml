@@ -2,11 +2,11 @@ name: fuzz-soak
 
 # The fuzz lanes at their SOAK budgets, on a FRESH seed, off the release path.
 #
-# The same twelve lanes also run inside release-gate.yml. That was the only place
+# The same lanes also run inside release-gate.yml. That was the only place
 # they ever ran at these budgets, which is the problem this workflow exists to
 # fix: a whole release cycle's worth of latent findings arrived at once, one seed
 # per gate round, while the release waited.
-# Running a round here costs twelve short jobs instead of the gate's full ~35
+# Running a round here costs one short job per lane instead of the gate's full ~35
 # minutes of e2e + benchmarks + docs build, so a round is cheap enough to do on
 # purpose rather than only when a release forces it.
 #
@@ -16,7 +16,7 @@ name: fuzz-soak
 # human starts, the point being that they can now start it any time instead of
 # only at a release.
 #
-# `lane` picks one lane (a replay burns one runner, not twelve) and `seed` pins
+# `lane` picks one lane (a replay burns one runner, not one per lane) and `seed` pins
 # MION_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
 # it derives from the run id, which is what makes each round fresh ground.
 #
@@ -51,10 +51,6 @@ on:
           - secformat
           - secgen
           - sechttp
-          - enrich
-          - i18n
-          - typemod
-          - race
           - convert
           - convertcli
           - apiids
@@ -70,7 +66,7 @@ permissions:
 
 jobs:
   # Turns the `lane` input into the matrix. One tiny job so that picking a single
-  # lane starts one runner rather than twelve that immediately skip.
+  # lane starts one runner rather than one per lane that immediately skip.
   pick:
     name: pick lanes
     runs-on: ubuntu-latest

@@ -57,7 +57,7 @@ const FIXTURE = 'g.ts';
 // hand-write a stand-in. A hand copy does not fail when the shipped type
 // changes; it silently keeps testing the old shape, which is the one failure
 // mode a fuzz suite cannot afford. The few tolerated, pinned exceptions
-// (fixtures in scratch temp dirs where no import can resolve) are listed in
+// (where no import can resolve) are listed in
 // "Real types, never copies" in test/fuzz/README.md. (`src/` imports nothing
 // non-relative, so the graph closes with no further stubs.)
 const SRC_ROOT = path.resolve(__dirname, '../../../src');

@@ -189,7 +189,7 @@ export function unparsedScripts() {
 // Agent instructions are read whole into every session, so they stay short and narrow.
 export const AGENT_DOC_MAX_LINES = 100;
 export const AGENT_DOC_MAX_WIDTH = 120;
-export const AGENT_DOC = /(^|\/)(AGENTS|CLAUDE)\.md$|(^|\/)skills\/|^\.agents\//;
+export const AGENT_DOC = /(^|\/)(AGENTS|CLAUDE)\.md$|^\.agents\//;
 const AGENT_DOC_EXEMPT = /^ts-go-runtypes\/third_party\/|(^|\/)(_deps|node_modules)\//;
 
 // Pure over (path, text) so the rule is testable without a checkout; width counts characters, not bytes.

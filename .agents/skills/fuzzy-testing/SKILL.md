@@ -80,7 +80,6 @@ Job: guide a short discovery, not recite a method. End with: rules worth checkin
 ## Examples
 
 - Whole method in 30 lines (codec): [codec-example.md](references/codec-example.md).
-- Pipeline case: [enrich-pipeline.md](references/enrich-pipeline.md), [enrich-fuzzer.md](references/enrich-fuzzer.md).
 
 ## Done when you and the user have
 
@@ -88,4 +87,4 @@ Job: guide a short discovery, not recite a method. End with: rules worth checkin
 - Rules written down: at least one strong rule + the "doesn't crash" floor. Each grounded, proven by a negative control.
 - A runner replayable from a seed.
 - At least one saved failing input, or a clean run over thousands of inputs.
-- Reference: the enrichment fuzzer (`packages/run-types/test/fuzz/enrich/`).
+- Reference: the value fuzzer (`packages/run-types/test/fuzz/value/`).
