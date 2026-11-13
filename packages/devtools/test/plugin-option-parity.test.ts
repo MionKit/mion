@@ -6,7 +6,7 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/core/go-generated/tsconfig-plugin-key
 // bundler PluginOptions and the tsconfig plugin entry, except a small, documented
 // exception list. This test compares the runtime PluginOptions key list against
 // the Go-generated tsconfig key mirror, so adding an option to only one side
-// fails CI. See docs/todos (option-parity) for the rationale.
+// fails CI.
 
 // Plugin-only: binary/cwd/tsconfig find the tsconfig so cannot come from it; jsRuntime is a host path like binary.
 // transformMode/sourcesContent yield identical artifacts; callbacks cannot cross a bundler worker boundary as JSON.
