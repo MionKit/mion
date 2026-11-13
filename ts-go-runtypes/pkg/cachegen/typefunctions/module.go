@@ -57,7 +57,7 @@ type RenderOpts struct {
 	// mockSamples (real `new RegExp` semantics). Nil fails them closed with format-no-js-runtime.
 	JSEngine jsengine.Engine
 	// PatternSampleCount mirrors the resolver's pattern mockSample knob, and
-	// PatternGenFailures the reasons its enrichment pass (which runs BEFORE the
+	// PatternGenFailures the reasons its pattern-sample pass (which runs BEFORE the
 	// collects) could not generate, keyed by `source \x00 flags`. The format-sample-generation-failed lane
 	// reads both to tell disabled (count 0) from failed generation.
 	PatternSampleCount int

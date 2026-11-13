@@ -17,7 +17,7 @@ Read before adding a JSON decoder arm, a format or a format param.
 
 ## ⚠️ A new format or param needs error-key samples, or CI fails
 
-- FriendlyText `rt$errors` keys come from each format's own validation-errors code. Never a hand list.
+- `FormatErrorKeys` come from each format's own validation-errors code. Never a hand list.
   Reader: `formats.ErrorKeysFor` ([formats/errorkeys.go](formats/errorkeys.go)).
 - Editor's per-format key list = union over sample params in
   [formats/errorkeys_samples.go](formats/errorkeys_samples.go).

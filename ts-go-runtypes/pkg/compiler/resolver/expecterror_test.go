@@ -279,7 +279,6 @@ func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
 		Op:                   protocol.OpScanFiles,
 		Files:                []string{"entry.ts"},
 		IncludeRtDiagnostics: true,
-		CheckEnrich:          true,
 		CheckRouterRules:     true,
 	})
 	if codes := codesOf(response); !contains(codes, diagnostics.CodeExpectErrorUnknownCode) {
@@ -305,7 +304,6 @@ func TestExpectError_LintPassDoesNotJudgeBuildOnlyCodes(t *testing.T) {
 			Op:                   protocol.OpScanFiles,
 			Files:                []string{"entry.ts"},
 			IncludeRtDiagnostics: true,
-			CheckEnrich:          true,
 			CheckRouterRules:     true,
 		})
 		if codes := codesOf(lint); contains(codes, diagnostics.CodeExpectErrorUnused) {
@@ -362,7 +360,6 @@ func TestExpectError_LintNeverJudgesABareComment(t *testing.T) {
 		Op:                   protocol.OpScanFiles,
 		Files:                []string{"entry.ts"},
 		IncludeRtDiagnostics: true,
-		CheckEnrich:          true,
 		CheckRouterRules:     true,
 	})
 	if lint.Error != "" {

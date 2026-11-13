@@ -80,7 +80,6 @@ func init() {
 	for _, command := range []Command{
 		{Name: "serve", Help: "serve       serve the resolver protocol on stdio (the bundler-plugin path)", Run: runServe},
 		{Name: "compile", Help: "compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)", Run: runCompile},
-		{Name: "enrich", Help: "enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)", Run: runEnrich},
 		{Name: "convert", Help: "convert     rewrite type declarations between the three authoring forms", Run: runConvert},
 		{Name: "drizzle-migrate", Help: "drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages", Run: runDrizzleMigrate},
 		{Name: "api-check", Help: "api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)", Run: runApiCheck},
@@ -375,8 +374,6 @@ func ResolveSharedConfig(fs *flag.FlagSet, s *SharedFlags, genDirFlag string, re
 		TsconfigDowngradeErrors: plugin.DowngradeErrors,
 		TsconfigLevels:          plugin.Levels,
 		TsconfigLogStyle:        plugin.LogStyle,
-		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
-		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
 		DisableParallelScan:     merged.disableParallelScan,
 		DisableParallelRender:   merged.disableParallelRender,
@@ -443,8 +440,7 @@ func runServe(args []string) {
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
-	// The wire carries events, the session config: --gen-dir (the host plugin's genDir option) and, through the
-	// `enrich` SessionFlags row (enrich_cli.go), the --enrich-* flags.
+	// The wire carries events, the session config: --gen-dir (the host plugin's genDir option).
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
@@ -780,4 +776,49 @@ func writeFile(path string, fn func(io.Writer) error) error {
 func Fatal(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	exitAfterProfiling(1)
+}
+
+// valueFlags are the verb flags that take the next token as their value when written space-separated.
+var valueFlags = map[string]bool{
+	"--tsconfig": true, "-tsconfig": true,
+	"--to": true, "-to": true,
+	"--out-dir": true, "-out-dir": true,
+	"--report": true, "-report": true,
+}
+
+// splitArgs separates positional arguments from flag tokens, so flags may sit anywhere among the paths: Go's flag
+// package otherwise stops at the first positional.
+func splitArgs(args []string) (positional, flags []string) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			positional = append(positional, args[i+1:]...)
+			break
+		}
+		if strings.HasPrefix(arg, "-") && arg != "-" {
+			flags = append(flags, arg)
+			if !strings.Contains(arg, "=") && valueFlags[arg] && i+1 < len(args) {
+				i++
+				flags = append(flags, args[i])
+			}
+			continue
+		}
+		positional = append(positional, arg)
+	}
+	return positional, flags
+}
+
+// mustAbs resolves path to an absolute path, exiting on failure.
+func mustAbs(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		Fatal("resolve path %q: %v", path, err)
+	}
+	return canonicalize(abs)
+}
+
+// isDirArg reports whether a CLI path argument names an existing directory.
+func isDirArg(path string) bool {
+	info, err := os.Stat(mustAbs(path))
+	return err == nil && info.IsDir()
 }

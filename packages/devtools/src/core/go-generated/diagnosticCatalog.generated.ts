@@ -17,9 +17,9 @@ export interface DiagnosticEntry {
    *  downgrade an `error`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
-  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute' | 'drizzle';
-  /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
-   *  are warnings, and this bit is what the completeness gates promote. */
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'mionroute' | 'drizzle';
+  /** Set on a code that marks unfinished content. Orthogonal to level: such a
+   *  code is a warning, and this bit is what a completeness gate promotes. */
   readonly completeness?: boolean;
 }
 
@@ -118,146 +118,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'warning',
     family: 'drizzle',
     slots: ['position'],
-  },
-  'enrich-mirror-moved': {
-    headline:
-      'Mirror location drift: the source maps to `{expected}` but this file lives at `{actual}`; re-run `mion enrich` to relocate.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['expected', 'actual'],
-  },
-  'enrich-mirror-source-missing': {
-    headline:
-      'Breadcrumb source `{source}` no longer exists ({reason}): the mirror is orphaned; delete it or re-run `mion enrich`.',
-    level: 'runtimeError',
-    family: 'enrich',
-    slots: ['source', 'reason'],
-  },
-  'enrich-mirror-type-missing': {
-    headline: 'Source {source} no longer declares type `{type}`; re-run `mion enrich`.',
-    level: 'runtimeError',
-    family: 'enrich',
-    slots: ['source', 'type'],
-  },
-  'enrich-mirror-unreadable': {
-    headline: 'Cannot read enrichment mirror file: {reason}',
-    level: 'error',
-    family: 'enrich',
-    slots: ['reason'],
-  },
-  'enrich-mock-blank-value': {
-    headline: 'Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.',
-    level: 'warning',
-    family: 'enrich',
-    completeness: true,
-  },
-  'enrich-mock-invalid-generator': {
-    headline: 'MockData generator `{generator}` cannot mock field `{field}`: {reason}',
-    level: 'runtimeError',
-    family: 'enrich',
-    slots: ['generator', 'field', 'reason'],
-  },
-  'enrich-mock-orphan-field': {
-    headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-mock-orphan-type': {
-    headline: 'Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-mock-reserved-prefix': {
-    headline: 'Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.',
-    level: 'error',
-    family: 'enrich',
-    slots: ['property'],
-  },
-  'enrich-mock-todo-left': {
-    headline: 'Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.',
-    level: 'warning',
-    family: 'enrich',
-    completeness: true,
-  },
-  'enrich-mock-unknown-field': {
-    headline: 'Unknown field `{field}`: the type does not declare it, so this MockData entry is dead.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['field'],
-  },
-  'enrich-text-blank-value': {
-    headline: 'Unfilled blank value: a scaffolded label or message is still empty; fill in the real text.',
-    level: 'warning',
-    family: 'enrich',
-    completeness: true,
-  },
-  'enrich-text-default-and-messages': {
-    headline: '`rt$default` is mutually exclusive with per-constraint messages; use one mode or the other.',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-text-missing-message': {
-    headline: 'Error key `{key}` has no message: this failure shows a generic one.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['key'],
-  },
-  'enrich-text-orphan-field': {
-    headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-text-orphan-type': {
-    headline: 'Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-text-plural-missing-other': {
-    headline: 'Plural error template is missing the mandatory `other` arm: the render has no backstop.',
-    level: 'warning',
-    family: 'enrich',
-  },
-  'enrich-text-plural-without-count': {
-    headline: 'Constraint `{constraint}` carries no count: a plural template here has dead arms; use a plain string.',
-    level: 'info',
-    family: 'enrich',
-    slots: ['constraint'],
-  },
-  'enrich-text-reserved-prefix': {
-    headline: 'Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.',
-    level: 'error',
-    family: 'enrich',
-    slots: ['property'],
-  },
-  'enrich-text-todo-left': {
-    headline: 'Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.',
-    level: 'warning',
-    family: 'enrich',
-    completeness: true,
-  },
-  'enrich-text-unknown-error-key': {
-    headline: 'Error key `{key}` is not a declared constraint of this field: the message can never fire.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['key'],
-  },
-  'enrich-text-unknown-field': {
-    headline: 'Unknown field `{field}`: the type does not declare it, so this FriendlyText entry is dead.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['field'],
-  },
-  'enrich-text-unknown-placeholder': {
-    headline: 'Unknown placeholder `$[{placeholder}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['placeholder'],
-  },
-  'enrich-text-unknown-plural-arm': {
-    headline: 'Unknown plural arm `{arm}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.',
-    level: 'warning',
-    family: 'enrich',
-    slots: ['arm'],
   },
   'format-generator-invalid': {
     headline: 'TypeFormat mock generator `{generator}` cannot mock this format: {reason}',

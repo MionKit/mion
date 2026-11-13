@@ -42,7 +42,7 @@ func GenerateNames() string {
 	return builder.String()
 }
 
-// GenerateBuiltinNames renders the names and replacement chars, import-free so the MockData type harness inlines it.
+// GenerateBuiltinNames renders the names and replacement chars, import-free so a type harness can inline it.
 func GenerateBuiltinNames() string {
 	var builder strings.Builder
 	builder.WriteString(header)

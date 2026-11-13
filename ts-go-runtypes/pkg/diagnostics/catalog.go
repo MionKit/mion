@@ -102,9 +102,6 @@ const (
 	FamilyPureFn  Family = 1
 	FamilyMarker  Family = 2
 	FamilyRunType Family = 3
-	// FamilyEnrich covers the enrichment-file health checks: tag hygiene, FriendlyText / MockData
-	// content validity, mirror drift. Emitted only on opt-in (Request.CheckEnrich).
-	FamilyEnrich Family = 4
 	// FamilyMionRoute covers the mion route rules, run in the compiler so the checker sees a handler
 	// however it is written. Emitted only on opt-in (Request.CheckRouterRules), so a build never
 	// fails on a lint-only finding.
@@ -180,10 +177,8 @@ type Definition struct {
 	// Severity is DERIVED from Level by Register; never write it in a codes_*.go
 	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
-	// Completeness marks INCOMPLETE (not-yet-authored) enrichment rather than WRONG content
-	// (the *-todo-left and *-blank-value codes). A gating bit ORTHOGONAL to Level: those codes are LevelWarning, so
-	// the default health check exits 0, and `enrich --require-complete` plus the bundler's production
-	// gate PROMOTE this bit to a failure. Both must key on the bit, never on the level.
+	// Completeness marks INCOMPLETE (not-yet-authored) content rather than WRONG content. A gating bit ORTHOGONAL
+	// to Level: a gate that promotes unfinished content to a failure keys on the bit, never on the level.
 	Completeness bool
 	// Transient marks a verdict that depends on the build host rather than the type: today only the
 	// pattern-evaluation timeout (format-pattern-timeout). The disk cache never persists an entry that emitted one,
@@ -270,7 +265,7 @@ const (
 var Definitions = map[string]Definition{}
 
 // areas are the code-name prefixes, each a section of the All Diagnostics page; RegisterArea adds one.
-var areas = []string{"drizzle", "config", "marker", "comment", "validate", "validation-errors", "json-prepare", "json-restore", "data", "unknown-keys", "format", "purefn", "override", "rpc-handler", "rpc-batch", "rpc-client", "enrich-text", "enrich-mock", "enrich-mirror", "internal"}
+var areas = []string{"drizzle", "config", "marker", "comment", "validate", "validation-errors", "json-prepare", "json-restore", "data", "unknown-keys", "format", "purefn", "override", "rpc-handler", "rpc-batch", "rpc-client", "internal"}
 
 // slugRE is a kebab-case name that starts with an area prefix; built from areas, rebuilt by RegisterArea.
 var slugRE = buildSlugRE()
@@ -302,13 +297,12 @@ var familyLabels = map[Family]string{
 	FamilyPureFn:    "purefn",
 	FamilyMarker:    "marker",
 	FamilyRunType:   "runtype",
-	FamilyEnrich:    "enrich",
 	FamilyMionRoute: "mionroute",
 	FamilyDrizzle:   "drizzle",
 }
 
 // familyOrder is the registration order of familyLabels, which allFamilies follows.
-var familyOrder = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute, FamilyDrizzle}
+var familyOrder = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyMionRoute, FamilyDrizzle}
 
 // RegisterFamily adds a Family with its stable lowercase label, under RegisterArea's duplicate / replace rules.
 func RegisterFamily(family Family, label string, replace bool) {
@@ -395,9 +389,8 @@ func ScopeOf(code string) Scope {
 	return definition.Scope
 }
 
-// IsCompleteness reports whether a code marks INCOMPLETE enrichment rather than wrong content. The
-// default health check excludes these from its exit-code gate; only `enrich --require-complete`
-// fails on them. An unregistered code answers false.
+// IsCompleteness reports whether a code marks INCOMPLETE content rather than wrong content (see
+// Definition.Completeness). An unregistered code answers false.
 func IsCompleteness(code string) bool {
 	return Definitions[code].Completeness
 }

@@ -29,8 +29,8 @@ func diagnosticCodes(response protocol.Response) []string {
 // (maxWalkOps), which the depth branch otherwise hides: a real spiral goes deep
 // before it goes wide, so maxWalkDepth always latches first and no source
 // fixture reaches the op count. Moving the cap to the walk is the only way to
-// exercise it, and it is worth exercising — the ops cap is what bounded the
-// `enrich --update` hang on a fuzz-corrupted source, where tsgo's error
+// exercise it, and it is worth exercising — the ops cap is what bounded a hang
+// on a fuzz-corrupted source, where tsgo's error
 // recovery minted a fresh type per member query at shallow depth.
 //
 // The two halves are one test on purpose: the same source resolving under the

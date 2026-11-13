@@ -14,7 +14,7 @@ import (
 // NewInferred call parses lib + roots + import closure from scratch, so this
 // measures the REAL per-request delta of unioning the config's declaration
 // files (the daemon lanes: per lint request, per HMR edit) versus the full
-// config file list (the one-shot convert / enrich CLIs) into the roots of a
+// config file list (the one-shot convert CLI) into the roots of a
 // program otherwise rooted at one file.
 //
 // Run: go -C ts-go-runtypes test ./pkg/compiler/program -bench=RootModes -benchmem -run='^$'

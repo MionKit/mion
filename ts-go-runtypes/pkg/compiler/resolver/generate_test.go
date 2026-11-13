@@ -109,7 +109,7 @@ getRunTypeId<{a: number}>();
 // dir at a directory that already holds non-RunTypes content (a hand-authored
 // source folder) must abort with an actionable error naming the foreign entry,
 // instead of scattering generated modules over the user's files. A dir holding
-// only the recognized RunTypes members (types/, enriched/, VCS markers) is
+// only the recognized RunTypes members (types/, rpc/, VCS markers) is
 // still accepted.
 func TestGenerate_RefusesOutDirInUse(t *testing.T) {
 	const src = `import {getRunTypeId} from '@mionjs/run-types';
@@ -132,20 +132,20 @@ getRunTypeId<{a: number}>();
 
 	// Accepted: a dir containing only recognized RunTypes members.
 	okDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(okDir, "enriched"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(okDir, "types"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if resp := setupGen(t, sources, okDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
-		t.Fatalf("a RunTypes-only output dir (enriched/ present) must be accepted, got: %s", resp.Error)
+		t.Fatalf("a RunTypes-only output dir (types/ present) must be accepted, got: %s", resp.Error)
 	}
 
 	// Accepted: recognized members alongside harmless OS noise (Finder / Explorer
 	// cruft) — a stray .DS_Store / ._sibling / Thumbs.db must never crash a build.
 	noiseDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(noiseDir, "enriched"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(noiseDir, "types"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, junk := range []string{".DS_Store", "._enriched", "Thumbs.db"} {
+	for _, junk := range []string{".DS_Store", "._types", "Thumbs.db"} {
 		if err := os.WriteFile(filepath.Join(noiseDir, junk), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -193,7 +193,7 @@ getRunTypeId<{a: number}>();
 	}
 
 	// Refused: an extraneous FOLDER at the root (a real source or sub-project dir)
-	// — anything beyond types/ / enriched/ + VCS markers is treated as not ours.
+	// — anything beyond types/ / rpc/ + VCS markers is treated as not ours.
 	extraneousDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(extraneousDir, "models"), 0o755); err != nil {
 		t.Fatal(err)

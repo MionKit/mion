@@ -95,12 +95,6 @@ const SUBSYSTEMS = [
     prefixes: ['rpc-client-'],
   },
   {
-    key: 'enrichment',
-    label: 'Enrichment files',
-    description: 'From mion enrich --no-emit and the lint rules over generated FriendlyText and MockData files.',
-    prefixes: ['enrich-text-', 'enrich-mock-', 'enrich-mirror-'],
-  },
-  {
     key: 'internal',
     label: 'Internal errors',
     description: 'A bug in the build itself. Please file an issue.',
@@ -184,9 +178,9 @@ export interface DiagnosticEntry {
    *  downgrade an \`error\`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
-  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute' | 'drizzle';
-  /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
-   *  are warnings, and this bit is what the completeness gates promote. */
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'mionroute' | 'drizzle';
+  /** Set on a code that marks unfinished content. Orthogonal to level: such a
+   *  code is a warning, and this bit is what a completeness gate promotes. */
   readonly completeness?: boolean;
 }
 

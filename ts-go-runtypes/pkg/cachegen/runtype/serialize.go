@@ -89,8 +89,8 @@ type Cache struct {
 	// edits can change that. Latched here, raised by the resolver, which owns the sites.
 	sampleConflicts []SampleConflict
 
-	// Two distinct structural ids landing on the same short id; the resolver takes it (→ marker-type-id-collision), and the
-	// enrichment bridge, which runs its own cache outside the resolver, reads it as a plain error.
+	// Two distinct structural ids landing on the same short id; the resolver takes it (→ marker-type-id-collision), and a
+	// caller running its own cache outside the resolver reads it as a plain error.
 	hashCollision *HashCollision
 	// Numbers the placeholder ids minted after a collision so the doomed walk cannot merge the colliding types into one entry.
 	collisionSeq int
@@ -390,7 +390,7 @@ func (cache *Cache) TypeByID(id string) *checker.Type {
 	return cache.typeByID[id]
 }
 
-// NodeByID returns the canonical full Type for id, or nil; the enrichment and demand-scope walkers follow child KindRef slots with it.
+// NodeByID returns the canonical full Type for id, or nil; the demand-scope walkers follow child KindRef slots with it.
 func (cache *Cache) NodeByID(id string) *reflection.RunType {
 	return cache.nodes[id]
 }
