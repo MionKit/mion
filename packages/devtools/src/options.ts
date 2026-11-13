@@ -13,8 +13,9 @@ import {MODULE_MODE_ALL_SINGLE} from './core/go-generated/runtypes-constants.gen
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
-  /** Explicit path to the mion resolver binary; unset, @mionjs/bin-compiler getExePath() takes MION_BIN, then
-   *  the published platform binary. MION_BIN also covers the ESLint lane, so prefer it when both must match. */
+  /** Explicit path to the mion resolver binary; unset, @mionjs/bin-compiler getExePath() takes MION_BIN, then an
+   *  installed `@mionkit/pro-bin-compiler`, then the published platform binary. MION_BIN also covers the ESLint
+   *  lane, so prefer it when both must match. */
   binary?: string;
   /** RunTypes generated-output root: gitignored modules under `<genDir>/types/`, committed enrichment under
    *  `<genDir>/enriched/`. */
@@ -72,7 +73,7 @@ export interface MionClientOptions {
 }
 
 /** Resolves the mion resolver binary: explicit option, else @mionjs/bin-compiler getExePath(), which honours
- *  MION_BIN and then the published platform package.
+ *  MION_BIN, then an installed `@mionkit/pro-bin-compiler` launcher, then the published platform package.
  *
  *  mion reads NO env var of its own: MION_BIN covers the transform lane and the ESLint lane, which run in
  *  SEPARATE processes, so a mion-side variable could never make the two agree.
@@ -81,7 +82,7 @@ export interface MionClientOptions {
  *  another version silently produces caches that diverge from CI/user installs (the `<typeId>` half of every
  *  `<fnHash>_<typeId>` key stops matching). The same caution applies to MION_BIN. */
 export function resolveRtBinary(explicit?: string): string | undefined {
-  return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
+  return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → pro launcher → platform binary)
 }
 
 export interface MionPresetOptions {
@@ -89,6 +90,8 @@ export interface MionPresetOptions {
   tsConfig?: string;
   client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
+  /** Code built on the plugin: an extension binary's serve flags and the hooks it runs on the plugin's resolver. */
+  extensions?: TsRuntypesPluginOptions['extensions'];
 }
 
 /** Host hooks (`onSiteFilesChanged`, `onGenerate`) are NOT set here: the vite preset adds them. */
@@ -131,5 +134,6 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
     patternSampleRetries: rt.patternSampleRetries,
     jsonMaxBytes: rt.derivedPayloadLimits,
     jsRuntime: rt.jsRuntime,
+    extensions: options.extensions,
   };
 }

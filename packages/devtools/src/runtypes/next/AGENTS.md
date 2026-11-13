@@ -5,28 +5,24 @@
 - Turbopack DOES run webpack-style **loaders**, declared in `turbopack.rules`.
 - [`index.ts`](./index.ts) (`withRunTypes` + composable pieces) starts a [`broker.ts`](./broker.ts) from `next.config`.
 - [`loader.ts`](./loader.ts) runs in each Turbopack worker, asks the broker to rewrite one file over a socket
-  ([`wire.ts`](./wire.ts)).
-- Loader owns no resolver, runs no `buildStart`.
+  ([`wire.ts`](./wire.ts)). Loader owns no resolver, runs no `buildStart`.
 - `MION_NEXT_DEBUG=1` traces the broker (election, buildStart, absorbed edit batches, stamp changes).
-  No plugin log here, so a misbehaving dev loop is otherwise opaque.
+  No plugin log here → without it a misbehaving dev loop is opaque.
 
 ## ⚠️ There is deliberately NO `next build` test in the vitest suite
 
 - Never "fix" that by adding one. `next` is ~202 MB, **not** a workspace dependency.
   → a vitest test would be skipped on every dev machine and in CI: never runs, worse than no test.
-- Real `next build` coverage = e2e container (`container/pre-publish-e2e/`), where Next **is** installed:
-  - [`apps/smoke-next/`](../../../../../container/pre-publish-e2e/apps/smoke-next/):
-    the app. Page prerenders shared `selfCheck()` → passing build proves the rewrite survived Turbopack
-    **and** the transformed code ran.
-    Its `"use client"` / `"use server"` call sites also run through `next build --webpack` and `next dev` on both
-    bundlers: Next rejects the file if the injected imports land above a directive.
-  - [`apps/smoke-next-ts/`](../../../../../container/pre-publish-e2e/apps/smoke-next-ts/):
-    the same check in emitMode 'ts' (typed `.ts` cache modules).
-  - [`build-all.mjs`](../../../../../container/pre-publish-e2e/build-all.mjs):
-    `smoke-next` entry + its `buildNext` driver (out-of-process, like the bun apps).
-  - [`test/build-outputs.test.mjs`](../../../../../container/pre-publish-e2e/test/build-outputs.test.mjs):
-    assertions, read from the prerendered HTML.
-- Broker/loader logic testable without Next → [`../../../test/next-broker.test.ts`](../../../test/next-broker.test.ts).
+- Real `next build` coverage = e2e container
+  ([`container/pre-publish-e2e/`](../../../../../container/pre-publish-e2e/)), where Next **is** installed:
+  - `apps/smoke-next/`: the app. Page prerenders shared `selfCheck()` → passing build proves the rewrite
+    survived Turbopack **and** the transformed code ran.
+  - `smoke-next` `"use client"` / `"use server"` call sites also run through `next build --webpack` and
+    `next dev` on both bundlers: Next rejects the file if the injected imports land above a directive.
+  - `apps/smoke-next-ts/`: same check in emitMode 'ts' (typed `.ts` cache modules).
+  - `build-all.mjs`: `smoke-next` entry + its `buildNext` driver (out-of-process, like the bun apps).
+  - `test/build-outputs.test.mjs`: assertions, read from the prerendered HTML.
+- Broker/loader logic testable without Next → [`test/next-broker.test.ts`](../../../test/next-broker.test.ts).
 - Needs a real Turbopack build → the e2e app. A change here needs BOTH.
 
 ## ⚠️ Invariants that look like cleanups and are not
@@ -34,8 +30,8 @@
 Each was a real failure before it was a rule. Tests cite them by number: keep the numbering.
 
 1. **Socket key includes the process id** (`socketPathFor`).
-   - Root-only key = global rendezvous any process evaluating `next.config` can claim.
-   - Incl. Next's detached telemetry flush: loads config, outlives dev server, reparented to init.
+   - Root-only key = global rendezvous any process evaluating `next.config` can claim. Incl. Next's detached
+     telemetry flush: loads config, outlives dev server, reparented to init.
    - Later run joins THAT resolver → every file fails with `source file not in program` from a Program of a
      build that ended minutes ago. Silent about the cause.
 2. **Connections accepted BEFORE `buildStart` finishes**, each request waits on a readiness promise.
@@ -49,8 +45,7 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
    - Vite survives by re-transforming lazily. Turbopack resolves the whole graph eagerly and fails.
 4. **Broker watches the source tree itself.** Turbopack gives loaders no update callback.
    - Absorbing edits one loader call at a time regenerates the module set once PER FILE; a file resolved
-     during one of those rewrites fails on a module that exists moments later.
-   - One batch per edit = one regenerate.
+     during one of those rewrites fails on a module that exists moments later. One batch per edit = one regenerate.
 5. **`./runtypes/next/loader` exports a `default` condition, not `import`** (see package `exports`).
    - Turbopack resolves loader specifiers with CJS `require` conditions → `import`-only entry is invisible.
    - Symptom: build dies with `Package subpath './runtypes/next/loader' is not defined by "exports"`.
@@ -63,25 +58,35 @@ Each was a real failure before it was a rule. Tests cite them by number: keep th
      broker's plugin context. Same mechanism as every bundler host, so this lane cannot drift.
    - **Empty `typeDeps` = UNKNOWN, not "no dependencies"** (unattributed type, or older resolver on the socket).
    - Stamp = coarse fallback: one path every rewritten file declares → any type change re-runs all.
-   - Dropping it because "typeDeps covers it now" turns an unknown into a silently stale rewrite.
-   - Verified by A/B on an AMBIENT type (in a `.d.ts`, no import edge). Stamp removed, before typeDeps:
-     `next dev` kept a cached rewrite importing a just-pruned module → 500 with
-     `Can't resolve ../.mion/types/<hash>.js`. With stamp: clean re-transform, zero resolve errors.
-   - Asymmetry, easy to test the wrong lane and call the stamp dead code: **`next build` re-runs loaders on
-     every build** → picks up type changes even with stamp disabled (confirmed vs persistent build cache,
-     imported and ambient type).
-   - Stamp = belt-and-braces for builds, load bearing for dev. Test in **dev**, with a type with no import edge.
-8. **Broker syncs the pure-fn artifact dir itself, twice.**
-   - Other hosts put `mion-pure-fns/` next to the bundle from a post-bundle hook. Turbopack has none.
+     Dropping it because "typeDeps covers it now" turns an unknown into a silently stale rewrite.
+   - A/B proof on an AMBIENT type (in a `.d.ts`, no import edge). Stamp removed, before typeDeps: `next dev`
+     kept a cached rewrite importing a just-pruned module → 500 with `Can't resolve ../.mion/types/<hash>.js`.
+     With stamp: clean re-transform, zero resolve errors.
+   - Easy to test the wrong lane and call the stamp dead code: **`next build` re-runs loaders on every build**
+     (invariant 10 keeps it so) → picks up type changes even with stamp disabled (confirmed vs persistent
+     build cache, imported and ambient type). Stamp = belt-and-braces for builds, load bearing for dev.
+   - Test in **dev**, with a type with no import edge.
+8. **Broker syncs the pure-fn artifact dir (`mion-pure-fns/`) itself, twice.** Turbopack has no post-bundle hook.
    - Broker syncs into Next's `distDir` (`artifactDir`, derived by `withRunTypes`): once `buildStart` is done
      AND again on the first loader request.
    - Second write is not redundant: Turbopack empties `distDir` between loading config and first loader run.
-   - Best effort by design: a Next app is never installed as a package. Lanes that matter: library bundlers
-     and `mion compile`.
+   - Best effort by design: a Next app is never installed as a package.
+     Lanes that matter: library bundlers and `mion compile`.
 9. **`isTurbopack` reads `__NEXT_DEV_SERVER`, not only `--webpack`.**
    - `next dev` forks its server: argv loses `--webpack`, env gets `TURBOPACK` only for Turbopack.
    - Argv alone → the `next dev --webpack` server took the Turbopack branch: no plugin, no rewrite, every
      marker call threw `no id injected`.
+10. **`withRunTypes` turns `experimental.turbopackFileSystemCacheForBuild` off** (a caller's own value wins).
+    - Next 16.4 turned it on by default. A cached build reuses rewrites from the last run, whose cache modules
+      the broker has since renamed or pruned.
+    - Symptom (e2e, next 16.4.1): `Export __rt_<id> doesn't exist in target module` after a type edit, and
+      `Can't resolve '.rt/types/<hash>.ts'` on a build after `next dev`.
+11. **`withRunTypes` returns only after `broker.ready`** (buildStart done, cache modules on disk).
+    - Returning earlier lets Turbopack start compiling first. It remembers a missing genDir all build long.
+    - Symptom (e2e `smoke-next-ts`, next 16.4, clean build): `Can't resolve '.rt/types/<hash>.ts'`, plus
+      `a component does not exist`. Seen only if compile began before `buildStart done` in `MION_NEXT_DEBUG` trace.
+    - `ready` holds the process open until it settles. Resolver and socket are unref'd → without the hold
+      Node quits mid-await and `next build` exits 0 having built nothing.
 
 ## Gotchas when testing by hand
 

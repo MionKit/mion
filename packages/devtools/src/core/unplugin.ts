@@ -4,8 +4,8 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@mionjs/bin-compiler';
-import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
-import {ResolverClient, type GenerateResult} from './resolver-client.ts';
+import {catalogEntry, registerCatalogEntries, type DiagnosticEntry} from './diagnosticCatalog.ts';
+import {ResolverClient, type GenerateResult, type ResolverConnection} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import {PURE_FN_ARTIFACT_DIR, type ClientRoutes, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
@@ -224,6 +224,37 @@ export interface PluginOptions {
   // Enrichment auto-sync (opt-in, default OFF). Bundler-plugin-only, a host/dev-loop behavior, so it has
   // no tsconfig counterpart. See EnrichSyncOptions.
   enrich?: EnrichSyncOptions;
+  // An extension binary's host half. JS-only, so it has no tsconfig counterpart.
+  extensions?: MionExtension[];
+}
+
+/** Code built on the plugin: spawn flags for an extension binary and hooks the plugin calls on its own resolver. **/
+export interface MionExtension {
+  name: string;
+  /** Appended to the resolver's spawn argv; a respawn replays them. **/
+  serveArgs?(): string[];
+  /** After the whole-program generate of a build start. **/
+  buildStart?(ctx: MionExtensionContext): void | Promise<void>;
+  /** After the regenerate that follows a file change; files are absolute paths. **/
+  filesChanged?(ctx: MionExtensionContext, files: string[]): void | Promise<void>;
+  /** True when a changed file is the extension's own write, so it reloads nothing. **/
+  ignoreHotUpdate?(file: string, ctx: MionExtensionContext): boolean;
+}
+
+/** What an extension hook works with: the plugin's resolver process and its reporting policy. **/
+export interface MionExtensionContext {
+  resolver: ResolverConnection;
+  command: 'serve' | 'build';
+  cwd: string;
+  genDir: string;
+  warn(message: string): void;
+  halt(error: Error): void;
+  /** Prints findings like the plugin's own, grouped or one line each. **/
+  report(findings: {diagnostic: Diagnostic; downgraded: boolean}[]): void;
+  isDowngraded(diagnostic: Diagnostic): boolean;
+  /** True when `downgradeErrors` names the code or is `*`. **/
+  downgradeListed(code: string): boolean;
+  catalogEntry(code: string): DiagnosticEntry | undefined;
 }
 
 // ONE unplugin factory behind every bundler entry point (@mionjs/devtools/runtypes/vite, /rollup, /webpack,
@@ -247,7 +278,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // Precedence is tsc-style: the explicit plugin option wins, else the tsconfig `downgradeErrors` echoed on
   // the generate response (adopted in buildStart below), else nothing downgraded. Seeded from the option
   // alone so the transform lane behaves even if buildStart never ran on this host.
-  let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors);
+  let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors, {deferUnknown: true});
   // Same precedence as downgrade: the option, else the tsconfig echo adopted in buildStart.
   let showInfo = resolveShowInfo(options.levels);
   let grouped = resolveGrouped(options.logStyle);
@@ -304,6 +335,34 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let viteLogger: {warn: (message: string, options?: {clear?: boolean; timestamp?: boolean}) => void} | undefined;
   // The lane question for RuntimeErrors (see PluginOptions.devServer): halting everywhere but here.
   const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
+  const extensions: MionExtension[] = options.extensions ?? [];
+  const extensionArgs = extensions.flatMap((extension) => extension.serveArgs?.() ?? []);
+  // Once per spawned resolver, so the binary's own codes render.
+  let advertised: Promise<void> | undefined;
+  function registerAdvertised(): Promise<void> {
+    if (!resolver) return Promise.resolve();
+    advertised ??= resolver.capabilities().then(
+      (capabilities) => registerCatalogEntries(capabilities.diagnostics),
+      () => undefined
+    );
+    return advertised;
+  }
+  const downgradeListed = (code: string): boolean => downgrade.all || downgrade.codes.has(code);
+  function extensionContext(ctx: any): MionExtensionContext {
+    const cwd = cwdAbs || process.cwd();
+    return {
+      resolver: resolver!,
+      command: isDevServer() ? 'serve' : 'build',
+      cwd,
+      genDir: genDirAbs,
+      warn: (message) => hostWarn(ctx, message),
+      halt: (error) => hostHalt(ctx, error),
+      report: (findings) => printFindings(ctx, findings, grouped, cwd),
+      isDowngraded: (diagnostic) => isDowngraded(downgrade, diagnostic),
+      downgradeListed,
+      catalogEntry,
+    };
+  }
   // A RuntimeError spares only the dev server, where the generated function throws when called.
   const halts = (diagnostic: Diagnostic): boolean =>
     diagnostic.level === Level.Error || (diagnostic.level === Level.RuntimeError && !isDevServer());
@@ -363,7 +422,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(enrichI18nEnabled ? {enrichI18n: true} : {}),
       ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
       ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
+      ...(extensionArgs.length > 0 ? {extraArgs: extensionArgs} : {}),
     });
+    advertised = undefined;
     // The resolver stays usable, and losing the parent closes its stdin so the Go serve loop exits on EOF.
     if (options.detachResolver) resolver.unref();
   }
@@ -604,7 +665,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // isDowngraded never lowers a completeness Warning, yet it halts here, so apply `downgradeErrors` by code or `*`.
       const standDown =
         isDowngraded(downgrade, diagnostic) ||
-        (DIAGNOSTIC_CATALOG[diagnostic.code]?.completeness === true && (downgrade.all || downgrade.codes.has(diagnostic.code)));
+        (catalogEntry(diagnostic.code)?.completeness === true && downgradeListed(diagnostic.code));
       findings.push({diagnostic, downgraded: standDown});
       if (!standDown) fatal += 1;
     }
@@ -857,6 +918,12 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
     // AFTER generate, so the resolver's Program already reflects the edit.
     if (anyEnrichFamily) await syncEnrich(rels);
+    for (const extension of extensions) {
+      await extension.filesChanged?.(
+        extensionContext(ctx),
+        rels.map((rel) => path.resolve(cwdAbs || process.cwd(), rel))
+      );
+    }
 
     // The Vue SFC pass of a build drives this leaf too.
     if (!isDevServer())
@@ -932,6 +999,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       activeBuilds += 1;
       warnBelowTypeScriptFloor(options.cwd ?? process.cwd(), PLUGIN_NAME);
       ensureResolver();
+      // Before the generate, so the binary's own codes render in what it reports.
+      await registerAdvertised();
+      // The full check of the option, now that the binary's own codes are known, and before anything is written.
+      if (options.downgradeErrors !== undefined) downgrade = resolveDowngradeErrors(options.downgradeErrors);
       // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here,
       // and the enriched-dir HMR suppression needs it. The VCS-hygiene files (per-folder READMEs, the
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
@@ -963,6 +1034,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         if (viteCommand === 'serve') await syncEnrich([]);
         else await enrichDriftGate(this);
       }
+      for (const extension of extensions) await extension.buildStart?.(extensionContext(this));
     },
 
     // buildEnd fires once per plugin CONTAINER and one instance (one resolver child) serves several: vite
@@ -1094,6 +1166,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         // A change under <genDir>/enriched/** is the plugin's own mirror write (or a hand / CLI edit), so
         // reloading nothing is what keeps the auto-sync writes out of a reload loop.
         if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
+        if (extensions.some((extension) => extension.ignoreHotUpdate?.(file, extensionContext(this)))) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
         const stale = await applyHotUpdate(this, [{file, content}]);

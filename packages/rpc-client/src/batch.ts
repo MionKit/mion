@@ -5,15 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionjs/core';
+import {RpcError, BATCH_KEY_MAPPED_ARG_MARK, BATCH_KEY_ROUTE_SEPARATOR} from '@mionjs/core';
 import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
 import type {CallSetup, RouteSubRequest, BatchBuilder, SubRequest} from './types.ts';
 import type {InjectedApiMetadata} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import type {InputFromRef} from '@mionjs/core';
 
-/** Runs several routes in ONE HTTP request. The build hashes the ordered route ids into `batchId`, which
- * names the batch in the table it compiled into the server; the request carries only that id. */
+/** Runs several routes in ONE HTTP request carrying only `batchId`, the build's hash of the ordered route ids that
+ * names the batch compiled into the server. An item that may be several routes makes one id per combination. */
 export function batch<Routes extends RouteSubRequest<any>[]>(
   routes: [...Routes],
   batchId?: InjectBatchId<Routes>
@@ -24,12 +24,14 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
       publicMessage: 'batch() requires at least one route subrequest.',
     });
   }
-  if (!batchId) {
+  const id = pickBatchId(routes, batchId);
+  if (!id) {
     throw new RpcError({
       type: 'batch-missing-id',
       publicMessage:
-        'batch() needs the mion build plugin (the vite preset or the mion CLI) to inject the batch id. ' +
-        'Batches are compiled into the server at build time, so a client without the build cannot send one.',
+        'batch() has no compiled batch for these routes: its route list, or an inputFrom() mapping, could not be ' +
+        'determined at compile time, or the mion build plugin (the vite preset or the mion CLI) did not run. ' +
+        'Batches are compiled into the server at build time, so only a route list the build can read can be sent.',
     });
   }
 
@@ -57,9 +59,18 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
     // `apiMetadata` is filled by the build when routes are bundled, never by hand
     async call(setup?: CallSetup, apiMetadata?: InjectedApiMetadata) {
       client.useBundledApi(apiMetadata);
-      return client.execute(undefined, routes, batchId, setup?.signal, setup?.timeout);
+      return client.execute(undefined, routes, id, setup?.signal, setup?.timeout);
     },
   };
+}
+
+/** Must build the key Go batchLookupKey writes; a route or mapping the build did not read finds no entry. */
+function pickBatchId(routes: RouteSubRequest<any>[], batchId: InjectBatchId<unknown> | undefined): string | undefined {
+  if (typeof batchId !== 'object') return batchId;
+  const key = routes
+    .map((route) => route.id + (route.mappings ?? []).map((ref) => BATCH_KEY_MAPPED_ARG_MARK + ref.paramIndex).join(''))
+    .join(BATCH_KEY_ROUTE_SEPARATOR);
+  return Object.hasOwn(batchId, key) ? batchId[key] : undefined;
 }
 
 const inputFromSymbol = Symbol('InputFromRef');

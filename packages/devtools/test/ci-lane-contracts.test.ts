@@ -10,7 +10,7 @@
 // These pin the three halves to each other: the lane table in scripts/ci/lanes.mjs,
 // the `if:` that consults it, and the save step that writes the marker.
 import {spawnSync} from 'node:child_process';
-import {globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
@@ -123,8 +123,7 @@ describe('the lane table', () => {
 
   // Every repo path a Go test reads goes through testfixtures repoLinks (pinned by its own Go test).
   it('feeds every repo path the Go suites read into the go lane', () => {
-    const links =
-      /var repoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/internal/testfixtures/repo.go'))?.[1] ?? '';
+    const links = /var repoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/pkg/testfixtures/repo.go'))?.[1] ?? '';
     const linked = [...links.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
     expect(linked).toEqual(expect.arrayContaining(['packages/run-types', 'packages/core', 'version.json']));
     for (const path of linked)
@@ -150,8 +149,8 @@ describe('the lane table', () => {
   // None of these reaches a binary the other lanes run, so only the lanes that run Go itself re-run.
   it('keeps Go tests, testdata and the generators out of every lane that only runs the binaries', () => {
     for (const path of [
-      'ts-go-runtypes/internal/reflection/kind_test.go',
-      'ts-go-runtypes/internal/cachegen/testdata/golden.json',
+      'ts-go-runtypes/pkg/reflection/kind_test.go',
+      'ts-go-runtypes/pkg/cachegen/testdata/golden.json',
       'ts-go-runtypes/cmd/gen-ts-constants/main.go',
     ]) {
       for (const [name, lane] of Object.entries(LANES) as [string, {paths: unknown[]}][]) {
@@ -159,7 +158,7 @@ describe('the lane table', () => {
       }
     }
     for (const path of [
-      'ts-go-runtypes/internal/reflection/kind.go',
+      'ts-go-runtypes/pkg/reflection/kind.go',
       'ts-go-runtypes/cmd/mion/main.go',
       'ts-go-runtypes/third_party/tsgolint',
     ]) {
@@ -178,7 +177,7 @@ describe('the lane table', () => {
     expect(feeds('drizzle', 'container/drizzle-e2e/cloudflare/Containerfile')).toEqual(['d1', 'durable']);
     expect(feeds('drizzle', 'packages/drizzle-orm/src/table.ts')).toEqual(['pg', 'mysql', 'sqlite', 'd1', 'durable']);
     expect(feeds('bench', 'packages/core/src/errors.ts')).toEqual(['mion']);
-    expect(feeds('bench', 'ts-go-runtypes/internal/reflection/kind.go')).toEqual(['mion']);
+    expect(feeds('bench', 'ts-go-runtypes/pkg/reflection/kind.go')).toEqual(['mion']);
     expect(feeds('bench', 'container/benchmarks/competitors/zod/cases.ts')).toEqual(['zod']);
     expect(feeds('bench', 'container/benchmarks/shared/cases/objects.ts')).toEqual(['mion', 'zod', 'typebox', 'ajv', 'typia']);
     expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
@@ -197,7 +196,7 @@ describe('the lane table', () => {
     const {hashes} = laneHashes('HEAD');
     for (const lane of ['go', 'js-fuzz']) {
       const items = Object.keys(LANES[lane].items);
-      for (const path of ['ts-go-runtypes/internal/reflection/kind.go', 'packages/run-types/src/index.ts', 'pnpm-lock.yaml']) {
+      for (const path of ['ts-go-runtypes/pkg/reflection/kind.go', 'packages/run-types/src/index.ts', 'pnpm-lock.yaml']) {
         expect(
           items.filter((item) => itemFeeds(LANES[lane], item, path)),
           `${lane} ${path}`
@@ -516,11 +515,11 @@ describe('every workflow gates on the lanes it declares', () => {
           )
         );
       }
-      // A job that waits in-job decides only whether to start from the gate; its steps read the re-decided env.MION_LANES.
-      const withoutStartConditions = workflow.replace(
-        /^ {4}if: \$\{\{ !cancelled\(\) && needs\.lanes\.result == 'success' && \(fromJSON\(needs\.lanes\.outputs\.lanes\).*$/gm,
-        ''
-      );
+      // go-build and go-checks-wait decide from the gate whether to start; a deferred lane keeps `run`.
+      const withoutStartConditions = workflow
+        .split(/\n  (?=[\w-]+:\n)/)
+        .map((job) => (/^(go-build|go-checks-wait):/.test(job) ? job.replace(/^ {4}if: .*$/m, '') : job))
+        .join('\n  ');
       expect(withoutStartConditions, `${file} reads a verdict from the gate alone`).not.toMatch(
         /fromJSON\(needs\.lanes\.outputs\.lanes\)(\.[\w]+|\['[\w-]+'\])\.(run|runItems)\b/
       );
@@ -685,25 +684,30 @@ const jobOf = (workflow: string, name: string): string => {
 };
 
 // A job that starts beside go-build misses the cache and builds the binaries itself.
-describe('the Go binaries are built once per run', () => {
+describe('the Go binaries are built once per run, and only for a lane that runs now', () => {
   const ci = read('.github/workflows/ci.yml');
   const restorers = [...ci.matchAll(/^ {2}([\w-]+):\n/gm)]
     .map((match) => match[1])
     .filter((job) => job !== 'go-build' && jobOf(ci, job).includes('uses: ./.github/actions/resolver'));
 
-  it('runs every job that restores the binaries after go-build, and only once it passed', () => {
+  // A skipped go-build means every lane waited on an older run; a job its waiter then starts builds the binaries itself.
+  it('runs every job that restores the binaries after go-build, unless go-build failed', () => {
     expect(restorers.length).toBeGreaterThan(5);
     for (const job of restorers) {
       const body = jobOf(ci, job);
       expect(/^ {4}needs: \[(.+)\]$/m.exec(body)?.[1].split(', '), job).toContain('go-build');
-      expect(/^ {4}if: (.+)$/m.exec(body)?.[1], job).toContain("needs.go-build.result == 'success'");
+      expect(/^ {4}if: (.+)$/m.exec(body)?.[1], job).toContain(
+        `contains(fromJSON('["success","skipped"]'), needs.go-build.result)`
+      );
     }
   });
 
-  it('starts go-build whenever any of those jobs can run, installing nothing but Node', () => {
+  it('starts go-build only for a lane that runs without waiting on an older run, installing nothing but Node', () => {
     const build = jobOf(ci, 'go-build');
-    for (const lane of WORKFLOWS['ci.yml'])
-      expect(build, lane).toContain(`fromJSON(needs.lanes.outputs.lanes)${lane.includes('-') ? `['${lane}']` : `.${lane}`}.run`);
+    for (const lane of WORKFLOWS['ci.yml']) {
+      const verdict = `fromJSON(needs.lanes.outputs.lanes)${lane.includes('-') ? `['${lane}']` : `.${lane}`}`;
+      expect(build, lane).toContain(`(${verdict}.run && !${verdict}.deferredTo)`);
+    }
     expect(build).toContain('uses: ./.github/actions/resolver');
     expect(build).not.toContain('./.github/actions/bootstrap');
   });
@@ -714,25 +718,31 @@ describe('the Go binaries are built once per run', () => {
 describe('a new commit cancels only what it changed', () => {
   // The heavy job each waiter guards, and the lanes that job reads.
   const WAITERS = {
-    'ci.yml': {'go-suite': ['go'], smoke: ['smoke']},
+    'ci.yml': {
+      'go-checks': ['go-static', 'go-tools'],
+      'go-suite': ['go'],
+      'js-fuzz-sweep': ['js-fuzz'],
+      'js-fuzz-timeboxed': ['js-fuzz'],
+      'js-static': ['js-static'],
+      'js-suite': ['js'],
+      'js-serial': ['js'],
+      smoke: ['smoke'],
+    },
     'pr-heavy.yml': {website: ['website'], bench: ['bench'], 'pre-publish-build': ['e2e']},
     'drizzle-e2e.yml': {build: ['drizzle']},
   } as const;
-  const WAITER_NAME: Record<string, string> = {'pre-publish-build': 'e2e-wait', build: 'drizzle-wait'};
+  const WAITER_NAME: Record<string, string> = {
+    'pre-publish-build': 'e2e-wait',
+    build: 'drizzle-wait',
+    'js-fuzz-sweep': 'js-fuzz-wait',
+    'js-fuzz-timeboxed': 'js-fuzz-wait',
+    'js-serial': 'js-suite-wait',
+  };
   const waiterOf = (job: string) => WAITER_NAME[job] ?? `${job}-wait`;
   // Jobs after the heavy one that also read the waited verdict.
   const READERS: [string, string, string][] = [
     ['pr-heavy.yml', 'pre-publish-e2e', 'e2e-wait'],
     ['drizzle-e2e.yml', 'drizzle-e2e', 'drizzle-wait'],
-  ];
-  // Heavy jobs that wait in a step, so the lanes that read comments run at once; they read the gate's MION_LANES and the step re-decides it.
-  const IN_JOB_WAITERS: [string, string][] = [
-    ['ci.yml', 'go-checks'],
-    ['ci.yml', 'js-fuzz-sweep'],
-    ['ci.yml', 'js-fuzz-timeboxed'],
-    ['ci.yml', 'js-static'],
-    ['ci.yml', 'js-suite'],
-    ['ci.yml', 'js-serial'],
   ];
   const gates = LANES as Record<string, {gate: {label?: string; unless?: string; base?: string}}>;
   const labelsIn = (condition: string, negated: boolean) =>
@@ -774,6 +784,7 @@ describe('a new commit cancels only what it changed', () => {
       it(`${file}: ${waiter} waits for exactly the lanes ${job} reads, and ${job} runs after it`, () => {
         const wait = jobOf(workflow, waiter);
         expect(wait).toContain('uses: ./.github/workflows/lane-wait.yml');
+        expect(wait).toContain('      actions: read\n');
         expect(wait).toContain(`      lanes: ${lanes.join(' ')}\n`);
         expect(wait).toContain('      decision: ${{ needs.lanes.outputs.lanes }}\n');
         // The heavy job's own name, so the wait ends when that job fails in the older run.
@@ -796,67 +807,13 @@ describe('a new commit cancels only what it changed', () => {
     }
   }
 
-  // A raw job waits only when nothing it reads changed, comments included; a code job then has nothing left to run.
-  describe('waits inside each heavy job, before the steps of its lanes', () => {
-    const ci = read('.github/workflows/ci.yml');
-    // `jobs` prefixes the job's own name, shared by its sibling jobs, so any of them failing ends the wait.
-    const WAITS_IN: Record<string, {lanes: string[]; name: string; last: string}> = {
-      'go-checks': {
-        lanes: ['go-static', 'go-tools'],
-        name: 'go checks',
-        last: 'Go formatting (our code only; never third_party)',
-      },
-      'js-fuzz-sweep': {lanes: ['js-fuzz'], name: 'js fuzz', last: 'JS fuzz sweep (count-based lanes at quick budgets)'},
-      'js-fuzz-timeboxed': {lanes: ['js-fuzz'], name: 'js fuzz', last: 'Time-boxed fuzz lanes at quick budgets'},
-      'js-static': {lanes: ['js-static'], name: 'js lint', last: 'Check formatting (no build needed — runs first)'},
-      'js-suite': {lanes: ['js'], name: 'js suite', last: 'JS suite (everything except test/fuzz)'},
-      'js-serial': {lanes: ['js'], name: 'js suite', last: 'JS suite (one-worker projects)'},
-    };
-    it('covers every in-job waiter', () => {
-      expect(Object.keys(WAITS_IN).sort()).toEqual(IN_JOB_WAITERS.map(([, job]) => job).sort());
-    });
-    for (const [job, {lanes, name, last}] of Object.entries(WAITS_IN)) {
-      it(`${job} starts from the gate alone, with no waiter job, and may read the actions`, () => {
-        const heavy = jobOf(ci, job);
-        expect(ci).not.toContain(`  ${job}-wait:`);
-        expect(heavy).toContain('    needs: [lanes, go-build]\n');
-        expect(heavy).toContain('      actions: read\n');
-        expect(heavy).toContain('      MION_LANES: ${{ needs.lanes.outputs.lanes }}\n');
-        expect(heavy).toMatch(/uses: actions\/checkout@v5\n\s+with:\n(\s+#.*\n)?\s+fetch-depth: 2\n/);
-      });
-
-      it(`${job} waits for exactly its lanes, ends on its own job failing in the older run, and keeps the gate verdict on a failed wait`, () => {
-        const heavy = jobOf(ci, job);
-        const steps = [...heavy.matchAll(/- name: (Wait for the older run's .+)\n((?:\s{8,}.+\n)+)/g)];
-        expect(steps.length).toBeGreaterThan(0);
-        for (const [, , body] of steps) {
-          expect(body).toContain('continue-on-error: true');
-          expect(body).toContain('uses: ./.github/actions/wait-for-older-run');
-          expect(body).toContain(`lanes: ${lanes.join(' ')}\n`);
-          expect(body).toContain(`jobs: ${name}\n`);
-        }
-        expect((/^ {4}name: (.+)$/m.exec(heavy)?.[1] ?? '').startsWith(name)).toBe(true);
-      });
-
-      it(`${job} waits before the first step of its lanes`, () => {
-        const heavy = jobOf(ci, job);
-        const wait = heavy.lastIndexOf("- name: Wait for the older run's");
-        expect(heavy.indexOf(`- name: ${last}`)).toBeGreaterThan(wait);
-        expect(heavy.slice(0, wait)).not.toMatch(/\n {6}- name: (?!Wait)/);
-      });
-    }
-
-    it('re-decides from the markers without cancelling or keeping runs, and hands the verdict to the steps below', () => {
-      const action = read('.github/actions/wait-for-older-run/action.yml');
-      expect(action).toMatch(
-        /uses: \.\/\.github\/actions\/ci-lanes\n\s+with:\n\s+lanes: \$\{\{ inputs\.lanes \}\}\n\s+supersede: 'false'/
-      );
-      // Without --pr a js wait looks for the full js marker, which a pull request's partial run never saves.
-      expect(action).toContain(
-        `--jobs '\${{ inputs.jobs }}' --timeout $(( \${{ inputs.minutes }} - 10 )) \${{ github.event_name == 'pull_request' && '--pr' || '' }}`
-      );
-      expect(action).toContain('>> "$GITHUB_ENV"');
-    });
+  // A comment-only JS edit re-runs go-tools but not go-static: a wait on go-static would hold go-tools back.
+  it('starts go-checks-wait only when neither of its lanes can run yet', () => {
+    const lane = (name: string) => `fromJSON(needs.lanes.outputs.lanes)['${name}']`;
+    const idle = (name: string) => `(${lane(name)}.deferredTo || !${lane(name)}.run)`;
+    expect(jobOf(read('.github/workflows/ci.yml'), 'go-checks-wait')).toContain(
+      `    if: \${{ ${idle('go-static')} && ${idle('go-tools')} && (${lane('go-static')}.deferredTo || ${lane('go-tools')}.deferredTo) }}\n`
+    );
   });
 
   it('waits on every drizzle dialect job, which GitHub names after the dialect alone', () => {
@@ -877,10 +834,6 @@ describe('a new commit cancels only what it changed', () => {
         if (!job.includes('env.MION_LANES')) continue;
         checked += 1;
         const name = job.slice(0, job.indexOf(':'));
-        if (IN_JOB_WAITERS.some(([owner, owned]) => owner === file && owned === name)) {
-          expect(job).toContain('      MION_LANES: ${{ needs.lanes.outputs.lanes }}\n');
-          continue;
-        }
         const waiter = owners.find(([owned]) => owned === name)?.[1];
         expect(waiter, `${file}: ${name} reads MION_LANES with no waiter`).toBeDefined();
         expect(job).toContain(`      MION_LANES: \${{ needs.${waiter}.outputs.lanes || needs.lanes.outputs.lanes }}\n`);
@@ -938,6 +891,65 @@ describe('a new commit cancels only what it changed', () => {
     expect(next('- name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toMatch(/^name: Record the JS fuzz sweep as green\n/);
     expect(next('- name: Time-boxed fuzz lanes at quick budgets')).toMatch(/^name: Record the time-boxed fuzz lanes as green\n/);
     expect(next('- name: Website serves-a-page smoke')).toMatch(/^name: Record the website smoke as green\n/);
+    expect(next('- name: Go vet (our code only; never third_party)')).toMatch(/^name: Record gofmt and vet as green\n/);
+  });
+
+  // decide costs a full-history checkout, so it starts only when the lane still runs and its answer can be yes.
+  it('starts drizzle decide after the waiter, only when the lane still runs and is labelled or into prod', () => {
+    const decide = jobOf(read('.github/workflows/drizzle-e2e.yml'), 'decide');
+    expect(decide).toContain('    needs: [lanes, drizzle-wait]\n');
+    expect(decide).toContain(
+      "    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run && (contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') || github.base_ref == 'prod') }}\n"
+    );
+    // The same two answers drizzle-e2e.mjs gives without looking at history.
+    const script = read('scripts/release/drizzle-e2e.mjs');
+    expect(script).toContain("if (process.env.LABELLED === 'true') return {run: true");
+    expect(script).toContain("if ((process.env.BASE_REF ?? '') !== 'prod') return {run: false");
+  });
+});
+
+// A kept older run still runs the raw lanes a newer commit re-runs (scripts/ci/supersede.mjs --watch stops them).
+describe('a raw-lane step stops once a newer run re-runs its lane', () => {
+  const ci = read('.github/workflows/ci.yml');
+  const RAW_JOBS = {'go-checks': ['go-static', 'go-tools'], 'js-static': ['js-static']} as const;
+  const stepsOf = (job: string) => jobOf(ci, job).split('\n      - ').slice(1);
+  const laneOf = (step: string) => /\n {8}if: (?:success\(\) && )?fromJSON\(env\.MION_LANES\)\['([\w-]+)'\]\.run/.exec(step)?.[1];
+
+  for (const [job, lanes] of Object.entries(RAW_JOBS)) {
+    it(`${job} can read the newer runs and their decisions`, () => {
+      const body = jobOf(ci, job);
+      expect(body).toContain('      actions: read\n');
+      expect(body).toContain('      MION_WATCH: node ${{ github.workspace }}/scripts/ci/supersede.mjs --watch\n');
+      expect(body).toContain('      GH_TOKEN: ${{ github.token }}\n');
+    });
+
+    // gofmt is the one multi-line script, and it takes a second.
+    it(`${job} runs every one-line command under the watcher for the lane its step gates on`, () => {
+      let watched = 0;
+      for (const step of stepsOf(job)) {
+        const command = /\n {8}run: (?![|>])(.+)/.exec(step)?.[1];
+        if (!command) continue;
+        const lane = laneOf(step);
+        expect(lanes, `${job}: ${command}`).toContain(lane);
+        expect(command, `${job}: ${command}`).toMatch(new RegExp(`^\\$MION_WATCH ${lane} -- \\S`));
+        watched += 1;
+      }
+      expect(watched).toBeGreaterThan(lanes.length);
+    });
+
+    it(`${job} saves no marker for a lane a newer run took over`, () => {
+      for (const lane of lanes)
+        expect(jobOf(ci, job)).toContain(
+          `if: success() && fromJSON(env.MION_LANES)['${lane}'].run && !contains(env.MION_TAKEN_OVER, '${lane}')\n`
+        );
+    });
+  }
+
+  it('gates the go-tools dists build on go-tools, after the go-static marker', () => {
+    const steps = stepsOf('go-checks');
+    const build = steps.findIndex((step) => step.startsWith('name: Build the resolver + dists'));
+    expect(laneOf(steps[build])).toBe('go-tools');
+    expect(steps[build - 1]).toMatch(/^name: Record gofmt and vet as green\n/);
   });
 });
 
@@ -987,79 +999,17 @@ describe('the gate keeps or cancels older runs', () => {
   const action = read('.github/actions/ci-lanes/action.yml');
   const scriptOf = (name: string) =>
     (/run: \|\n((?: {8}.*\n?)+)/.exec(action.slice(action.indexOf(`- name: ${name}`)))?.[1] ?? '').replace(/^ {8}/gm, '');
-  const decision = {lanes: {'go-static': {run: true, hash: 'g'}}, labels: [], baseRef: 'main'};
-  const run = (gh: string, files: Record<string, string> = {}) => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'supersede-gate-'));
-    try {
-      mkdirSync(path.join(dir, '.lane-decision'));
-      writeFileSync(path.join(dir, '.lane-decision/decision.json'), JSON.stringify(decision));
-      for (const [name, content] of Object.entries(files)) {
-        mkdirSync(path.dirname(path.join(dir, name)), {recursive: true});
-        writeFileSync(path.join(dir, name), content);
-      }
-      symlinkSync(path.join(REPO_ROOT, 'scripts'), path.join(dir, 'scripts'));
-      const env = {
-        PATH: process.env.PATH,
-        GITHUB_OUTPUT: path.join(dir, 'output'),
-        GITHUB_STEP_SUMMARY: path.join(dir, 'summary'),
-        GITHUB_WORKFLOW_REF: 'o/r/.github/workflows/ci.yml@refs/pull/1/merge',
-        GITHUB_REPOSITORY: 'o/r',
-        GITHUB_RUN_ID: '50',
-        GITHUB_HEAD_REF: 'feat',
-        GITHUB_EVENT_NAME: 'pull_request',
-        MION_PR_NUMBER: '1',
-      };
-      writeFileSync(env.GITHUB_OUTPUT, '');
-      const result = spawnSync(
-        'bash',
-        ['--noprofile', '--norc', '-eo', 'pipefail', '-c', `gh() { ${gh}; }\n${scriptOf('Keep or cancel the older runs')}`],
-        {cwd: dir, env, encoding: 'utf8'}
-      );
-      const older = JSON.parse(readFileSync(path.join(dir, '.lane-decision/older.json'), 'utf8') || '[]');
-      return {status: result.status, stdout: result.stdout, output: readFileSync(env.GITHUB_OUTPUT, 'utf8'), older};
-    } finally {
-      rmSync(dir, {recursive: true, force: true});
-    }
-  };
-  // `gh api` lists runs 41 and 42; `gh run download` succeeds only where a file was planted.
-  const listing = `case "$1" in api) echo 41; echo 42;; run) [ "$2" = download ] && [ -f ".lane-decision/older/$3/decision.json" ];; esac`;
 
-  it('keeps an unchanged run, and cancels one whose decision cannot be downloaded', () => {
-    const result = run(listing, {'.lane-decision/older/41/decision.json': JSON.stringify(decision)});
-    expect(result.status).toBe(0);
-    expect(result.older).toEqual([
-      {runId: 41, decision},
-      {runId: 42, decision: null},
-    ]);
-    expect(result.output).toBe('cancel=42\n');
-  });
-
-  it('counts an unreadable decision as none instead of failing the gate', () => {
-    const result = run(listing, {
-      '.lane-decision/older/41/decision.json': '{not json',
-      '.lane-decision/older/42/decision.json': '{}',
-    });
-    expect(result.status).toBe(0);
-    expect(result.older).toEqual([
-      {runId: 41, decision: null},
-      {runId: 42, decision: null},
-    ]);
-    expect(result.output).toBe('cancel=41 42\n');
-  });
-
-  it('warns and cancels nothing when the runs cannot be listed', () => {
-    const result = run('return 1');
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('::warning::could not list the older runs');
-    expect(result.output).toBe('cancel=\n');
-  });
-
-  it('lists only older runs of this pull request, from this repository, through the API', () => {
-    const script = scriptOf('Keep or cancel the older runs');
-    expect(script).toContain('-f branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"');
-    expect(script).toContain('.id < $GITHUB_RUN_ID');
-    expect(script).toContain('.head_repository.full_name == \\"$GITHUB_REPOSITORY\\"');
-    expect(script).toContain('[.pull_requests[].number | tostring] | index(\\"$MION_PR_NUMBER\\")');
+  // The listing lives in supersede.mjs, shared with the watcher; a branch name pasted into bash could run code.
+  it('lists, downloads and plans in supersede.mjs, with the token and no branch name in the script', () => {
+    const step = action.slice(
+      action.indexOf('- name: Keep or cancel the older runs'),
+      action.indexOf('- name: Cancel the older runs')
+    );
+    expect(step).toContain(
+      'run: node scripts/ci/supersede.mjs --plan --decision .lane-decision/decision.json --older-dir .lane-decision/older --out .lane-decision/final.json --github\n'
+    );
+    expect(step).toContain('GH_TOKEN: ${{ github.token }}');
     expect(action).not.toMatch(/run: \|[\s\S]*\$\{\{ github\.head_ref/);
   });
 
@@ -1149,7 +1099,7 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
 
   it('runs in go-checks under the go-tools lane', () => {
     expect(jobOf(ci, 'go-checks')).toMatch(
-      /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: pnpm test packages\/devtools\/test\/build-gate\.test\.ts/
+      /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: \$MION_WATCH go-tools -- pnpm test packages\/devtools\/test\/build-gate\.test\.ts/
     );
   });
 
@@ -1163,7 +1113,7 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
 
   // The js-static step runs these; the suite running them again only doubled their time.
   it('leaves the contract and link tests to the js-static step', () => {
-    expect(ci).toContain('run: pnpm test contracts website-links\n');
+    expect(ci).toContain('run: $MION_WATCH js-static -- pnpm test contracts website-links\n');
     const commands = [...commandsOf(jobOf(ci, 'js-suite')), ...commandsOf(jobOf(ci, 'js-serial'))];
     expect(commands).toHaveLength(4);
     for (const command of commands) {
@@ -1199,7 +1149,7 @@ describe('the converted-suites refusal count runs per PR', () => {
 
   it('runs the count in go-checks under the go-tools lane', () => {
     expect(jobOf(ci, 'go-checks')).toMatch(
-      /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: pnpm miondevx core converted-suites --refusals-only\n/
+      /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: \$MION_WATCH go-tools -- pnpm miondevx core converted-suites --refusals-only\n/
     );
   });
 
@@ -1208,7 +1158,7 @@ describe('the converted-suites refusal count runs per PR', () => {
       'packages/run-types/test/suites/strict-validation/Strict.ts',
       'packages/run-types/src/index.ts',
       'packages/run-types/test/features/unsupported-conversion.test.ts',
-      'ts-go-runtypes/internal/convert/print.go',
+      'ts-go-runtypes/pkg/convert/print.go',
       'scripts/core/converted-suites.mjs',
     ])
       expect(matches(input, LANES['go-tools'].paths), input).toBe(true);

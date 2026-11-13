@@ -7,7 +7,6 @@ import './datetime/dateTime-pure-fns.ts';
 // The per-kind mock fns are NOT imported here: createMockData.ts registers them, so only a bundle
 // that mocks carries them.
 
-// Kept as `export type *`: the suite exporters' FORMATS_MODULE overlay keys off these lines.
 export type * from './string/stringFormats.ts';
 // The credit-card type, params and builder live beside the pure fns that back them.
 export type * from './string/credit-card-pure-fns.ts';
@@ -17,6 +16,8 @@ export type * from './datetime/dateFormats.ts';
 export type * from './numberFormats.ts';
 export type * from './bigintFormats.ts';
 export type * from './refineFormat.ts';
+// Every `rt$errors` key a format's validation errors can carry, per format name.
+export type {FormatErrorKeys} from '../go-generated/formatErrorKeys.generated.ts';
 // The named brand carriers, on the subpath the emitted declarations reference; see the note on
 // their declaration in ../runtypes/typeFormat.ts.
 export type {FormatBrand, NominalBrand} from '../runtypes/typeFormat.ts';
@@ -35,6 +36,21 @@ export type {
   FormattedObjectParamsValueFirst,
   StructuralBrand,
 } from './structural.ts';
+
+// For autocomplete: `GEN.lastName` is the literal 'lastName' as a value and a type.
+export * as GEN from '../go-generated/mockGenerators.generated.ts';
+import type {BuiltinMockGenerators} from '../go-generated/builtinMockGenerators.generated.ts';
+export type {BuiltinMockGenerators} from '../go-generated/builtinMockGenerators.generated.ts';
+
+// #region mockgenerator-names-extract — sliced verbatim by test/types/enrichHarness.ts beside the generated meta file.
+/** Augment it via `declare module '@mionjs/run-types/formats'` to name generators for `registerMockGenerator`.
+ *  Declared here, not re-exported, so augmentation of this subpath merges into it. **/
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CustomMockGenerators {}
+
+/** A string format's `generator`: a built-in name or one declared on CustomMockGenerators. **/
+export type MockGeneratorName = keyof BuiltinMockGenerators | keyof CustomMockGenerators;
+// #endregion mockgenerator-names-extract
 
 // Temporal builders are NOT re-exported here: they live on the `@mionjs/run-types/formats/temporal`
 // subpath, so non-Temporal consumers never pull in the Temporal lib.

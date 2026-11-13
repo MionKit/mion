@@ -399,7 +399,7 @@ const pruneProbe: Command = {
   },
 };
 
-// R5: break ONE family's mirror, expect the SPECIFIC code (enrich-mock-unknown-field / enrich-text-unknown-field / enrich-text-unknown-placeholder), then revert to a valid state.
+// R5: break ONE family's mirror, expect the SPECIFIC code (enrich-mock-unknown-field, also for a `pool` field node / enrich-text-unknown-field / enrich-text-unknown-placeholder), then revert to a valid state.
 // `--no-emit` skips function-form `rt$errors` and enrich-mock-invalid-pool: those and marker-comptime-arg-* are build-time, out of this harness.
 function negativeProbe(
   name: string,
@@ -444,6 +444,19 @@ const unknownMockField = negativeProbe('unknownMockField', 'mock', 'enrich-mock-
   )
 );
 
+// An object under a leaf-settings name (`pool`) is a field node, so a type without a `pool` field reports it unknown.
+const unknownLeafKeyField = negativeProbe(
+  'unknownLeafKeyField',
+  'mock',
+  'enrich-mock-unknown-field',
+  'pool: {pool: []}',
+  (text) =>
+    text.replace(
+      `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {`,
+      `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {\n  pool: {pool: []},`
+    )
+);
+
 const unknownFriendlyField = negativeProbe(
   'unknownFriendlyField',
   'friendly',
@@ -471,6 +484,7 @@ export const COMMANDS: Command[] = [
   idempotenceProbe,
   pruneProbe,
   unknownMockField,
+  unknownLeafKeyField,
   unknownFriendlyField,
   badPlaceholder,
 ];

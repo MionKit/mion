@@ -1,0 +1,571 @@
+// Package protocol defines the wire envelope between the mion resolver and its callers: the
+// op constants, Request/Response, scan Sites and their demand, transform results and the Dump
+// manifest. The payload is pkg/reflection's RunType model, whose child slots ride the JSON
+// wire as ref sentinels (`{kind: -1, id: "<hash>"}`, reflection.KindRef / reflection.NewRef).
+package protocol
+
+import (
+	"encoding/json"
+	"io"
+
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/reflection"
+)
+
+func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
+
+// Op string values are the wire contract; the TS side spells the same ones.
+const (
+	// OpScanFiles returns one Site per call whose signature opts into injection (a trailing
+	// `InjectRunTypeId<T>` parameter with a concretely-bound T). IncludeRunTypes scopes its
+	// projection to Request.Files, never the session-wide cache; OpDump returns that.
+	OpScanFiles = "scanFiles"
+	// OpDump returns the full cache: every RunType projected so far plus every Site recorded. Used at end-of-build.
+	OpDump = "dump"
+	// OpSetSources replaces the in-memory source overlay and rebuilds the Program against it.
+	// Sites are reset (their byte offsets index the previous text); the structural type cache survives until OpReset.
+	OpSetSources = "setSources"
+	// OpReset wipes ALL resolver state (cache, sites, Program, checker, overlay) with the connection left open.
+	// A setSources must follow before scanFiles works.
+	OpReset = "reset"
+	// OpTsCompile times the embedded tsgo's bind + typecheck + emit over the current overlay into
+	// Response.TsCompileMs and discards the emit. No marker walk, no cache modules: the pure-TypeScript
+	// baseline the bench orchestrators show next to scanFiles latency. Seed sources via OpSetSources first.
+	OpTsCompile = "tsCompile"
+	// OpTransform scans each requested file, applies the call-site rewrites, pure-fn replacements and deduped
+	// import block, and returns one TransformResult per file in Response.Transformed, so a caller skips the
+	// JS-side rewrite. Source text comes from the overlay (the bytes the offsets index): seed it via OpSetSources.
+	OpTransform = "transform"
+	// OpGenerate writes each entry module to <outDir>/types/<basename>.js instead of returning it on the wire,
+	// write-on-change and pruning stale files. The root is session config (Options.GenDir > tsconfig genDir >
+	// inferred <srcDir>/.mion) and echoes on Response.OutDir; Response.Generated lists the live basenames.
+	// OpTransform injects relative imports to these real files when the session sets Options.TransformRelative.
+	OpGenerate = "generate"
+	// OpEnrich is the daemon face of the CLI `enrich` verb, so a plugin drives the scaffold + sync pass over the
+	// warm connection instead of spawning. It returns the mirror CONTENT (Response.EnrichFiles) and NEVER writes.
+	// Shares enrichgen.Plan + mirror.Scaffold/Reconcile with the CLI verb, so both produce byte-identical mirrors.
+	OpEnrich = "enrich"
+	// OpCapabilities lists what the binary's extensions add (Response.Capabilities); the public binary answers empty.
+	OpCapabilities = "capabilities"
+)
+
+// Request is the union of all query operations (see resolver/dispatch).
+//
+// THE WIRE CARRIES EVENTS; THE SESSION CARRIES CONFIG. Every field is one of exactly three kinds:
+//
+//   - EVENTS — what is being asked: Op, Files, Sources.
+//   - PAYLOAD SELECTORS — how much of THIS request's answer to ship back:
+//     IncludeRunTypes, IncludeEntryModules, IncludeMetrics.
+//   - LANE SELECTORS — which walker/emit mode THIS request runs:
+//     CheckEnrich, CheckRouterRules, IncludeRtDiagnostics, EmitEdits.
+//
+// Anything session-constant belongs in resolver.Options instead, loaded once from a `serve` flag at
+// spawn (respawn-safe for free, since the client replays the same argv).
+//
+// Files is the op's file input: every file to scan (scanFiles), rewrite (transform) or
+// enrichment-check (enrich). Response.Sites carries entries for every listed file (each tagged with
+// .File), and IncludeRunTypes / IncludeEntryModules scope their payload to THIS request's Files
+// only, never a session-wide accumulation; OpDump returns the whole in-memory cache.
+type Request struct {
+	Op              string            `json:"op"`
+	Files           []string          `json:"files,omitempty"`
+	Sources         map[string]string `json:"sources,omitempty"`
+	IncludeRunTypes bool              `json:"includeRunTypes,omitempty"`
+	// IncludeEntryModules opts a scanFiles response into Response.EntryModules, scoped to this
+	// request's Files; OpDump always carries the full session's modules.
+	IncludeEntryModules bool `json:"includeEntryModules,omitempty"`
+	// IncludeMetrics opts the response into the Metrics block; unset costs nothing, the dispatcher
+	// skips every ReadMemStats and stopwatch.
+	IncludeMetrics bool `json:"includeMetrics,omitempty"`
+	// CheckEnrich adds the enrichment-health pass over this request's Files (tag hygiene,
+	// FriendlyText/MockData content validity, breadcrumb drift) to Response.Diagnostics as FamilyEnrich
+	// entries. Off by default so the rewrite pipeline pays nothing; the devtools lint plugin is the consumer.
+	CheckEnrich bool `json:"checkEnrich,omitempty"`
+	// CheckRouterRules adds the mion route rules over Files as FamilyMionRoute entries. Only the lint plugin sets it:
+	// most are RuntimeErrors that would stop a build.
+	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
+	// IncludeRtDiagnostics renders the demanded entries for their RunType-family diagnostics (validate-function-property-dropped, json-prepare-never-root, …)
+	// but drops the module payload, so one lint scan returns the full picture a build would report.
+	// Implied by IncludeEntryModules.
+	IncludeRtDiagnostics bool `json:"includeRtDiagnostics,omitempty"`
+	// EmitEdits switches OpTransform from 'go' mode (rewritten Code + Map) to 'edits' mode: ImportBlock +
+	// Edits + SourceHash per file for the FE to apply, Code/Map empty. It changes only the wire shape, never
+	// the artifacts, so it must never fold into any disk-cache fingerprint. Ignored by every other op.
+	EmitEdits bool `json:"emitEdits,omitempty"`
+	// OpEnrich carries NO fields beyond Files (which files changed; empty = whole program): families, i18n
+	// locales and the output root all ride resolver.Options, loaded once at spawn from the serve --gen-dir /
+	// --enrich-* flags. The daemon owns the demanded type name → source file mapping the caller cannot do itself.
+
+	// Ext carries an extension's own request fields, keyed by name, e.g. a registered scan check's switch
+	// (ExtFlag). A sub-object, so a request decodes in one pass and no extension key can clash with a mion field.
+	Ext map[string]json.RawMessage `json:"ext,omitempty"`
+}
+
+// ExtFlag returns a predicate that is true when the request's ext[name] is the JSON value true.
+func ExtFlag(name string) func(Request) bool {
+	return func(request Request) bool {
+		var on bool
+		raw, ok := request.Ext[name]
+		return ok && json.Unmarshal(raw, &on) == nil && on
+	}
+}
+
+// Metrics is the per-op performance block, populated only when Request.IncludeMetrics is set. The
+// tsc `--extendedDiagnostics` counters are post-op ABSOLUTES read off the tsgo Program: it checks
+// lazily, so they cover all checker work forced so far in this Program's lifetime. The Ms fields are
+// wall time per phase of THIS op. Alloc*/Mallocs/NumGC are deltas over the op (churn),
+// HeapAlloc/HeapInuse post-op snapshots (retention).
+type Metrics struct {
+	Files          int `json:"files,omitempty"`
+	Lines          int `json:"lines,omitempty"`
+	Identifiers    int `json:"identifiers,omitempty"`
+	Symbols        int `json:"symbols,omitempty"`
+	Types          int `json:"types,omitempty"`
+	Instantiations int `json:"instantiations,omitempty"`
+
+	SetSourcesMs float64 `json:"setSourcesMs,omitempty"`
+	MarkerScanMs float64 `json:"markerScanMs,omitempty"`
+	PureFnsMs    float64 `json:"pureFnsMs,omitempty"`
+	// PrepMs is the per-dispatch response prep: provenance line/col conversion, ref-table build.
+	PrepMs       float64            `json:"prepMs,omitempty"`
+	ScopedDumpMs float64            `json:"scopedDumpMs,omitempty"`
+	RenderMs     map[string]float64 `json:"renderMs,omitempty"`
+	TotalMs      float64            `json:"totalMs,omitempty"`
+
+	AllocBytes uint64 `json:"allocBytes,omitempty"`
+	Mallocs    uint64 `json:"mallocs,omitempty"`
+	NumGC      uint32 `json:"numGC,omitempty"`
+	HeapAlloc  uint64 `json:"heapAlloc,omitempty"`
+	HeapInuse  uint64 `json:"heapInuse,omitempty"`
+
+	CacheNodes int `json:"cacheNodes,omitempty"`
+}
+
+// Response is returned per request. ID is the hash key into the shared dedup table and rides only
+// when HasID is set (MarshalJSON below), so a consumer tells "no id" from an empty string. OK
+// acknowledges the ops that return no data (setSources / reset).
+type Response struct {
+	ID    string                `json:"-"`
+	HasID bool                  `json:"-"`
+	OK    bool                  `json:"-"`
+	Added []*reflection.RunType `json:"added,omitempty"`
+	// AddedRunTypes is true when this scan interned a new RunType; the plugin then regenerates the cache modules.
+	AddedRunTypes bool `json:"addedRunTypes,omitempty"`
+	// AddedPureFns is true when the scan added or changed a pure-fn entry, per the session-wide bodyHash index.
+	AddedPureFns bool          `json:"addedPureFns,omitempty"`
+	Sites        []Site        `json:"sites,omitempty"`
+	Replacements []Replacement `json:"replacements,omitempty"`
+	// PureFnSites is the pure-fn build report, one record per generated entry: whole program on OpGenerate, the
+	// rescanned files' delta on OpScanFiles, and empty unless the resolver's pure-fn report is enabled.
+	PureFnSites []PureFnSite `json:"pureFnSites,omitempty"`
+	// PureFnArtifact (generate only) is the package's `mion-pure-fns/` as path to content, for the caller to
+	// sync into the bundler's output dir once the bundle is on disk; empty means remove a stale one.
+	PureFnArtifact map[string]string `json:"pureFnArtifact,omitempty"`
+	// BatchSites is the request-batch build report, one per batch a `batch([...])` call may run: whole program on
+	// OpGenerate, rescanned files' delta on OpScanFiles, empty unless the build report is enabled.
+	BatchSites []BatchSite           `json:"batchSites,omitempty"`
+	RunTypes   []*reflection.RunType `json:"runTypes,omitempty"`
+	// EntryModules is one rendered ES-module source per cache entry, keyed by module BASENAME (the `<basename>`
+	// of `rtmod:/<basename>.js`: the cache key for runtype / type-fn entries, `pf/<ns>/<fn>` for pure fns).
+	// Populated on OpDump (full session) and on OpScanFiles under IncludeEntryModules (the request's Files).
+	EntryModules map[string]string `json:"entryModules,omitempty"`
+	// Generated is the manifest of live module basenames OpGenerate wrote under <OutDir>/types.
+	Generated []string `json:"generated,omitempty"`
+	// SiteFiles is OpGenerate's sorted unique list of program paths carrying at least one marker site. A plugin
+	// gates its per-file transform on this set, so call sites of wrappers declared in OTHER packages (node_modules
+	// included) rewrite with zero configuration. Emitted via the hand-rolled MarshalJSON below (the struct tag
+	// alone doesn't put it on the wire).
+	SiteFiles []string `json:"siteFiles,omitempty"`
+	// ProgramHash (generate only) hashes program sources, compiler options and tsconfig text, for a host's transform cache.
+	ProgramHash string `json:"programHash,omitempty"`
+	// EnrichFiles is OpEnrich's computed mirror files; the daemon never writes, the caller writes them under its
+	// own HMR-suppression window. Emitted via the hand-rolled MarshalJSON below (the struct tag alone doesn't).
+	EnrichFiles []EnrichFile `json:"enrichFiles,omitempty"`
+	// OutDir echoes the session-resolved output root OpGenerate wrote to (Options.GenDir > tsconfig genDir >
+	// inferred). With neither override the resolver infers <srcDir>/.mion from the tsconfig (rootDir >
+	// common-ancestor of the program's files > baseUrl > cwd), which the dependency-free plugin cannot compute
+	// yet needs, to write .gitignore/.gitkeep and to suppress HMR under the enriched dir. With DowngradeErrors
+	// this is the sanctioned resolved-config server→client echo channel.
+	OutDir string `json:"outDir,omitempty"`
+	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js` when OpGenerate wrote one, empty
+	// otherwise. The host uses it to know the module appeared or vanished; it never parses the file.
+	BatchesModule string `json:"batchesModule,omitempty"`
+	// RouterInitFiles lists the program files calling `createMionRouter`, the modules the transform appends the
+	// batch import to. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
+	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
+	// DowngradeErrors echoes the tsconfig's downgradeErrors on OpGenerate and OpScanFiles for a dependency-free host;
+	// the host's own option wins. A list of codes or the single wildcard "*". Emitted via MarshalJSON.
+	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
+	// Levels echoes the tsconfig plugin's `levels` on OpGenerate ("" when unset); the host's own option wins.
+	Levels string `json:"levels,omitempty"`
+	// LogStyle echoes the tsconfig plugin's `logStyle` on OpGenerate ("" when unset); the host's own option wins.
+	LogStyle string `json:"logStyle,omitempty"`
+	// Transformed carries one TransformResult per file for OpTransform, keyed by file path, scoped to the
+	// request's Files.
+	Transformed map[string]TransformResult `json:"transformed,omitempty"`
+	// Diagnostics is the one wire channel for every non-fatal diagnostic; hosts print them via diagnostics.Format or
+	// formatTscDiagnostic. The schema mirrors the LSP Diagnostic shape.
+	Diagnostics []diagnostics.Diagnostic `json:"diagnostics,omitempty"`
+	// TsCompileMs is OpTsCompile's wall time in milliseconds, zero for every other op.
+	TsCompileMs float64 `json:"tsCompileMs,omitempty"`
+	// Metrics is nil, and off the wire, unless the request set IncludeMetrics.
+	Metrics *Metrics `json:"metrics,omitempty"`
+	// Ext carries an extension op's own answer fields, keyed by name; off the wire when empty.
+	Ext map[string]any `json:"ext,omitempty"`
+	// Capabilities answers OpCapabilities: what the binary's extensions add. Nil on every other op.
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
+	Error        string        `json:"error,omitempty"`
+}
+
+// Capabilities lists only the extension rows a binary registered, so a host can reach them; the public binary
+// answers every list empty.
+type Capabilities struct {
+	Extensions  []ExtensionInfo            `json:"extensions"`
+	Ops         []string                   `json:"ops"`
+	ScanChecks  []ScanCheckInfo            `json:"scanChecks"`
+	Diagnostics []diagnostics.CatalogEntry `json:"diagnostics"`
+}
+
+// ExtensionInfo names one extension built into the binary.
+type ExtensionInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// ScanCheckInfo is one extension scan check: its Request.Ext switch name, its diagnostics family label, and the
+// JS regex source (compiled with the `m` flag) whose match sends a file through the resolver in lint.
+type ScanCheckInfo struct {
+	Name   string `json:"name"`
+	Family string `json:"family"`
+	Probe  string `json:"probe,omitempty"`
+}
+
+// Site records one transformer-injection point; Pos is the byte offset of the closing `)`, where the patcher inserts.
+// When ArgsCount (the arguments written) is below ParamIndex, the patcher pads with `undefined` to reach the slot.
+type Site struct {
+	File       string `json:"file"`
+	Pos        int    `json:"pos"`
+	ID         string `json:"id"`
+	ParamIndex int    `json:"paramIndex,omitempty"`
+	ArgsCount  int    `json:"argsCount,omitempty"`
+	// FnId is the opaque fnHash the transformer injects as the 2nd tuple element for a createX call site routed
+	// through the InjectTypeFnArgs<T, Fn> marker. Empty for reflection-only InjectRunTypeId sites (getRunTypeId /
+	// builders), which inject the bare id string.
+	FnId string `json:"fnId,omitempty"`
+	// FnIds carries every fnId a MULTI-FUNCTION createX site injects, when its trailing
+	// InjectTypeFnArgs<T, F1, F2, …> marker names more than one family (createStandardSchema's <T,'val','verr'>).
+	// The rewrite injects an ARRAY of entry-tuple bindings at the single ParamIndex, in this order. Present only
+	// when len > 1; single-fn / reflection sites leave it nil and carry the lone value in FnId (the byte-stable
+	// 1-fn wire), which mirrors FnIds[0] when both are set.
+	FnIds []string `json:"fnIds,omitempty"`
+	// Demand is the set of cache entries this createX site requires, computed by the scanner from the operation
+	// registry. The emitter renders from it directly rather than reverse-parsing FnId, which a hash forbids. One
+	// entry for a simple family or variant, several for a composite JSON strategy; empty for reflection sites.
+	Demand []SiteDemand `json:"demand,omitempty"`
+	// TrailingComma is true when the call's argument list was written with a trailing comma. The injector then
+	// splices the binding WITHOUT a leading comma: the two commas would produce `f(a, , …)`, which is invalid JS.
+	TrailingComma bool `json:"trailingComma,omitempty"`
+	// NoArgList marks a paren-less `new X`: Pos is the expression's end and the injector wraps its args in `(...)`.
+	NoArgList bool `json:"noArgList,omitempty"`
+	// Module, when non-empty, is the bundle-module BASENAME this site's entry rides in (allSingle mode): the
+	// rewrite imports the binding from `rtmod:/<Module>.js` instead of the entry's own module, with an identical
+	// clause shape either way (export name == the binding). Empty in default/allModules mode. Derived statically
+	// from mode + site shape, so it rides every scanFiles response, the transform path that skips entry-module
+	// collection included. Mirrors Modules[0] when both are set.
+	Module string `json:"module,omitempty"`
+	// Modules carries the bundle basename of EVERY fnId a multi-function site injects, positionally mirroring
+	// FnIds: its fnIds span several families and under allSingle each family is its OWN bundle, so one basename
+	// cannot address them all. Present only for a multi-fn site under allSingle; single-fn / reflection sites
+	// leave it nil and carry the lone value in Module (the byte-stable 1-fn wire).
+	Modules []string `json:"modules,omitempty"`
+	// MockSeed is the literal `mock.seed` hint read from a CompTimeHints options slot (createMockDataFn) as
+	// canonical decimal text, "" when the site carries none; it seeds the pattern mockSample pools for the types
+	// this site demands. Resolver-internal and never serialized: the JS host has no use for it.
+	MockSeed string `json:"-"`
+}
+
+// SiteDemand is one cache entry a createX site requires: FamilyTag/VariantSuffix/Options drive the emitter's
+// rendering, FnHash names the entry it writes (`<fnHash>_<id>`).
+type SiteDemand struct {
+	FamilyTag     string   `json:"family"`
+	VariantSuffix string   `json:"variant,omitempty"`
+	Options       []string `json:"options,omitempty"`
+	FnHash        string   `json:"fnHash,omitempty"`
+	// RejectCircular flags the armed `{rejectCircularRefs: true}` fork the emitter guards inline; never on a JSON primitive.
+	RejectCircular bool `json:"rejectCircular,omitempty"`
+	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
+	ComposedBy string `json:"composedBy,omitempty"`
+}
+
+// EnrichFile is one computed mirror file returned by OpEnrich: absolute Path, the desired Content the caller
+// writes, whether it is newly Added (no prior on-disk file), and its family Kind ("friendly" | "mock").
+type EnrichFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+	Added   bool   `json:"added,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+}
+
+// PureFnSite is one generated pure-fn entry, reported for host tooling that relocates pure-fn bodies across
+// bundles (mion's cross-bundle serverMapFrom transport is the motivating consumer). The record is SELF-CONTAINED,
+// Code + ParamNames inline, so a consumer never reads the generated module files and the shape stays stable
+// across every moduleMode. Populated only when the pure-fn report is enabled (`--pure-fn-report-wire` /
+// `pureFnReport`); the normal rewrite pipeline pays nothing.
+type PureFnSite struct {
+	// File / Start / End are the registrar call site's factory-argument span, in the byte offsets the matching
+	// Replacement carries.
+	File  string `json:"file"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	// Key is the interned id: owning package plus a hash of the shipped body (`@acme/text:9Zt1bRm4cV`).
+	Key string `json:"key"`
+	// BindingName is the identifier the registration was assigned to, empty for one written straight into a call.
+	// Not part of the id (a hash is); it rides along because a report of hashes names nothing a reader can search.
+	BindingName string `json:"bindingName,omitempty"`
+	// CalleeName is the identifier the site invoked: `registerPureFn`, a framework wrapper like `inputFrom`, or a
+	// renamed import. CalleeModule is the nearest-package.json `"name"` of the file DECLARING the callee (or its
+	// ambient `declare module` name), so a consumer attributes a site to the framework that exposed the registrar
+	// even through a wrapper-only file.
+	CalleeName   string `json:"calleeName,omitempty"`
+	CalleeModule string `json:"calleeModule,omitempty"`
+	// Form is "direct" (the arg IS the pure fn, wrapped) or "factory" (the arg is a factory, emitted as-is).
+	Form string `json:"form,omitempty"`
+	// Module is the BASENAME of the generated module this entry rides in (per-entry `pf/<id>` in
+	// default/allModules, the single `pf` bundle in allSingle), mirroring Site.Module. For consumers that want
+	// the layout linkage; the record stays usable without it.
+	Module string `json:"module,omitempty"`
+	// ParamNames / Code are the entry payload, emitMode-honoring: Code is empty in an emitMode that ships no body
+	// string, matching the module render. PureFnDependencies is the entry's direct pure-fn dep ids.
+	ParamNames         []string `json:"paramNames,omitempty"`
+	Code               string   `json:"code,omitempty"`
+	PureFnDependencies []string `json:"pureFnDependencies,omitempty"`
+}
+
+// BatchMapping is one `inputFrom(source, mapper)` link inside a request batch: the server feeds route FromId's
+// output through the mapper keyed MapperKey into argument ParamIndex of route ToId.
+type BatchMapping struct {
+	FromId     string `json:"fromId"`
+	ToId       string `json:"toId"`
+	ParamIndex int    `json:"paramIndex"`
+	// MapperKey is the mapper's pure-fn id, the same one injected at that call.
+	MapperKey string `json:"mapperKey"`
+}
+
+// BatchSite is one route combination a `batch([...])` call may run, so the server build registers its plan under the
+// client's id. Reported only with `--pure-fn-report-wire` / `pureFnReport`; the id is spliced in either way.
+type BatchSite struct {
+	// File / Start / End are the `batch(...)` call expression's span, in the byte offsets the matching injection
+	// Replacement indexes.
+	File  string `json:"file"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	// BatchId is the injected id (`b_<hash>` of the ordered RouteIds).
+	BatchId string `json:"batchId"`
+	// RouteIds are the batched routes in call order (`users/getById`).
+	RouteIds []string `json:"routeIds"`
+	// Mappings are the `inputFrom()` links, sorted by (toId, paramIndex).
+	Mappings []BatchMapping `json:"mappings,omitempty"`
+	// CalleeName / CalleeModule attribute the site to the identifier it invoked and the package declaring it.
+	CalleeName   string `json:"calleeName,omitempty"`
+	CalleeModule string `json:"calleeModule,omitempty"`
+}
+
+// Replacement replaces the bytes [Start, End) of a source file with Text. The pure-fn extractor uses it to swap
+// every `registerPureFnFactory(pureFnId, factory)` argument for the entry-module import binding, so the canonical
+// body lives only in the emitted entry module and never twice in the user bundle.
+type Replacement struct {
+	File  string `json:"file"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Text  string `json:"text"`
+	// ImportFrom, when non-empty, is the module specifier the host must import for the substituted expression to
+	// resolve (`rtmod:/pf/rt/foo.js`). Text IS the export name, so the host imports `{<Text>}` directly.
+	// Empty for plain text substitutions.
+	ImportFrom string `json:"importFrom,omitempty"`
+	// ImportBinding, when non-empty, is the export name to import when Text is not that name: a trailing-slot
+	// splice whose Text carries `undefined` padding and a leading comma before the binding (the bundled-API
+	// lane). Empty means Text IS the binding, as above.
+	ImportBinding string `json:"importBinding,omitempty"`
+}
+
+// TransformResult is the per-file output of OpTransform, in one of two wire shapes selected by Request.EmitEdits:
+//
+//   - 'go' mode (EmitEdits false, the default): Code is the rewritten source and Map its source map, which the
+//     host plumbs straight to the bundler.
+//   - 'edits' mode (EmitEdits true): Code/Map are empty and ImportBlock + Edits + SourceHash carry the edit list
+//     for the host to apply itself, a lighter wire (O(sites) instead of the whole file plus a dense map).
+//
+// EmittedModules is the cache-module basenames the rewritten file now imports, so a consumer emitting modules to
+// disk knows which were referenced.
+type TransformResult struct {
+	Code string     `json:"code,omitempty"`
+	Map  *SourceMap `json:"map,omitempty"`
+	// ImportBlock is the deduped import block for ImportAt, one physical line, relativized to <outDir>/types in files-mode.
+	// Empty when no imports are injected. 'edits' mode only; the host inserts it verbatim.
+	ImportBlock string `json:"importBlock,omitempty"`
+	// ImportAt is ImportBlock's offset in UTF-16 CODE UNITS, past `#!` and the directive prologue (both stay first).
+	// 0 = file start. 'edits' mode only; the host inserts the block there before any other edit.
+	ImportAt int `json:"importAt,omitempty"`
+	// Edits is the flat point/span edit list, ImportBlock excluded, in UTF-16 CODE-UNIT offsets against the
+	// ORIGINAL source: the applier indexes JS strings natively, so Go converts every byte offset through
+	// makeByteToChar first. 'edits' mode only.
+	Edits []Edit `json:"edits,omitempty"`
+	// SourceHash is an FNV-1a/32 hash of the exact source bytes the Edits offsets index (the overlay's view). The
+	// applier hashes the bundler-supplied source; a mismatch means an upstream plugin edited it out from under
+	// us, so the applier re-uploads the source (setSources) and re-requests rather than misplacing every edit.
+	// 'edits' mode only.
+	SourceHash     string   `json:"sourceHash,omitempty"`
+	EmittedModules []string `json:"emittedModules,omitempty"`
+	// TypeDeps is the set of source files DECLARING the types this file's call sites reflect, the edges no
+	// bundler can see: `import type` (and a plain import used only in type position) is erased, and an ambient
+	// `.d.ts` type never had an import edge. A host declares them to its bundler (`addWatchFile` /
+	// `addDependency`) so editing a type re-runs the files that reflect it. Absolute program paths, sorted and
+	// deduplicated.
+	//
+	// ⚠️ EMPTY MEANS UNKNOWN, NOT "no dependencies". A host reading it as "nothing to declare" silently ships a
+	// validator for a type that no longer exists: a stale validator does not error, it accepts data the current
+	// type rejects. Fall back to coarse invalidation instead.
+	TypeDeps []string `json:"typeDeps,omitempty"`
+}
+
+// Edit is one point insertion (Start == End) or span replacement (Start < End) against the original source. The
+// wire unit is a hard contract: UTF-16 code units, never bytes, never runes, since astral-plane characters make
+// the three diverge. 'edits'-mode OpTransform only; the resolver's own byte offsets (Site.Pos,
+// Replacement.Start/End) are converted to UTF-16 before they become Edits.
+type Edit struct {
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Text  string `json:"text"`
+}
+
+// SourceMap is a standard source-map v3 object, the shape a bundler accepts back from a transform. Mirrors the
+// EditBuffer's output so the Go-generated map is byte-for-byte interchangeable with the JS one.
+type SourceMap struct {
+	Version        int       `json:"version"`
+	Sources        []string  `json:"sources"`
+	SourcesContent []*string `json:"sourcesContent"`
+	Names          []string  `json:"names"`
+	Mappings       string    `json:"mappings"`
+}
+
+// Dump is the cache manifest, every projected RunType plus every Site, written by --out-json (runtypes-cache.json).
+type Dump struct {
+	RunTypes []*reflection.RunType `json:"runTypes"`
+	Sites    []Site                `json:"sites"`
+}
+
+// WriteJSON writes the dump as pretty-printed JSON. Child slots stay `{kind: -1, id: "<hash>"}` sentinels: a
+// consumer not using the generated TS module re-knots them itself.
+func (dump Dump) WriteJSON(writer io.Writer) error {
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(dump)
+}
+
+// responseAddedFlags is the wire contract for the added-flag Response fields.
+var responseAddedFlags = []struct {
+	key string
+	get func(*Response) bool
+}{
+	{"addedRunTypes", func(response *Response) bool { return response.AddedRunTypes }},
+	{"addedPureFns", func(response *Response) bool { return response.AddedPureFns }},
+}
+
+// MarshalJSON serialises Response. ID rides only when HasID is true, so a dump response carries no misleading "".
+// Map-built on purpose: encoding/json sorts map keys, so the output bytes are stable whatever the fill order.
+func (response Response) MarshalJSON() ([]byte, error) {
+	out := make(map[string]any, 8)
+	if response.HasID {
+		out["id"] = response.ID
+	}
+	if response.OK {
+		out["ok"] = true
+	}
+	if len(response.Added) > 0 {
+		out["added"] = response.Added
+	}
+	for _, flag := range responseAddedFlags {
+		if flag.get(&response) {
+			out[flag.key] = true
+		}
+	}
+	if len(response.Sites) > 0 {
+		out["sites"] = response.Sites
+	}
+	if len(response.Replacements) > 0 {
+		out["replacements"] = response.Replacements
+	}
+	if len(response.PureFnSites) > 0 {
+		out["pureFnSites"] = response.PureFnSites
+	}
+	if len(response.PureFnArtifact) > 0 {
+		out["pureFnArtifact"] = response.PureFnArtifact
+	}
+	if len(response.BatchSites) > 0 {
+		out["batchSites"] = response.BatchSites
+	}
+	if len(response.RunTypes) > 0 {
+		out["runTypes"] = response.RunTypes
+	}
+	if len(response.EntryModules) > 0 {
+		out["entryModules"] = response.EntryModules
+	}
+	if len(response.Generated) > 0 {
+		out["generated"] = response.Generated
+	}
+	if len(response.SiteFiles) > 0 {
+		out["siteFiles"] = response.SiteFiles
+	}
+	if response.ProgramHash != "" {
+		out["programHash"] = response.ProgramHash
+	}
+	if len(response.EnrichFiles) > 0 {
+		out["enrichFiles"] = response.EnrichFiles
+	}
+	if response.OutDir != "" {
+		out["outDir"] = response.OutDir
+	}
+	if response.BatchesModule != "" {
+		out["batchesModule"] = response.BatchesModule
+	}
+	if len(response.RouterInitFiles) > 0 {
+		out["routerInitFiles"] = response.RouterInitFiles
+	}
+	if response.DowngradeErrors != nil {
+		out["downgradeErrors"] = response.DowngradeErrors
+	}
+	if response.Levels != "" {
+		out["levels"] = response.Levels
+	}
+	if response.LogStyle != "" {
+		out["logStyle"] = response.LogStyle
+	}
+	if len(response.Transformed) > 0 {
+		out["transformed"] = response.Transformed
+	}
+	if len(response.Diagnostics) > 0 {
+		out["diagnostics"] = response.Diagnostics
+	}
+	if response.TsCompileMs > 0 {
+		out["tsCompileMs"] = response.TsCompileMs
+	}
+	if response.Metrics != nil {
+		out["metrics"] = response.Metrics
+	}
+	if len(response.Ext) > 0 {
+		out["ext"] = response.Ext
+	}
+	if response.Capabilities != nil {
+		out["capabilities"] = response.Capabilities
+	}
+	if response.Error != "" {
+		out["error"] = response.Error
+	}
+	return jsonMarshal(out)
+}
+
+// PureFnDep identifies a pure-function dependency of a compiled function by its id, which already says where the
+// registration lives. It never reaches the emitted JS: that wire shape stays the flat id array rtUtils consumes.
+type PureFnDep struct {
+	ID string
+}

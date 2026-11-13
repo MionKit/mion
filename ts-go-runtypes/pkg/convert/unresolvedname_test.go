@@ -1,0 +1,117 @@
+package convert_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/convert"
+)
+
+// convert-unresolved-type-name — the unresolved-type-name refusal (set.go writtenTypeRefDiags), the
+// convert twin of the resolver's marker-any-from-unresolved-name guard: a written type reference that
+// resolved to the checker's ERROR type (`any` the author never wrote) refuses
+// the declaration instead of cementing `any` / `RT.any()` into the rewritten
+// source. A deliberate `any` is the true `any` intrinsic and converts freely.
+
+func TestUnresolvedNameGuard_AllTargets(t *testing.T) {
+	// `Missing` exists nowhere, so `{value: Missing}` checks as error-`any`.
+	// The declaration must refuse under every rewriting target and survive
+	// byte-identical; the sibling declaration keeps converting.
+	typeFormSource := "export type Holder = {value: Missing};\nexport type Plain = {a: string};\n"
+	builderFormSource := "import {type InferType, getRunType} from '@mionjs/run-types';\n" +
+		"export const holderRT = getRunType<{value: Missing}>();\n" +
+		"export type Holder = InferType<typeof holderRT>;\n"
+	cases := []struct {
+		target  convert.Target
+		source  string
+		keeping string
+	}{
+		{convert.TargetBuilders, typeFormSource, "export type Holder = {value: Missing};"},
+		{convert.TargetType, builderFormSource, "export const holderRT = getRunType<{value: Missing}>();"},
+	}
+	for _, testCase := range cases {
+		output, diags := convertOne(t, testCase.source, convert.Options{Target: testCase.target})
+		foundGuard := false
+		for _, diagnostic := range diags {
+			if diagnostic.Code == convert.CodeUnresolvedTypeName {
+				foundGuard = true
+				if diagnostic.Severity != convert.SeverityError {
+					t.Errorf("--to %s: convert-unresolved-type-name must be an error", testCase.target)
+				}
+				if !strings.Contains(diagnostic.Message, "Missing") {
+					t.Errorf("--to %s: convert-unresolved-type-name should name the written reference; got %q", testCase.target, diagnostic.Message)
+				}
+			}
+		}
+		if !foundGuard {
+			t.Fatalf("--to %s: expected convert-unresolved-type-name for the unresolved name, got %+v", testCase.target, diags)
+		}
+		if !strings.Contains(output, testCase.keeping) {
+			t.Errorf("--to %s: the guarded declaration must stay untouched:\n%s", testCase.target, output)
+		}
+	}
+}
+
+// An ambient declaration IN the program converts faithfully — the whole point
+// of rooting the config's file list: the reference resolves, so conversion
+// preserves the structural id and the reflection graph instead of degrading
+// to `RT.any()`. (In the CLI the ambient rides the config-roots union; here
+// the harness roots the sources map directly, the same program shape.)
+func TestUnresolvedNameGuard_AmbientResolvesFaithfully(t *testing.T) {
+	sources := map[string]string{
+		"main.ts":      "export type Holder = {value: Ambient};\n",
+		"ambient.d.ts": "declare interface Ambient { a: string; b: number }\n",
+	}
+	output := convertAndCheckIDsIn(t, sources, convert.TargetBuilders)
+	if strings.Contains(output, "RT.any()") {
+		t.Errorf("ambient-typed member must not degrade to RT.any():\n%s", output)
+	}
+}
+
+// A deliberately written `any` keeps converting: it is the real `any`
+// intrinsic, not the error type, so convert-unresolved-type-name must stay silent and the builder
+// form legitimately prints RT.any().
+func TestUnresolvedNameGuard_DeliberateAnyStaysLegal(t *testing.T) {
+	output, diags := convertOne(t, "export type Loose = {value: any};\n", convert.Options{Target: convert.TargetBuilders})
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeUnresolvedTypeName {
+			t.Fatalf("written `any` must not trip convert-unresolved-type-name: %+v", diagnostic)
+		}
+	}
+	if !strings.Contains(output, "RT.any()") {
+		t.Errorf("deliberate any should convert to RT.any():\n%s", output)
+	}
+}
+
+// The same refusal one declaration deeper: `Payload` writes only healthy
+// names, but the `User` it references carries the unresolved `Rol`, so
+// converting `Payload` would cement the same `any` through the reference.
+// Both declarations refuse; the message names the chain.
+func TestUnresolvedNameGuard_OneDeclarationDeeper(t *testing.T) {
+	source := "export interface User {role: Rol}\nexport interface Payload {id: string; user: User}\nexport type Plain = {a: string};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	refused := map[string]string{}
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeUnresolvedTypeName {
+			refused[diagnostic.Decl] = diagnostic.Message
+		}
+	}
+	if _, ok := refused["User"]; !ok {
+		t.Errorf("User must refuse (its own written name is unresolved), got %+v", diags)
+	}
+	message, ok := refused["Payload"]
+	if !ok {
+		t.Fatalf("Payload must refuse through its reference to User, got %+v", diags)
+	}
+	if !strings.Contains(message, "Rol") || !strings.Contains(message, "via 'User'") {
+		t.Errorf("Payload's refusal must name the unresolved reference and the declaration it was reached through, got %q", message)
+	}
+	for _, keeping := range []string{"export interface User {role: Rol}", "export interface Payload {id: string; user: User}"} {
+		if !strings.Contains(output, keeping) {
+			t.Errorf("a refused declaration must stay untouched:\n%s", output)
+		}
+	}
+	if strings.Contains(output, "export type Plain = {a: string};") {
+		t.Errorf("the healthy sibling must still convert:\n%s", output)
+	}
+}

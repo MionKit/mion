@@ -1,6 +1,6 @@
 // Registration module for the circular-reference walker `findCycle`. The guard is a COMPILE-TIME option
 // (`{rejectCircularRefs: true}`): only the armed variant of a guarded factory inlines it, for a cycle-capable type, and the
-// `skeleton` it passes is BAKED into the factory closure at build time (internal/cachegen/typefunctions/circular_skeleton.go).
+// `skeleton` it passes is BAKED into the factory closure at build time (pkg/cachegen/typefunctions/circular_skeleton.go).
 // So the walker needs NO RunType graph at runtime, and an unarmed type ships neither the walker nor a bundle.
 // Skeleton shape (mirror of CircularSkeleton.JSLiteral): `{c: [1|0, …], e: [[{p: [seg, …], t: idx}, …], …]}`; node 0 is the
 // guarded root, c[i] flags a TRACKED node (values ride the descent stack), e[i] lists its outgoing circular edges, each an

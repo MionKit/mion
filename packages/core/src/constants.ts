@@ -9,6 +9,7 @@ import type {CoreRouterOptions} from './types/general.types.ts';
 // Generated from the Go operation registry beside run-types' full variant table, so the two cannot drift.
 // Re-exported because every consumer reaches it through @mionjs/core, never through the generated path.
 export {JIT_FUNCTION_IDS} from './go-generated/jitFunctionIds.generated.ts';
+export {BATCH_KEY_ROUTE_SEPARATOR, BATCH_KEY_MAPPED_ARG_MARK} from './go-generated/batchKey.generated.ts';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   autoGenerateErrorId: false,

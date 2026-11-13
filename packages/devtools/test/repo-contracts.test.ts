@@ -25,6 +25,8 @@ import {tmpdir} from 'node:os';
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 // @ts-expect-error — a plain .mjs script, no types
 import {REGISTRY} from '../../../scripts/lib/env.mjs';
+// @ts-expect-error — a plain .mjs script, no types
+import {releaseNotes} from '../../../scripts/release/release-notes.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {CARD_MANIFEST, CARDS_EXPORT_DIR, hashSources, staleCards} from '../../../scripts/lib/card-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -373,7 +375,7 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
       'docs/FUZZING.md',
       '.agents/skills/foo/SKILL.md',
       'docs/maybe/parked.md',
-      'ts-go-runtypes/internal/x/x.go',
+      'ts-go-runtypes/pkg/x/x.go',
     ];
     expect(specReferenceOffenders(files.map((file) => ({file, text})))).toEqual(files);
     expect(specReferenceOffenders([{file: 'a.ts', text: todoRef}])).toEqual(['a.ts']);
@@ -639,14 +641,31 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
-const importedModules = (file: string): string[] => {
+// Type-only imports are erased from the built JS: runtimeOnly skips them.
+const isTypeOnlyImport = (node: ts.ImportDeclaration | ts.ExportDeclaration): boolean => {
+  // An empty `import {} from 'x'` still loads x.
+  const allTypes = (elements: ts.NodeArray<ts.ImportSpecifier | ts.ExportSpecifier>): boolean =>
+    elements.length > 0 && elements.every((element) => element.isTypeOnly);
+  if (ts.isExportDeclaration(node)) {
+    const clause = node.exportClause;
+    return node.isTypeOnly || (!!clause && ts.isNamedExports(clause) && allTypes(clause.elements));
+  }
+  const clause = node.importClause;
+  if (!clause) return false;
+  if (clause.isTypeOnly) return true;
+  const named = clause.namedBindings;
+  return !clause.name && !!named && ts.isNamedImports(named) && allTypes(named.elements);
+};
+
+const importedModules = (file: string, runtimeOnly = false): string[] => {
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
   const found: string[] = [];
   const visit = (node: ts.Node): void => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
-      ts.isStringLiteral(node.moduleSpecifier)
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      !(runtimeOnly && isTypeOnlyImport(node))
     ) {
       found.push(node.moduleSpecifier.text);
     }
@@ -959,6 +978,32 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     const {status, stderr} = miondevx(['release', 'all', '--oops']);
     expect(status).toBe(2);
     expect(stderr).toContain("unknown flag '--oops'");
+  });
+
+  // The exact command publish.yml and pre-publish.yml run, through the dispatcher.
+  it('`release notes <newest>` prints that section and nothing else', () => {
+    const changelog = readFileSync(join(REPO_ROOT, 'CHANGELOG.md'), 'utf8');
+    const newest = /^## \[([^\]]+)\]/m.exec(changelog)?.[1] ?? '';
+    const {status, stdout} = miondevx(['release', 'notes', newest]);
+    expect(status).toBe(0);
+    expect(stdout).toBe(releaseNotes(changelog, newest));
+  });
+
+  it('`release notes` of a version with no section fails with 1 and names it', () => {
+    const {status, stdout, stderr} = miondevx(['release', 'notes', '9.9.9']);
+    expect(status).toBe(1);
+    expect(stdout).toBe('');
+    expect(stderr).toContain('CHANGELOG.md has no "## [9.9.9]" section');
+  });
+
+  it('`release notes` with no version is a usage error', () => {
+    const {status, stderr} = miondevx(['release', 'notes']);
+    expect(status).toBe(2);
+    expect(stderr).toContain('usage: miondevx release notes <version>');
+  });
+
+  it('`release --help` lists `notes <version>` from its registry row', () => {
+    expect(miondevx(['release', '--help']).stdout).toMatch(/^ {2}notes <version> /m);
   });
 
   it('the package pre-hooks route every engine consumer through the trusted build check', () => {
@@ -1733,10 +1778,12 @@ describe('mion server benchmarks stay wired end to end', () => {
       expect(source, `${generator} imports the resolver`).toContain("from './sources.mjs'");
       expect(source, `${generator} carries its own groupToFile`).not.toMatch(/function groupToFile\(/);
     }
-    // It rides into the benchmark image beside the generator that imports it: a
-    // sibling import there is a hard ERR_MODULE_NOT_FOUND, not a soft miss.
+    // Both ride into the benchmark image beside their importer: a missing sibling there is a hard ERR_MODULE_NOT_FOUND.
     expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
       "'sources.mjs')}:${tsgo}/sources.mjs"
+    );
+    expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
+      "'ops-timer.mjs')}:${tsgo}/ops-timer.mjs"
     );
   });
 
@@ -1847,16 +1894,32 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('the repeatability tolerance reaches the pages from the record', () => {
-    // "The bun lanes are repeatable within N%" is only worth printing if the number comes
-    // from the same place `bench servers repeat` enforces, not from prose someone typed.
-    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    expect(harness).toMatch(/MION_BENCH_TOLERANCE \|\| (\d+)/);
+    // "The rounds land within N%" is only worth printing if the number comes from the
+    // same place `bench servers repeat` enforces, not from prose someone typed.
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    expect(driver).toMatch(/MION_BENCH_TOLERANCE \|\| (\d+)/);
+    expect(driver, 'the merged record no longer carries the tolerance').toContain('mergeRounds(rounds, {tolerance:');
+    expect(driver, 'repeat no longer checks the round spread against the tolerance').toContain(
+      'record.spread > record.tolerance'
+    );
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
     expect(generator).toContain('tolerance');
+    expect(generator, 'the rows lose their per-round numbers').toContain('rounds: (result.rounds');
     const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
     expect(bars).toContain('meta.tolerance');
+    expect(bars, 'the bars no longer show the round spread').toContain('row.spread');
+  });
+
+  it('the harness measures one round and leaves the median to the driver', () => {
+    // The page number is the median of interleaved rounds. A harness that merged on its own,
+    // or wrote the published file, would publish one round as if it were the whole lane.
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness).toContain('roundFile(laneDir(');
+    expect(harness, 'the harness reads the round lengths from env again, not from the driver').not.toMatch(
+      /MION_BENCH_(DURATION|WARMUP)/
+    );
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
-    expect(driver, 'nothing checks a lane against the tolerance it publishes').toContain('MION_BENCH_TOLERANCE');
+    expect(driver).toContain('schedule(lanes, apps)');
   });
 
   it('the sweep caps bytes in flight, so only the biggest payload drops connections', async () => {
@@ -1889,8 +1952,10 @@ describe('mion server benchmarks stay wired end to end', () => {
     const apps = readFileSync(join(BENCH_DIR, 'shared/apps.mjs'), 'utf8');
     expect(apps, 'the mion-only app list came back').not.toContain('MION_APPS');
     expect(driver).not.toContain('MION_APPS');
-    // Both sweep loops (the standalone `sweep` command and the website subset).
-    expect([...driver.matchAll(/for \(const size of SWEEP_SIZES\)/g)].length).toBe(2);
+    // Both sweeps (the standalone `sweep` command and the website subset) run every size.
+    expect(driver).toContain('SWEEP_SIZES.map((size) => ({key:');
+    expect(driver).toContain('runLanes(apps, sweepLanes(), roundRunner(cfg))');
+    expect(driver).toContain('runLanes(APPS, [...suiteLanes(), ...sweepLanes()], roundRunner(cfg))');
     const page = readFileSync(join(MION_CONTENT, '03.benchmarks/02.rpc/04.payload-sizes.md'), 'utf8');
     expect(page, 'the page still claims only mion runs').not.toMatch(/Only the mion adapters/);
   });
@@ -2140,6 +2205,79 @@ describe('platform-bun installs without the compiler', () => {
   });
 });
 
+// The user's function runs on the functions framework, so the adapter only borrows its express types.
+describe('platform-gcloud leaves the functions framework to the user', () => {
+  const gcloud = join(REPO_ROOT, 'packages/platform-gcloud');
+
+  it('declares it as a peer, never a dependency', () => {
+    const pkg = JSON.parse(readFileSync(join(gcloud, 'package.json'), 'utf8'));
+    expect(Object.keys(pkg.dependencies ?? {})).not.toContain('@google-cloud/functions-framework');
+    expect(pkg.peerDependencies?.['@google-cloud/functions-framework']).toBeDefined();
+  });
+
+  it('no published source loads express or the framework at runtime', () => {
+    const files = globSync(['index.ts', 'src/**/*.ts'], {cwd: gcloud});
+    expect(files.length).toBeGreaterThan(1);
+    const offenders = files.filter((file) =>
+      importedModules(join(gcloud, file), true).some(
+        (specifier) => specifier === 'express' || specifier.startsWith('@google-cloud/functions-framework')
+      )
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it('the runtime filter keeps value imports and drops type-only ones', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gcloud-contract-'));
+    const file = join(dir, 'probe.ts');
+    writeFileSync(
+      file,
+      [
+        "import {Request} from 'value-import';",
+        "import {} from 'empty-import';",
+        "import type {Response} from 'type-import';",
+        "import {type Next} from 'inline-type-import';",
+        "export {type Handler} from 'inline-type-export';",
+      ].join('\n')
+    );
+    try {
+      expect(importedModules(file, true)).toEqual(['value-import', 'empty-import']);
+    } finally {
+      rmSync(dir, {recursive: true, force: true});
+    }
+  });
+});
+
+// A peer floor promises what CI proves: the oldest vite any lane installs is the e2e matrix's rolldown-vite.
+describe('devtools vite peer floor matches the oldest tested vite', () => {
+  it('floor major equals the lowest vite major a lane pins', () => {
+    const major = (spec: string): number => Number(/(\d+)\./.exec(spec)?.[1]);
+    const lanes = globSync('container/**/package.json', {cwd: REPO_ROOT, exclude: (name) => name === 'node_modules'})
+      .map((file) => JSON.parse(readFileSync(join(REPO_ROOT, file), 'utf8')))
+      .map((pkg) => pkg.dependencies?.vite ?? pkg.devDependencies?.vite)
+      .filter((spec): spec is string => typeof spec === 'string');
+    const devtools = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/devtools/package.json'), 'utf8'));
+    expect(lanes.length).toBeGreaterThan(0);
+    expect(major(devtools.peerDependencies.vite)).toBe(Math.min(...lanes.map(major)));
+  });
+});
+
+// vite-plugin-dts falls back to the vite outDir when outDirs is missing, so every types entry would break.
+describe('vite-built packages emit their .d.ts where exports point', () => {
+  const configs = globSync('packages/*/vite.config.ts', {cwd: REPO_ROOT}).filter((config) =>
+    readFileSync(join(REPO_ROOT, config), 'utf8').includes('dts(')
+  );
+
+  it('finds the dts-built packages', () => {
+    expect(configs.length).toBeGreaterThan(10);
+  });
+
+  it.each(configs)('%s', (config) => {
+    const outDirs = /\boutDirs:\s*'([^']+)'/.exec(readFileSync(join(REPO_ROOT, config), 'utf8'))?.[1];
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, dirname(config), 'package.json'), 'utf8'));
+    expect(pkg.exports['.'].types).toMatch(new RegExp(`^\\./${outDirs}/`));
+  });
+});
+
 // src/ is not published, so a map that only points at it warns in every consumer's dev server.
 describe('tsc-built packages embed their sources in the published maps', () => {
   it.each(['packages/run-types/tsconfig.build.json', 'packages/devtools/tsconfig.build.json'])('%s', (config) => {
@@ -2227,7 +2365,7 @@ describe('Go build outputs under ts-go-runtypes are ignored', () => {
       'ts-go-runtypes/AGENTS.md',
       'ts-go-runtypes/cmd/mion/main.go',
       'ts-go-runtypes/cmd/mion/testdata/fixture',
-      'ts-go-runtypes/internal/reflection/x.go',
+      'ts-go-runtypes/pkg/reflection/x.go',
     ]) {
       expect(ignored(path), path).toBe(false);
     }

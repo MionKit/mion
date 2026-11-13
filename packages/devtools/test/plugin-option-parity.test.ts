@@ -29,6 +29,8 @@ const JS_ONLY = new Set([
   'onSiteFilesChanged',
   'onGenerate',
   'enrich',
+  // Host code built on the plugin (serve flags, lifecycle hooks), never a project setting.
+  'extensions',
   'jsRuntime',
   // Host bootstrap: unrefs the resolver child so Bun's runtime loader host can
   // exit. Never a project semantic.
@@ -53,7 +55,7 @@ describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {
     expect(
       missingInGo,
       `PluginOptions has project option(s) with no tsRuntypesPlugin json key: ${missingInGo.join(', ')}. ` +
-        'Add them to cmd/mion/config.go (+ `pnpm miondevx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
+        'Add them to pkg/cli/config.go (+ `pnpm miondevx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
     ).toEqual([]);
   });
 

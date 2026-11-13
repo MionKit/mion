@@ -37,7 +37,7 @@ runs:
           mion-bin/.extract-fn-bodies.stamp
         key: ${{ steps.key.outputs.key }}
 
-    # code-digest has its own key, so an internal/ edit never sends the gate (which restores only this) to raw hashing.
+    # code-digest has its own key, so a pkg/ edit never sends the gate (which restores only this) to raw hashing.
     - id: restore-digest
       uses: actions/cache/restore@v4
       with:
@@ -69,10 +69,10 @@ runs:
 
     # setup-go keys only on go.sum, which a tsgolint bump never moves (tsgo deps come via local `replace`).
     # So the key is the tsgolint pin, which also pins typescript-go and its patches.
-    # GOCACHE is content-addressed: our internal/ + cmd/ edits recompile cheaply on the cached tsgo objects.
+    # GOCACHE is content-addressed: our pkg/ + cmd/ edits recompile cheaply on the cached tsgo objects.
     # Each entry embeds its Go version, and website-deploy's arm64 objects must never restore on x64: both are keyed.
     # An exact-key hit never re-saves, so a stale cache never heals; restore-keys stay within one Go version for that.
-    # CACHE SALT (`v2`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
+    # CACHE SALT (`v3`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
     - name: Restore Go build cache (keyed on Go + the tsgolint pin, not our sources)
       if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true' || steps.restore-digest.outputs.cache-hit != 'true'
       uses: actions/cache@v4
@@ -80,9 +80,9 @@ runs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-${{ runner.arch }}-gocache-v2-go${{ steps.go.outputs.go-version }}-${{ hashFiles('ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum') }}-${{ steps.tsgo.outputs.sha }}
+        key: ${{ runner.os }}-${{ runner.arch }}-gocache-v3-go${{ steps.go.outputs.go-version }}-${{ hashFiles('ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum') }}-${{ steps.tsgo.outputs.sha }}
         restore-keys: |
-          ${{ runner.os }}-${{ runner.arch }}-gocache-v2-go${{ steps.go.outputs.go-version }}-
+          ${{ runner.os }}-${{ runner.arch }}-gocache-v3-go${{ steps.go.outputs.go-version }}-
 
     - name: Build the resolver binaries
       if: steps.restore.outputs.cache-hit != 'true'

@@ -16,7 +16,7 @@ function between(source: string, start: string, end: RegExp): string {
 }
 
 function goWireKeys(): string[] {
-  const go = read('ts-go-runtypes/internal/protocol/protocol.go');
+  const go = read('ts-go-runtypes/pkg/protocol/protocol.go');
   const marshal = between(go, 'func (response Response) MarshalJSON()', /\n}\n/);
   const flags = between(go, 'var responseAddedFlags = ', /\n}\n/);
   const keys = new Set<string>();

@@ -13,12 +13,12 @@ code in one file. For example the hand-written render helpers in
 
 ## What's here
 
-| File                                | Generator                                                           | Go source of truth                                                  |
-| ----------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `internal/constants/constants.go`                                   |
-| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `internal/reflection/runtype.go` + `internal/reflection/subkind.go` |
-| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics/messages.go`                                  |
-| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `cmd/mion/config.go` (`tsRuntypesPlugin` json tags)                 |
+| File                                | Generator                                                           | Go source of truth                                        |
+| ----------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `pkg/constants/constants.go`                              |
+| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `pkg/reflection/runtype.go` + `pkg/reflection/subkind.go` |
+| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `pkg/diagnostics` (code rows)                             |
+| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `pkg/cli/config.go` (`tsRuntypesPlugin` json tags)        |
 
 ## Regenerate
 
@@ -31,13 +31,13 @@ pnpm miondevx core codegen all         # every Go→TS mirror in the repo
 ```
 
 The generator list lives in one place — the `CODEGEN` map in
-[`scripts/miondevx.mjs`](../../../../scripts/miondevx.mjs).
+[`scripts/miondevx.mjs`](../../../../../scripts/miondevx.mjs).
 
 ## How they stay in sync with Go
 
 - **Drift gate on every PR:** `pnpm miondevx core codegen all --check` regenerates, formats,
   and `git diff`s the outputs — a stale mirror fails CI
-  ([`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) and
-  [`release-gate.yml`](../../../../.github/workflows/release-gate.yml)).
+  ([`.github/workflows/ci.yml`](../../../../../.github/workflows/ci.yml) and
+  [`release-gate.yml`](../../../../../.github/workflows/release-gate.yml)).
 - **Go-level companion test:** `TestRunTypeKindFileInSync` (`ts-go-runtypes/cmd/gen-run-type-kind`)
   pins the `reflectionKind` values against the same protocol consts as the core mirror.

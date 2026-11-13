@@ -5,7 +5,7 @@
 >   structural node shapes — solution A), the pure-data `createFriendlyText<T>(map)`
 >   renderer, and the `createMockDataFn<T>({ data })` integration — all exported from
 >   `@mionjs/run-types`;
-> - the Go CLI verb `enrich` / `enrich --no-emit` (`ts-go-runtypes/internal/enrichment`, a separate
+> - the Go CLI verb `enrich` / `enrich --no-emit` (`ts-go-runtypes/pkg/enrichment`, a separate
 >   package), incl. **named-type-driven emission** (one `const` per named type) and
 >   the `enrich --no-emit` diagnostics **enrich-text-unknown-field / enrich-text-unknown-error-key / enrich-text-unknown-placeholder / enrich-mock-unknown-field**;
 > - **`enrich --update` reconcile + `enrich --prune`** — a value-preserving merge of an
@@ -184,7 +184,7 @@ interface RTValidationError {
 
 The `rt$errors` key is **`error.format.formatPath.at(-1)`**, and `type` is the base
 type-shape failure (a `RTValidationError` with no `.format`). The Go format emitters
-([`ts-go-runtypes/internal/cachegen/typefunctions/formats/`](../ts-go-runtypes/internal/cachegen/typefunctions/formats/))
+([`ts-go-runtypes/pkg/cachegen/typefunctions/formats/`](../ts-go-runtypes/pkg/cachegen/typefunctions/formats/))
 write one independent `if (fail) push(...)` per constraint, with the constraint
 name and value known at emit time:
 
@@ -242,12 +242,12 @@ both legal in single-locale maps too:
 
 - **Plural templates.** A **count-bearing** constraint (`minLength` / `maxLength` /
   `min` / `max` / `lt` / `gt` — the shared `CountBearing` table in
-  [`ts-go-runtypes/internal/enrichment/classify.go`](../ts-go-runtypes/internal/enrichment/classify.go), read by emitter
+  [`ts-go-runtypes/pkg/enrichment/classify.go`](../ts-go-runtypes/pkg/enrichment/classify.go), read by emitter
   and checker alike so they can never disagree) may carry a plural OBJECT instead
   of a plain string: `minLength: {one: '…', other: '…'}`. Arm keys are CLDR
   cardinal categories; only `other` is mandatory (enrich-text-plural-missing-other); `enrich` scaffolds the arm
   set of the source locale (tsconfig `i18n.sourceLocale`, default `en` — built-in
-  CLDR table in [`ts-go-runtypes/internal/enrichment/cldr/`](../ts-go-runtypes/internal/enrichment/cldr/) covering
+  CLDR table in [`ts-go-runtypes/pkg/enrichment/cldr/`](../ts-go-runtypes/pkg/enrichment/cldr/) covering
   en/es/zh/hi/ar/pt/ru/ja/de/fr/pl, all six categories for any other locale). The
   renderer selects the arm via `Intl.PluralRules` on the **violated bound**
   (`$[val]` — `minLength: 3` pluralizes for 3, NOT the received value's length); a
@@ -381,6 +381,7 @@ per-property overrides — `MockData<T>` is just the typed, validated form of th
 const mockUser: MockData<User> = {
   name:  { pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', /* …50+ */ ] },
   age:   { min: 18, max: 95 },
+  city:  {generator: 'city'},   // a built-in mock generator instead of a pool
   tags:  { rt$items: { pool: ['urgent', 'beta', 'vip'] }, rt$length: [1, 4] },
   profile: {
     email: { pool: ['alice@example.com', 'liang@corp.io', /* … */ ] },
@@ -412,7 +413,7 @@ type MockNode<T, Depth extends number = 8> =
   Depth extends 0                ? { pool?: T[] }                  // budget spent — keep as leaf pool
   : T extends readonly unknown[] ? { rt$items?: MockNode<T[number], _MockDepth[Depth]>; rt$length?: number | [number, number] }
   : T extends number             ? { pool?: number[]; min?: number; max?: number }
-  : T extends string             ? { pool?: string[] }
+  : T extends string             ? { pool?: string[]; generator?: MockGeneratorName }
   : T extends object             ? { [K in keyof T]?: MockNode<T[K], _MockDepth[Depth]>; rt$optional?: number }
   :                                { pool?: T[] };
 
@@ -438,7 +439,7 @@ export type MockData<T> = MockNode<T>;
 `FriendlyText<T>` / `MockData<T>` const declarations, resolves `T`'s `RunType`, and
 runs a **kind-switch paired walk** of the authored object-literal against the
 `RunType` — the emitter convention, in
-[`ts-go-runtypes/internal/enrichment/validate.go`](../ts-go-runtypes/internal/enrichment/validate.go) over a tiny
+[`ts-go-runtypes/pkg/enrichment/validate.go`](../ts-go-runtypes/pkg/enrichment/validate.go) over a tiny
 `LiteralView` adapter (so the checks are unit-testable without a Program). Wired
 diagnostics: **enrich-text-unknown-field, enrich-text-unknown-error-key, enrich-text-unknown-placeholder, enrich-mock-unknown-field** (the others below are deferred).
 
@@ -473,6 +474,7 @@ trigger differs (CLI vs build scan).
 | --------- | -------- | ------ | ----------------------------------------------------------------- |
 | **enrich-mock-unknown-field** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
 | **enrich-mock-reserved-prefix** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
+| **enrich-mock-invalid-generator** | Error    | ✅ `enrich --no-emit` | a `generator` is unknown, sits on a non-string field or a named format, or sits beside a setting that already picks the value (lengths and rejected chars are fitted, never an error) |
 | **enrich-mock-shape-mismatch** | Error    | deferred (TS catches) | structural mismatch                               |
 | **enrich-mock-invalid-pool** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
 | **enrich-mock-inverted-range** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |
@@ -534,7 +536,7 @@ LLM-backed generation.
 
 - **The `enrich` codegen emitter lives in Go.** It walks the `RunType` graph — a giant
   `switch` over `RunType.kind`, the same emitter pattern as
-  [`serialize.go`](../ts-go-runtypes/internal/cachegen/runtype/serialize.go) and the typefns
+  [`serialize.go`](../ts-go-runtypes/pkg/cachegen/runtype/serialize.go) and the typefns
   families — and **emits new mirror files under `genDir` or appends to existing
   ones**. Keeping it Go-side reuses that walk; doing it in JS would mean shipping the graph to Node and
   re-implementing the kind-switch — duplicating the emitter for nothing. Because
@@ -1032,14 +1034,14 @@ production graph. No special registration-gating mechanism required.
   cross-file `import type` / value imports) **requires** `declFile` (+ `declName`) on
   the resolved type — not deferred. The binary already reads this internally
   (`symbol.Declarations → GetSourceFileOfNode()`; `declarationPos` in
-  [`serialize.go`](../ts-go-runtypes/internal/cachegen/runtype/serialize.go)) but does not serialize
+  [`serialize.go`](../ts-go-runtypes/pkg/cachegen/runtype/serialize.go)) but does not serialize
   it — it's the "location" slot the protocol reserves but never populates.
 - **`$[val]` enrichment.** `format.val` is overloaded — the param for
   numeric/length constraints, a pre-baked *message* for `pattern`/`allowedChars`,
   *absent* for date bounds. For `$[val]` to resolve uniformly to the declared
   bound, always carry the raw param value and stop overloading `val` with messages.
   A small, localized change to the format-error emit in
-  [`ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go`](../ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go).
+  [`ts-go-runtypes/pkg/cachegen/typefunctions/formats/emit.go`](../ts-go-runtypes/pkg/cachegen/typefunctions/formats/emit.go).
 - **No new emit family.** Unlike `validate`/`json`, this feature adds **no**
   runtime codegen and nothing on the hot Vite path. The `enrich` skeleton emitter is a
   one-shot CLI walk; there is no per-build emitter, no id-routing, and no registry.

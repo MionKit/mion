@@ -73,7 +73,10 @@ jobs:
   # false} means "cannot tell", which MUST run the lane — never skip on doubt.
   decide:
     name: should the lane run
-    needs: lanes
+    needs: [lanes, drizzle-wait]
+    # After the waiter, so a lane the older run proves needs no answer and no full-history checkout.
+    # Unlabelled and not into prod, drizzle-e2e.mjs always answers no, so it is not asked.
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run && (contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') || github.base_ref == 'prod') }}
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
@@ -200,9 +203,6 @@ jobs:
         with:
           remote: ghcr.io/mionkit/mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:latest
           local-tag: mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:dev
-          # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
-          # them, the PAT (read:packages) is not.
-          password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script that runs locally, so they cannot
       # drift.
       - name: Translate drizzle's suites and run them

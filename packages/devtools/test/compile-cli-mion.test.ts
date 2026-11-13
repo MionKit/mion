@@ -7,34 +7,19 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
+import {CLIENT_DTS, ROUTES as ROUTES_TS} from './helpers/batchFixture.ts';
 
 const register = hasBinary() ? it : it.skip;
 
-const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: {[I in keyof P]: P[I] | InputFromRef<any>}) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F extends (...args: any) => any> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`;
 const ROUTER_DTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
 }
 `;
-const ROUTES_TS = `import {initClient} from '@mionjs/client';
-export type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}};
-  orders: {getById: (id: number) => {id: number}};
-};
-export const {routes} = initClient<Routes>();
-`;
+
 const CLIENT_TS = `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
 const user = routes.users.getById(1);
-export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);
+export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id).asArg())]);
 `;
 const SERVER_TS = `import {createMionRouter} from '@mionjs/router';
 export const mion = createMionRouter();

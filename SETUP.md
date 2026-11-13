@@ -140,7 +140,7 @@ Some of what it drops is expensive to regenerate (the playground WASM needs a co
 ## Test
 
 ```bash
-go -C ts-go-runtypes test ./internal/...        # Go suite
+go -C ts-go-runtypes test ./pkg/...        # Go suite
 pnpm test                                       # all JS packages (Vitest projects)
 pnpm miondevx core test-pr [--base <ref>]       # only what the branch changed + its dependents
 pnpm --filter @mionjs/devtools test         # single package
@@ -269,7 +269,7 @@ Notes:
 
 - **PAT scope:** push needs `write:packages` (pull of a private image needs `read:packages`). For pushing to the **org** namespace (`ghcr.io/mionkit/…`) use a **classic** PAT authorized for the MionKit org via SSO — fine-grained tokens need the org to opt in to package writes. If an org push is denied, publish under your personal namespace with `GHCR_OWNER=<you>`.
 - **Multi-arch on an arm64 Mac:** the `linux/amd64` half builds under QEMU emulation (slower); a local `build-image` is always pinned to the host arch so it runs native. The image pre-compiles typia's native ttsc plugin at build time and bakes it under `node_modules/.cache/ttsc`, so no benchmark run pays that compile.
-- **Visibility:** the GHCR package is **private by default**. Make it public (or grant the repo read access) so CI / other hosts can pull without authenticating. The image carries an `org.opencontainers.image.source` label so the package links to this repo.
+- **Visibility:** the GHCR package is **private by default**. CI pulls with the job's `GITHUB_TOKEN`, no PAT: each package must list this repo with **Read** under Package settings → **Manage Actions access**. The image carries an `org.opencontainers.image.source` label so the package links to this repo.
 
 ---
 
@@ -320,7 +320,7 @@ pnpm run commit                # commitizen — interactive prompt for a conform
 
 [CHANGELOG.md](CHANGELOG.md) is curated by hand, one release at a time. The [release skill](.agents/skills/release-to-prod/bump.md) generates only the new release's section with [git-cliff](https://git-cliff.org) (per [`cliff.toml`](cliff.toml)), edits it, and inserts it above the previous release. Never regenerate the whole file: that erases the hand-written intros of past releases.
 
-> **That step needs the `git-cliff` binary on `PATH`** (`brew install git-cliff`, `cargo install git-cliff`, or a prebuilt release). git-cliff is deliberately **not** an npm dependency: the workspace blocks dependency install scripts (`ignoreScripts`), so a postinstall binary downloader could not run. The GitHub Release notes need no local binary: CI generates them (see [Publishing](#publishing)).
+> **That step needs the `git-cliff` binary on `PATH`** (`brew install git-cliff`, `cargo install git-cliff`, or a prebuilt release). git-cliff is deliberately **not** an npm dependency: the workspace blocks dependency install scripts (`ignoreScripts`), so a postinstall binary downloader could not run. The GitHub Release needs no local binary: CI copies the curated section as its body (see [Publishing](#publishing)).
 
 ---
 
@@ -330,9 +330,9 @@ pnpm run commit                # commitizen — interactive prompt for a conform
 
 ```bash
 printf '%s\n%s\n' \
-  '{"op":"scanFiles","files":["ts-go-runtypes/internal/testfixtures/f17_runtype_id.ts"]}' \
+  '{"op":"scanFiles","files":["ts-go-runtypes/pkg/testfixtures/f17_runtype_id.ts"]}' \
   '{"op":"dump"}' \
-  | mion-bin/mion serve --tsconfig ts-go-runtypes/internal/testfixtures/tsconfig.json \
+  | mion-bin/mion serve --tsconfig ts-go-runtypes/pkg/testfixtures/tsconfig.json \
   > cache.json
 ```
 
@@ -354,7 +354,13 @@ printf '%s\n%s\n' \
 
 ### Pointing a consumer project at a specific binary (`MION_BIN`)
 
-Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` resolves the per-platform `@mionjs/native-compiler-<os>-<arch>` package. **`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
+Outside this repo, `@mionjs/bin-compiler`'s `getExePath()` takes the first match:
+
+1. `MION_BIN`.
+2. The pro launcher, an installed `@mionkit/pro-bin-compiler`. Its `mionVersion` must equal `@mionjs/bin-compiler`'s version, or the lookup throws. It is looked for in `node_modules` from the working directory up to the project's workspace root. One installed above the project is ignored, and a Yarn Plug'n'Play install is not found.
+3. The per-platform `@mionjs/native-compiler-<os>-<arch>` package.
+
+**`MION_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
 
 ```bash
 MION_BIN=/abs/path/to/mion pnpm run lint     # in the consumer project
@@ -362,7 +368,7 @@ MION_BIN=/abs/path/to/mion pnpm run lint     # in the consumer project
 
 Use it to validate an **unpublished** build in a real consumer (packing `RunTypes/{core,devtools,bin}` as `file:` tarballs leaves no platform package to resolve, so the lint lane would otherwise fail), to bisect a resolver regression without editing `node_modules`, or to run a binary delivered out-of-band. A value that is missing, not a file, or not executable throws — a typo never falls through to a different binary.
 
-A lint config can pin the same thing without an env var: **`settings.mion.binary`** (alongside `timeoutMs` and `tsconfig`) in `.oxlintrc.json` / `eslint.config.js`. It **wins over `MION_BIN`**, mirroring the bundler lane where an explicit `binary` option beats the launcher, so the full order is `settings.mion.binary` → plugin `binary` option → `MION_BIN` → in-repo dev binary → platform package. A configured path that is not there fails the lint run naming the setting. Any OTHER key under `settings.mion` (a typo, say) is ignored, with one warning per run on stderr.
+A lint config can pin the same thing without an env var: **`settings.mion.binary`** (alongside `timeoutMs` and `tsconfig`) in `.oxlintrc.json` / `eslint.config.js`. It **wins over `MION_BIN`**, like an explicit `binary` option in the bundler plugins. Full order: `settings.mion.binary` → plugin `binary` option → `MION_BIN` → pro launcher → in-repo dev binary → platform package. A configured path that is not there fails the lint run naming the setting. Any OTHER key under `settings.mion` (a typo, say) is ignored, with one warning per run on stderr.
 
 > ⚠️ The resolver's version folds into every typeId, so an override of a different version produces cache entries that diverge from a normal install. Clear `node_modules/.cache/ts-runtypes` when switching back.
 
@@ -410,7 +416,7 @@ pnpm miondevx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
 pnpm miondevx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
 ```
 
-It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `mion-bin/mion`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/bin-compiler/package.json](packages/bin-compiler/package.json), and runs the full `go test ./internal/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
+It fetches, checks out the target, advances the nested `typescript-go`, re-applies the shim patches that ship with that revision, rebuilds `mion-bin/mion`, writes [ts-go-runtypes/tsgolint.pin.json](ts-go-runtypes/tsgolint.pin.json) + the `tsgo` metadata field in [packages/bin-compiler/package.json](packages/bin-compiler/package.json), and runs the full `go test ./pkg/...` + `pnpm test` gate. It **never commits, tags, or pushes** — it prints the `git add … && git commit` line to land it (plus a one-line bump-back to revert). Nothing is committed, so a failed bump is always safe to discard.
 
 The one step that can fail is patch re-application: the patches live inside the tsgolint repo and travel with the pinned rev, so they normally match the `typescript-go` they ship with, but if upstream drifted the command stops with the `git apply --3way --reject` recovery flow (see [Patching](#patching-tsgolints-typescript-go) below).
 
@@ -470,7 +476,7 @@ pnpm miondevx release npm         # interactive: version -> build binaries -> pu
 4. [`scripts/release/build-binaries.mjs`](scripts/release/build-binaries.mjs) — cross-compiles the 7-platform matrix and stages `@mionjs/native-compiler-*` + the launcher (its `optionalDependencies` filled, pinned exact-equal) under `dist-binaries/`. (`--host-only` builds just this machine's platform; the drizzle-e2e workflow uses it, a release never does.)
 5. Prompts for npm OTP, then publishes the platform packages **first** and the launcher **last** (so the launcher never references a not-yet-published optional dep), then `pnpm publish` for the two FE packages (`@mionjs/bin-compiler` is already live by then). `pnpm publish` rewrites their `workspace:*` deps to concrete versions, exactly like the CI pack path.
 
-**Changelog & GitHub Release.** Add the new release's section to [CHANGELOG.md](CHANGELOG.md) in the release PR, following the [release skill](.agents/skills/release-to-prod/bump.md). When the release PR lands on `prod`, [`.github/workflows/publish.yml`](.github/workflows/publish.yml) stages every package to npm (via `NPM_TOKEN` — see below), pushes the `v<version>` tag, then generates that tag's notes with [`orhun/git-cliff-action`](https://github.com/orhun/git-cliff-action) and creates the matching **GitHub Release**. The committed file and the Release notes are produced from the same [`cliff.toml`](cliff.toml).
+**Changelog & GitHub Release.** Add the new release's section to [CHANGELOG.md](CHANGELOG.md) in the release PR, following the [release skill](.agents/skills/release-to-prod/bump.md). When the release PR lands on `prod`, [`.github/workflows/publish.yml`](.github/workflows/publish.yml) stages every package to npm (via `NPM_TOKEN` — see below), pushes the `v<version>` tag, then publishes the matching **GitHub Release**. Its body is that version's curated CHANGELOG.md section, printed by [`miondevx release notes <version>`](scripts/release/release-notes.mjs). A missing section fails the release PR's `version-fresh` check, and publish.yml again before anything is staged.
 
 Unpublish a bad release:
 
@@ -500,7 +506,7 @@ If the queue can't be read automatically (not logged in, npm too old), the helpe
 
 **Deploy the docs site.** Staging means "`publish-npm` finished" ≠ "packages live", so the deploy is a separate workflow ([`website-deploy.yml`](.github/workflows/website-deploy.yml), `workflow_dispatch`, `environment: production`) that must run only after the stage-ids are approved. `stage-approve` dispatches it automatically once npm serves the freshly-approved version (a fresh publish lags a little on the registry CDN, so it polls before dispatching; `--no-deploy` skips, `--deploy-only` re-fires a skipped or failed dispatch). The manual path remains as fallback: **Actions → prod · deploy website → Run workflow**, selecting **`prod`** or **`main`** — the deploy pins `--branch=prod` (the Cloudflare Pages production branch), so both refs ship the same live site and the ref decides only which tree gets built. The workflow refuses any other ref. The site builds from the repo (not from an installed npm version), so the optional `version` input is for the run log only. A pre-build guard ([`miondevx release verify-live`](scripts/release/verify-live.mjs)) aborts the deploy unless the checked-out tree matches the **live** npm release (all `RunTypes/*` packages, in lockstep) — so a deploy dispatched from a `main` carrying an unreleased bump, or from `prod` before the stage-ids are approved, fails fast instead of shipping docs for a version nobody can install yet.
 
-**Rehearse the deploy before a release.** Dispatch the same workflow with **`dry_run`** ticked, from `main` or `prod`. It skips the `verify-live` guard (nothing needs to be live yet) and the Cloudflare upload, and runs everything else: the image pulls with `GHCR_PAT`, the full site build, the `website check --static` gate, the artifact upload, and a read-only `wrangler pages deployment list` that fails unless `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and the project name all line up. Run it before any release that is the first in a while: a green dry run means the real deploy can only fail at the upload itself.
+**Rehearse the deploy before a release.** Dispatch the same workflow with **`dry_run`** ticked, from `main` or `prod`. It skips the `verify-live` guard (nothing needs to be live yet) and the Cloudflare upload, and runs everything else: the image pulls, the full site build, the `website check --static` gate, the artifact upload, and a read-only `wrangler pages deployment list` that fails unless `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and the project name all line up. Run it before any release that is the first in a while: a green dry run means the real deploy can only fail at the upload itself.
 
 **Shipping a docs-only fix between releases.** `main` is a valid deploy ref precisely so a docs or benchmark fix can go live without cutting a version: land it on `main`, leave `version.json` alone, and dispatch the deploy against **`main`**. `verify-live` still passes (the tree's version is the one already live), `publish.yml` never runs (nothing is pushed to `prod`), and no bump or promotion is involved. Do NOT reach for a `main → prod` merge to ship docs — a push to `prod` starts the release train.
 
@@ -515,7 +521,7 @@ CI runs Node 26; staged publishing needs npm **≥ 11.15.0**. The `publish-npm` 
 **Cutting a release (after the bootstrap).** The whole flow is driven end-to-end by the **[release-to-prod skill](.agents/skills/release-to-prod/)** — an agent opens the PRs, watches CI, and fixes failures forward; a maintainer reviews and clicks the merges. The shape:
 
 1. **Bump PR into `main`.** On a branch: `pnpm miondevx release bump <patch|minor|major|X.Y.Z>` ([`bump-version.mjs`](scripts/release/bump-version.mjs) writes `version.json` + every `package.json` and commits `chore(release): v<version>`; delete the local tag it creates — CI tags the `prod` commit itself). Curate `CHANGELOG.md` into the same commit. Lands on `main` via the normal rebase-merge.
-2. **Cut `release/vX.Y.Z` from the bumped `main`, then open the release PR from it into `prod`:** `git fetch origin main && git branch release/vX.Y.Z origin/main && git push -u origin release/vX.Y.Z`, then `gh pr create --base prod --head release/vX.Y.Z --title "release: vX.Y.Z"`. The branch is a frozen prefix of `main` (a snapshot, not a live view), so the release scope is fixed at the cut point. [`pre-publish.yml`](.github/workflows/pre-publish.yml) runs the full gate, a `version-fresh` check (red if `version.json` is already live on npm), and `main-ancestor` (red unless the head is an ancestor of `origin/main`). To pull in a fix, land it on `main` first, then re-cut the branch forward: `git branch -f release/vX.Y.Z origin/main && git push --force-with-lease origin release/vX.Y.Z`. Never author a commit on the release branch, and never cherry-pick onto it.
+2. **Cut `release/vX.Y.Z` from the bumped `main`, then open the release PR from it into `prod`:** `git fetch origin main && git branch release/vX.Y.Z origin/main && git push -u origin release/vX.Y.Z`, then `gh pr create --base prod --head release/vX.Y.Z --title "release: vX.Y.Z"`. The branch is a frozen prefix of `main` (a snapshot, not a live view), so the release scope is fixed at the cut point. [`pre-publish.yml`](.github/workflows/pre-publish.yml) runs the full gate, a `version-fresh` check (red if `version.json` is already live on npm, or CHANGELOG.md has no section for it), and `main-ancestor` (red unless the head is an ancestor of `origin/main`). To pull in a fix, land it on `main` first, then re-cut the branch forward: `git branch -f release/vX.Y.Z origin/main && git push --force-with-lease origin release/vX.Y.Z`. Never author a commit on the release branch, and never cherry-pick onto it.
 3. **Merge with "Create a merge commit" — never rebase, never squash.** `prod` must advance only by true merge commits of `main`; a rebase/squash breaks the shared ancestry and the next release PR stops being mergeable. [`publish.yml`](.github/workflows/publish.yml)'s first job (`merge-shape`) fails fast on a wrong-method merge and prints the recovery (an empty `main → prod` re-merge PR).
 4. `publish.yml` runs the gate again, then **stages** every package to npm (with `NPM_TOKEN`) and tags the release on `prod`. Delete the frozen branch once the tag exists: `git push origin --delete release/vX.Y.Z`.
 5. Approve the staged packages with 2FA, leaves-first: `pnpm miondevx release stage-approve` (one OTP prompt, reused while its window lasts). Run it from an up-to-date `main`: it refuses a checkout whose `version.json` differs from prod's. Once npm serves the new version, it **auto-dispatches the website deploy**.
@@ -571,7 +577,7 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 | `pnpm run typecheck` errors "cannot find project" / missing reference | New package missing from root `tsconfig.json` `references`            | Add the package path to the root `tsconfig.json`.                                                                              |
 | oxlint fails to load with `Plugin 'runtypes' not found`        | Stale/missing `@mionjs/devtools` dist (the `jsPlugins` entry)              | Rebuild it: `pnpm --filter @mionjs/devtools run build` (or `pnpm run check:builds`).                                          |
 | Husky hook not firing                                          | Hooks never wired (`ignoreScripts: true` blocks `prepare` on install)       | `pnpm exec husky` once per clone.                                                                                              |
-| `git-cliff: command not found` while writing a release's changelog section | git-cliff binary not installed (deliberately not an npm dep) | `brew install git-cliff` (or `cargo install git-cliff` / a prebuilt release). GitHub Release notes don't need it: CI uses `orhun/git-cliff-action`. |
+| `git-cliff: command not found` while writing a release's changelog section | git-cliff binary not installed (deliberately not an npm dep) | `brew install git-cliff` (or `cargo install git-cliff` / a prebuilt release). GitHub Release notes don't need it: CI copies the curated CHANGELOG.md section. |
 | Commit rejected by `commit-msg` hook                           | Message is not a valid Conventional Commit                                  | Re-commit with `type(scope): summary`, or run `pnpm run commit` for an interactive prompt.                                     |
 | `podman machine start` fails with `vfkit exited unexpectedly`  | Rosetta 2 missing on Apple Silicon                                          | `softwareupdate --install-rosetta --agree-to-license`, then re-run `podman machine start`.                                     |
 | `@mionjs/devtools` container build fails with garbled errors | Host-arch Go binary mounted into a Linux container                        | The bench script auto-cross-compiles `mion-bin/mion-linux-<arch>`; force a refresh with `pnpm miondevx bench prep`.           |

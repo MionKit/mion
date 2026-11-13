@@ -13,6 +13,7 @@ import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {RunType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
+import {GEN} from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
 // Side-effect import: registers the per-kind format mock fns (without it every
 // format mocks as a plain random string). Also needed by the plugin block below.
@@ -123,5 +124,29 @@ describe('both createMockDataFn call shapes are seed-deterministic and converge'
     const viaStatic = createMockDataFn<Point>(undefined, {mock: {seed: 555}})();
     const viaValue = createMockDataFn(sample, {mock: {seed: 555}})();
     expect(viaStatic).toEqual(viaValue);
+  });
+});
+
+describe('seeded mocks: generators', () => {
+  const person = RT.object({
+    name: TF.string({generator: GEN.fullName}),
+    email: TF.string({generator: GEN.email}),
+    phone: TF.string({generator: GEN.phoneNumber}),
+    bio: TF.string({generator: GEN.loremIpsum, maxLength: 60}),
+  });
+
+  it('the same seed reproduces the same values', () => {
+    expect(gen(person, 3)).toEqual(gen(person, 3));
+    expect(gen(person, 3)).not.toEqual(gen(person, 4));
+  });
+
+  it('a seed pins every generator draw', () => {
+    // Reordering any generator's draws changes these values: update them only for a deliberate change.
+    expect(gen(person, 42)).toEqual({
+      name: 'Isabel Bailey',
+      email: 'snowy_claire@proton.me',
+      phone: '+31783588830',
+      bio: 'Blandit mauris bibendum sit sollicitudin non non a in a a a.',
+    });
   });
 });

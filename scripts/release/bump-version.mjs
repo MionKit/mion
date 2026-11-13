@@ -21,6 +21,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, rootPeerRangeFor, unreleasedChanges} from '../lib/drizzle-line.mjs';
 import {writeJsonKeepingIndent as writeJson} from '../lib/json-file.mjs';
+import {lockstepManifestFiles} from '../lib/workspace-dirs.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VERSION_FILE = path.join(REPO_ROOT, 'version.json');
@@ -104,27 +105,19 @@ function main() {
 
   const manifest = readJson(VERSION_FILE);
   const version = nextVersion(manifest.version, bump);
-  // Planned first: a drizzle-line violation must abort before any file is written.
+  // Planned first: a drizzle-line violation or an unreadable workspace list must abort before any file is written.
   const drizzlePlan = planDrizzleLine(version);
+  const lockstepFiles = lockstepManifestFiles(REPO_ROOT);
 
   // version.json is the source of truth (read by build-binaries.mjs + CI).
   manifest.version = version;
   writeJson(VERSION_FILE, manifest);
   const edited = [path.relative(REPO_ROOT, VERSION_FILE)];
 
-  // Every workspace package.json + the root, so the lockstep stays exact. The
-  // The @mionjs/bin-compiler bump is load-bearing: pnpm writes that concrete version into
-  // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
-  // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
-  // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)
-  // and are never stamped here.
-  const dirs = [REPO_ROOT, ...fs.readdirSync(path.join(REPO_ROOT, 'packages')).map((name) => path.join(REPO_ROOT, 'packages', name))];
-  for (const dir of dirs) {
-    const file = path.join(dir, 'package.json');
-    if (!fs.existsSync(file)) continue;
+  // The @mionjs/bin-compiler bump is load-bearing: pnpm packs that version into @mionjs/devtools' workspace:* dep.
+  // drizzle-orm line packages are never stamped: <drizzle major.minor>.<own patch>, see check-drizzle-versions.mjs.
+  for (const file of lockstepFiles) {
     const pkg = readJson(file);
-    if (!('version' in pkg)) continue;
-    if (pkg.versionLine === 'drizzle-orm') continue;
     pkg.version = version;
     writeJson(file, pkg);
     edited.push(path.relative(REPO_ROOT, file));

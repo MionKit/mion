@@ -13,11 +13,12 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
 import {getExePath} from '@mionjs/bin-compiler';
-import {Family, Level, Severity, type Diagnostic} from '../core/protocol.ts';
+import {Family, Level, Severity, type Capabilities, type Diagnostic} from '../core/protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../core/resolver-client.ts';
 import {
   LINT_RESOLVER_OPTIONS,
   WAKE_INDEX,
+  type LintWorkerCapabilitiesRequest,
   type LintWorkerData,
   type LintWorkerRequest,
   type LintWorkerResponse,
@@ -51,6 +52,7 @@ if (process.env.MION_LINT_PRESPAWN !== '0') {
 parentPort?.postMessage({shimReady: true});
 
 let connection: ResolverConnection | null = null;
+let capabilitiesSent = false;
 
 // resolveConfiguredBinary checks the path up front so a typo reports as a config mistake naming the setting, not
 // an opaque spawn failure. Never falls back to another binary, whose version would key caches differently.
@@ -65,6 +67,7 @@ function resolveConfiguredBinary(binary: string): string {
 // The connection is long-lived, so the first request's tsconfig and binary fix the options for every later file.
 async function ensureConnection(tsconfig: string, binary: string): Promise<ResolverConnection> {
   if (connection) return connection;
+  capabilitiesSent = false;
   // getExePath honours MION_BIN.
   // An unset tsconfig is discovered as tsc does, with its FULL options, so lint type-checks like the build.
   // Single-threaded: one file at a time, and a light child keeps editor/CI hosts under process and memory limits.
@@ -97,14 +100,21 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       scanned = vue?.virtualFile ?? request.file;
       const rel = path.relative(process.cwd(), scanned) || scanned;
       await resolver.setSources({[rel]: vue?.text ?? request.text});
-      const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
+      const capabilities = await resolver.capabilities();
+      const ext = Object.fromEntries(capabilities.scanChecks.map((check) => [check.name, true]));
+      const result = await resolver.scanFiles([rel], {
+        checkEnrich: true,
+        checkRouterRules: true,
+        includeRtDiagnostics: true,
+        ext,
+      });
       // The resolver runs the JS engine for format-* verdicts; the worker must not recheck them.
       let diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       if (vue)
         diagnostics = diagnostics.flatMap((diagnostic) =>
           anchoredIn(diagnostic, scanned) ? (vue.toVue(diagnostic) ?? []) : [diagnostic]
         );
-      return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
+      return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors, ...firstCapabilities(capabilities)};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // The import gate can admit JavaScript excluded by allowJs.
@@ -138,8 +148,30 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
   }
 }
 
-requests.on('message', (request: LintWorkerRequest) => {
-  void lintOne(request).then((response) => {
+// The capabilities ride only the first response of a connection: the rule thread registers them once.
+function firstCapabilities(capabilities: Capabilities): {capabilities?: Capabilities} {
+  if (capabilitiesSent) return {};
+  capabilitiesSent = true;
+  return {capabilities};
+}
+
+async function answerCapabilities(request: LintWorkerCapabilitiesRequest): Promise<LintWorkerResponse> {
+  try {
+    const resolver = await ensureConnection(request.tsconfig ?? '', request.binary ?? '');
+    const capabilities = await resolver.capabilities();
+    capabilitiesSent = true;
+    return {seq: request.seq, capabilities};
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    connection?.close();
+    connection = null;
+    return {seq: request.seq, error: message, fatal: true};
+  }
+}
+
+requests.on('message', (request: LintWorkerRequest | LintWorkerCapabilitiesRequest) => {
+  const answer = 'capabilities' in request ? answerCapabilities(request) : lintOne(request);
+  void answer.then((response) => {
     requests.postMessage(response);
     // Wake the rule thread AFTER the response is queued on the port.
     Atomics.store(signal, WAKE_INDEX, response.seq);

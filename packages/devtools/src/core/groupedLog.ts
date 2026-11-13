@@ -1,8 +1,8 @@
 // The grouped log: each diagnostic name once with its message, then one line per site. Twin of
-// internal/diagnostics/grouped.go; testdata/grouped/cases.json there pins both to the same bytes.
+// pkg/diagnostics/grouped.go; testdata/grouped/cases.json there pins both to the same bytes.
 
 import path from 'node:path';
-import {DIAGNOSTIC_CATALOG, fillSlots, renderHeadline} from './diagnosticCatalog.ts';
+import {catalogEntry, fillSlots, renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from './downgradeErrors.ts';
 import {Severity, type Diagnostic, type DiagnosticSite} from './protocol.ts';
 import type {GroupedEntry} from './types.ts';
@@ -24,7 +24,7 @@ interface Group {
 }
 
 export function entryOf(diagnostic: Diagnostic, downgraded: boolean): GroupedEntry {
-  const entry = DIAGNOSTIC_CATALOG[diagnostic.code];
+  const entry = catalogEntry(diagnostic.code);
   return {
     severity: downgraded ? Severity.Warning : diagnostic.severity,
     name: diagnostic.code,

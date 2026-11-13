@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
 )
 
 // TestPluginKeysFileInSync asserts the committed TS mirror matches what the

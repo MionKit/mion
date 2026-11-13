@@ -8,7 +8,7 @@
 //
 // Lives in this package for the same reason as release-receipt.test.ts: scripts/
 // has no vitest project of its own.
-import {execFileSync} from 'node:child_process';
+import {execFileSync, spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
@@ -17,6 +17,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import * as drizzleLine from '../../../scripts/lib/drizzle-line.mjs';
 
 const {
+  corePeerProblems,
   isPublishedFile,
   isTrackedSource,
   lockstepVersion,
@@ -98,6 +99,41 @@ describe('drizzle line — what version comes next', () => {
   it('floors a dialect peer on the core at the core version it is released with', () => {
     expect(rootPeerRangeFor('0.45.2')).toBe('>=0.45.2 <0.46.0');
     expect(rootPeerRangeFor('0.46.0')).toBe('>=0.46.0 <0.47.0');
+  });
+
+  const dialect = (peer: string | undefined, extra: Record<string, unknown> = {}) => ({
+    name: '@mionjs/dialect',
+    peerDependencies: peer === undefined ? {} : {'@mionjs/drizzle-orm': peer},
+    devDependencies: {'@mionjs/drizzle-orm': 'workspace:*'},
+    ...extra,
+  });
+
+  it('accepts a dialect core peer on the line that admits the core, the shape bump-version writes', () => {
+    expect(corePeerProblems(dialect(rootPeerRangeFor('0.45.1')), '0.45.1')).toEqual([]);
+    // A core patch released without republishing the dialect still satisfies its older floor.
+    expect(corePeerProblems(dialect('>=0.45.0 <0.46.0'), '0.45.3')).toEqual([]);
+  });
+
+  it('rejects a pinned, missing, off-line or too-high dialect core peer', () => {
+    for (const [peer, core] of [
+      ['0.45.1', '0.45.1'],
+      [undefined, '0.45.1'],
+      ['^0.45.1', '0.45.1'],
+      ['>=0.44.0 <0.45.0', '0.45.1'],
+      ['>=0.45.0 <0.47.0', '0.45.1'],
+      ['>=0.44.0 <0.46.0', '0.45.1'],
+      ['>=1.45.0 <0.46.0', '0.45.1'],
+      ['>=0.45.0 <1.46.0', '0.45.1'],
+      ['>=0.45.2 <0.46.0', '0.45.1'],
+    ] as const) {
+      expect(corePeerProblems(dialect(peer), core), `${peer} vs core ${core}`).toHaveLength(1);
+    }
+  });
+
+  it('rejects the core as a runtime dependency or a non-workspace devDependency', () => {
+    const peer = '>=0.45.0 <0.46.0';
+    expect(corePeerProblems(dialect(peer, {dependencies: {'@mionjs/drizzle-orm': '0.45.1'}}), '0.45.1')).toHaveLength(1);
+    expect(corePeerProblems(dialect(peer, {devDependencies: {'@mionjs/drizzle-orm': '0.45.1'}}), '0.45.1')).toHaveLength(1);
   });
 });
 
@@ -250,6 +286,37 @@ describe('drizzle line — the tree itself', () => {
       // Kept resolvable in the workspace, and dev deps never reach a consumer.
       expect(row.pkg.devDependencies?.['@mionjs/run-types']).toBe('workspace:*');
     }
+  });
+
+  it('takes @mionjs/drizzle-orm as a ranged peer that admits the core in the tree', () => {
+    const rows = readDialectPackages(REPO_ROOT);
+    const core = rows.find((row: {dialect: string}) => row.dialect === 'root').pkg.version;
+    for (const row of rows.filter((row: {dialect: string}) => row.dialect !== 'root')) {
+      expect(corePeerProblems(row.pkg, core)).toEqual([]);
+    }
+  });
+
+  it('fails the CI gate on a tree whose dialect pins its core peer', () => {
+    const root = scratch('drizzle-gate-');
+    const copy = (relPath: string) => write(root, relPath, readFileSync(join(REPO_ROOT, relPath), 'utf8'));
+    copy('drizzle-dialects.json');
+    copy('version.json');
+    copy('node_modules/drizzle-orm/package.json');
+    const installed = JSON.parse(readFileSync(join(root, 'node_modules/drizzle-orm/package.json'), 'utf8')).version;
+    for (const row of readDialectPackages(REPO_ROOT)) {
+      const pkg =
+        row.dialect === 'pg'
+          ? {...row.pkg, peerDependencies: {...row.pkg.peerDependencies, '@mionjs/drizzle-orm': '0.45.2'}}
+          : row.pkg;
+      write(root, `${row.packageDir}/package.json`, JSON.stringify(pkg));
+      write(root, `${row.packageDir}/${row.manifest}`, JSON.stringify({drizzleOrm: installed}));
+    }
+    const gate = spawnSync('node', [join(REPO_ROOT, 'scripts/release/check-drizzle-versions.mjs'), '--root', root], {
+      encoding: 'utf8',
+    });
+    expect(gate.status).toBe(1);
+    expect(gate.stderr).toContain('@mionjs/drizzle-orm-pg-core: @mionjs/drizzle-orm peer must be');
+    expect(gate.stderr.match(/^  - /gm)).toHaveLength(1);
   });
 });
 

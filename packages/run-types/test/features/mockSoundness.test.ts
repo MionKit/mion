@@ -85,6 +85,8 @@ describe('mock soundness — validate(mock()) holds or fails loudly', () => {
     }
 
     type Impossible = StringFormat<{minLength: 5; pattern: {source: '^b+$'; flags: ''; mockSamples: ['b', 'bb']}}>;
+    // The build reports this at the mock site too; downgraded to pin the run-time throw behind it.
+    // @mion-downgrade-error format-sample-out-of-bounds
     const mockImpossible = createMockDataFn<Impossible>();
     expect(() => mockImpossible()).toThrow(/`mockSamples` compatible with the length bounds/);
   });
@@ -132,5 +134,74 @@ describe('mock data never draws a stripped union member', () => {
     const isValid = createValidateFn(sample);
     const mock = createMockDataFn(sample);
     for (let i = 0; i < 30; i++) expect(isValid(mock())).toBe(true);
+  });
+});
+
+describe('mock sample lengths count code points, as the validator does', () => {
+  // `💩💩` is two code points but four UTF-16 units: the build keeps it under maxLength 2, so the mock must too.
+  type Emoji = StringFormat<{maxLength: 2; mockSamples: ['💩💩', '✓']}>;
+
+  it('keeps an astral sample inside the bounds (static)', () => {
+    const isValid = createValidateFn<Emoji>();
+    const mock = createMockDataFn<Emoji>();
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const value = mock();
+      expect(isValid(value)).toBe(true);
+      seen.add(value);
+    }
+    expect(seen.has('💩💩')).toBe(true);
+  });
+
+  it('keeps an astral sample inside the bounds (value)', () => {
+    const sample = '✓' as Emoji;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const value = mock();
+      expect(isValid(value)).toBe(true);
+      seen.add(value);
+    }
+    expect(seen.has('💩💩')).toBe(true);
+  });
+});
+
+describe('mock soundness: generators', () => {
+  type Profile = {
+    name: StringFormat<{maxLength: 12; generator: 'fullName'}>;
+    tag: StringFormat<{allowedChars: {val: 'abcdefghijklmnopqrstuvwxyz'; ignoreCase: true}; generator: 'firstName'}>;
+    zip: StringFormat<{pattern: {source: '^\\d{5}$'; flags: ''}; generator: 'postcode'}>;
+  };
+
+  it('every draw passes its own validator (static)', () => {
+    const isValid = createValidateFn<Profile>();
+    const mock = createMockDataFn<Profile>();
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+
+  it('every draw passes its own validator (value)', () => {
+    const sample = {name: 'Ann Lee', tag: 'Ann', zip: '12345'} as Profile;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+});
+
+describe('mock char sets draw whole code points', () => {
+  // `💩` is two UTF-16 units: indexing the set by unit would emit a lone surrogate the validator rejects.
+  type Emojis = StringFormat<{allowedChars: {val: '💩a'}; length: 3}>;
+
+  it('every draw passes its own validator (static)', () => {
+    const isValid = createValidateFn<Emojis>();
+    const mock = createMockDataFn<Emojis>();
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
+  });
+
+  it('every draw passes its own validator (value)', () => {
+    const sample = 'aaa' as Emojis;
+    const isValid = createValidateFn(sample);
+    const mock = createMockDataFn(sample);
+    for (let i = 0; i < 100; i++) expect(isValid(mock())).toBe(true);
   });
 });

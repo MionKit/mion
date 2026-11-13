@@ -1,4 +1,4 @@
-// The grouped log against the corpus the Go twin (internal/diagnostics/grouped.go) is pinned to.
+// The grouped log against the corpus the Go twin (pkg/diagnostics/grouped.go) is pinned to.
 
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -8,7 +8,7 @@ import {entryOf, formatGrouped} from '../src/core/groupedLog.ts';
 import {Family, Level, Severity} from '../src/core/protocol.ts';
 import type {GroupedEntry} from '../src/core/types.ts';
 
-const CORPUS = path.resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/diagnostics/testdata/grouped/cases.json');
+const CORPUS = path.resolve(import.meta.dirname, '../../../ts-go-runtypes/pkg/diagnostics/testdata/grouped/cases.json');
 const cases = JSON.parse(readFileSync(CORPUS, 'utf8')) as {
   name: string;
   cwd?: string;

@@ -1,7 +1,7 @@
 // Bound-aware mock helpers for the date / time / dateTime string formats and the native Date format: a mock must
 // re-pass validate, so it must satisfy the format's min/max bounds.
 // The validator compares a value's key against the bound's key on a per-kind scale (see
-// internal/cachegen/typefunctions/formats/datetime/{literals,boundcodegen}.go and the dateStrToMs / timeStrToMs /
+// pkg/cachegen/typefunctions/formats/datetime/{literals,boundcodegen}.go and the dateStrToMs / timeStrToMs /
 // relativeNowKey fns in ./../formats/datetime/dateTime-pure-fns.ts):
 //   - date  → UTC epoch ms floored to midnight ('epochDate')
 //   - time  → milliseconds-of-day ('timeOfDay')

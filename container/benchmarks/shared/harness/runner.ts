@@ -9,7 +9,8 @@ import {currentRuntime} from './result.ts';
 import type {CaseResult, MetricResult, MetricSummary, CompetitorResult} from './result.ts';
 
 const NO_TIMING = process.env.MION_VALIDATION_BENCH_NO_TIMING === '1';
-const TIME_MS = Number(process.env.MION_VALIDATION_BENCH_TIME_MS ?? 100);
+const TIME_MS = Number(process.env.MION_VALIDATION_BENCH_TIME_MS ?? 50);
+const ROUND = process.env.MION_VALIDATION_BENCH_ROUND ? Number(process.env.MION_VALIDATION_BENCH_ROUND) : undefined;
 // MION_VALIDATION_BENCH_CASE=<substr>: restrict the run to cases whose dotted key contains the
 // (case-insensitive) substring — measure ONE case's runtime across competitors.
 // A filtered run prints to the console and does NOT write <name>.json (see
@@ -142,7 +143,7 @@ export function runCompetitor(competitorModule: CompetitorModule): CompetitorRes
     generatedAt: new Date().toISOString(),
     runtime: currentRuntime(),
     skippedGroups: [...SKIP_GROUPS].sort(),
-    env: {node: process.version, timeMs: TIME_MS, noTiming: NO_TIMING},
+    env: {node: process.version, timeMs: TIME_MS, noTiming: NO_TIMING, ...(ROUND ? {round: ROUND} : {})},
     cases,
     summary: {
       total,

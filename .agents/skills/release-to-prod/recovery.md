@@ -6,6 +6,8 @@ Red release guards and broken `prod` ancestry: what each means and how to recove
 
 - `version-fresh` red on the PR = version.json already published.
   → Land the Phase 1 bump PR on main, then re-cut `release/vX.Y.Z` at a main commit that includes the bump.
+- `version-fresh` red on its CHANGELOG.md step = no `## [X.Y.Z]` section.
+  → Add it on main ([bump.md](bump.md#changelog)), then re-cut `release/vX.Y.Z`.
 - `main-ancestor` red on the PR = release head is not a prefix of `main` (a commit was authored on the release branch).
   → Land the change on `main` via a normal PR, then re-cut the branch forward
   (`git branch -f release/vX.Y.Z origin/main && git push --force-with-lease`). Never commit on the branch.

@@ -64,6 +64,14 @@ type Slug = TF.String<{
 }>;
 // end-mock-samples
 
+// start-generator
+type User = {
+  firstName: TF.String<{maxLength: 120; generator: TF.GEN.firstName}>;
+  lastName: TF.String<{maxLength: 120; generator: 'lastName'}>;
+  phone: TF.String<{generator: 'phoneNumber'}>;
+};
+// end-generator
+
 // start-unsafe-pattern
 // a nested repeat
 type Words = TF.String<{
@@ -71,7 +79,7 @@ type Words = TF.String<{
 }>;
 // end-unsafe-pattern
 
-export type {Sku, Code, Slug, Words};
+export type {Sku, Code, Slug, Words, User};
 export {
   isSku,
   isEmail,

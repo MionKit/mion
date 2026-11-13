@@ -96,6 +96,10 @@ jobs:
     if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.website-wait.outputs.lanes || needs.lanes.outputs.lanes).website.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # packages:read lets the job token pull the prebuilt shared image.
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/free-disk
@@ -109,11 +113,6 @@ jobs:
           toolchain: ${{ steps.wasm.outputs.hit != 'true' }}
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
-        with:
-          # The images are PRIVATE: the repo GITHUB_TOKEN is denied them, the PAT
-          # (read:packages) is not. The input is `password`, not `github-token` —
-          # a wrong key here is silently ignored and the pull fails on auth.
-          password: ${{ secrets.GHCR_PAT }}
       # The container-only prod build, NOT the full pipeline. This is the part a
       # PR can actually prove: the site compiles, every content page and every
       # <code-import> resolves against the current packages. Page text and CSS alone skip it.
@@ -156,6 +155,10 @@ jobs:
     if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # packages:read lets the job token pull the prebuilt shared image.
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -168,11 +171,6 @@ jobs:
       - uses: ./.github/actions/resolver
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
-        with:
-          # The images are PRIVATE: the repo GITHUB_TOKEN is denied them, the PAT
-          # (read:packages) is not. The input is `password`, not `github-token` —
-          # a wrong key here is silently ignored and the pull fails on auth.
-          password: ${{ secrets.GHCR_PAT }}
       # --quick: a PR needs correct answers, which catch a competitor broken by a rename, not publishable numbers.
       # typia runs too: the prebuilt image bakes its ttsc plugin, so its lane builds in seconds like the others.
       - name: Run the benchmarks
@@ -301,9 +299,6 @@ jobs:
         with:
           remote: ghcr.io/mionkit/tsrt-e2e:latest
           local-tag: tsrt-e2e:dev
-          # tsrt-e2e is a PRIVATE package the repo's GITHUB_TOKEN can't read; the
-          # PAT (read:packages) can.
-          password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script as the release gate and a local run.
       # Runs only the halves not yet proven green.
       - name: Pre-publish e2e (container backend)

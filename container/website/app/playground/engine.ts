@@ -15,7 +15,7 @@ import * as RTMocking from '@mionjs/run-types/mocking';
 import '@mionjs/run-types/formats';
 import {loadResolver, type Resolver, type ResolverOptions, type ResolverVersions} from './wasmLoader.ts';
 import {ROOT_TYPE} from './markerDts.ts';
-import {runtypesPackageSources} from './packageSources.ts';
+import {runtypesPackageSources, type PackageSourcesOverlay} from './packageSources.ts';
 import {operationByKey, type Operation} from './operations.ts';
 
 export type {Operation, OperationKind} from './operations.ts';
@@ -188,6 +188,11 @@ function pickFactorySite(sites: ScanResult['site'][]): ScanResult['site'] {
   return best;
 }
 
+// A scan is a ~350 ms whole-program WASM check, pure in its sources, so a repeat returns the stored one.
+// mockInvalid scans twice per click, then validates the same snippet.
+const SCAN_MEMO_SIZE = 64;
+const scanMemo = new WeakMap<Resolver['dispatch'], {overlay: PackageSourcesOverlay; results: Map<string, ScanResult>}>();
+
 function scan(
   dispatch: Resolver['dispatch'],
   factory: string,
@@ -201,16 +206,25 @@ function scan(
   if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
   const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
   const source = [factoryImport(factory), userCode, call, ''].join('\n');
-  dispatch({op: 'setSources', sources: {...runtypesPackageSources(), [FILE]: source}});
+  const overlay = runtypesPackageSources();
+  let memo = scanMemo.get(dispatch);
+  if (memo?.overlay !== overlay) scanMemo.set(dispatch, (memo = {overlay, results: new Map()}));
+  const stored = memo.results.get(source);
+  if (stored) return stored;
+  dispatch({op: 'setSources', sources: {...overlay, [FILE]: source}});
   const result = dispatch({op: 'scanFiles', files: [FILE], includeRunTypes: true, includeEntryModules: true});
   const sites = (result.sites as ScanResult['site'][]) ?? [];
-  return {
+  const scanned: ScanResult = {
     // Not sites[0]: a builder snippet's own `RT.object(...)` emits an earlier reflection site, the runtype facade.
     site: pickFactorySite(sites),
     entryModules: (result.entryModules as Record<string, string>) ?? {},
     runTypes: (result.runTypes as RunTypeNode[]) ?? [],
     diagnostics: (result.diagnostics as Diagnostic[]) ?? [],
   };
+  // Oldest first out: a Map iterates in insertion order.
+  if (memo.results.size >= SCAN_MEMO_SIZE) memo.results.delete(memo.results.keys().next().value as string);
+  memo.results.set(source, scanned);
+  return scanned;
 }
 
 function formatDiagnostics(diagnostics: Diagnostic[]): string {

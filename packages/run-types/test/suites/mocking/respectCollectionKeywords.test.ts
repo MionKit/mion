@@ -180,3 +180,62 @@ describe('mock: an unsatisfiable combination throws instead of shipping a bad va
     expect(() => mock()).toThrow(/a Set holds one copy of a member/);
   });
 });
+
+describe('mock: a contains child whose matcher reads the string value sets', () => {
+  // The matcher must read `{val}` as the validator does, or filler entries also match and blow `maxContains`.
+  it('allowedValues: exactly the asked count of matching entries', () => {
+    const schema = RT.array(TF.string(), {
+      minItems: 3,
+      contains: TF.string({allowedValues: {val: ['x']}}),
+      minContains: 1,
+      maxContains: 1,
+    });
+    const validate = createValidateFn(schema);
+    const mock = createMockDataFn(schema);
+    for (let i = 0; i < DRAWS; i++) {
+      const value = mock();
+      expect(validate(value), JSON.stringify(value)).toBe(true);
+      expect(value.filter((entry) => entry === 'x')).toHaveLength(1);
+    }
+  });
+
+  it('allowedChars: the matcher tests the char set instead of throwing', () => {
+    const schema = RT.array(TF.string(), {contains: TF.string({allowedChars: {val: 'ab'}, minLength: 2}), minContains: 2});
+    const validate = createValidateFn(schema);
+    const mock = createMockDataFn(schema);
+    for (let i = 0; i < DRAWS; i++) expect(validate(mock())).toBe(true);
+  });
+});
+
+describe('mock: a contains child read through the shared string acceptor', () => {
+  // maxContains 1: a matcher that over-matches lets a filler entry count too, and the draw fails its validator.
+  const bounds = {minItems: 2, minContains: 1, maxContains: 1} as const;
+  const cases = {
+    disallowedChars: RT.array(TF.string(), {
+      ...bounds,
+      contains: TF.string({
+        disallowedChars: {val: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mockSamples: '0123456789'},
+      }),
+    }),
+    disallowedValues: RT.array(TF.string({allowedValues: {val: ['x', 'y']}}), {
+      ...bounds,
+      contains: TF.string({disallowedValues: {val: ['x'], mockSamples: ['y']}}),
+    }),
+    isRegex: RT.array(TF.string(), {...bounds, contains: TF.regexString()}),
+    contentMediaType: RT.array(TF.string(), {...bounds, contains: TF.string({contentMediaType: 'application/json'})}),
+    astralMinLength: RT.array(TF.string(), {
+      ...bounds,
+      contains: TF.string({allowedChars: {val: '💩'}, minLength: 2, maxLength: 2}),
+    }),
+  };
+  for (const [name, schema] of Object.entries(cases)) {
+    it(`${name}: every draw validates`, () => {
+      const validate = createValidateFn(schema);
+      const mock = createMockDataFn(schema);
+      for (let i = 0; i < 100; i++) {
+        const value = mock();
+        expect(validate(value), JSON.stringify(value)).toBe(true);
+      }
+    });
+  }
+});

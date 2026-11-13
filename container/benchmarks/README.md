@@ -191,12 +191,17 @@ pre-compiled into `node_modules/.cache/ttsc` at image build time (baked into the
 image), so the bench build reuses it with no runtime compile.
 
 `bench` runs each competitor in its **own `--rm` container** (strongest
-isolation), then `aggregate.mjs` prints the table + coverage. It exits non-zero if
+isolation), in **interleaved rounds**: every competitor runs once per round before the next
+round starts (the start rotates), and each case publishes the **median** of its rounds, with
+each round's numbers and their spread kept in `results/<name>.json`. A short slowdown on the
+machine then costs one round of one competitor instead of its whole run. `--quick` is one
+short round. Then `aggregate.mjs` prints the table + coverage. It exits non-zero if
 any competitor has a `fail`/`errored` case, so the run doubles as a cross-library
 conformance test. Each run also **publishes** the per-competitor JSON into the
 canonical `<repo>/.docdata/container/benchmarks/` dir, which the docs website mounts
 read-only (`MION_DOCDATA`) to build benchmark docs from. Env knobs: `MION_VALIDATION_BENCH_NO_TIMING=1` (correctness only, fast),
-`MION_VALIDATION_BENCH_TIME_MS=100` (per-cell window). typia runs **by default**, in
+`MION_VALIDATION_BENCH_TIME_MS=50` (per-cell window, per round), `MION_VALIDATION_BENCH_ROUNDS=3`
+(or `--rounds <n>`). typia runs **by default**, in
 every lane including `--quick`; a typia build that fails FAILS the run like any other
 lane. Set `MION_VALIDATION_BENCH_NO_TYPIA=1` to skip it for a shorter local loop.
 

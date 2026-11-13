@@ -17,9 +17,9 @@ import {fileURLToPath} from 'node:url';
 
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// The Go tree lives under ts-go-runtypes/ (cmd/, internal/, third_party/, go.*).
+// The Go tree lives under ts-go-runtypes/ (cmd/, pkg/, third_party/, go.*).
 // Every `go`/`gofmt` invocation runs with cwd: GO_ROOT so the `./cmd/...` and
-// `./internal/...` package specs resolve; binary output stays under REPO_ROOT/bin.
+// `./pkg/...` package specs resolve; binary output stays under REPO_ROOT/bin.
 export const GO_ROOT = join(REPO_ROOT, 'ts-go-runtypes');
 
 
@@ -90,7 +90,8 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_NO_TYPIA', scope: 'dev', task: '-', desc: 'Skip the typia competitor lane'},
   {name: 'MION_VALIDATION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Fast/preview benchmark numbers (noisy)'},
   {name: 'MION_VALIDATION_BENCH_NO_TIMING', scope: 'dev', task: '-', desc: 'Correctness-only run (no timing)'},
-  {name: 'MION_VALIDATION_BENCH_TIME_MS', scope: 'dev', task: '-', desc: 'Per-cell timing window in ms (default 100)'},
+  {name: 'MION_VALIDATION_BENCH_TIME_MS', scope: 'dev', task: '-', desc: 'Per-cell timing window in ms, per round (default 50)'},
+  {name: 'MION_VALIDATION_BENCH_ROUNDS', scope: 'dev', task: '-', desc: 'Interleaved rounds per competitor; each case publishes the median (default 3)'},
   {name: 'MION_VALIDATION_BENCH_BUN', scope: 'dev', task: '-', desc: "Set to 0 to skip the benchmarks' bun runtime lane (default: on). The lane re-runs each competitor's already-built dist/run.mjs under bun, which is what exercises the JavaScriptCore branch of countEnumKeys"},
   {name: 'MION_VALIDATION_BENCH_SKIP_GROUPS', scope: 'internal', task: '-', desc: 'Comma-separated case GROUPS recorded as not-supported instead of run, for runtime capability gaps (the bun lane sets DATETIME: bun ships no Temporal). Set by bench.mjs; listed in each result JSON as skippedGroups'},
   {name: 'MION_VALIDATION_BENCH_CASE', scope: 'dev', task: '-', desc: 'Restrict a run to matching case names (inspection)'},
@@ -120,14 +121,15 @@ export const REGISTRY = [
   {name: 'MION_BENCH_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default mion-bench:dev)'},
   {name: 'MION_BENCH_REMOTE_IMAGE', scope: 'dev', task: '-', desc: 'GHCR ref to pull (default ghcr.io/$GHCR_OWNER/mion-bench:latest)'},
   {name: 'MION_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the mion-bench image locally instead of pulling it from GHCR'},
-  {name: 'MION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Short load windows for a dev loop. The numbers are noisy and must never be published'},
-  {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per lane (default 20)'},
-  {name: 'MION_BENCH_WARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before the measured window, so JIT warm-up never lands in the numbers (default 5)'},
+  {name: 'MION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'One short round per lane for a dev loop. The numbers are noisy and must never be published'},
+  {name: 'MION_BENCH_ROUNDS', scope: 'dev', task: '-', desc: 'Interleaved rounds per lane; the median is published (default 4, 3 on the ~4 MB payload)'},
+  {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per round, for every lane (default 5, 10 on the ~4 MB payload); gcprobe windows too (default 20)'},
+  {name: 'MION_BENCH_WARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before every round, so JIT warm-up never lands in the numbers; each round restarts the server (default 2, gcprobe 5)'},
   {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections wrk opens (default 100)'},
   {name: 'MION_BENCH_PIPELINING', scope: 'dev', task: '-', desc: 'Requests pipelined per connection (default 1)'},
   {name: 'MION_BENCH_TIMEOUT', scope: 'dev', task: '-', desc: 'Seconds wrk waits for a response before counting the request as a timeout (default 60)'},
   {name: 'MION_BENCH_THREADS', scope: 'dev', task: '-', desc: 'wrk load-generator threads; the server needs cores too (default half the cores, capped at 8)'},
-  {name: 'MION_BENCH_TOLERANCE', scope: 'dev', task: '-', desc: 'Percent spread `bench servers repeat` allows between runs of the same lane before it fails (default 10)'},
+  {name: 'MION_BENCH_TOLERANCE', scope: 'dev', task: '-', desc: 'Percent spread allowed between the rounds of one lane: a run warns past it, `bench servers repeat` fails (default 10)'},
   {name: 'MION_BENCH_INFLIGHT_BUDGET', scope: 'dev', task: '-', desc: 'Ceiling on request-body bytes in flight; caps connections on the big payload-sweep sizes (default 100 MiB)'},
   {name: 'MION_BENCH_PORT', scope: 'dev', task: '-', desc: 'Port the benchmarked server listens on inside the container (default 3000)'},
   {name: 'MION_BENCH_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir to publish server-benchmark JSON into (default .docdata)'},
@@ -136,6 +138,8 @@ export const REGISTRY = [
   {name: 'MION_PR_NUMBER', scope: 'internal', task: '-', desc: "Set by the ci-lanes action from the pull_request event: the PR whose live labels it reads (empty off a PR)"},
   {name: 'MION_PR_LABELS', scope: 'internal', task: '-', desc: "Set by the ci-lanes action: the PR's live labels as JSON, recorded in the decision a newer run compares against"},
   {name: 'MION_LANES', scope: 'internal', task: '-', desc: "Set on each CI job a lane waiter guards: the waiter's re-decided lane verdict when it ran, else the gate's"},
+  {name: 'MION_WATCH', scope: 'internal', task: '-', desc: 'Set on the go-checks and js-static CI jobs: the supersede.mjs --watch prefix that stops a step once a newer run re-runs its lane'},
+  {name: 'MION_TAKEN_OVER', scope: 'internal', task: '-', desc: 'Set by supersede.mjs --watch in a CI job: the lanes a newer run took over, whose steps then skip and save no marker'},
   {name: 'MION_LANE_DECISION', scope: 'internal', task: '-', desc: "Set by the lane-wait workflow: the gate's verdict JSON, whose deferred lanes it waits for"},
   {name: 'MION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container results dir for the server benchmarks (passed via -e)'},
   {name: 'MION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into the server-benchmark metadata (the container cannot read it; passed via -e)'},
@@ -176,13 +180,13 @@ export const REGISTRY = [
   // — resolver knobs (the mion Go binary) —
   {name: 'MION_DIAG_GRID_FULL', scope: 'dev', task: '-', desc: "set to 1 to run TestNestedDiagCorpus's value call shapes too (main pushes and the release gate do; PRs run the static half)"},
   {name: 'MION_CACHE_DIR', scope: 'dev', task: '-', desc: 'Internal disk-cache override (tests/power users): path forces it on there, "" forces it off, unset follows the tsconfig incremental/composite setting'},
-  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
+  {name: 'MION_BIN', scope: 'dev', task: '-', desc: "Path to the resolver binary @mionjs/bin-compiler's getExePath() should use, overriding an installed @mionkit/pro-bin-compiler launcher and the platform package (and the in-repo dev binary) for BOTH the bundler and lint lanes. Must name an executable file or the lookup throws. Its version folds into every typeId, so an override of a different version yields caches that diverge from a normal install"},
   {name: 'MION_JS_RUNTIME', scope: 'dev', task: '-', desc: 'Path to the node/bun the resolver runs format-pattern checks on, consulted when no --js-runtime flag is passed (the bundler/lint plugins always pass their own process.execPath, so this matters for direct binary use: serve/compile by hand). Unset: the binary probes PATH for node, then bun'},
 
   // — build/release knobs —
   {name: 'MION_NPM_PROVENANCE', scope: 'dev', task: 'publish-npm', desc: 'Attach npm provenance on the CI stage-publish (default off). Needs a PUBLIC repo — npm refuses provenance from a private source repo; set the CI repo variable to 1 once this repo is public'},
   {name: 'MION_ALLOW_UNVERIFIED_PUBLISH', scope: 'dev', task: 'publish-npm', desc: 'Set to 1 to publish tarballs with no e2e receipt (scripts/release/receipt.mjs receiptOptOut, the env twin of --no-receipt). The receipt is what makes "e2e passed" a checkable precondition rather than a convention, so this is an escape hatch for a broken gate, never a normal step'},
-  {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE a golden corpus instead of failing on drift: the schema documents (ts-go-runtypes/internal/convert/schemadocprobe_test.go) the diagnostic slot order (ts-go-runtypes/internal/diagnostics/catalog_test.go rewrites testdata/slots.json) and the grouped log (internal/diagnostics/grouped_test.go rewrites testdata/grouped/cases.json, packages/devtools/test/grouped-log.fuzz.test.ts rewrites testdata/grouped/random.json). Only after an INTENTIONAL change: the corpus is what catches an accidental one'},
+  {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE a golden corpus instead of failing on drift: the schema documents (ts-go-runtypes/pkg/convert/schemadocprobe_test.go) the diagnostic slot order (ts-go-runtypes/pkg/diagnostics/catalog_test.go rewrites testdata/slots.json) and the grouped log (pkg/diagnostics/grouped_test.go rewrites testdata/grouped/cases.json, packages/devtools/test/grouped-log.fuzz.test.ts rewrites testdata/grouped/random.json). Only after an INTENTIONAL change: the corpus is what catches an accidental one'},
 
   // — lint knobs (the @mionjs/devtools OXlint/ESLint plugin) —
   {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
@@ -206,9 +210,9 @@ export const REGISTRY = [
   {name: 'MION_BINARY', scope: 'internal', task: '-', desc: 'Resolver binary the mion competitor lanes inside the tsrt-website image use (container/benchmarks/competitors/mion/vite.config.ts, compiletime.mjs, transform-wire.mjs). Defaults to the bin/mion the image already carries; the bench scripts pass a path when they run against a specific build'},
   {name: 'MION_PROBE_PATH', scope: 'internal', task: '-', desc: 'Route the website smoke probe fetches inside the container (passed via -e by scripts/website/site.mjs, which runs the fetch in-container because the dev server is not published to the host)'},
   {name: 'MION_PROBE_BODY', scope: 'internal', task: '-', desc: 'JSON body the website smoke probe POSTs; empty means GET (the twin of MION_PROBE_PATH, passed via -e by scripts/website/site.mjs)'},
-  {name: 'MION_CFGFAIL_DIR', scope: 'internal', task: '-', desc: "Config dir the re-exec'd child of ts-go-runtypes/cmd/mion/config_test.go reads. The test proves a config failure exits non-zero, which only a real child process can show, so the parent hands it the fixture dir this way"},
-  {name: 'MION_PPROFEXIT_DIR', scope: 'internal', task: '-', desc: "Project dir the re-exec'd child of ts-go-runtypes/cmd/mion/profiling_test.go compiles, proving a compile that exits 1 still writes its CPU profile (set by the parent, never by hand)"},
-  {name: 'MION_UPDATEFAIL_CHILD', scope: 'internal', task: '-', desc: "Marks the re-exec'd child of ts-go-runtypes/cmd/mion/enrich_reconcile_test.go, which proves a failed mirror update exits non-zero (set by the parent, never by hand)"},
+  {name: 'MION_CFGFAIL_DIR', scope: 'internal', task: '-', desc: "Config dir the re-exec'd child of ts-go-runtypes/pkg/cli/config_test.go reads. The test proves a config failure exits non-zero, which only a real child process can show, so the parent hands it the fixture dir this way"},
+  {name: 'MION_PPROFEXIT_DIR', scope: 'internal', task: '-', desc: "Project dir the re-exec'd child of ts-go-runtypes/pkg/cli/profiling_test.go compiles, proving a compile that exits 1 still writes its CPU profile (set by the parent, never by hand)"},
+  {name: 'MION_UPDATEFAIL_CHILD', scope: 'internal', task: '-', desc: "Marks the re-exec'd child of ts-go-runtypes/pkg/cli/enrich_reconcile_test.go, which proves a failed mirror update exits non-zero (set by the parent, never by hand)"},
   {name: 'MION_UPDATEFAIL_PATH', scope: 'internal', task: '-', desc: 'Mirror path that same re-exec child reconciles; the twin of MION_UPDATEFAIL_CHILD'},
   {name: 'MION_TEST_PORT', scope: 'internal', task: '-', desc: 'Default port the mion test server entry listens on when the caller names none (read by packages/private-test-server/src/test-server.ts and the e2e mion consumer server; defaults to 8076). Nothing is spawned: the client tests pass their port to startTestServer() directly'},
   {name: 'MION_TEST_SERVER_AUTO_START', scope: 'internal', task: '-', desc: "Set to 'true' to make the test-server entry start a server when the module is IMPORTED. Opt-in: importing it never starts one otherwise. Used by the compiled-server e2e lane and by the middleware-mode e2e spec, which loads the entry through a vite dev server"},
@@ -240,6 +244,7 @@ export const REGISTRY = [
   {name: 'MION_AGENT_HEARTBEAT', scope: 'internal', task: '-', desc: 'Agent heartbeat file path inside the container (passed via -e)'},
   {name: 'MION_AGENT_IDLE_SECONDS', scope: 'internal', task: '-', desc: 'Agent idle window inside the container (passed via -e)'},
   {name: 'MION_VALIDATION_BENCH_RESULTS_DIR', scope: 'internal', task: '-', desc: 'In-container benchmark results dir (passed via -e)'},
+  {name: 'MION_VALIDATION_BENCH_ROUND', scope: 'internal', task: '-', desc: 'Which round a competitor process measures; its result goes to results/rounds/ (set by bench.mjs per run)'},
   {name: 'MION_VALIDATION_BENCH_HOST_CPU', scope: 'internal', task: '-', desc: 'Host CPU model captured into env.json (passed via -e)'},
   {name: 'MION_VALIDATION_BENCH_REPO_ROOT', scope: 'internal', task: '-', desc: 'Serialization-bench repo root (passed via -e)'},
   {name: 'MION_VALIDATION_BENCH_VITE_ROOT', scope: 'internal', task: '-', desc: 'Serialization-bench vite root (passed via -e)'},

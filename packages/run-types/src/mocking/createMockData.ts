@@ -4,9 +4,8 @@
 
 import {getRTUtils, isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
-// Side-effect imports registering the per-kind format mock fns; they must ride the mock subtree itself.
-// A consumer whose only @mionjs/run-types/formats imports sit in type positions has them elided, and an empty
-// registry silently mocks format-branded nodes as kind-default values that fail their own validators.
+// Registered with the mock subtree: type-only formats imports get elided, and format mocks then fail validation.
+// package.json `sideEffects` must list these bare imports or a production bundler drops them.
 import './mockStringFormat.ts';
 import './mockNumberFormat.ts';
 import './mockBigIntFormat.ts';
@@ -16,7 +15,7 @@ import {mockRunType} from './mockType.ts';
 import {mockRunTypeInvalid} from './mockInvalid.ts';
 import {MockRandom, nativeMockRandom} from './mockRandom.ts';
 import {defaultMockOptions} from './constants.mock.ts';
-import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
+import type {MockDataNode, MockNodeHook, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
 
 /** Returns a mock-value generator for `T`; each call produces a fresh value that passes `validate<T>`.
  *  Options merge: call < factory < defaults. Takes a value-first schema (`createMockDataFn(rt)`) or the value/static form.
@@ -88,6 +87,11 @@ function mergeMockOptions(
   if (data !== undefined) {
     result.data = data;
     result.dataNode = data as MockDataNode;
+  }
+  const hook = (callOpts?.hook ?? factoryOpts?.hook) as MockNodeHook | undefined;
+  if (hook !== undefined) {
+    result.hook = hook;
+    result.hookCursor = hook.root;
   }
   return result;
 }

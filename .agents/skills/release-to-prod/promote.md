@@ -36,7 +36,8 @@ gh pr create --base prod --head release/vX.Y.Z --title "release: vX.Y.Z" --body-
 [pre-publish.yml](../../../.github/workflows/pre-publish.yml) runs on the PR:
 
 - the full release gate;
-- `version-fresh`: red if version.json is already live on npm = Phase 1 not landed. Finish it, then re-cut the branch.
+- `version-fresh`: red if version.json is already live on npm, or CHANGELOG.md has no `## [X.Y.Z]` section
+  = Phase 1 not landed. Finish it, then re-cut the branch.
 - `main-ancestor`: red unless the head is an ancestor of `origin/main` (the frozen-prefix guard).
 
 ### Red job → fix forward on main
@@ -79,7 +80,7 @@ Apply the clean/red rule from [Roles](SKILL.md#when-you-merge-and-when-you-ask):
 ## Phase 3: publish, approve, deploy
 
 - Merge push fires publish.yml: `merge-shape` guard → full gate rerun → stage-publish (`NPM_TOKEN`, unattended)
-  → `vX.Y.Z` tag on prod → GitHub Release.
+  → `vX.Y.Z` tag on prod → published GitHub Release, body = curated `## [X.Y.Z]` CHANGELOG.md section.
 - Watch: `gh run list --workflow=publish.yml --limit 1`, then `gh run watch <id>`.
 - `vX.Y.Z` tag exists → frozen branch is done, delete it: `git push origin --delete release/vX.Y.Z`.
 - Success → hand the developer the finishing steps, in order:

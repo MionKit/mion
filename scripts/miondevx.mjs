@@ -116,11 +116,11 @@ const FUZZ = {
   // Generation fuzz of the sidecar's `generate` op (supported-subset round-trip
   // + determinism oracles, adversarial construct contract; MION_FUZZ_SEED replays).
   patterngen: {patterns: ['patternGenFuzz']},
-  // Format-conversion sweep (Go-side: the printers live in internal/convert).
+  // Format-conversion sweep (Go-side: the printers live in pkg/convert).
   // Chain oracle per iteration: ids preserved on every leg (C2), canonical
   // reflection graphs equal (C6), full chain converges (C4), re-conversion is
   // a byte no-op (C5). MION_FUZZ_SEED replays a failure; MION_FUZZ_ITER widens.
-  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain|TestFuzz_DrizzleRoundTrip', '-count=1'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '150'}},
+  convert: {goTest: ['./pkg/convert/', '-run', 'TestFuzz_AtomChain|TestFuzz_DrizzleRoundTrip', '-count=1'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '150'}},
   // FE twin of `convert`: the REAL `mion convert` binary over a real
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
@@ -130,7 +130,7 @@ const FUZZ = {
   // must agree with the reflection marker, and `mion api-check` must pass.
   apiids: {patterns: ['apiids/apiIdsFuzz.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // The Go api-types trimmer: nothing unreached ships, nothing reached is lost, re-trims and reruns are no-ops.
-  apitypes: {goTest: ['./internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1', '-timeout', '40m'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '1000'}},
+  apitypes: {goTest: ['./pkg/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1', '-timeout', '40m'], quick: {MION_FUZZ_ITER: '30'}, soak: {MION_FUZZ_ITER: '1000'}},
   // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
   // scanned by the real resolver, tableFromType over the reflected graph must
   // equal a raw drizzle build (the wide in-process three-surface fuzz rides
@@ -138,7 +138,7 @@ const FUZZ = {
   drizzletypes: {patterns: ['drizzleTypeSource.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // Every lane at its default budget; `-run TestFuzz_` also catches the lane-less schemadoc determinism sweep.
   // No tier blocks: a quick/soak round is per lane so the time-boxed lanes never share CPU (rule above).
-  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', './internal/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1']},
+  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {MION_FUZZ_RACE: '1'}, goTest: ['./pkg/convert/', './pkg/compiler/apitypes/', '-run', 'TestFuzz_', '-count=1']},
 };
 // Go→TS mirrors. miondevx runs each generator DIRECTLY — the whole point is that
 // adding a mirror is ONE entry here, with no companion `gen:*` package.json
@@ -150,7 +150,7 @@ const FUZZ = {
 // so the drift gate and this registry can never disagree.
 const GO_RUN = ['go', '-C', 'ts-go-runtypes', 'run'];
 const CODEGEN = {
-  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts']},
+  constants: {run: [...GO_RUN, './cmd/gen-ts-constants'], outputs: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts', 'packages/core/src/go-generated/batchKey.generated.ts'], fmt: ['packages/devtools/src/core/go-generated/runtypes-constants.generated.ts', 'packages/core/src/go-generated/batchKey.generated.ts']},
   // Writes BOTH mirrors itself (marker RunTypeKind + devtools ReflectionKind enum)
   // from one protocol parse, so they can't drift; no stdoutTo (multi-file output).
   kind: {run: [...GO_RUN, './cmd/gen-run-type-kind'], outputs: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts'], fmt: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts']},
@@ -158,11 +158,13 @@ const CODEGEN = {
   // family → plain hash one (a getFnHash call would pull the whole table into every browser bundle).
   fnhashes: {run: [...GO_RUN, './cmd/gen-fn-hashes'], outputs: ['packages/run-types/src/go-generated/fnHashes.generated.ts', 'packages/core/src/go-generated/jitFunctionIds.generated.ts'], fmt: ['packages/run-types/src/go-generated/fnHashes.generated.ts', 'packages/core/src/go-generated/jitFunctionIds.generated.ts']},
   // Type-format metadata mirror: the canonical format names (+ base RunTypeKind)
-  // each emitter under internal/cachegen/typefunctions/formats registers, so a
+  // each emitter under pkg/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
   typeformats: {run: [...GO_RUN, './cmd/gen-type-formats'], stdoutTo: 'packages/run-types/src/go-generated/typeFormats.generated.ts', outputs: ['packages/run-types/src/go-generated/typeFormats.generated.ts'], fmt: ['packages/run-types/src/go-generated/typeFormats.generated.ts']},
   // Per-format FriendlyText error keys plus the params the samples cover (a type test fails on any other param).
   errorkeys: {run: [...GO_RUN, './cmd/gen-format-error-keys'], stdoutTo: 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts', outputs: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts'], fmt: ['packages/run-types/src/go-generated/formatErrorKeys.generated.ts']},
+  // GEN namespace + length / character table from formats.MockGenerators; the generator writes both outputs itself.
+  mockgenerators: {run: [...GO_RUN, './cmd/gen-mock-generators'], outputs: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts'], fmt: ['packages/run-types/src/go-generated/mockGenerators.generated.ts', 'packages/run-types/src/go-generated/builtinMockGenerators.generated.ts']},
   // Compiled-function catalog for the docs site: every function the build can
   // compile for a type, with the name a marker calls it by, its factory and its
   // one-line description, all read off the operations registry. No `fmt` — the
@@ -175,7 +177,7 @@ const CODEGEN = {
   // extracted from those same sources at build time, so they have nothing to
   // drift from. The Go half self-formats via go/format; the TS one goes through
   // the repo formatter.
-  builtinpurefns: {run: [...GO_RUN, './cmd/gen-builtin-purefns'], outputs: ['ts-go-runtypes/internal/cachegen/purefnids/ids.generated.go', 'packages/run-types/src/runtypes/pure-fn-ids.generated.ts'], fmt: ['packages/run-types/src/runtypes/pure-fn-ids.generated.ts']},
+  builtinpurefns: {run: [...GO_RUN, './cmd/gen-builtin-purefns'], outputs: ['ts-go-runtypes/pkg/cachegen/purefnids/ids.generated.go', 'packages/run-types/src/runtypes/pure-fn-ids.generated.ts'], fmt: ['packages/run-types/src/runtypes/pure-fn-ids.generated.ts']},
   // tsRuntypesPlugin json-key mirror: the tsconfig plugin entry's recognised keys,
   // read by the bundler-option parity test so a project option added to only one
   // side (PluginOptions vs the tsconfig struct) fails CI.
@@ -184,7 +186,7 @@ const CODEGEN = {
   // @mionjs/go-be-sidecar package (vite lib build) into the committed
   // go:embed bundle the resolver spawns under node/bun for JS-regex jobs.
   // No fmt step — the output is a JS bundle, not generated TS.
-  sidecar: {run: ['node', 'scripts/core/gen-sidecar-js.mjs'], outputs: ['ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs'], fmt: []},
+  sidecar: {run: ['node', 'scripts/core/gen-sidecar-js.mjs'], outputs: ['ts-go-runtypes/pkg/jsengine/sidecar.bundle.mjs'], fmt: []},
 };
 
 // Run one generator: either it writes its own outputs (proxy, stdio inherited),
@@ -424,19 +426,24 @@ const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'co
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
   if (args[0] && !args[0].startsWith('-') && BENCH_SUB.has(args[0])) return args;
+  // Taken out first: its value is not a word, so the stray-command check below must not see it.
+  const rounds = takeFlag(args, '--rounds', {valued: true});
+  if (rounds.rest !== args && (rounds.value === undefined || rounds.value.startsWith('-'))) die('bench: --rounds needs a number', 2);
+  const withRounds = (out) => (rounds.value === undefined ? out : [...out, '--rounds', rounds.value]);
+  args = rounds.rest;
   const one = takeFlag(args, '--one', {valued: true});
-  if (one.value !== undefined) return ['bench-one', one.value, ...one.rest];
+  if (one.value !== undefined) return withRounds(['bench-one', one.value, ...one.rest]);
   const full = takeFlag(args, '--full');
-  if (full.value) return ['fullbench', ...full.rest];
+  if (full.value) return withRounds(['fullbench', ...full.rest]);
   const web = takeFlag(args, '--website');
-  if (web.value) return ['website-bench', ...web.rest];
+  if (web.value) return withRounds(['website-bench', ...web.rest]);
   const buildOnly = takeFlag(args, '--build-only');
-  if (buildOnly.value) return ['build', ...buildOnly.rest];
+  if (buildOnly.value) return withRounds(['build', ...buildOnly.rest]);
   const only = takeFlag(args, '--only', {valued: true});
   if (args.includes('--only') && (only.value === undefined || only.value.startsWith('-'))) die('bench: --only needs a comma list of competitors', 2);
   const stray = only.rest.find((arg) => !arg.startsWith('-'));
   if (stray) die(`unknown bench command '${stray}'. ${usage('bench')}`, 2);
-  return ['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])];
+  return withRounds(['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])]);
 }
 // `miondevx bench servers …` is the OTHER benchmark family: the mion HTTP server
 // benchmarks, which run in their own mion-bench image. Everything after `servers` is
@@ -472,6 +479,7 @@ function runRelease(args) {
     tarballs: ['node', ['scripts/release/publish-tarballs.mjs']],
     'stage-approve': ['node', ['scripts/release/stage-approve.mjs']],
     'verify-live': ['node', ['scripts/release/verify-live.mjs']],
+    notes: ['node', ['scripts/release/release-notes.mjs']],
     'check-drizzle-versions': ['node', ['scripts/release/check-drizzle-versions.mjs']],
     e2e: ['node', ['scripts/release/e2e.mjs']],
     // drizzle's OWN suites, translated onto the slim packages and run against a

@@ -5,17 +5,25 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 ## Dependencies
 
 - Type-system + framework packages ride the same `version.json` lockstep, depend on each other via `workspace:*`.
-- All `dependencies` / `devDependencies` exact-pinned. FOUR peerDeps stay ranges:
+- All `dependencies` / `devDependencies` exact-pinned. SIX peerDeps stay ranges:
   - `@mionjs/devtools`: so consumers can dedupe Vite.
   - `@mionjs/platform-bun` → optional `@types/bun` peer: its published `.d.ts` imports `'bun'`, Bun ships no types.
+  - `@mionjs/platform-gcloud` → `@google-cloud/functions-framework` peer: the user's function already runs on it,
+    the adapter only uses its express types (`import type`, pinned by `repo-contracts.test.ts`).
   - `@mionjs/drizzle-orm-*-core` → `drizzle-orm` peer: the range IS the compatibility promise of their
     drizzle-aligned version line.
   - `@mionjs/drizzle-orm-*-core` → `@mionjs/run-types` peer: consumer's single copy supplies BOTH the format types
     and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to.
     Exact pin would also force a republish every release.
+  - `@mionjs/drizzle-orm-*-core` → `@mionjs/drizzle-orm` peer: all dialects share the consumer's one core copy.
+    Floored at the core version the dialect ships with (it may call what an older core lacks), capped at the
+    drizzle minor line. Exact pin would force a dialect republish on every core patch.
+    `pnpm miondevx release check-drizzle-versions` enforces all three dialect peers.
 - Cross-package deps: `workspace:*`. Every `@mionjs/*` dep on `RunTypes/*` too → mion tests need the Go toolchain.
-- devDependencies live root-level, never per package. TWO exceptions (dev deps never reach a consumer):
-  - each drizzle dialect package carries `@mionjs/run-types: workspace:*` (satisfies its own peer in the workspace);
+- devDependencies live root-level, never per package. THREE exceptions (dev deps never reach a consumer):
+  - each drizzle dialect package carries `@mionjs/run-types` + `@mionjs/drizzle-orm` as `workspace:*`
+    (satisfies its own peers in the workspace);
+  - `@mionjs/devtools` carries `@mionjs/bin-compiler` + `vite` (same reason: its own peers);
   - `@mionjs/run-types` carries `@mionjs/devtools` + `@mionjs/bin-compiler` (the `mion` CLI its build runs).
 - ⚠️ One way only: `@mionjs/devtools` NEVER depends on or imports `@mionjs/run-types` (else workspace cycle).
   Why + how its tests cope: [devtools/AGENTS.md](devtools/AGENTS.md). `pnpm run check:tree` fails on any cycle.
@@ -46,8 +54,8 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
     broker started from `next.config` + a `turbopack.rules` loader.
     Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first: invariants there look like cleanups but are not.
 - [bin-compiler](bin-compiler/) (`@mionjs/bin-compiler`): platform launcher + the `mion` CLI command.
-  - `getExePath()` resolves the prebuilt resolver binary from per-platform
-    `@mionjs/native-compiler-<os>-<arch>` optional deps.
+  - `getExePath()` order: `MION_BIN` > an installed `@mionkit/pro-bin-compiler` (same mion version, else it
+    throws) > the per-platform `@mionjs/native-compiler-<os>-<arch>` optional deps.
   - NEVER add a postinstall downloader: `ignoreScripts: true` blocks it.
   - `constants.Version` is folded into typeID hashes. `constants.TsgoVersion` = metadata, NEVER enters the hash.
 - [examples](private-examples/) (`@mionjs/examples`): MERGED compilable TS examples (mion + runtypes) for both docs

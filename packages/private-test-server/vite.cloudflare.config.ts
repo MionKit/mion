@@ -59,8 +59,6 @@ export default defineConfig({
         // `intro` puts the directive back as the wrapper's first statement.
         intro: "'use strict';",
         extend: true,
-        // Inline all dynamic imports (IIFE doesn't support code splitting)
-        inlineDynamicImports: true,
       },
       // Bundle ALL dependencies — no externals
       external: [],

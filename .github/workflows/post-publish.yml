@@ -100,9 +100,6 @@ jobs:
         with:
           remote: ghcr.io/mionkit/tsrt-e2e:latest
           local-tag: tsrt-e2e:dev
-          # tsrt-e2e is private + not granted to the repo, so GITHUB_TOKEN is denied
-          # it; authenticate the pull with the PAT (read:packages).
-          password: ${{ secrets.GHCR_PAT }}
       # The ONE front door — the same script the pre-publish gate runs, just
       # --backend npm. Waits for the version to be live, installs it from the real
       # registry, runs the consumer suite.

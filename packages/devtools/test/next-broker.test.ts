@@ -57,6 +57,28 @@ describe('@mionjs/devtools / next broker', () => {
   const register = hasBinary() ? it : it.skip;
 
   register(
+    'keeps the process alive until ready settles, and not after',
+    async () => {
+      // Resolver and socket are unref'd: with no live handle Node quit mid-await and `next build` exited 0.
+      // Only intervals are faked, so the count is exactly the broker's hold.
+      vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      try {
+        expect(vi.getTimerCount()).toBe(1);
+        await handle.ready;
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
+  register(
     'writes the pure-fn artifact into distDir once buildStart is done and again on the first request',
     async () => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-artifact-'));
@@ -256,6 +278,48 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
         expect(code).toContain('../gen/types/');
         expect(fs.existsSync(path.join(root, '.mion'))).toBe(false);
       } finally {
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
+  register(
+    'ready settles once the cache modules are on disk, before any request',
+    async () => {
+      // withRunTypes waits on it: Turbopack compiling before genDir exists fails the whole build (invariant 11).
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      try {
+        await handle.ready;
+        const listing = fs.readdirSync(path.join(root, '.mion/types'), {recursive: true}) as string[];
+        const modules = listing.filter((name) => name.endsWith('.js'));
+        expect(modules.length).toBeGreaterThan(0);
+      } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
+  register(
+    'leaves the stamp alone when a transform generates nothing new',
+    async () => {
+      // The stamp once counted its own file, so the first loader request moved it and re-ran every rewritten file.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      const stampPath = path.join(root, '.mion/types/.rt-stamp');
+      try {
+        await handle.ready;
+        const before = fs.readFileSync(stampPath, 'utf8');
+        const entry = path.join(root, 'src/entry.ts');
+        expect((await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'))).ok).toBe(true);
+        expect(fs.readFileSync(stampPath, 'utf8')).toBe(before);
+      } finally {
+        await handle.close();
         fs.rmSync(root, {recursive: true, force: true});
       }
     },

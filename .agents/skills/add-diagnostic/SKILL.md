@@ -17,24 +17,29 @@ Work in order: each step names the check that fails when skipped. New rule no ch
 ## 1. Pick the name, Scope and Level
 
 - **Name**: the code IS a readable kebab-case name: area prefix of its page section
-  (`slugRE` in `internal/diagnostics/catalog.go`), then what went wrong: `validate-symbol-root`,
+  (`areas` in `pkg/diagnostics/catalog.go`), then what went wrong: `validate-symbol-root`,
   `rpc-handler-throws`. Never a short code like `ABC123`. A shipped name never changes.
-  `register` panics on a name that is not kebab-case or has no known prefix.
-- **Scope** (`internal/diagnostics/catalog.go`): `ScopeRoot` only when the SAME trigger one level deeper is a different
-  code (a root code vs its child-position drop). Anything else is `ScopeGraph`. `register` panics without one.
-- **Level**: ask the two questions in [diagnostics/AGENTS.md](../../../ts-go-runtypes/internal/diagnostics/AGENTS.md)
+  `Register` panics on a name that is not kebab-case or has no known area.
+- **Row**: one `Definition` passed to `Register` in a `codes_*.go` file, its text inline. A code mion has already
+  panics unless the row sets `Replace` (and `Replace` on an absent code panics). `Owner` stays `""` for mion's own
+  codes: only those reach the generated catalog, an extension's ride its binary's `capabilities` op.
+- **Scope** (`pkg/diagnostics/catalog.go`): `ScopeRoot` only when the SAME trigger one level deeper is a different
+  code (a root code vs its child-position drop). Anything else is `ScopeGraph`. `Register` panics without one.
+- **Level**: ask the two questions in [diagnostics/AGENTS.md](../../../ts-go-runtypes/pkg/diagnostics/AGENTS.md)
   (is code produced? is it broken when it runs?). A function that always throws is `LevelRuntimeError`, never a warning.
-- A new prefix goes in `slugRE` and needs a subsystem row in `scripts/core/gen-diagnostics-catalog.mjs`, then
-  `pnpm miondevx core codegen all`.
+- A new prefix goes in the `areas` list (`RegisterArea` for an extension) and needs a subsystem row in
+  `scripts/core/gen-diagnostics-catalog.mjs`, then `pnpm miondevx core codegen all`.
+  A new family goes in `familyLabels` (`RegisterFamily` for an extension).
 
 ## 2. Write the prose with both examples
 
-`internal/diagnostics/prose.go`: `Summary`, `Fix`, `Example`, + for `ScopeGraph` a `NestedExample` (same trigger
-one object deeper). `TestDiagExamples_TriggerTheirCode` + `TestDiagExamples_TriggerAtDepth` run both in a real scan.
+In the code's row: `Headline` (`Register` derives `Slots` from it), `Summary`, `Fix`, `Example`, + for
+`ScopeGraph` a `NestedExample` (same trigger one object deeper). `Register` panics without `Headline` or `Summary`.
+`TestDiagExamples_TriggerTheirCode` + `TestDiagExamples_TriggerAtDepth` run both in a real scan.
 
 ## 3. Decide "is it data?" in one place
 
-- What counts as data is `reflection.NonDataOf` (`internal/reflection/nondata.go`), the Go mirror of `DataOnly<T>`.
+- What counts as data is `reflection.NonDataOf` (`pkg/reflection/nondata.go`), the Go mirror of `DataOnly<T>`.
   Never test kinds by hand (`Kind == KindFunction`, a symbol flag, a call-signature scan) in an emitter or a shortcut:
   call `isStrippedUnionMember` / `isCallableValue` / `nonDataOf`.
 - Two questions, two helpers. Is this MEMBER entry a method or call signature (an object's own member shape)?
@@ -87,5 +92,5 @@ and named agree, non-data is never dropped silently, the build pass equals the d
 
 ## 8. Before you finish
 
-- `go -C ts-go-runtypes test ./internal/... ./cmd/...`, then `pnpm run check:builds` and `pnpm test`.
+- `go -C ts-go-runtypes test ./pkg/... ./cmd/...`, then `pnpm run check:builds` and `pnpm test`.
 - A changed disk-cache payload bumps `diskcache.FormatVersion` and the version `cache-disk.test.ts` pins.

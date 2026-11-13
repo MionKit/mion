@@ -5,17 +5,20 @@ import {
   factoryImport,
   generatedCache,
   generatedFactories,
+  getResolver,
   mock,
   mockInvalid,
   OPERATIONS,
   operationByKey,
   run,
   setResolver,
+  setRuntypesPackageSources,
   transformedSource,
   versions,
   type RunTypeTreeNode,
 } from '../../../../container/website/app/playground/index.ts';
 import {PRESETS} from '../../../../container/website/app/playground/presets.ts';
+import {runtypesPackageSources} from '../../../../container/website/app/playground/packageSources.ts';
 import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.ts';
 
 // End-to-end engine tests: each resolves <factory><MyType>() via the real WASM
@@ -243,6 +246,56 @@ type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags:
     const ok = await run('validate', patternType, m.value);
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
+  });
+
+  // `fake` answers without WASM, so many scans cost nothing.
+  async function countingScans(fake: boolean): Promise<{scans: () => number; restore: () => void}> {
+    const resolver = await getResolver();
+    const sources = runtypesPackageSources();
+    let scans = 0;
+    setResolver({
+      ...resolver,
+      dispatch: (request) => {
+        if (request.op === 'scanFiles') scans++;
+        return fake ? {} : resolver.dispatch(request);
+      },
+    });
+    const restore = () => {
+      setResolver(resolver);
+      setRuntypesPackageSources(sources);
+    };
+    return {scans: () => scans, restore};
+  }
+
+  // mockInvalid's 8 rounds below once ran 24 whole-program WASM scans and timed out under load.
+  it('reuses a scan of the same snippet, keeps the newest 64, and starts over on new package sources', async () => {
+    const {scans, restore} = await countingScans(true);
+    try {
+      const snippet = (i: number) => `${TYPE}\n// ${i}`;
+      for (let i = 0; i <= 64; i++) await generatedCache('createValidateFn', snippet(i));
+      expect(scans()).toBe(65);
+      await generatedCache('createValidateFn', snippet(64));
+      expect(scans()).toBe(65);
+      await generatedCache('createValidateFn', snippet(0));
+      expect(scans()).toBe(66);
+      setRuntypesPackageSources({...runtypesPackageSources()});
+      await generatedCache('createValidateFn', snippet(64));
+      expect(scans()).toBe(67);
+    } finally {
+      restore();
+    }
+  });
+
+  it('mockInvalid scans its validator and generator once, not every round', async () => {
+    const {scans, restore} = await countingScans(false);
+    try {
+      await mockInvalid(TYPE);
+      expect(scans()).toBe(2);
+      await mockInvalid(TYPE);
+      expect(scans()).toBe(2);
+    } finally {
+      restore();
+    }
   });
 
   it('mockInvalid (negative generator) produces values that fail validation', async () => {

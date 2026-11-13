@@ -1,0 +1,67 @@
+package convert
+
+// Go gate for the one props object, whose config keys and modifiers drizzleModNames splits both ways. Its twin
+// colModNames (packages/drizzle-orm/src/columns.ts) is gated on the same manifests by colMods.spec.ts, so a
+// modifier a drizzle upgrade adds cannot reach only one list.
+
+import (
+	"encoding/json"
+	"os"
+	"sort"
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/testfixtures"
+)
+
+type manifestEntry struct {
+	Kind      string   `json:"kind"`
+	Status    string   `json:"status"`
+	Modifiers []string `json:"modifiers"`
+}
+
+type manifestFile struct {
+	Entries []manifestEntry `json:"entries"`
+}
+
+func TestDrizzleModNamesMatchManifests(t *testing.T) {
+	recorded := map[string]bool{}
+	for _, dialect := range []string{"pg", "mysql", "sqlite"} {
+		path := testfixtures.Repo("packages/drizzle-orm-" + dialect + "-core/manifests/" + dialect + ".manifest.json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var manifest manifestFile
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, entry := range manifest.Entries {
+			if entry.Kind != "column" || entry.Status != "migrated" {
+				continue
+			}
+			for _, modifier := range entry.Modifiers {
+				recorded[modifier] = true
+			}
+		}
+	}
+	if len(recorded) == 0 {
+		t.Fatal("no modifiers read from the manifests — this gate is checking nothing")
+	}
+	if missing := diffNames(recorded, drizzleModNames); len(missing) > 0 {
+		t.Errorf("modifiers the manifests record but drizzleModNames omits: %v (add them here AND to colModNames)", missing)
+	}
+	if extra := diffNames(drizzleModNames, recorded); len(extra) > 0 {
+		t.Errorf("names in drizzleModNames that no dialect records: %v", extra)
+	}
+}
+
+func diffNames(from, minus map[string]bool) []string {
+	var names []string
+	for name := range from {
+		if !minus[name] {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}

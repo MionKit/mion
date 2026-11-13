@@ -10,6 +10,8 @@ import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import {getRTUtils} from '../runtypes/rtUtils.ts';
 import {structuralFormatAccepts} from './structuralFormat.ts';
 import {isMultipleOf} from './isMultipleOf.ts';
+import {stringParamsAccept} from './stringParamsAccept.ts';
+import {MockGeneratorExhaustedError} from './generators/index.ts';
 
 const MAX_MATCH_DEPTH = 16;
 
@@ -167,16 +169,6 @@ function literalMatches(value: unknown, node: RunType): boolean {
 
 // ─────────────────────────── format param tests ───────────────────────────
 
-type PatternParam = {source?: unknown; flags?: unknown};
-
-function patternTest(param: unknown, value: string): boolean {
-  const pattern = param as PatternParam;
-  if (!pattern || typeof pattern.source !== 'string') {
-    throw childMatchError('pattern param without a literal source');
-  }
-  return new RegExp(pattern.source, typeof pattern.flags === 'string' ? pattern.flags : '').test(value);
-}
-
 // Loose named-format tests (see the bias note in the header).
 const NAMED_STRING_FORMATS: Record<string, (value: string) => boolean> = {
   email: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
@@ -213,58 +205,14 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
   return named(value);
 }
 
+// `idna: 'ascii'` adds nothing over the ASCII pattern beside it: domain.go emits an idna check only for unicode.
 function stringParamsMatch(value: string, params: Record<string, unknown>): boolean {
-  for (const [key, param] of Object.entries(params)) {
-    switch (key) {
-      case 'contentMediaType': {
-        // Parse the DECODED content: testing the raw string would under-match, the unsound direction.
-        if (param !== 'application/json') break;
-        try {
-          JSON.parse(params.contentEncoding === 'base64' ? atob(value) : value);
-        } catch {
-          return false;
-        }
-        break;
-      }
-      // `contentEncoding` constrains nothing here: its registered RFC 4648 pattern was tested by the `pattern` arm.
-      case 'contentEncoding':
-        break;
-      case 'minLength':
-        if (typeof param === 'number' && value.length < param) return false;
-        break;
-      case 'maxLength':
-        if (typeof param === 'number' && value.length > param) return false;
-        break;
-      case 'length':
-        if (typeof param === 'number' && value.length !== param) return false;
-        break;
-      case 'pattern':
-        if (!patternTest(param, value)) return false;
-        break;
-      case 'allowedChars':
-        if (!patternTest(param, value)) return false;
-        break;
-      case 'disallowedChars':
-        if (patternTest(param, value)) return false;
-        break;
-      case 'allowedValues':
-        if (Array.isArray(param) && !param.includes(value)) return false;
-        break;
-      case 'disallowedValues':
-        if (Array.isArray(param) && param.includes(value)) return false;
-        break;
-      // `idna: 'ascii'` adds nothing over the ASCII pattern beside it (domain.go emits an idna check only when params allow unicode).
-      // Any other setting is a check this walker cannot reproduce.
-      case 'idna':
-        if (param !== 'ascii') throw childMatchError(`no runtime test for idna '${String(param)}'`);
-        break;
-      case 'mockSamples':
-        break; // generation-only / handled by the caller
-      default:
-        throw childMatchError(`no runtime test for string param '${key}'`);
-    }
-  }
-  return true;
+  return stringParamsAccept(value, params, (key, param) => {
+    if (key === 'idna' && param === 'ascii') return true;
+    if (key === 'idna') throw childMatchError(`no runtime test for idna '${String(param)}'`);
+    if (key === 'pattern') throw childMatchError('pattern param without a literal source');
+    throw childMatchError(`no runtime test for string param '${key}'`);
+  });
 }
 
 function numberParamsMatch(value: number, annotation: FormatAnnotation | undefined): boolean {
@@ -345,8 +293,10 @@ function childMatchError(reason: string): Error {
   );
 }
 
-/** True for the cannot-test throws above; the union mock walker falls through to a sibling arm on one.
+/** True for the cannot-test throws above and a generator out of draws; the union mock walker falls through to a
+ *  sibling arm on one.
  *  A constrained arm can be unmockable while its siblings are fine, so only an ALL-arms failure surfaces. **/
 export function isMockSamplingError(error: unknown): boolean {
+  if (error instanceof MockGeneratorExhaustedError) return true;
   return error instanceof Error && error.message.startsWith('Cannot mock a constrained child');
 }

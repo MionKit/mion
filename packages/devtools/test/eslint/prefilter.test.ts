@@ -1,6 +1,6 @@
 // Prefilter gate tests + the Go↔TS constant-sync guard: the generated tag
 // constants the JS side matches with must be byte-identical to the literals
-// the Go emitters/detectors define in internal/enrichment/mirror/tags.go (the
+// the Go emitters/detectors define in pkg/enrichment/mirror/tags.go (the
 // single source of truth). A drifted literal silently stops enforcing, so
 // this guard reads the Go source directly.
 
@@ -28,10 +28,10 @@ import {
   TODO_TAG,
 } from '../../src/core/go-generated/runtypes-constants.generated.ts';
 
-const TAGS_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/internal/enrichment/mirror/tags.go'), 'utf8');
-const NAMES_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/internal/enrichment/names.go'), 'utf8');
+const TAGS_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/pkg/enrichment/mirror/tags.go'), 'utf8');
+const NAMES_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/pkg/enrichment/names.go'), 'utf8');
 
-describe('constant sync with internal/enrichment/mirror/tags.go', () => {
+describe('constant sync with pkg/enrichment/mirror/tags.go', () => {
   // gofmt re-aligns a const block when a comment or a neighbour changes, so the spacing around `=` is free.
   const goConst = (name: string, value: string): RegExp =>
     new RegExp(`\\b${name}\\s+=\\s+"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`);

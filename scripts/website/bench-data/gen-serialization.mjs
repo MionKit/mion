@@ -12,6 +12,7 @@ import url from 'node:url';
 import {performance} from 'node:perf_hooks';
 import {createServer} from 'vite';
 import {sourceFileIn} from './sources.mjs';
+import {measureOps} from './ops-timer.mjs';
 
 // Load .env on the host (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly. Inside
 // the benchmark container this file is mounted ALONE (no sibling loader) and gets
@@ -146,13 +147,16 @@ const DEFAULT_BANDWIDTH_MBPS = 100;
 // far fewer cycles + iterations, so numbers are noisy but every panel still renders.
 const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
-// Kept modest: every case runs 4 round-trips × (encode + decode).
+// Every case runs 4 round-trips × (encode + decode), each a median of OPS_CYCLES passes of at least OPS_CYCLE_MS.
 const OPS_CYCLES = QUICK ? 2 : 8;
-const OPS_ITERS = QUICK ? 100 : 800;
-const OPS_WARMUP = QUICK ? 10 : 50;
-// Cap iters for large payloads so the pre-allocated pool stays a few MB.
+const OPS_CYCLE_MS = QUICK ? 1 : 5;
+const OPS_WARMUP_MS = QUICK ? 2 : 25;
+const OPS_START_CALLS = 800;
+// A fresh value per call: caps the pool a fast codec would need for a full cycle.
+const OPS_MAX_CALLS = 50_000;
+// Cap calls for large payloads so the pool stays a few MB.
 const LARGE_SAMPLE_BYTES = 100 * 1024;
-const LARGE_ITERS = QUICK ? 25 : 150;
+const LARGE_MAX_CALLS = QUICK ? 25 : 150;
 
 function ensureBinary() {
   if (!fs.existsSync(BIN)) {
@@ -234,37 +238,6 @@ function roundSig(x) {
   return Math.round(x * 1000) / 1000;
 }
 
-// Geometric-style center: median of the per-cycle ops/sec samples (outlier-robust).
-function opsOf(samples) {
-  if (!samples || samples.length === 0) return 0;
-  const sorted = [...samples].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return roundSig(median);
-}
-
-// One ops/sec measurement = `iters` fn calls timed, repeated `cycles` times, each
-// indexing into a pre-built pool so per-iter work mirrors production but pool prep
-// sits outside the timed window. Ported from export-serialization-suite.mjs.
-function benchOpsPerSecPooled(fn, pool, cycles, iters, warmup) {
-  let idx = 0;
-  for (let i = 0; i < warmup; i++) {
-    fn(pool[idx % pool.length]);
-    idx += 1;
-  }
-  const out = [];
-  for (let c = 0; c < cycles; c++) {
-    const start = performance.now();
-    for (let i = 0; i < iters; i++) {
-      fn(pool[idx % pool.length]);
-      idx += 1;
-    }
-    const elapsed = performance.now() - start;
-    out.push(iters / (elapsed / 1000));
-  }
-  return out;
-}
-
 // Date/bigint/Temporal-aware structural equality — used both for the round-trip
 // sanity check and the JSON-safe probe (native JSON loses Date→string, bigint
 // throws, Map/Set collapse, so any of those make a sample NOT json-safe).
@@ -313,14 +286,19 @@ function byteLengthOf(encoded) {
   return Buffer.byteLength(encoded, 'utf8');
 }
 
-function pickIters(sample) {
+function pickMaxCalls(sample) {
   try {
     const text = JSON.stringify(sample, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
-    if (typeof text === 'string' && text.length > LARGE_SAMPLE_BYTES) return LARGE_ITERS;
+    if (typeof text === 'string' && text.length > LARGE_SAMPLE_BYTES) return LARGE_MAX_CALLS;
   } catch {
     // bigint-at-root / functions / cycles — fall through to default.
   }
-  return OPS_ITERS;
+  return OPS_MAX_CALLS;
+}
+
+function timeOps(fn, makePool, maxCalls) {
+  const opts = {cycles: OPS_CYCLES, cycleMs: OPS_CYCLE_MS, warmupMs: OPS_WARMUP_MS, startCalls: OPS_START_CALLS, maxCalls};
+  return roundSig(measureOps(fn, makePool, opts).median);
 }
 
 // Rebuilt on every call so encode-in-place mutation never leaks across pool entries.
@@ -328,14 +306,12 @@ function jsonValues(caseObj) {
   return (caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
 }
 
-// Build a pool of `count` fresh values rotating through `indices` of a freshly
-// rebuilt values array (so in-place encoders get a clean object every iteration).
+// One values array per lap through `indices`, so in-place encoders get a clean object every call.
 function buildPool(selectValues, count, indices) {
-  const pool = new Array(count);
-  for (let i = 0; i < count; i++) {
+  const pool = [];
+  while (pool.length < count) {
     const values = selectValues();
-    const idx = indices[i % indices.length];
-    pool[i] = values[idx];
+    for (const idx of indices) if (pool.length < count) pool.push(values[idx]);
   }
   return pool;
 }
@@ -388,28 +364,28 @@ function measureRoundTrip(caseObj, rt) {
   }
   if (surviving.length === 0) return null;
 
-  const iters = pickIters(firstSample);
-  const poolSize = iters * OPS_CYCLES + OPS_WARMUP;
+  const maxCalls = pickMaxCalls(firstSample);
 
   // Bytes: encode one surviving sample.
   const bytes = byteLengthOf(encode(selectValues()[surviving[0]]));
 
-  // Encode throughput over a fresh pool (mutate encoders need fresh objects).
-  const encodePool = buildPool(selectValues, poolSize, surviving);
-  const encOps = opsOf(benchOpsPerSecPooled(encode, encodePool, OPS_CYCLES, iters, OPS_WARMUP));
+  // Mutating encoders need a fresh pool per pass.
+  const encOps = timeOps(encode, (count) => buildPool(selectValues, count, surviving), maxCalls);
 
   // Decode throughput: pre-encode a fresh pool to wire form, then time decode.
-  const decodeSource = buildPool(selectValues, poolSize, surviving);
-  const wirePool = [];
-  for (const value of decodeSource) {
-    try {
-      const wire = encode(value);
-      if (wire != null) wirePool.push(wire);
-    } catch {
-      // skip
+  const wirePool = (count) => {
+    const wires = [];
+    for (const value of buildPool(selectValues, count, surviving)) {
+      try {
+        const wire = encode(value);
+        if (wire != null) wires.push(wire);
+      } catch {
+        // skip
+      }
     }
-  }
-  const decOps = wirePool.length > 0 ? opsOf(benchOpsPerSecPooled(decode, wirePool, OPS_CYCLES, iters, OPS_WARMUP)) : 0;
+    return wires;
+  };
+  const decOps = timeOps(decode, wirePool, maxCalls);
 
   return {encOps, decOps, bytes};
 }

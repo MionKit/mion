@@ -71,6 +71,18 @@ minimumReleaseAge: 43200
 # entry needs it; unplugin is a build dep we already accept, so excluding it is a
 # contained relaxation. Re-verify on future bumps.
 minimumReleaseAgeExclude:
+  # security fix (Dependabot), added 2026-11-08
+  - 'vitest@4.1.12'
+  - '@vitest/expect@4.1.12'
+  - '@vitest/mocker@4.1.12'
+  - '@vitest/pretty-format@4.1.12'
+  - '@vitest/runner@4.1.12'
+  - '@vitest/snapshot@4.1.12'
+  - '@vitest/spy@4.1.12'
+  - '@vitest/utils@4.1.12'
+  - 'fast-uri@3.1.9'
+  - 'body-parser@2.4.0'
+  - 'qs@6.16.1'
   - 'unplugin'
   - '@types/node'
   - '@rolldown/binding-darwin-x64'
@@ -114,6 +126,12 @@ minimumReleaseAgeExclude:
   - '@rollup/rollup-openbsd-x64'
   - '@rollup/rollup-win32-x64-gnu'
   - '@rollup/rollup-linux-ppc64-gnu'
+
+# ── Overrides ────────────────────────────────────────────
+# Force a patched copy where the parent pins the vulnerable version exactly.
+overrides:
+  # security fix (Dependabot), added 2026-11-08: oxfmt pins tinypool 2.1.0
+  'tinypool@<2.1.2': '2.1.2'
 
 # ── Block lifecycle scripts ──────────────────────────────
 # Hard-block ALL build scripts. Specific packages are re-enabled

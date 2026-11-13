@@ -5,14 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Runs ONE app through ONE suite: spawn the server, prove it answers correctly,
-// warm it up, then measure it under load while sampling its memory and CPU.
+// Runs ONE round of ONE app through ONE suite. Only run by scripts/website/bench-data/mion-bench.mjs inside the
+// mion-bench container, one --rm container per round, so a leaked server or wedged port never reaches the next lane.
+// The driver picks the rounds and their lengths (shared/rounds.mjs) and merges them into the published record.
 //
-// Always invoked inside the mion-bench container by
-// scripts/website/bench-data/mion-bench.mjs, one --rm container per app, so a leaked
-// server process or a wedged port can never reach the next lane.
-//
-// Usage: node harness/run.mjs --app <name> --suite <key> [--size <key>]
+// Usage: node harness/run.mjs --app <name> (--suite <key> | --size <key>)
+//          --round <n> --warmup <seconds> --duration <seconds> [--gc 1]
 
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
 import {closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
@@ -22,6 +20,7 @@ import {dirname, join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import pidusage from 'pidusage';
 import {findApp} from '../shared/apps.mjs';
+import {laneDir, roundFile} from '../shared/rounds.mjs';
 import {bodyFor, SUITES, SWEEP_SUITE} from '../shared/suites.mjs';
 import {parseGcTrace, readPeakRss, summarizeGcTrace} from './gc-trace.mjs';
 import {bodyTemplate, invalidBody} from './wire.mjs';
@@ -35,12 +34,9 @@ const WRK_SCRIPT = join(HARNESS_DIR, 'wrk.lua');
 const cpuCount = availableParallelism();
 const round2 = (value) => Math.round(value * 100) / 100;
 
-// Load settings. The defaults are the ones the docs pages quote; every one is a knob
-// so a dev loop can run seconds instead of minutes (--quick sets them low).
+// The defaults are the ones the docs pages quote; round lengths come from the driver's --warmup / --duration.
 const CONNECTIONS = Number(process.env.MION_BENCH_CONNECTIONS || 100);
 const PIPELINING = Number(process.env.MION_BENCH_PIPELINING || 1);
-const DURATION = Number(process.env.MION_BENCH_DURATION || 20);
-const WARMUP = Number(process.env.MION_BENCH_WARMUP || 5);
 // How long wrk waits for a response before it gives up on the socket and counts the
 // request as a timeout. Its own default is TWO seconds, which the payload sweep is
 // nowhere near: at 4 MB the p99 sits around 8-10s, so the LOAD GENERATOR would be
@@ -53,10 +49,6 @@ const TIMEOUT = Number(process.env.MION_BENCH_TIMEOUT || 60);
 // box and needs cores of its own, which is the whole reason autocannon (one node
 // process, competing for the same CPU) could not measure the bun lanes.
 const THREADS = Number(process.env.MION_BENCH_THREADS || Math.max(1, Math.min(8, Math.floor(cpuCount / 2))));
-// The spread two runs of the same lane are expected to stay inside, as a percentage.
-// Recorded on every result so the docs pages can print it, and enforced by
-// `pnpm miondevx bench servers repeat <app>`.
-const TOLERANCE = Number(process.env.MION_BENCH_TOLERANCE || 10);
 // Ceiling on the request-body bytes in flight at once (connections x payload). 100
 // connections is the right load until the body is big enough that the extra ones only
 // queue: at 4 MB that is ~400 MB in flight, which saturated the host and showed up as
@@ -313,26 +305,27 @@ async function main() {
   const size = isSweep ? suite.sizes.find((s) => s.key === args.size) : undefined;
   if (isSweep && !size) throw new Error(`unknown size '${args.size}'`);
 
+  const round = Number(args.round);
+  const warmup = Number(args.warmup);
+  const duration = Number(args.duration);
+  if (![round, warmup, duration].every(Number.isFinite)) throw new Error('--round, --warmup and --duration are required (the driver passes them)');
+
   const appDir = join(ROOT, 'apps', app.dir);
   // Built beside the servers by apps/mion/vite.config.ts; the harness has no codec of its own.
   const codec = app.wire === 'compact' ? (await import(pathToFileURL(join(appDir, 'dist/compact-wire.mjs')).href)).COMPACT_WIRE[suite.path.slice(1)] : undefined;
-  const label = isSweep ? `${app.name} · ${size.label}` : `${app.name} · ${args.suite}`;
+  const label = `${isSweep ? `${app.name} · ${size.label}` : `${app.name} · ${args.suite}`} · round ${round}`;
   console.log(`-------- ${label} --------`);
 
-  // GC tracing is a V8 flag, so it is node-only: handing it to bun fails at startup. The bun
-  // lane still reports peak memory below, which is a kernel counter and reads the same on both.
+  // A V8 flag, so node-only: bun fails on it at startup. Bun still gets peakRss below, a kernel counter.
   const traceGc = Boolean(args.gc) && app.runtime === 'node';
   const traceDir = traceGc ? mkdtempSync(join(tmpdir(), 'mion-gc-')) : null;
   const traceFile = traceDir ? join(traceDir, 'trace.log') : null;
-  // The trace goes to a FILE, never a pipe. An undrained pipe blocks the server's write once
-  // its buffer fills, and a drained one has this process parsing while the window is open,
-  // stealing a core from wrk. A file is written by the kernel and read afterwards.
+  // A FILE, never a pipe: an undrained pipe blocks the server once full, a drained one steals a core from wrk.
   const traceFd = traceFile ? openSync(traceFile, 'w') : null;
 
   const server = spawn(app.runtime, traceGc ? ['--trace-gc-nvp', app.entry] : [app.entry], {
     cwd: appDir,
-    // --trace-gc-nvp writes to STDOUT, so that is the stream redirected; stderr stays inherited
-    // so a server that dies still says why.
+    // --trace-gc-nvp writes to STDOUT; stderr stays inherited so a server that dies still says why.
     stdio: ['ignore', traceFd ?? 'inherit', 'inherit'],
     env: {...process.env, MION_BENCH_PORT: String(PORT), NODE_ENV: 'production'},
   });
@@ -359,25 +352,23 @@ async function main() {
     await verifyRejects(app, suite, sample);
     console.log(`verified: ${app.name} answers ${suite.path} correctly and rejects invalid input`);
 
-    // Warm up so JIT compilation and the first-request work never land in the
-    // measured window, then measure.
+    // Warm-up keeps JIT compilation and first-request work out of the measured window.
     const connections = connectionsFor(size);
-    if (WARMUP > 0) await load({duration: WARMUP, nextSample, suite, connections});
+    if (warmup > 0) await load({duration: warmup, nextSample, suite, connections});
     // Where the measured window starts in the trace, so warm-up collections are left out of it.
     const traceOffset = traceFile ? statSync(traceFile).size : 0;
     const sampler = startSampling(server.pid);
     // Only the MEASURED window is judged by the gate; warm-up errors are discarded.
-    const result = await load({duration: DURATION, nextSample, suite, connections});
+    const result = await load({duration, nextSample, suite, connections});
     const usage = sampler.stop();
-    // Read while the server is still alive: V8 writes the trace through as it goes, so the
-    // records are already on disk, and nothing here depends on the shutdown flushing them.
+    // Read while the server lives: V8 writes the trace through, so nothing depends on shutdown flushing it.
     const gc = traceFile
       ? summarizeGcTrace(parseGcTrace(readFileSync(traceFile).subarray(traceOffset).toString('utf8')), result.requestsTotal)
       : undefined;
     const peakRss = readPeakRss(server.pid, (path) => readFileSync(path, 'utf8'));
 
-    const outDir = isSweep ? join(RESULTS_DIR, 'payload-sizes', size.key) : join(RESULTS_DIR, args.suite);
-    mkdirSync(outDir, {recursive: true});
+    const recordFile = roundFile(laneDir(RESULTS_DIR, {suite: args.suite, size: size?.key}), app.name, round);
+    mkdirSync(dirname(recordFile), {recursive: true});
     const record = {
       app: app.name,
       label: app.label,
@@ -401,8 +392,7 @@ async function main() {
       timeouts: result.timeouts,
       ...usage,
       requestsTotal: result.requestsTotal,
-      // The kernel's own high-water mark, where maxMem above is whatever a 1 Hz timer caught.
-      // Read for every runtime, which is what makes the bun lane comparable at all.
+      // The kernel's high-water mark (maxMem is a 1 Hz sample), read on every runtime so the bun lane compares.
       peakRss,
       // Present only on a --gc run, and only on node: the V8 trace has no bun equivalent.
       gc,
@@ -410,14 +400,11 @@ async function main() {
       connections,
       threads: result.threads,
       pipelining: PIPELINING,
-      duration: DURATION,
+      duration,
       timeout: TIMEOUT,
-      // What two runs of this lane are expected to agree within. Published beside the
-      // method line, and enforced by `pnpm miondevx bench servers repeat <app>`.
-      tolerance: TOLERANCE,
-      // The environment the number was taken in, so the docs page can state it rather
-      // than a human transcribing it into the markdown (which is how the previous
-      // numbers went stale).
+      round,
+      warmup,
+      // So the docs page states the environment itself: hand-copied into markdown, it went stale.
       env: {
         os: `${process.platform} ${process.arch}`,
         cores: cpuCount,
@@ -432,18 +419,12 @@ async function main() {
       `${app.name}: ${Math.round(result.requests.mean)} req/s, ${result.latency.mean}ms, maxMem ${usage.maxMem}MB${rssLine}${gcLine}`
     );
 
-    // A run whose requests did not all succeed is not a measurement of the fast path.
-    // Gate BEFORE the write, and drop any record an earlier run left: the file on disk
-    // is exactly what gen-servers-docs publishes, so a lane that fails here must leave
-    // nothing behind. Writing first meant a failed lane's degraded numbers reached the
-    // site anyway, with only the driver's exit code standing between them and a deploy.
-    const recordFile = join(outDir, `${app.name}.json`);
+    // Failed requests mean this is not the fast path. Gate BEFORE the write and drop any earlier record,
+    // so a failed round leaves no record for the driver to read.
     if (result.non2xx > 0 || result.errors > 0) {
       rmSync(recordFile, {force: true});
-      // Break the errors down: a timeout means the load generator gave up waiting
-      // (raise MION_BENCH_TIMEOUT), anything else is the connection actually failing.
-      // Removing the record above takes the raw counters with it, so they have to be
-      // in the message or the lane is undiagnosable from a CI log.
+      // Timeout = wrk gave up waiting (raise MION_BENCH_TIMEOUT), else the connection failed.
+      // The record is gone, so the counters must be in the message or the lane is undiagnosable from a CI log.
       const other = result.errors - result.timeouts;
       const causes = Object.entries(result.socketErrors)
         .filter(([, count]) => count > 0)

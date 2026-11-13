@@ -16,6 +16,8 @@
 // as covering that round-trip.
 
 import {describe, it, expect} from 'vitest';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
+import type * as TF from '@mionjs/run-types/formats';
 import {mockRunType} from '../../../src/mocking/mockType.ts';
 import {defaultMockOptions} from '../../../src/mocking/constants.mock.ts';
 import type {MockDataNode, RunTypeMockOptions} from '../../../src/mocking/mockTypes.ts';
@@ -207,5 +209,85 @@ describe('MockData consumption — strictly additive', () => {
     const value = mock(objectNode) as {a: string; b: boolean};
     expect(typeof value.a).toBe('string');
     expect(typeof value.b).toBe('boolean');
+  });
+});
+
+describe('MockData consumption — generators', () => {
+  type Person = {name: string; city: TF.String<{maxLength: 8; generator: 'city'}>; code: TF.String<{maxLength: 6}>};
+
+  it('a data generator mocks a plain string field', () => {
+    const mock = createMockDataFn<Person>(undefined, {
+      data: {name: {generator: 'fullName'}, city: {pool: []}, code: {pool: []}},
+    });
+    for (let i = 0; i < 50; i++) expect(mock().name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+  });
+
+  it('a pool or a data generator beats the format generator', () => {
+    const pooled = createMockDataFn<Person>(undefined, {
+      data: {name: {pool: ['Ann']}, city: {pool: ['Rome']}, code: {pool: []}},
+    });
+    expect(pooled().city).toBe('Rome');
+    const overridden = createMockDataFn<Person>(undefined, {
+      data: {name: {pool: []}, city: {generator: 'state'}, code: {pool: []}},
+    });
+    const states = new Set([
+      'Ohio',
+      'Iowa',
+      'Utah',
+      'Maine',
+      'Texas',
+      'Oregon',
+      'Alaska',
+      'Hawaii',
+      'Kansas',
+      'Nevada',
+      'Idaho',
+      'Alabama',
+      'Arizona',
+      'Florida',
+      'Georgia',
+      'Indiana',
+      'Montana',
+      'Vermont',
+      'Wyoming',
+      'Arkansas',
+      'Colorado',
+      'Delaware',
+      'Illinois',
+      'Kentucky',
+      'Maryland',
+      'Michigan',
+      'Missouri',
+      'Nebraska',
+      'New York',
+      'Oklahoma',
+      'Virginia',
+    ]);
+    for (let i = 0; i < 50; i++) expect(states.has(overridden().city)).toBe(true);
+  });
+
+  it("keeps the field format's own bounds", () => {
+    const mock = createMockDataFn<Person>(undefined, {
+      data: {name: {pool: []}, city: {pool: []}, code: {generator: 'lastName'}},
+    });
+    for (let i = 0; i < 50; i++) expect([...mock().code].length).toBeLessThanOrEqual(6);
+  });
+
+  it('a named family format ignores it and mocks itself (enrich --no-emit reports the generator)', () => {
+    const mock = createMockDataFn<{email: TF.Email}>(undefined, {data: {email: {generator: 'lastName'}}});
+    for (let seed = 1; seed <= 10; seed++) expect(mock({mock: {seed}}).email).toMatch(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+  });
+});
+
+describe('MockData consumption — fixed tuple slots', () => {
+  it('each rt$slots node feeds its own position (static)', () => {
+    const mock = createMockDataFn<[string, number]>(undefined, {data: {rt$slots: [{pool: ['a']}, {pool: [7]}]}});
+    for (let i = 0; i < 20; i++) expect(mock()).toEqual(['a', 7]);
+  });
+
+  it('each rt$slots node feeds its own position (value)', () => {
+    const sample = ['x', 1] as [string, number];
+    const mock = createMockDataFn(sample, {data: {rt$slots: [{pool: ['a']}, {pool: [7]}]}});
+    for (let i = 0; i < 20; i++) expect(mock()).toEqual(['a', 7]);
   });
 });

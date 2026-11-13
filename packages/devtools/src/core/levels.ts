@@ -1,5 +1,5 @@
 // The `levels` setting: Info is hidden unless it is `'all'`, and hiding never changes a halt.
-// Go twin: ts-go-runtypes/internal/diagnostics/levels.go.
+// Go twin: ts-go-runtypes/pkg/diagnostics/levels.go.
 import {Level, type Diagnostic} from './protocol.ts';
 
 export const LEVELS_ALL = 'all';
@@ -14,7 +14,7 @@ export function resolveShowInfo(value: unknown): boolean {
 const LOG_STYLE_GROUPED = 'grouped';
 const LOG_STYLE_LINES = 'lines';
 
-// The `logStyle` setting, unset groups; twin of ResolveLogStyle in ts-go-runtypes/internal/diagnostics/logstyle.go.
+// The `logStyle` setting, unset groups; twin of ResolveLogStyle in ts-go-runtypes/pkg/diagnostics/logstyle.go.
 export function resolveGrouped(value: unknown): boolean {
   if (value === undefined || value === '' || value === LOG_STYLE_GROUPED) return true;
   if (value === LOG_STYLE_LINES) return false;

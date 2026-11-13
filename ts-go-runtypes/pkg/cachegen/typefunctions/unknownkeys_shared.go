@@ -1,0 +1,469 @@
+package typefunctions
+
+import (
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/purefnids"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/jsquote"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/reflection"
+)
+
+// objectKeysContext holds an object's known-key array (RT children) and its closure variable name.
+type objectKeysContext struct {
+	keysName         string   // variable name in closure scope for the RT-children key array
+	rtChildrenNames  []string // sorted unique RT-children property names
+	allChildrenNames []string // sorted unique ALL-children property names
+}
+
+// addObjectPropsToContext registers an object's known-key array in the closure prologue, once per unique RunType.
+func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKeysContext {
+	rtNames, allNames := collectObjectChildNames(rt, ctx)
+
+	rtChildrenNames := dedupSortStrings(rtNames)
+	allChildrenNames := dedupSortStrings(allNames)
+
+	// The RunType ID is the hash, so the same canonical object reuses one context-item key across emit calls.
+	keysName := "k_" + rt.ID
+	if !ctx.HasContextItem(keysName) {
+		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(rtChildrenNames))
+	}
+
+	return objectKeysContext{
+		keysName:         keysName,
+		rtChildrenNames:  rtChildrenNames,
+		allChildrenNames: allChildrenNames,
+	}
+}
+
+// addWritableKeysToContext is for a class rebuild: strict knows a no-setter member, a rebuild must not write it.
+func addWritableKeysToContext(rt *reflection.RunType, ctx *EmitContext) string {
+	keys := addObjectPropsToContext(rt, ctx)
+	writable := slices.Clone(keys.rtChildrenNames)
+	for _, child := range objectMembers(rt) {
+		if member := ctx.ResolveRef(child); hasNoSetter(member) {
+			writable = slices.DeleteFunc(writable, func(name string) bool { return name == member.Name })
+		}
+	}
+	if len(writable) == len(keys.rtChildrenNames) {
+		return keys.keysName
+	}
+	keysName := "kw_" + rt.ID
+	if !ctx.HasContextItem(keysName) {
+		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(writable))
+	}
+	return keysName
+}
+
+// collectObjectChildNames returns the RT-included property names and the FULL set, which keeps the children RT drops.
+// Both lists exclude index-signature children (they have no property name) and children with empty names.
+func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames []string, allNames []string) {
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
+			continue
+		}
+		if resolved.Kind == reflection.KindIndexSignature {
+			continue
+		}
+		// A symbol key is never a string key: counting it would make a strict check reject every valid value.
+		if resolved.Name == "" || reflection.IsSymbolKeyedName(resolved.Name) {
+			continue
+		}
+		allNames = append(allNames, resolved.Name)
+		// The RT skips static and function-like entries; the prepare-for-JSON filter drops the same ones.
+		if resolved.IsStatic {
+			continue
+		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			continue
+		}
+		if isMethodMember(resolved.Kind) {
+			continue
+		}
+		// A property whose value strippedPropertyDrop drops is no key of the data shape either.
+		if (resolved.Kind == reflection.KindProperty || resolved.Kind == reflection.KindPropertySignature) && resolved.Child != nil {
+			grandchild := ctx.ResolveRef(resolved.Child)
+			if grandchild != nil && isStrippedUnionMember(grandchild, ctx) {
+				continue
+			}
+		}
+		rtNames = append(rtNames, resolved.Name)
+	}
+	return rtNames, allNames
+}
+
+// dedupSortStrings dedups and sorts; sorting is what keeps the emitted array literal byte-stable across runs.
+func dedupSortStrings(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sameStringSet reports whether two already-deduped, sorted slices hold the same strings.
+func sameStringSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// arrayToJSLiteral renders a string slice as a JS array literal of single-quoted strings.
+func arrayToJSLiteral(items []string) string {
+	if len(items) == 0 {
+		return "[]"
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		parts = append(parts, quoteJS(item))
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// objectHasIndexSignatureChild reports an index-signature child, which makes every key matching the pattern "known".
+func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool {
+	for _, child := range objectMembers(rt) {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
+			continue
+		}
+		if resolved.Kind == reflection.KindIndexSignature {
+			return true
+		}
+	}
+	return false
+}
+
+// callCheckUnknownPropertiesForHas emits the expression that is `true` when the value has a key outside the known-keys array.
+// returnKeys=true returns the array of unknown keys instead, for the strip / error / undefined emitters.
+// It never guards: every caller already runs under an object guard.
+func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool) string {
+	keysCtx := addObjectPropsToContext(rt, ctx)
+	if len(keysCtx.rtChildrenNames) == 0 && len(keysCtx.allChildrenNames) == 0 {
+		return ""
+	}
+	if returnKeys {
+		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ", " + strconv.Itoa(ctx.MaxUnknownKeys()) + ")"
+	}
+	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
+	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
+}
+
+// countFastPathN returns N and whether `countEnumKeys(v) === N` is sound; it registers nothing in the closure prologue.
+// Validation must prove all N present, and non-RT props are never validated.
+func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
+	rtNames, allNames := collectObjectChildNames(rt, ctx)
+	rtChildren := dedupSortStrings(rtNames)
+	allChildren := dedupSortStrings(allNames)
+	if len(rtChildren) == 0 {
+		return 0, false
+	}
+	if !sameStringSet(rtChildren, allChildren) {
+		return 0, false
+	}
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
+			continue
+		}
+		if resolved.Kind == reflection.KindIndexSignature {
+			return 0, false
+		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			continue
+		}
+		if resolved.IsStatic || isMethodMember(resolved.Kind) {
+			continue
+		}
+		// An array's `length` passes the property check but is not enumerable, so the count would miss it.
+		if resolved.Name == "length" {
+			return 0, false
+		}
+		if resolved.Optional {
+			return 0, false
+		}
+	}
+	return len(rtChildren), true
+}
+
+// emitCountKeys emits `cntEK(v) === N && <plain object>`; false sends the caller to the key names.
+// countEnumKeys picks its counter per engine, both pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
+func emitCountKeys(ctx *EmitContext, v string, n int) string {
+	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
+}
+
+// emitStrictKeyCount lets a plain object answer from the count alone, as key names cost far more. A class prop can hide
+// from the count, so anything else reads the names in `scan`.
+func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
+	return "(" + emitPlainObject(v) + " ? " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(keyCount) +
+		" : " + scan + ")"
+}
+
+// emitPlainObject makes a key count exact: a class prop can hide from it on the prototype.
+// `Object.getPrototypeOf` halves strict validate; every class answers its own, so only a hand-built plain prototype passes.
+func emitPlainObject(v string) string {
+	return v + ".constructor === Object"
+}
+
+// joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
+func joinSemicolons(parts ...string) string {
+	var nonEmpty []string
+	for _, part := range parts {
+		if part != "" {
+			nonEmpty = append(nonEmpty, part)
+		}
+	}
+	return strings.Join(nonEmpty, ";")
+}
+
+// unknownKeysObjectGuard is the precondition of every OBJECT-node unknown-keys emit: elsewhere a key scan throws
+// (`v.address` on null) or invents keys (`for in` over a string or array). Guarded out, the node does nothing: the
+// shape is validationErrors' job.
+func unknownKeysObjectGuard(v string) string {
+	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
+}
+
+// siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.
+// Keyed by the index sig's own RunType ID, the only canonical handle it has: parent-relative data must never live on a
+// shared canonical node.
+func siblingNamedKeysCtxKey(idxSig *reflection.RunType) string {
+	return "siblingNamed_" + idxSig.ID
+}
+
+// publishSiblingNamedKeysForIndexSig registers `const siblingNamed_<idxSigID> = new Set([...])` per index-signature child,
+// so the index-sig emit can skip those keys at the top of its for-in loop.
+// Each family compiles into its own walker with its own context items, so one key is re-published per family without collision.
+func publishSiblingNamedKeysForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
+	siblingNames := indexSigExemptKeys(rt, ctx)
+	if len(siblingNames) == 0 {
+		return
+	}
+	for _, child := range objectMembers(rt) {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
+			continue
+		}
+		ctxKey := siblingNamedKeysCtxKey(resolved)
+		if ctx.HasContextItem(ctxKey) {
+			continue
+		}
+		ctx.SetContextItem(ctxKey, "const "+ctxKey+" = new Set("+arrayToJSLiteral(siblingNames)+")")
+	}
+}
+
+// indexSigExemptKeys is the key set an index signature's sweep may SKIP, by default every declared sibling.
+// TypeScript rejects a declared member incompatible with its own index signature, so within ONE declaration skipping
+// them cannot lose a check; an INTERSECTION breaks that argument, which is what JSON Schema's `additionalProperties`
+// means when an `allOf` member declares a property. So the `additionalOwn` param (the schema's OWN `properties` keys)
+// wins when present: keys from anywhere else stay in the sweep and face the value check.
+func indexSigExemptKeys(rt *reflection.RunType, ctx *EmitContext) []string {
+	if rt.FormatAnnotation != nil && rt.FormatAnnotation.Name == "formattedObject" {
+		if own, ok := rt.FormatAnnotation.Params["additionalOwn"]; ok {
+			return stringListParam(own)
+		}
+	}
+	return collectSiblingNamedKeys(rt, ctx)
+}
+
+// stringListParam reads a `readonly string[]` format param; the wire carries it as []any, so this filters rather than casts.
+func stringListParam(raw any) []string {
+	entries, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if name, isString := entry.(string); isString {
+			out = append(out, name)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return dedupSortStrings(out)
+}
+
+// collectSiblingNamedKeys lists the named non-static children an index-signature for-in must SKIP, by name alone.
+// A DataOnly-stripped prop (`p0: ArrayBuffer`) is in, or the index loop copies it back (G6).
+// Function-like children are in too, or the index encoder writes a function's source text into JSON.
+// Statics stay out: no for-in reaches them.
+func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {
+	var siblingNames []string
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
+			continue
+		}
+		if resolved.IsStatic {
+			continue
+		}
+		if resolved.Name != "" {
+			siblingNames = append(siblingNames, resolved.Name)
+		}
+	}
+	if len(siblingNames) == 0 {
+		return nil
+	}
+	return dedupSortStrings(siblingNames)
+}
+
+// siblingNamedSkipCode returns the for-in line that skips a sibling named prop, or "" when the parent published no set.
+func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
+	if idxSig == nil {
+		return ""
+	}
+	ctxKey := siblingNamedKeysCtxKey(idxSig)
+	if !ctx.HasContextItem(ctxKey) {
+		return ""
+	}
+	return "if (" + ctxKey + ".has(" + prop + ")) continue;"
+}
+
+// siblingPatternsCtxKey / siblingPatternRegexCtxKey name the closure-prologue items the patternProperties EXEMPTION rides.
+// Keyed by the index signature's canonical id for the same reason siblingNamedKeysCtxKey is.
+func siblingPatternsCtxKey(idxSig *reflection.RunType) string {
+	return "ppSkip_" + idxSig.ID
+}
+func siblingPatternRegexCtxKey(idxSig *reflection.RunType, position int) string {
+	return "rePPSkip_" + idxSig.ID + "_" + strconv.Itoa(position)
+}
+
+// publishSiblingPatternsForIndexSig is the patternProperties twin of publishSiblingNamedKeysForIndexSig.
+// Per 2020-12 a key matched by a sibling `patternProperties` entry is NOT "additional", so it must be exempt from the index
+// signature a schema-valued `additionalProperties` lowers to, exactly as a sibling NAMED property is.
+// Without it `{patternProperties: {'f.o': …}, additionalProperties: {type: 'integer'}}` rejects `{fxo: [1, 2]}`, which
+// the pattern entry accepts.
+// One hoisted RegExp per source plus a single prologue predicate, so the loop pays one call per key and allocates nothing.
+func publishSiblingPatternsForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
+	if len(rt.PatternProps) == 0 {
+		return
+	}
+	var sources []string
+	for _, patternProp := range rt.PatternProps {
+		if patternProp != nil && patternProp.Source != "" {
+			sources = append(sources, patternProp.Source)
+		}
+	}
+	if len(sources) == 0 {
+		return
+	}
+	sources = dedupSortStrings(sources)
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
+			continue
+		}
+		predicateKey := siblingPatternsCtxKey(resolved)
+		if ctx.HasContextItem(predicateKey) {
+			continue
+		}
+		tests := make([]string, 0, len(sources))
+		for position, source := range sources {
+			regexKey := siblingPatternRegexCtxKey(resolved, position)
+			if !ctx.HasContextItem(regexKey) {
+				ctx.SetContextItem(regexKey, "const "+regexKey+" = new RegExp("+jsquote.Double(source)+")")
+			}
+			tests = append(tests, regexKey+".test(k)")
+		}
+		ctx.SetContextItem(predicateKey, "const "+predicateKey+" = (k) => "+strings.Join(tests, " || "))
+	}
+}
+
+// siblingPatternSkipCode is the patternProperties twin of siblingNamedSkipCode, so a pattern-matched key never faces the
+// additionalProperties value check.
+// Returns "" when the parent emit published no predicate for this index sig.
+func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
+	if idxSig == nil {
+		return ""
+	}
+	predicateKey := siblingPatternsCtxKey(idxSig)
+	if !ctx.HasContextItem(predicateKey) {
+		return ""
+	}
+	return "if (" + predicateKey + "(" + prop + ")) continue;"
+}
+
+// unknownKeysSupports gates removeUnknownKeys, the same set as pj / validationErrors; atomic kinds emit an empty
+// body that Finalize folds to the noop shape.
+func unknownKeysSupports(rt *reflection.RunType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.Kind {
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindVoid,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindBigInt, reflection.KindSymbol,
+		reflection.KindObject, reflection.KindRegexp,
+		reflection.KindLiteral, reflection.KindEnum,
+		reflection.KindNever, reflection.KindTemplateLiteral:
+		return true
+	case reflection.KindObjectLiteral:
+		return true
+	case reflection.KindClass:
+		switch rt.SubKind {
+		case reflection.SubKindDate, reflection.SubKindUrl, reflection.SubKindNone,
+			reflection.SubKindMap, reflection.SubKindSet,
+			reflection.SubKindNonSerializable:
+			return true
+		}
+		return reflection.IsTemporalSubKind(rt.SubKind)
+	case reflection.KindArray:
+		return rt.Child != nil
+	case reflection.KindTuple:
+		return true
+	case reflection.KindTupleMember:
+		return true
+	case reflection.KindProperty, reflection.KindPropertySignature:
+		return true
+	case reflection.KindIndexSignature:
+		return true
+	case reflection.KindUnion:
+		return len(rt.Children) > 0
+	case reflection.KindIntersection:
+		return true
+	case reflection.KindPromise:
+		// A promise value is a then-able, not a plain object: noop, like an atomic.
+		return true
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
+		// Function values have no enumerable own keys to check, so the emit is a noop.
+		return true
+	}
+	return false
+}
+
+// objectCallSignatureChild returns the node's call-signature child, or nil; a shape that has one is a Function with
+// properties bolted on, which the object guard, the brand guard and the unknown-key check all key off.
+func objectCallSignatureChild(rt *reflection.RunType, ctx *EmitContext) *reflection.RunType {
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
+			continue
+		}
+		if resolved.Kind == reflection.KindCallSignature {
+			return child
+		}
+	}
+	return nil
+}

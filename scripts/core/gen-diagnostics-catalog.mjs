@@ -1,7 +1,7 @@
-// Fans the Go dump of internal/diagnostics, the one source of every message, out into the headline
+// Fans the Go dump of pkg/diagnostics, the one source of every message, out into the headline
 // dictionary the bundler and lint plugins render from (the wire carries only code + args) and the
 // website page JSON. Both are committed so consumers build without Go; run
-// `pnpm miondevx core codegen diag` after changing internal/diagnostics.
+// `pnpm miondevx core codegen diag` after changing pkg/diagnostics.
 
 import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -13,7 +13,7 @@ const goRoot = resolve(repoRoot, 'ts-go-runtypes');
 const generatedTsPath = resolve(repoRoot, 'packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts');
 const websiteJsonPath = resolve(repoRoot, 'container/website/app/components/content/go-generated/diagnostics-catalog.json');
 
-// Sections group the area prefixes, in page order; every prefix in internal/diagnostics's slugRE must sit in one.
+// Sections group the area prefixes, in page order; every prefix in pkg/diagnostics's slugRE must sit in one.
 // Descriptions stay plain and dash-free: the website voice rules apply when the component renders them.
 const SUBSYSTEMS = [
   {
@@ -124,14 +124,14 @@ const goRecords = JSON.parse(goDump);
 
 const missingHeadlines = goRecords.filter((record) => !record.headline).map((record) => record.code);
 if (missingHeadlines.length) {
-  // internal/diagnostics's TestEveryCodeHasHeadline pins this; fail loudly if it slips.
-  throw new Error(`gen-diag-catalog: codes with no headline in internal/diagnostics/messages.go: ${missingHeadlines.join(', ')}`);
+  // pkg/diagnostics's TestEveryCodeHasHeadline pins this; fail loudly if it slips.
+  throw new Error(`gen-diag-catalog: codes with no headline in their pkg/diagnostics row: ${missingHeadlines.join(', ')}`);
 }
 
 const missingSummaries = goRecords.filter((record) => !record.summary).map((record) => record.code);
 if (missingSummaries.length) {
   // TestEveryCodeHasSummary pins this too; else the page shows a code with no explanation.
-  throw new Error(`gen-diag-catalog: codes with no summary in internal/diagnostics/prose.go: ${missingSummaries.join(', ')}`);
+  throw new Error(`gen-diag-catalog: codes with no summary in their pkg/diagnostics row: ${missingSummaries.join(', ')}`);
 }
 
 // ── Artifact 1: the front-end message dictionary ────────────────────────────
@@ -168,8 +168,8 @@ const entries = goRecords
 const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core codegen diag\` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
-// exported from the authoritative catalog in internal/diagnostics (wording lives in
-// internal/diagnostics/messages.go). The wire carries only code + args; the render
+// exported from the authoritative catalog in pkg/diagnostics (wording lives in
+// each code's row in pkg/diagnostics/codes_*.go). The wire carries only code + args; the render
 // helpers in ./diagnosticCatalog.ts fill each \`{name}\` slot with the arg at its
 // index in \`slots\`.
 
@@ -229,7 +229,7 @@ codes.sort((left, right) => {
 
 const output = {
   $generated:
-    'by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.',
+    'by scripts/core/gen-diagnostics-catalog.mjs from pkg/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.',
   subsystems: SUBSYSTEMS.map(({key, label, description}) => ({key, label, description})),
   codes,
 };

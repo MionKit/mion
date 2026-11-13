@@ -158,8 +158,8 @@ describe('the plan', () => {
 
   it('ignores Go tests, testdata and the code generators, which no JS test runs', () => {
     const files = [
-      'ts-go-runtypes/internal/x/x_test.go',
-      'ts-go-runtypes/internal/x/testdata/golden.json',
+      'ts-go-runtypes/pkg/x/x_test.go',
+      'ts-go-runtypes/pkg/x/testdata/golden.json',
       'ts-go-runtypes/cmd/gen-ts-constants/main.go',
     ];
     const result = plan([...files, 'packages/c/test/c.spec.ts']);
@@ -176,7 +176,7 @@ describe('the plan', () => {
 
   it('runs the full suite for any other path outside the packages', () => {
     for (const file of [
-      'ts-go-runtypes/internal/x.go',
+      'ts-go-runtypes/pkg/x.go',
       'vitest.config.ts',
       'pnpm-lock.yaml',
       'scripts/x.mjs',

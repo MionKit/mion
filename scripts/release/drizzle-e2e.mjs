@@ -92,7 +92,7 @@ function newestSourceMtime() {
       newest = Math.max(newest, statSync(full).isDirectory() ? newestMtime(full) : statSync(full).mtimeMs);
     }
   }
-  for (const part of ['internal', 'cmd']) {
+  for (const part of ['pkg', 'cmd']) {
     newest = Math.max(newest, newestMtime(path.join(REPO_ROOT, 'ts-go-runtypes', part)));
   }
   return newest;
@@ -126,7 +126,7 @@ function binariesAreStale() {
   // fresh mtimes and no manifest, which would otherwise read as up to date.
   if (!existsSync(path.join(DIST_BINARIES, 'publish-order.json'))) return true;
   const builtAt = newestMtime(DIST_BINARIES);
-  for (const part of ['internal', 'cmd']) {
+  for (const part of ['pkg', 'cmd']) {
     if (newestMtime(path.join(REPO_ROOT, 'ts-go-runtypes', part)) > builtAt) return true;
   }
   return false;

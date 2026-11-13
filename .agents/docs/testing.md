@@ -8,7 +8,7 @@ How to run and add JS + Go checks. Read before adding, running or reporting test
   `test/` dir, mirroring `src/`, never beside the code (pinned by `repo-contracts.test.ts`).
 - All JS: `pnpm test` (all 23 vitest projects). Single file: `pnpm exec vitest run <pattern>`.
   Single package: `pnpm --filter <name> test`.
-- Go: `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
+- Go: `go -C ts-go-runtypes test ./pkg/... ./cmd/...`.
 - `pnpm test` needs a bootstrapped host: plugin tests spawn `mion-bin/mion`. Needs the
   [third_party/](../../ts-go-runtypes/third_party/) submodules + patches, Go resolver built, `@mionjs/devtools` dist.
 - `pnpm run pretest` ([build.mjs](../../scripts/core/build.mjs)) rebuilds all that.

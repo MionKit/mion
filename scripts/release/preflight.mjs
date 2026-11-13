@@ -29,7 +29,7 @@ export function main() {
 
   // Step 3: Go test suite.
   printStep('Go tests');
-  runOrThrow('go', ['test', './internal/...'], {cwd: GO_ROOT});
+  runOrThrow('go', ['test', './pkg/...'], {cwd: GO_ROOT});
 
   // Step 4: Lint & formatting + the drizzle version-line guard.
   printStep('Lint & check formatting');

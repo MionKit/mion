@@ -1,16 +1,16 @@
-// Wire types mirroring Go's internal/reflection/runtype.go and internal/protocol/protocol.go.
+// Wire types mirroring Go's pkg/reflection/runtype.go and pkg/protocol/protocol.go.
 // The interfaces are hand-maintained to keep the plugin dep-free; the ReflectionKind enum,
 // KIND_REF sentinel and REFLECTION_SUB_KIND map are generated from the same Go source, so the
 // kind/sub-kind discriminators cannot drift. Child RunType slots on the wire are sentinels
 // (`{kind: -1, id: N}`); consumers re-knot them, or import the generated cache module whose
 // graph is already knotted.
 
-// Generated from internal/reflection/{runtype,subkind}.go, the same source as @mionjs/run-types's
+// Generated from pkg/reflection/{runtype,subkind}.go, the same source as @mionjs/run-types's
 // RunTypeKind / RunTypeSubKind; re-exported here so `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
 import {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind} from './go-generated/reflectionKind.generated.ts';
 export {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind};
 
-// Cache-module settings generated from internal/constants/constants.go, the single source of
+// Cache-module settings generated from pkg/constants/constants.go, the single source of
 // truth; regenerate with `pnpm miondevx core codegen constants`.
 export {
   CACHE_MODULES,
@@ -202,9 +202,9 @@ export interface BatchMapping {
   mapperKey: string;
 }
 
-// BatchSite mirrors Go protocol.BatchSite: one `batch([...])` call site, so the server build registers
-// the plan under the same id the client bundle carries. Delivered through `onBatchReport` or
-// `<genDir>/types/batches-report.json`, only when the build report is enabled; the id is injected regardless.
+// BatchSite mirrors Go protocol.BatchSite: one route combination a `batch([...])` call may run, so the server
+// build registers its plan under the client's id. Sent via `onBatchReport` or `<genDir>/types/batches-report.json`
+// only with the build report on; the id is injected regardless.
 export interface BatchSite {
   // The `batch(...)` call expression's span (byte offsets).
   file: string;
@@ -272,8 +272,21 @@ export interface FormatAnnotation {
   params?: Record<string, unknown>;
 }
 
+// mion's own ops; an extension binary answers more, which `ResolverConnection.request` sends by name.
+export type BuiltinOp =
+  | 'scanFiles'
+  | 'dump'
+  | 'setSources'
+  | 'reset'
+  | 'tsCompile'
+  | 'transform'
+  | 'generate'
+  | 'enrich'
+  | 'capabilities';
+
 export interface Request {
-  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
+  // Any op string: the binary looks it up in its op table and answers `unknown op: <op>` when it has none.
+  op: BuiltinOp | (string & {});
   // The op's file input: the files to scan (scanFiles), rewrite (transform) or enrichment-check (enrich).
   // The response's sites cover every listed file, each tagged with .file; the include* flags project
   // runTypes / entryModules over these files only, never the session-wide cache (use dump for that).
@@ -303,6 +316,31 @@ export interface Request {
   emitEdits?: boolean;
   // enrich carries NOTHING beyond `files` (empty = whole program): the families, i18n locales and output root ride
   // the spawn flags (--gen-dir / --enrich-*), defaulting from the tsconfig plugin entry.
+  // An extension's own request fields, keyed by name: a registered scan check is switched on by `ext[name] = true`.
+  ext?: Record<string, unknown>;
+}
+
+// Mirrors Go protocol.Capabilities: extension rows only, so the public binary answers every list empty.
+export interface Capabilities {
+  extensions: {name: string; version: string}[];
+  ops: string[];
+  // `probe` is JS regex source (compile with the `m` flag): a file it matches needs the resolver pass in lint.
+  scanChecks: {name: string; family: string; probe?: string}[];
+  diagnostics: CatalogRecord[];
+}
+
+// CatalogRecord mirrors Go diagnostics.CatalogEntry, the shape the generated catalog is built from.
+export interface CatalogRecord {
+  code: string;
+  family: string;
+  level: string;
+  completeness?: boolean;
+  internal?: boolean;
+  headline: string;
+  slots?: string[];
+  summary: string;
+  fix?: string;
+  example?: string;
 }
 
 // Metrics mirrors Go protocol.Metrics, present only when the request set includeMetrics.
@@ -391,6 +429,10 @@ export interface Response {
   tsCompileMs?: number;
   // Present only when the request set includeMetrics.
   metrics?: Metrics;
+  // An extension op's own answer fields, keyed by name.
+  ext?: Record<string, unknown>;
+  // capabilities only.
+  capabilities?: Capabilities;
   error?: string;
 }
 
@@ -451,7 +493,7 @@ export interface EnrichFile {
 
 // Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).
 // The user-facing message is NOT carried on the wire: per-code templates live in the generated
-// `./go-generated/diagnosticCatalog.generated.ts` (from internal/diagnostics/messages.go via
+// `./go-generated/diagnosticCatalog.generated.ts` (from the pkg/diagnostics code rows via
 // `pnpm miondevx core codegen diag`) and fill their `{slot}` names from `args`, in slot order.
 export interface Diagnostic {
   code: string;

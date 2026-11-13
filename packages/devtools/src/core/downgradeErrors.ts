@@ -1,8 +1,8 @@
 // `downgradeErrors` reports a named RuntimeError code as a Warning: it DOWNGRADES, never hides (`@mion-expect-error`
 // removes one outright). A fatal Error never qualifies, it produced no output. Wire severity is untouched, so the
 // downgrade applies where the halt is decided: here for the bundler plugin, in `mion compile` for its exit code.
-// Go twin: ts-go-runtypes/internal/diagnostics/downgrade.go.
-import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
+// Go twin: ts-go-runtypes/pkg/diagnostics/downgrade.go.
+import {catalogEntry} from './diagnosticCatalog.ts';
 import {Level, type Diagnostic} from './protocol.ts';
 
 // Kept for adoption: a project turning mion on cannot yet list the codes it has not met.
@@ -21,10 +21,12 @@ export interface DowngradeSet {
 // NONE is the strict default: nothing is downgraded.
 export const NONE: DowngradeSet = {all: false, codes: new Set()};
 
-// resolveDowngradeErrors resolves the configured value once at plugin-factory time, so a typo fails
-// loudly at the host boundary rather than silently protecting nothing. A Warning code is accepted and
-// does nothing: a code's level may soften between releases and that must never break a build.
-export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | undefined): DowngradeSet {
+// A typo throws rather than protecting nothing; a Warning code is a no-op, so a softened level never breaks a build.
+// `deferUnknown`: the factory runs before the binary advertises its codes; buildStart resolves in full before output.
+export function resolveDowngradeErrors(
+  value: string[] | typeof DOWNGRADE_ALL | undefined,
+  {deferUnknown = false}: {deferUnknown?: boolean} = {}
+): DowngradeSet {
   if (value === undefined) return NONE;
   if (value === DOWNGRADE_ALL) return {all: true, codes: new Set()};
   if (!Array.isArray(value) || value.some((code) => typeof code !== 'string')) {
@@ -35,7 +37,11 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
   if (value.includes(DOWNGRADE_ALL)) return {all: true, codes: new Set()};
   const codes = new Set<string>();
   for (const code of value) {
-    const entry = DIAGNOSTIC_CATALOG[code];
+    const entry = catalogEntry(code);
+    if (!entry && deferUnknown) {
+      codes.add(code);
+      continue;
+    }
     if (!entry) {
       throw new Error(
         `[@mionjs/devtools] downgradeErrors names unknown diagnostic ${JSON.stringify(code)} — copy its name from the message you are silencing (e.g. validate-symbol-root)`

@@ -7,6 +7,7 @@ import {closeSync, existsSync, openSync, readFileSync, readSync} from 'node:fs';
 import {join, posix} from 'node:path';
 import {staleCards} from '../lib/card-manifest.mjs';
 import {REPO_ROOT} from '../lib/env.mjs';
+import {lockstepDrift} from '../lib/workspace-dirs.mjs';
 import {capture, die, note, reportCliError, success} from '../lib/proc.mjs';
 
 // A path under docs/todos/ or docs/done/ ending in a spec filename. Specs get
@@ -300,6 +301,7 @@ export const SWEEPS = [
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
   {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/AGENTS.md)'},
+  {name: 'every lockstep workspace manifest carries the version.json version', run: () => lockstepDrift(REPO_ROOT), fix: "set it to version.json's version; the release bump stamps every manifest pnpm-workspace.yaml lists"},
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
   {name: 'every AGENTS.md, CLAUDE.md and skill file stays short and narrow', run: agentDocs, fix: `keep it under ${AGENT_DOC_MAX_LINES} lines and ${AGENT_DOC_MAX_WIDTH} chars wide; split detail into smaller linked files the agent reads only when needed`},
   {name: 'every tracked JavaScript file parses', run: unparsedScripts, fix: 'run `node --check <file>` to see the syntax error'},

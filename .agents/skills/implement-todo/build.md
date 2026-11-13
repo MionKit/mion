@@ -33,7 +33,7 @@ Tell the user, then see it solved. Never let one live only in chat (AGENTS.md: f
 
 ## Step 8 - PR-readiness gate, then finish
 
-- **Tests green**: `pnpm test` for JS (rebuild the binary first), plus `go -C ts-go-runtypes test ./internal/...`
+- **Tests green**: `pnpm test` for JS (rebuild the binary first), plus `go -C ts-go-runtypes test ./pkg/...`
   for Go changes. Added a fuzz suite → run it.
 - **Lint + format**: `pnpm run lint` and `pnpm run format` (never hand-format).
 - **Docs updated** per the plan.

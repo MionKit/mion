@@ -19,7 +19,7 @@ export const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const CLI_TIMEOUT_MS = 15_000;
 const MAX_BUFFER = 32 * 1024 * 1024;
 
-/** The JSON shape of internal/enrichment validate.go `Finding`: lowercase keys, severity as a string. **/
+/** The JSON shape of pkg/enrichment validate.go `Finding`: lowercase keys, severity as a string. **/
 export interface CheckFinding {
   file: string;
   code: string;

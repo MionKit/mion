@@ -1,5 +1,5 @@
 // End-to-end class `implements` round-trip tests. Mirrors the Go-side
-// suite in internal/compiler/resolver/implements_test.go. Implements is a
+// suite in pkg/compiler/resolver/implements_test.go. Implements is a
 // compile-time contract — the runtime shape (children) is unaffected,
 // but the implements slot lets consumers walk the contract list for
 // codegen / docs.

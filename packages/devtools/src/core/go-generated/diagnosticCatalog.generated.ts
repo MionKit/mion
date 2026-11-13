@@ -1,8 +1,8 @@
 // GENERATED FILE. DO NOT EDIT. Run `pnpm miondevx core codegen diag` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
-// exported from the authoritative catalog in internal/diagnostics (wording lives in
-// internal/diagnostics/messages.go). The wire carries only code + args; the render
+// exported from the authoritative catalog in pkg/diagnostics (wording lives in
+// each code's row in pkg/diagnostics/codes_*.go). The wire carries only code + args; the render
 // helpers in ./diagnosticCatalog.ts fill each `{name}` slot with the arg at its
 // index in `slots`.
 
@@ -151,6 +151,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'enrich',
     completeness: true,
   },
+  'enrich-mock-invalid-generator': {
+    headline: 'MockData generator `{generator}` cannot mock field `{field}`: {reason}',
+    level: 'runtimeError',
+    family: 'enrich',
+    slots: ['generator', 'field', 'reason'],
+  },
   'enrich-mock-orphan-field': {
     headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
     level: 'warning',
@@ -252,6 +258,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'warning',
     family: 'enrich',
     slots: ['arm'],
+  },
+  'format-generator-invalid': {
+    headline: 'TypeFormat mock generator `{generator}` cannot mock this format: {reason}',
+    level: 'runtimeError',
+    family: 'runtype',
+    slots: ['generator', 'reason'],
   },
   'format-invalid-params': {
     headline: 'Invalid type-format params: {reason}',
@@ -745,21 +757,21 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   'rpc-batch-argument-out-of-range': {
     headline:
       '`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['index', 'route', 'count'],
   },
   'rpc-batch-duplicate-route': {
     headline:
       'Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['route'],
   },
   'rpc-batch-element-unreadable': {
     headline:
-      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.',
-    level: 'error',
+      "This `batch()` route list can't be determined at compile time ({reason}); write the route calls in an array literal, each typed with its route id.",
+    level: 'runtimeError',
     family: 'marker',
     slots: ['reason'],
   },
@@ -778,8 +790,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-mapper-unreadable': {
     headline:
-      '`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.',
-    level: 'error',
+      '`inputFrom()` mapping is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name, as an argument of a route call written in the batch or held in a variable.',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['reason'],
   },
@@ -793,9 +805,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   'rpc-batch-source-not-before': {
     headline:
       '`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.',
-    level: 'error',
+    level: 'runtimeError',
     family: 'marker',
     slots: ['source', 'target'],
+  },
+  'rpc-batch-too-many-combinations': {
+    headline:
+      'This `batch()` may run more than {max} route combinations; split it, or narrow the items that may be more than one route.',
+    level: 'runtimeError',
+    family: 'marker',
+    slots: ['max'],
   },
   'rpc-client-api-unreadable': {
     headline:

@@ -54,13 +54,16 @@ export const toRow = (result) => ({
   // Body bytes of one call, headers excluded.
   bytes: result.bytes ? result.bytes.sent + result.bytes.received : null,
   memSeries: result.memSeries ?? [],
+  // `requests` above is the median of these; the spread says how far apart they landed.
+  rounds: (result.rounds ?? []).map((round) => Math.round(round.requests * 10) / 10),
+  spread: result.spread ?? null,
 });
 
 /**
  * The run metadata every page prints. Taken from the results themselves (each lane
  * records the box it ran on), so it cannot describe a different run than the numbers.
  */
-function metaFrom(rows) {
+export function metaFrom(rows) {
   const first = rows[0];
   if (!first) return null;
   return {
@@ -72,17 +75,15 @@ function metaFrom(rows) {
     connections: first.connections,
     threads: first.threads ?? null,
     pipelining: first.pipelining,
+    // Seconds per round, not per lane.
     duration: first.duration,
-    // What two runs of a lane are expected to agree within, so a reader can tell a real
-    // gap between two servers from noise. The harness records it; nobody types it.
+    rounds: first.rounds?.length ?? null,
+    warmup: first.rounds?.[0]?.warmup ?? null,
+    // How close a lane's rounds should agree, so a reader can tell a real gap from noise; recorded, never typed.
     tolerance: first.tolerance ?? null,
-    // The line the pages used to hardcode, assembled from what actually ran. It names
-    // wrk because wrk is what ran: the upstream benchmarks repo kept printing
-    // `autocannon ...` after it switched, which is how a method line stops being true.
-    // Pipelining is not a wrk flag (the request script batches), so it is only mentioned
-    // when it is actually more than one.
-    // The thread count is dropped rather than printed as `-tundefined` when a result
-    // predates wrk: a half-regenerated dataset should say less, never say nonsense.
+    // Built from what ran: the upstream repo kept printing `autocannon ...` after it switched to wrk.
+    // Pipelining is not a wrk flag (the request script batches), so it shows only above one.
+    // No thread count on a result older than wrk: a half-regenerated dataset says less, never `-tundefined`.
     method: [
       'wrk',
       first.threads ? `-t${first.threads}` : null,

@@ -9,7 +9,8 @@ Use [the tool mapping](../TOOLS.md) for assistant-specific calls and fallbacks.
 
 - Release = promote `main` into `prod`.
 - Release PR merged into `prod` → [publish.yml](../../../.github/workflows/publish.yml): full release gate,
-  **stages** every `@mionjs/*` package to npm, tags `vX.Y.Z` on prod commit, drafts GitHub Release.
+  **stages** every `@mionjs/*` package to npm, tags `vX.Y.Z` on prod commit, publishes GitHub Release
+  (body = curated CHANGELOG.md section, `miondevx release notes X.Y.Z`).
 - Packages go **live** only after maintainer's 2FA stage-approval.
 - Docs site deploys after that (dispatched, not by the merge).
 - Version source of truth: [version.json](../../../version.json), lockstep across all packages.

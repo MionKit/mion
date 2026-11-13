@@ -1,0 +1,115 @@
+package resolver
+
+import (
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/textpos"
+)
+
+// marker-any-from-unresolved-name, the WRITTEN-name cause in the silent-`any` family (a typo, a missing dependency's types, an
+// ambient declaration the program cannot see); marker-temporal-lib-missing covers the Temporal-lib flavor and marker-any-from-unresolved-import the
+// unresolved-import one. Detection rides marker.IsErrorLikeAny: the checker keeps a DISTINCT error type
+// for failed resolutions, so a deliberately written `any` and a resolved `type Loose = any` are legal by
+// construction and need no keyword escape. Callers suppress marker-any-from-unresolved-name once marker-any-from-unresolved-import fired for the call (its
+// message names the actionable import) and the slot probe once the walk named a reference; marker-temporal-lib-missing always
+// surfaces, its cause being independent of imports. Both probes see the ROOT type and the syntax written
+// AT the call only; a member that degraded one object deeper is found by the whole-graph walk in
+// silent_any_walk.go.
+
+// detectWrittenTypeRefGuards returns marker-temporal-lib-missing and marker-any-from-unresolved-name separately, so callers keep their per-family suppression rules.
+func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call *ast.Node) (temporalDiags, nameDiags []diagnostics.Diagnostic) {
+	for _, typeArgNode := range call.TypeArguments() {
+		walkWrittenTypeRefs(scanChecker, file, typeArgNode, &temporalDiags, &nameDiags)
+	}
+	return temporalDiags, nameDiags
+}
+
+// walkWrittenTypeRefs recurses a type-node subtree, classifying every TypeReference into marker-temporal-lib-missing or marker-any-from-unresolved-name.
+func walkWrittenTypeRefs(scanChecker *checker.Checker, file string, node *ast.Node, temporalOut, nameOut *[]diagnostics.Diagnostic) {
+	if node == nil {
+		return
+	}
+	if ast.IsTypeReferenceNode(node) {
+		if temporalName, isTemporal := temporalQualifiedName(node); isTemporal {
+			if temporalDegradedToAny(checker.Checker_getTypeFromTypeNode(scanChecker, node)) {
+				if sourceFile := ast.GetSourceFileOfNode(node); sourceFile != nil {
+					*temporalOut = append(*temporalOut, diagnostics.New(
+						diagnostics.CodeTemporalNotLoaded,
+						textpos.NodeSite(file, sourceFile, node),
+						temporalName,
+					))
+				}
+			}
+		} else if marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(scanChecker, node)) {
+			if name, ok := writtenEntityName(node); ok {
+				if sourceFile := ast.GetSourceFileOfNode(node); sourceFile != nil {
+					*nameOut = append(*nameOut, diagnostics.New(
+						diagnostics.CodeMarkerUnresolvedTypeName,
+						textpos.NodeSite(file, sourceFile, node),
+						name,
+					))
+				}
+			}
+		}
+	}
+	node.ForEachChild(func(child *ast.Node) bool {
+		walkWrittenTypeRefs(scanChecker, file, child, temporalOut, nameOut)
+		return false
+	})
+}
+
+// detectUnresolvedNameSlot is the reflect-form probe: the call wrote no type syntax, so an error-like
+// resolved type argument is itself proof the degradation was never written.
+func detectUnresolvedNameSlot(file string, call *ast.Node, typeArgument *checker.Type) []diagnostics.Diagnostic {
+	if !marker.IsErrorLikeAny(typeArgument) {
+		return nil
+	}
+	sourceFile := ast.GetSourceFileOfNode(call)
+	if sourceFile == nil {
+		return nil
+	}
+	return []diagnostics.Diagnostic{diagnostics.New(
+		diagnostics.CodeMarkerUnresolvedTypeName,
+		textpos.NodeSite(file, sourceFile, call),
+		reflectValueLabel(call),
+	)}
+}
+
+// writtenEntityName renders a TypeReference's written entity name, `Name` or `Ns.Nested.Name`.
+func writtenEntityName(typeRefNode *ast.Node) (string, bool) {
+	typeRef := typeRefNode.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeName == nil {
+		return "", false
+	}
+	return entityNameText(typeRef.TypeName)
+}
+
+func entityNameText(entity *ast.Node) (string, bool) {
+	if entity == nil {
+		return "", false
+	}
+	if entity.Kind == ast.KindIdentifier {
+		return entity.Text(), true
+	}
+	if ast.IsQualifiedName(entity) {
+		qualified := entity.AsQualifiedName()
+		left, leftOk := entityNameText(qualified.Left)
+		right, rightOk := entityNameText(qualified.Right)
+		if leftOk && rightOk {
+			return left + "." + right, true
+		}
+	}
+	return "", false
+}
+
+// reflectValueLabel names the reflect-form call's value argument for the diagnostic message.
+func reflectValueLabel(call *ast.Node) string {
+	for _, argument := range call.Arguments() {
+		if argument != nil && argument.Kind == ast.KindIdentifier {
+			return argument.Text()
+		}
+	}
+	return "value"
+}

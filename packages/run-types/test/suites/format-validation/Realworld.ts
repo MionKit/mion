@@ -4,11 +4,7 @@
 // the thunk body, exactly how a caller would model it. Each invalid sample breaks
 // one field; the format-payload asserts only need the format NAME (uuid / email) to
 // surface, so the expectations stay robust against incidental envelope fields.
-//
-// The doc-gen's synthetic compile re-exports the real format brand aliases into the
-// probe (see FORMATS_MODULE in scripts/export-*-suite.mjs), so the generated-code hover
-// shows the actual format handling (uuid / email checks here), matching the runtime
-// validator. `pureType` shows the real branded interface and `schema` the RT builder.
+// `pureType` shows the real branded interface and `schema` the RT builder.
 import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
 import '@mionjs/run-types/formats';

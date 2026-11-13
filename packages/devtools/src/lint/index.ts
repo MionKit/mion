@@ -5,6 +5,7 @@
 import {createRequire} from 'node:module';
 import {isDowngraded, NONE, resolveDowngradeErrors, type DowngradeSet} from '../core/downgradeErrors.ts';
 import {anchoredIn, routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
+import {hasProLauncher} from '@mionjs/bin-compiler';
 import {needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
@@ -74,6 +75,14 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   return options;
 }
 
+// Only an explicit binary or a pro launcher can carry probes; the launcher lookup walks the disk, so it runs once.
+let proLauncherInstalled: boolean | undefined;
+function mayRunExtensions(options: LintSessionOptions): boolean {
+  if (options.binary || process.env.MION_BIN?.trim()) return true;
+  proLauncherInstalled ??= hasProLauncher();
+  return proLauncherInstalled;
+}
+
 // The shared session memoizes the file's resolver pass, so the four level rules cost one.
 function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
   return {
@@ -85,8 +94,13 @@ function diagnosticRule(ruleName: RuleName, description: string): RuleModule {
       const file = context.physicalFilename ?? context.filename ?? '';
       // Skip unnamed/virtual buffers: the resolver needs a real path to relativize and to read imports from disk.
       if (!file || file.startsWith('<')) return {};
-      if (!needsResolverPass(text, file, options.markers)) return {};
       const session = sharedSession();
+      // A probe can admit a skipped file; probes cost a resolver spawn, so fetch them only when extensions can run.
+      if (
+        !needsResolverPass(text, file, options.markers) &&
+        !(mayRunExtensions(options) && session.probesSync(options).some((probe) => probe.test(text)))
+      )
+        return {};
       if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);
       return {
         Program: () => {

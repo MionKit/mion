@@ -11,7 +11,7 @@
 //
 // Commands: prep | build-image | servers | one <app> | suite <key> | sweep |
 // repeat <app> [suite] | gcprobe | aggregate | build | shell | login | push | pull | clean.
-// A `--quick` flag anywhere shortens every load window (a dev loop, not a number to publish).
+// Lanes run in interleaved rounds (container/mion-bench/shared/rounds.mjs); `--quick`: one unpublishable round.
 
 import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
@@ -25,6 +25,7 @@ import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../
 import {APP_NAMES, APPS, findApp} from '../../../container/mion-bench/shared/apps.mjs';
 import {SUITE_KEYS} from '../../../container/mion-bench/shared/suites.mjs';
 import {SWEEP_SIZES as SWEEP_SIZE_DEFS} from '../../../container/mion-bench/shared/payloads.mjs';
+import {laneDir, mergeRounds, planFor, roundFile, schedule} from '../../../container/mion-bench/shared/rounds.mjs';
 
 const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
@@ -39,6 +40,28 @@ const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
 const SWEEP_SIZES = SWEEP_SIZE_DEFS.map((size) => size.key);
+
+// Percent spread allowed between a lane's rounds: printed by the docs pages, warned on every run, enforced by `repeat`.
+// A function, not a constant: `.env` is loaded after this module is evaluated.
+const tolerance = () => Number(process.env.MION_BENCH_TOLERANCE || 10);
+
+export function lanePlan(sizeKey, env = process.env) {
+  const knob = (name) => {
+    if (!env[name]) return undefined;
+    const value = Number(env[name]);
+    if (!Number.isFinite(value)) throw new Error(`mion-bench: ${name} must be a number, got '${env[name]}'`);
+    return value;
+  };
+  const plan = planFor(sizeKey, {
+    rounds: knob('MION_BENCH_ROUNDS'),
+    seconds: knob('MION_BENCH_DURATION'),
+    warmup: knob('MION_BENCH_WARMUP'),
+  });
+  // Zero or a fraction would schedule no final round: nothing merged, nothing failed, an empty site.
+  if (!Number.isInteger(plan.rounds) || plan.rounds < 1) throw new Error(`mion-bench: rounds must be a whole number of 1 or more, got '${env.MION_BENCH_ROUNDS}'`);
+  if (!(plan.seconds > 0)) throw new Error(`mion-bench: MION_BENCH_DURATION must be above 0, got '${env.MION_BENCH_DURATION}'`);
+  return plan;
+}
 
 // Mounted into a mion lane's node_modules: the app declares no runtime dependency, so these are the live source.
 const MION_PACKAGES = [
@@ -171,17 +194,14 @@ function envArgs(extra = {}) {
   ];
   const cpu = cpus()[0]?.model ?? '';
   if (cpu) args.push('-e', `MION_BENCH_HOST_CPU=${cpu}`);
-  // Every load knob the harness reads. TIMEOUT and INFLIGHT_BUDGET were missing here,
-  // so setting them on the host quietly did nothing to the run inside the container.
+  // Every load knob the harness reads: one missing here silently does nothing in the container.
+  // Round knobs stay out: the driver reads them and passes each round's lengths as flags.
   const knobs = [
     'MION_BENCH_PORT',
     'MION_BENCH_CONNECTIONS',
     'MION_BENCH_PIPELINING',
-    'MION_BENCH_DURATION',
-    'MION_BENCH_WARMUP',
     'MION_BENCH_THREADS',
     'MION_BENCH_TIMEOUT',
-    'MION_BENCH_TOLERANCE',
     'MION_BENCH_INFLIGHT_BUDGET',
   ];
   for (const name of knobs) {
@@ -207,9 +227,51 @@ function buildMionApp(cfg) {
 
 const needsMionBuild = (apps) => apps.some((app) => app.family === 'mion');
 
-function runOne(cfg, app, suite, size) {
-  const args = ['node', 'harness/run.mjs', '--app', app.name, ...(size ? ['--size', size] : ['--suite', suite])];
-  return runInContainer(cfg, app, args) === 0;
+const roundRunner = (cfg) => ({runRound: (app, lane, round) => runRound(cfg, app, lane, round)});
+
+function runRound(cfg, app, lane, round) {
+  const target = lane.size ? ['--size', lane.size] : ['--suite', lane.suite];
+  const timing = ['--round', String(round), '--warmup', String(lane.plan.warmup), '--duration', String(lane.plan.seconds)];
+  return runInContainer(cfg, app, ['node', 'harness/run.mjs', '--app', app.name, ...target, ...timing]) === 0;
+}
+
+const suiteLanes = () => SUITE_KEYS.map((suite) => ({key: suite, suite, plan: lanePlan(undefined)}));
+const sweepLanes = () => SWEEP_SIZES.map((size) => ({key: `payload-sizes/${size}`, size, plan: lanePlan(size)}));
+
+/** A failed round drops that app's lane: its later rounds are skipped and no record is left for the site to publish. */
+export function runLanes(apps, lanes, {runRound, resultsDir = RESULTS_DIR}) {
+  const failed = new Set();
+  const wide = [];
+  const limit = tolerance();
+  const id = (app, lane) => `${app.name}/${lane.size ?? lane.suite}`;
+  // Only round files go up front: a merged record stays until its lane fails or is replaced, so an abort keeps it.
+  for (const lane of lanes) {
+    const dir = laneDir(resultsDir, lane);
+    for (const app of apps) {
+      for (let round = 1; round <= lane.plan.rounds; round++) rmSync(roundFile(dir, app.name, round), {force: true});
+    }
+  }
+
+  for (const {round, lane, app, last} of schedule(lanes, apps)) {
+    if (failed.has(id(app, lane))) continue;
+    note(`round ${round}/${lane.plan.rounds} · ${lane.key} · ${app.name}`);
+    const dir = laneDir(resultsDir, lane);
+    if (!runRound(app, lane, round)) {
+      failed.add(id(app, lane));
+      rmSync(join(dir, `${app.name}.json`), {force: true});
+      continue;
+    }
+    if (!last) continue;
+    const rounds = Array.from({length: lane.plan.rounds}, (_, i) => JSON.parse(readFileSync(roundFile(dir, app.name, i + 1), 'utf8')));
+    const record = mergeRounds(rounds, {tolerance: limit});
+    writeFileSync(join(dir, `${app.name}.json`), `${JSON.stringify(record, null, 2)}\n`);
+    const seen = record.rounds.map((entry) => Math.round(entry.requests)).join(' / ');
+    note(`${id(app, lane)}: median ${Math.round(record.requests.mean)} req/s (rounds ${seen}, spread ${record.spread}%)`);
+    if (lane.plan.rounds > 1 && record.spread > limit) wide.push(`${id(app, lane)} ${record.spread}%`);
+  }
+  // Warn, not fail: the median drops the slow round and a deploy should not die on a noisy box. `repeat` fails on it.
+  if (wide.length > 0) note(`rounds spread wider than the ${limit}% tolerance: ${wide.join(', ')}`);
+  return [...failed];
 }
 
 function cmdServers(cfg, only) {
@@ -218,12 +280,7 @@ function cmdServers(cfg, only) {
   if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
   if (needsMionBuild(apps)) buildMionApp(cfg);
 
-  const failed = [];
-  for (const app of apps) {
-    for (const suite of SUITE_KEYS) {
-      if (!runOne(cfg, app, suite)) failed.push(`${app.name}/${suite}`);
-    }
-  }
+  const failed = runLanes(apps, suiteLanes(), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - see the output above`);
@@ -233,7 +290,7 @@ function cmdSuite(cfg, suite) {
   if (!SUITE_KEYS.includes(suite)) die(`mion-bench: unknown suite '${suite}'. Try one of: ${SUITE_KEYS.join(', ')}`);
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  const failed = APPS.filter((app) => !runOne(cfg, app, suite)).map((app) => app.name);
+  const failed = runLanes(APPS, suiteLanes().filter((lane) => lane.suite === suite), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')}`);
@@ -246,62 +303,38 @@ function cmdSuite(cfg, suite) {
 function cmdSweep(cfg, only) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  const failed = [];
-  // `sweep <app>` runs the sizes for one lane, the way `one <app>` runs the suites for one
   const apps = only ? [findApp(only)] : APPS;
   if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
-  for (const app of apps) {
-    for (const size of SWEEP_SIZES) {
-      if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
-    }
-  }
+  const failed = runLanes(apps, sweepLanes(), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} sweep lane(s) failed: ${failed.join(', ')}`);
 }
 
-// Run ONE lane several times and report how far apart the runs landed. A number is only
-// worth publishing if the lane agrees with itself, and the bun lanes are why this exists:
-// they are the ones a node-based load generator could not measure repeatably.
-function cmdRepeat(cfg, appName, suiteArg, runs) {
+// Fails when one lane's rounds land further apart than the published tolerance. Exists for the bun lanes,
+// which a node-based load generator could not measure repeatably.
+function cmdRepeat(cfg, appName, suiteArg) {
   if (!appName) die(`mion-bench: repeat needs an app. Try one of: ${APP_NAMES.join(', ')}`);
   const app = findApp(appName);
   if (!app) die(`mion-bench: unknown app '${appName}'. Try one of: ${APP_NAMES.join(', ')}`);
   const suite = suiteArg || SUITE_KEYS[0];
   if (!SUITE_KEYS.includes(suite)) die(`mion-bench: unknown suite '${suite}'. Try one of: ${SUITE_KEYS.join(', ')}`);
-  if (!Number.isFinite(runs) || runs < 2) die('mion-bench: --runs needs a number of 2 or more (two runs is the smallest comparison).');
+  const lane = suiteLanes().find((entry) => entry.suite === suite);
+  if (lane.plan.rounds < 2) die('mion-bench: repeat needs --rounds 2 or more (two rounds is the smallest comparison).');
   ensurePrereqs(cfg);
   if (app.family === 'mion') buildMionApp(cfg);
 
-  const recordFile = join(RESULTS_DIR, suite, `${app.name}.json`);
-  const records = [];
-  for (let run = 1; run <= runs; run++) {
-    // Drop the previous record first: the harness deletes a FAILED lane's record, so a
-    // stale file left by run N-1 would otherwise be read as run N's result.
-    rmSync(recordFile, {force: true});
-    if (!runOne(cfg, app, suite)) die(`mion-bench: ${app.name}/${suite} failed on run ${run} of ${runs} - see the output above`);
-    const record = JSON.parse(readFileSync(recordFile, 'utf8'));
-    records.push(record);
-    note(`run ${run}/${runs}: ${Math.round(record.requests.mean)} req/s`);
-  }
-
-  const seen = records.map((record) => record.requests.mean);
-  const best = Math.max(...seen);
-  const worst = Math.min(...seen);
-  const spread = best > 0 ? ((best - worst) / best) * 100 : 0;
-  // Read back off the record rather than off MION_BENCH_TOLERANCE directly. The record is
-  // what gen-servers-docs publishes, so the number checked here is the number the pages
-  // claim; two copies of the default would eventually disagree.
-  const tolerance = records[0].tolerance;
-  if (!Number.isFinite(tolerance)) die(`mion-bench: ${app.name}/${suite} recorded no tolerance - this result predates the check, re-run the lane.`);
+  if (runLanes([app], [lane], roundRunner(cfg)).length > 0) die(`mion-bench: ${app.name}/${suite} failed - see the output above`);
+  const record = JSON.parse(readFileSync(join(laneDir(RESULTS_DIR, lane), `${app.name}.json`), 'utf8'));
+  const seen = record.rounds.map((entry) => entry.requests);
   console.log(
-    `\n${app.name} - ${suite}: ${runs} runs, ${Math.round(worst)} to ${Math.round(best)} req/s, ` +
-      `spread ${spread.toFixed(1)}% (tolerance ${tolerance}%)`
+    `\n${app.name} - ${suite}: ${seen.length} rounds, ${Math.round(Math.min(...seen))} to ${Math.round(Math.max(...seen))} req/s, ` +
+      `spread ${record.spread}% (tolerance ${record.tolerance}%)`
   );
-  if (spread > tolerance) {
+  if (record.spread > record.tolerance) {
     die(
-      `mion-bench: ${app.name}/${suite} is not repeatable - ${spread.toFixed(1)}% apart across ${runs} runs, ` +
-        `over the ${tolerance}% tolerance. A busy machine is the usual cause; MION_BENCH_TOLERANCE moves the bar ` +
+      `mion-bench: ${app.name}/${suite} is not repeatable - ${record.spread}% apart across ${seen.length} rounds, ` +
+        `over the ${record.tolerance}% tolerance. A busy machine is the usual cause; MION_BENCH_TOLERANCE moves the bar ` +
         `if this box really is that noisy.`
     );
   }
@@ -328,13 +361,7 @@ function genDocs() {
 function cmdWebsite(cfg) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  const failed = [];
-  for (const app of APPS) {
-    for (const suite of SUITE_KEYS) if (!runOne(cfg, app, suite)) failed.push(`${app.name}/${suite}`);
-  }
-  for (const app of APPS) {
-    for (const size of SWEEP_SIZES) if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
-  }
+  const failed = runLanes(APPS, [...suiteLanes(), ...sweepLanes()], roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - the pages for them would render an empty column`);
@@ -377,10 +404,18 @@ function gcProbeMetrics(record) {
 // by what they say about themselves instead.
 const gcProbeDir = (label) => join(RESULTS_DIR, 'gcprobe', label);
 
+// Longer than a published round: GC ratios need MIN_SAMPLE_REQUESTS per window, and 4 MB collects ~30 a second.
+// Every round restarts the server, so each warms in full.
+const GCPROBE_SECONDS = 20;
+const GCPROBE_WARMUP = 5;
+
 function gcProbeRun(cfg, app, size, label, round) {
-  const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1'];
+  const seconds = process.env.MION_BENCH_DURATION || String(GCPROBE_SECONDS);
+  const warmup = process.env.MION_BENCH_WARMUP || String(GCPROBE_WARMUP);
+  const timing = ['--round', String(round), '--warmup', warmup, '--duration', seconds];
+  const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1', ...timing];
   if (runInContainer(cfg, app, args) !== 0) return null;
-  const laneFile = join(RESULTS_DIR, 'payload-sizes', size, `${app.name}.json`);
+  const laneFile = roundFile(laneDir(RESULTS_DIR, {size}), app.name, round);
   if (!existsSync(laneFile)) return null;
   const record = JSON.parse(readFileSync(laneFile, 'utf8'));
   mkdirSync(gcProbeDir(label), {recursive: true});
@@ -506,18 +541,24 @@ function cmdClean() {
   note('removed results/ and the mion app dist');
 }
 
-function applyQuick() {
-  if (process.env.MION_BENCH_QUICK !== '1') return;
-  const setIfUnset = (name, value) => {
-    if (!(name in process.env)) process.env[name] = value;
+/** A knob the user set wins over quick mode's. */
+export function quickEnv(env) {
+  return {
+    MION_BENCH_ROUNDS: '1',
+    MION_BENCH_DURATION: '3',
+    MION_BENCH_WARMUP: '1',
+    MION_BENCH_CONNECTIONS: '25',
+    ...env,
   };
-  setIfUnset('MION_BENCH_DURATION', '3');
-  setIfUnset('MION_BENCH_WARMUP', '1');
-  setIfUnset('MION_BENCH_CONNECTIONS', '25');
-  console.error('==> MION_BENCH_QUICK on: short load windows. The numbers are noisy and must NOT be published.');
 }
 
-function dispatch(cfg, args, runs, opts) {
+function applyQuick() {
+  if (process.env.MION_BENCH_QUICK !== '1') return;
+  Object.assign(process.env, quickEnv(process.env));
+  console.error('==> MION_BENCH_QUICK on: one short round. The numbers are noisy and must NOT be published.');
+}
+
+function dispatch(cfg, args, opts) {
   const [cmd, ...rest] = args;
   switch (cmd) {
     case 'prep': return ensurePrereqs(cfg);
@@ -527,7 +568,7 @@ function dispatch(cfg, args, runs, opts) {
     case 'one': return (requireEngine(cfg), cmdServers(cfg, rest[0]));
     case 'suite': return (requireEngine(cfg), cmdSuite(cfg, rest[0]));
     case 'sweep': return (requireEngine(cfg), cmdSweep(cfg, rest[0]));
-    case 'repeat': return (requireEngine(cfg), cmdRepeat(cfg, rest[0], rest[1], runs));
+    case 'repeat': return (requireEngine(cfg), cmdRepeat(cfg, rest[0], rest[1]));
     case 'gcprobe': return (requireEngine(cfg), cmdGcProbe(cfg, opts.gcprobe));
     case 'build': return (requireEngine(cfg), ensurePrereqs(cfg), buildMionApp(cfg));
     case 'website': return (requireEngine(cfg), cmdWebsite(cfg));
@@ -544,15 +585,16 @@ function dispatch(cfg, args, runs, opts) {
 
 export function main(rawArgs) {
   const args = [];
-  let runs = 3;
   const gcprobe = {lanes: GCPROBE_LANES, label: 'current', rounds: 3, sizes: ['huge'], compare: null};
   const listArg = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
   for (let i = 0; i < rawArgs.length; i++) {
     const arg = rawArgs[i];
     if (arg === '--quick') process.env.MION_BENCH_QUICK = '1';
-    else if (arg === '--runs') runs = Number(rawArgs[++i]);
-    else if (arg.startsWith('--runs=')) runs = Number(arg.slice('--runs='.length));
-    else if (arg === '--rounds') gcprobe.rounds = Number(rawArgs[++i]);
+    else if (arg === '--rounds') {
+      // One flag for both: rounds per lane for a measured run, rounds per label for gcprobe.
+      gcprobe.rounds = Number(rawArgs[++i]);
+      process.env.MION_BENCH_ROUNDS = String(gcprobe.rounds);
+    }
     else if (arg === '--size' || arg === '--sizes') gcprobe.sizes = listArg(rawArgs[++i]);
     else if (arg === '--label') gcprobe.label = rawArgs[++i];
     else if (arg === '--compare') gcprobe.compare = [rawArgs[++i], rawArgs[++i]];
@@ -560,7 +602,13 @@ export function main(rawArgs) {
     else args.push(arg);
   }
   applyQuick();
-  dispatch(config(), args, runs, {gcprobe});
+  // A bad knob is a usage error, caught before any result is touched.
+  try {
+    for (const size of [undefined, ...SWEEP_SIZES]) lanePlan(size);
+  } catch (err) {
+    die(err.message);
+  }
+  dispatch(config(), args, {gcprobe});
 }
 
 if (import.meta.main) {

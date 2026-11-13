@@ -1,5 +1,5 @@
 {
-  "$generated": "by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.",
+  "$generated": "by scripts/core/gen-diagnostics-catalog.mjs from pkg/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.",
   "subsystems": [
     {
       "key": "project-config",
@@ -137,7 +137,7 @@
       "subsystem": "markers",
       "level": "runtimeError",
       "headline": "`CompTimeArgs<T>` literal contains a forbidden construct ({construct}). Only literals and nested literals are allowed.",
-      "summary": "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+      "summary": "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, a `const` that points to one, or a namespace import's member (`GEN.lastName`, an exported `const`). Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
       "fix": "const base = {strict: true} as const;\nconst options = {...base, mode: 'unsafe'} as const;",
       "example": null
     },
@@ -146,7 +146,7 @@
       "subsystem": "markers",
       "level": "runtimeError",
       "headline": "`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).",
-      "summary": "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported. Function calls, property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (marker-comptime-arg-widened-const). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
+      "summary": "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported, or a namespace import's member (`GEN.lastName`). Function calls, other property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (marker-comptime-arg-widened-const). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
       "fix": "const isUser = createValidateFn<User>(undefined, {mode: 'unsafe'});\n\n// or a const of literals, here or in another module\nconst opts = {mode: 'unsafe'} as const;\nconst isUserToo = createValidateFn<User>(undefined, opts);",
       "example": null
     },
@@ -871,11 +871,20 @@
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'share'});"
     },
     {
+      "code": "format-generator-invalid",
+      "subsystem": "formats",
+      "level": "runtimeError",
+      "headline": "TypeFormat mock generator `{generator}` cannot mock this format: {reason}",
+      "summary": "A `generator` picks realistic mock values, so it must be one generator name and not sit next to `allowedValues`, `contentMediaType` or `isRegex`, which already decide the value or that no generated value meets (beside `mockSamples` the types refuse it). The mock fits each value to the format: it pads or cuts it to the length limits and replaces a char `allowedChars`, `disallowedChars` or a preset like `Alpha` rejects. So the build only fails when that leaves nothing to build from, like `length: 0` with `allowedChars`. The message names the problem.",
+      "fix": "type LastName = TF.String<{maxLength: 40; generator: 'lastName'}>;",
+      "example": "import {createValidateFn} from '@mionjs/run-types';\nimport * as TF from '@mionjs/run-types/formats';\nexport const isCode = createValidateFn<TF.String<{allowedValues: {val: ['Lee']}; generator: 'lastName'}>>();"
+    },
+    {
       "code": "format-invalid-params",
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "Invalid type-format params: {reason}",
-      "summary": "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
+      "summary": "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples` or a `generator`. Change the settings the message names.",
       "fix": null,
       "example": null
     },
@@ -947,7 +956,7 @@
       "subsystem": "formats",
       "level": "runtimeError",
       "headline": "TypeFormat mockSample violates a sibling constraint: {reason}",
-      "summary": "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count UTF-16 code units, the same as the validator's `.length` check. Change the sample or relax the setting.",
+      "summary": "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count code points, the same as the validator: `💩` is one. Change the sample or relax the setting.",
       "fix": "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
       "example": null
     },
@@ -1197,7 +1206,7 @@
     {
       "code": "rpc-batch-argument-out-of-range",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.",
       "summary": "The server passes a mapped input at the argument position where you wrote `inputFrom()`, so that position (counted from zero) must be one of the route handler's parameters. Otherwise the server would reject the request at runtime.",
       "fix": "// getById(id) takes 1 argument\nroutes.orders.getById(inputFrom(user, 'toUserId'));",
@@ -1206,7 +1215,7 @@
     {
       "code": "rpc-batch-duplicate-route",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
       "summary": "One batch cannot call the same route twice. Results come back by route, so the second call would replace the first. Keep one call per route, or split the calls into two batches.",
       "fix": "batch([routes.users.getById(1)]);\nbatch([routes.users.getById(2)]);",
@@ -1215,10 +1224,10 @@
     {
       "code": "rpc-batch-element-unreadable",
       "subsystem": "batches",
-      "level": "error",
-      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.",
-      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
-      "fix": "const user = routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
+      "level": "runtimeError",
+      "headline": "This `batch()` route list can't be determined at compile time ({reason}); write the route calls in an array literal, each typed with its route id.",
+      "summary": "The server only runs batches compiled at build time, so the build must know a `batch()` call's route list. It reads which route each item in `batch([...])` runs from its type: a route call like `routes.users.getById(1)` is typed with its route id, wherever the client comes from (`initClient()`, `inject()`, a composable, `useNuxtApp()`, a helper). It cannot read a list built at runtime (a variable, `.map()`, a spread), a value that is not a route call, or a type that lost the id, such as `RouteSubRequest<any>` or an annotation with a `string` id. Such a batch is never compiled, so the call throws `batch-missing-id`.",
+      "fix": "function getUser(id: number) {\n  return routes.users.getById(id); // inferred: keeps the route id\n}\nbatch([getUser(1), routes.orders.list()]);",
       "example": null
     },
     {
@@ -1242,9 +1251,9 @@
     {
       "code": "rpc-batch-mapper-unreadable",
       "subsystem": "batches",
-      "level": "error",
-      "headline": "`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.",
-      "summary": "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time.",
+      "level": "runtimeError",
+      "headline": "`inputFrom()` mapping is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name, as an argument of a route call written in the batch or held in a variable.",
+      "summary": "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time. The build reads a mapping only as an argument of a route call written in the batch or held in a variable, and only when its source and the route it feeds are each one route: one passed through a helper's arguments or written in a ternary arm would be lost.",
       "fix": "inputFrom(user, (u) => u.id);\n// or the name of a mapper registered on the server\ninputFrom(user, 'toUserId');",
       "example": null
     },
@@ -1260,10 +1269,19 @@
     {
       "code": "rpc-batch-source-not-before",
       "subsystem": "batches",
-      "level": "error",
+      "level": "runtimeError",
       "headline": "`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
       "summary": "Routes in a batch run in the order you list them, and `inputFrom()` can only read a route that already ran. Put the source route in the same `batch([...])` call, before the route it feeds.",
       "fix": "batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
+      "example": null
+    },
+    {
+      "code": "rpc-batch-too-many-combinations",
+      "subsystem": "batches",
+      "level": "runtimeError",
+      "headline": "This `batch()` may run more than {max} route combinations; split it, or narrow the items that may be more than one route.",
+      "summary": "An item whose type may be more than one route (a ternary, an `if`, a helper with several returns) makes one batch per combination, and the combinations multiply. Past the limit the batch is not compiled, so the call throws `batch-missing-id`. Split the call into smaller batches, or narrow the items.",
+      "fix": "const user = isAdmin ? routes.admins.getById(id) : routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
       "example": null
     },
     {
@@ -1453,6 +1471,15 @@
       "headline": "Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.",
       "summary": "An empty pool (`pool: []`) is a generated blank, so it mocks nothing. Deleting the `@todo` line alone is not enough: add realistic sample data. `mion enrich --no-emit` reports it without failing, while `--require-complete` and production builds fail on it.",
       "fix": "export const mockUser: MockData<User> = {\n  name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n};",
+      "example": null
+    },
+    {
+      "code": "enrich-mock-invalid-generator",
+      "subsystem": "enrichment",
+      "level": "runtimeError",
+      "headline": "MockData generator `{generator}` cannot mock field `{field}`: {reason}",
+      "summary": "A MockData `generator` must name a known generator, sit on a string field, and fit that field's format: its length limits and characters, with no `allowedValues` beside it. A named format such as `Email` mocks itself and takes no generator. Otherwise `createMockDataFn` throws at that field.",
+      "fix": "name: {generator: 'fullName'}",
       "example": null
     },
     {

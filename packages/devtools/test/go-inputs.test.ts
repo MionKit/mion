@@ -8,6 +8,8 @@ import {afterAll, describe, expect, it} from 'vitest';
 // @ts-expect-error plain ESM dev script, no types
 import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '../../../scripts/lib/go-inputs.mjs';
 // @ts-expect-error plain ESM dev script, no types
+import {mionVersion, versionLdflags} from '../../../scripts/lib/go-stamp.mjs';
+// @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
 import {
   CODE_DIGEST_INPUTS,
@@ -35,10 +37,10 @@ afterAll(() => rmSync(scratch, {recursive: true, force: true}));
 
 describe('go-inputs — what the digest sees', () => {
   it('excludes only what the go tool itself ignores', () => {
-    expect(isGoInput('ts-go-runtypes/internal/x/x.go')).toBe(true);
-    expect(isGoInput('ts-go-runtypes/internal/x/x_test.go')).toBe(false);
-    expect(isGoInput('ts-go-runtypes/internal/x/testdata/fixture.ts')).toBe(false);
-    expect(isGoInput('ts-go-runtypes/internal/x/asset.json')).toBe(true);
+    expect(isGoInput('ts-go-runtypes/pkg/x/x.go')).toBe(true);
+    expect(isGoInput('ts-go-runtypes/pkg/x/x_test.go')).toBe(false);
+    expect(isGoInput('ts-go-runtypes/pkg/x/testdata/fixture.ts')).toBe(false);
+    expect(isGoInput('ts-go-runtypes/pkg/x/asset.json')).toBe(true);
     expect(isGoInput('ts-go-runtypes/go.mod')).toBe(true);
   });
 
@@ -79,7 +81,7 @@ describe('go-inputs — the playground wrapper', () => {
   it('the wasm digest is the shared digest over the wasm input list plus the tsgolint commit', () => {
     expect(WASM_INPUTS).toEqual([
       'ts-go-runtypes/cmd/mion-wasm',
-      'ts-go-runtypes/internal',
+      'ts-go-runtypes/pkg',
       'ts-go-runtypes/go.mod',
       'ts-go-runtypes/go.sum',
       'ts-go-runtypes/go.work',
@@ -150,8 +152,10 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
   });
 
   // constants.Version is folded into typeIDs, so a version bump must never restore an old binary.
-  it('carries the root package.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
-    const version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
+  it('carries the version.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
+    const version = JSON.parse(readFileSync(join(REPO_ROOT, 'version.json'), 'utf8')).version;
+    // One stamp reader for dev and release builds, so both hash every type alike.
+    expect(goVersionLdflags()).toBe(versionLdflags(mionVersion(REPO_ROOT), goVersionLdflags().slice(-7)).join(' '));
     expect(goVersionLdflags()).toContain(`constants.Version=${version} `);
     // `--short` grows with the object count, which would split one commit into two keys.
     expect(goVersionLdflags()).toMatch(/constants\.TsgoVersion=[0-9a-f]{7}$/);
@@ -197,10 +201,10 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(resolverDigest()).not.toBe(extractDigest());
   });
 
-  // The gate restores only code-digest, so an internal/ edit must not move its key and drop the gate to raw hashing.
-  it('keys code-digest on its own inputs, without internal/', () => {
+  // The gate restores only code-digest, so a pkg/ edit must not move its key and drop the gate to raw hashing.
+  it('keys code-digest on its own inputs, without pkg/', () => {
     expect(CODE_DIGEST_INPUTS).toEqual(['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)]);
-    expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/internal');
+    expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/pkg');
     expect(codeDigestDigest()).not.toBe(extractDigest());
     expect(codeDigestCacheKey()).toMatch(new RegExp(`^mion-code-digest-${process.platform}-${process.arch}-[0-9a-f]{32}$`));
   });

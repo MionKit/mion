@@ -19,7 +19,7 @@ tests that keep the printer, `JSONShape<T>` and the real encoder in agreement.
 ## Direction
 
 - Keep `JSONShape<T>` as the public TypeScript type; the Date wire stays an ISO string.
-- Add a wire mode to the type printer (`ts-go-runtypes/internal/convert`, a flag in `printFlags`,
+- Add a wire mode to the type printer (`ts-go-runtypes/pkg/convert`, a flag in `printFlags`,
   checked inside the arms, per the visitor rule in `ts-go-runtypes/AGENTS.md`). It prints each node's
   wire type inline, with no reference to user declarations.
 - Cover every JSON strategy the encoder has (clone, mutate, compact), unions and their envelopes, and

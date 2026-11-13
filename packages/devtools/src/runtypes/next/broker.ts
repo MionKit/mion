@@ -21,6 +21,7 @@ import {RUNTYPES_FILE_MODULE_DIR} from '../../core/go-generated/runtypes-constan
 // The check is a cheap readdir, but on a large project it would still run once per file without a throttle.
 const STAMP_THROTTLE_MS = 100;
 const FILE_MODULE_PREFIX = `types/${RUNTYPES_FILE_MODULE_DIR}/`;
+const STAMP_ENTRY = 'types/.rt-stamp';
 
 // How long an edit may settle before absorbing it: several files saved at once (a formatter) are ONE batch.
 const WATCH_DEBOUNCE_MS = 30;
@@ -49,6 +50,8 @@ export interface BrokerHandle {
   /** True when THIS caller won the election and owns the resolver. */
   owner: boolean;
   socketPath: string;
+  /** Settles once the whole-program buildStart has written the cache modules. Already settled for a non-owner. */
+  ready: Promise<void>;
   /** Releases the socket and the resolver. A no-op for a non-owner. */
   close: () => Promise<void>;
 }
@@ -94,7 +97,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
 
   // Someone else owns it, or a killed build left a stale socket file: if nothing answers, take the address over.
   if (!listening) {
-    if (await isLive(socketPath)) return {owner: false, socketPath, close: async () => {}};
+    if (await isLive(socketPath)) return {owner: false, socketPath, ready: Promise.resolve(), close: async () => {}};
     await unlinkQuietly(socketPath);
     return startBroker(rootAbs, options);
   }
@@ -151,11 +154,14 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   };
 
   let startupError: unknown;
+  // Resolver and socket are unref'd: without this handle Node quits while withRunTypes awaits `ready`.
+  // `next build` then exits 0 having built nothing. Held only until the scan settles.
+  const holdOpen = setInterval(() => {}, 60_000);
   const ready = (async () => {
     await built.buildStart?.call(context);
     genDirAbs = built.rtGenDir?.() ?? '';
     if (!genDirAbs) throw new Error('@mionjs/devtools: the resolver did not report its output directory (genDir)');
-    stampPath = path.join(genDirAbs, 'types', '.rt-stamp');
+    stampPath = path.join(genDirAbs, STAMP_ENTRY);
     debug(`genDir ${genDirAbs}`);
   })()
     .then(() => {
@@ -167,7 +173,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     })
     .catch((error) => {
       startupError = error;
-    });
+    })
+    .finally(() => clearInterval(holdOpen));
 
   // ── invalidation stamp ────────────────────────────────────────────────────
   // Turbopack cannot see types from OTHER files: `TransformResult.typeDeps` names them, the stamp is the fallback.
@@ -197,6 +204,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     for (const name of names) {
       // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
       const entry = `types/${name.split(path.sep).join('/')}`;
+      // Counting its own file moved the stamp on the first request, mid-build.
+      if (entry === STAMP_ENTRY) continue;
       listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
     }
     return listing.sort();
@@ -380,6 +389,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   return {
     owner: true,
     socketPath,
+    ready,
     close: async () => {
       watcher?.close();
       if (flushTimer) clearTimeout(flushTimer);

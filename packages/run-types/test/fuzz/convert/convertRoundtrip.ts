@@ -1,5 +1,5 @@
 // The FE convert roundtrip lane — the JS-side, real-CLI counterpart of the
-// Go atom sweep (ts-go-runtypes/internal/convert/fuzz_atoms_test.go), run over
+// Go atom sweep (ts-go-runtypes/pkg/convert/fuzz_atoms_test.go), run over
 // the FULL generated type space (core/typeGen.ts) instead of the Go sweep's
 // compact atom grammar:
 //

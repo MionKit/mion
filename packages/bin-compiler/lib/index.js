@@ -6,6 +6,9 @@ import {fileURLToPath} from 'node:url';
 // Basename inside every platform package's lib/, and of the dev binary at <repo>/mion-bin/.
 const EXE_BASENAME = 'mion';
 
+// An extension launcher: when installed beside this package, its binary (mion plus the extensions) wins.
+const PRO_LAUNCHER = '@mionkit/pro-bin-compiler';
+
 // Points the launcher at a specific resolver build, overriding both lookups below, and the ONLY
 // escape hatch the lint lane has; a bundler plugin's explicit `binary` option still wins over it.
 const OVERRIDE_ENV = 'MION_BIN';
@@ -49,8 +52,96 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// MION_BIN wins when set; an installed tree resolves the optional dependency
-// `@mionjs/native-compiler-<platform>-<arch>`, this repo's source tree the local `mion-bin/mion`.
+// The launcher walk stops here, so a stray launcher in an ancestor (say $HOME) never takes over a project below it.
+function projectBoundary(start) {
+  const project = nearestProject(start);
+  if (!project) return null;
+  for (let dir = project; ; dir = path.dirname(dir)) {
+    if (isWorkspaceRoot(dir)) return dir;
+    if (path.dirname(dir) === dir) return project;
+  }
+}
+
+function nearestProject(start) {
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    if (!dir.split(path.sep).includes('node_modules') && fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    if (path.dirname(dir) === dir) return null;
+  }
+}
+
+function isWorkspaceRoot(dir) {
+  if (fs.existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return true;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).workspaces !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+// A walk on disk, not require.resolve, so an ESM-only exports map needs no `require` condition.
+// Yarn Plug'n'Play installs have no node_modules, so they are not found.
+function findProLauncher(start) {
+  const boundary = projectBoundary(start);
+  if (!boundary) return null;
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, 'node_modules', PRO_LAUNCHER);
+    if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
+    if (dir === boundary || path.dirname(dir) === dir) return null;
+  }
+}
+
+// The ESM entry an exports target names, or undefined.
+function exportTarget(target) {
+  if (typeof target === 'string') return target;
+  if (Array.isArray(target)) {
+    for (const item of target) {
+      const found = exportTarget(item);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (target && typeof target === 'object') {
+    for (const condition of ['import', 'node', 'default']) {
+      const found = exportTarget(target[condition]);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+// The package's root entry: `exports` (the `.` subpath, or the sugar form with no subpaths), else `main`.
+function launcherEntry(pkg) {
+  const exports = pkg.exports;
+  if (exports === undefined) return pkg.main ?? 'index.js';
+  const root =
+    exports && typeof exports === 'object' && !Array.isArray(exports) && Object.keys(exports).some((key) => key.startsWith('.'))
+      ? exports['.']
+      : exports;
+  return exportTarget(root);
+}
+
+// Only a missing package returns null: a launcher that fails to load throws, so a broken install is never skipped.
+function loadProLauncher(here) {
+  const dir = findProLauncher(process.cwd()) ?? findProLauncher(here);
+  if (!dir) return null;
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const entry = launcherEntry(pkg);
+  if (!entry) {
+    throw new Error(`[mion] ${PRO_LAUNCHER} at ${dir} exports no entry this launcher can load (an import or default path).`);
+  }
+  // require(esm) loads an ES module synchronously (Node >= 22.12, inside the >= 24 floor).
+  return module.createRequire(import.meta.url)(path.join(dir, entry));
+}
+
+// Lets a caller skip extension-only work when no pro launcher is installed.
+export function hasProLauncher() {
+  return (findProLauncher(process.cwd()) ?? findProLauncher(path.dirname(fileURLToPath(import.meta.url)))) !== null;
+}
+
+function ownVersion(here) {
+  return JSON.parse(fs.readFileSync(path.join(here, '..', 'package.json'), 'utf8')).version;
+}
+
 export function getExePath() {
   const overridden = overrideExe();
   if (overridden) {
@@ -58,6 +149,17 @@ export function getExePath() {
   }
 
   const here = path.dirname(fileURLToPath(import.meta.url));
+  const pro = loadProLauncher(here);
+  if (pro) {
+    const version = ownVersion(here);
+    if (pro.mionVersion !== version) {
+      throw new Error(
+        `[mion] ${PRO_LAUNCHER} is built on mion ${pro.mionVersion}, but @mionjs/bin-compiler is ${version}. ` +
+          `Install the matching pair, or remove ${PRO_LAUNCHER} to use the public binary.`,
+      );
+    }
+    return pro.getExePath();
+  }
   const normalized = here.replace(/\\/g, '/');
   const platformKey = `${process.platform}-${process.arch}`;
   const platformPackage = `@mionjs/native-compiler-${platformKey}`;

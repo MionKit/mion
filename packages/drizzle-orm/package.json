@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/drizzle-orm",
-    "version": "0.45.2",
+    "version": "0.45.3",
     "versionLine": "drizzle-orm",
     "type": "module",
     "description": "Dialect-agnostic core of the mion drizzle-orm packages: slim column/table recorders, flat model types and refinement",

@@ -5,7 +5,7 @@
 // orphan-.d.ts.map detection, and mtime staleness are ported line-for-line.
 //
 // Targets (positional):
-//   go            mion-bin/mion matches cmd/ + internal/ (build-id compare).
+//   go            mion-bin/mion matches cmd/ + pkg/ (build-id compare).
 //   extract       mion-bin/extract-fn-bodies (the enrich tests spawn it), same checks as `go`.
 //   linux-go      mion-bin/mion-linux-<arch> matches the host binary —
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
@@ -52,15 +52,15 @@ import {cpSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rena
 import {dirname, join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {goInputsDigest, readStamp, writeStamp} from '../lib/go-inputs.mjs';
+import {mionVersion, versionLdflags} from '../lib/go-stamp.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
 import {describe, headCommit, patchState, readPin, rel, submoduleInitialised, tsgolintCommit} from '../lib/tsgolint.mjs';
 
-const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_BIN = join(REPO_ROOT, 'mion-bin/mion');
 const GO_STAMP = join(REPO_ROOT, 'mion-bin/.mion.stamp');
 // Every Go input mion-bin/mion links, repo-relative (the wasm has its own list in
 // scripts/website/playground-wasm-inputs.mjs).
-export const RESOLVER_INPUTS = ['ts-go-runtypes/cmd/mion', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
+export const RESOLVER_INPUTS = ['ts-go-runtypes/cmd/mion', 'ts-go-runtypes/pkg', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum'];
 const GO_PKG = './cmd/mion';
 const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const EXTRACT_BIN = join(REPO_ROOT, 'mion-bin/extract-fn-bodies');
@@ -69,7 +69,7 @@ export const EXTRACT_INPUTS = ['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLV
 const CODE_DIGEST_PKG = './cmd/code-digest';
 export const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
 const CODE_DIGEST_STAMP = join(REPO_ROOT, 'mion-bin/.code-digest.stamp');
-// No internal/: an edit there must not drop the gate to raw hashing while the tool's cache entry rebuilds.
+// No pkg/: an edit there must not drop the gate to raw hashing while the tool's cache entry rebuilds.
 export const CODE_DIGEST_INPUTS = ['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)];
 const GO_VERSION_FILE = join(GO_ROOT, '.go-version');
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
@@ -96,19 +96,17 @@ function fail(msg) {
 
 // ── go ───────────────────────────────────────────────────────────────────────
 
-// Embed the workspace version into the binary so the on-disk RT cache is isolated
-// across releases (internal/constants/version.go). The tsgo revision is pure
-// metadata (surfaced by --version), never folded into the typeID hash.
+// The mion version isolates the on-disk RT cache across releases (pkg/constants/version.go).
 export function goVersionLdflags() {
   let version = 'dev';
   try {
-    version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version || 'dev';
+    version = mionVersion(REPO_ROOT);
   } catch {
     version = 'dev';
   }
   // A fixed length: `--short` grows with the object count, which would move the digest between clones.
   const tsgo = tsgolintCommit().slice(0, 7) || 'dev';
-  return `-X ${GO_MODULE}/internal/constants.Version=${version} -X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`;
+  return versionLdflags(version, tsgo).join(' ');
 }
 
 // Read a Go build ID (empty string when the file is absent / unreadable).

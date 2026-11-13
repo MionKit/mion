@@ -20,7 +20,7 @@ export default defineConfig({
     // .dist and only leaves a .mion genDir behind. Tests still run the plugin via
     // vitest.config.ts, which is where the spec files' typed flows need it.
     dts({
-      outDir: '.dist/esm',
+      outDirs: '.dist/esm',
       pathsToAliases: false,
       tsconfigPath: resolve(__dirname, 'tsconfig.build.json'),
     }),

@@ -200,12 +200,8 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
     const source = read('scripts/website/bench-data/bench.mjs');
     expect(source).toContain('DID NOT RUN');
     expect(source).toContain('errored case(s)');
-    // The distinguishing signal: a lane that never ran wrote no results file. The
-    // directory is resolved per RUNTIME (`runtimeResultsDir`) because the same built
-    // bundle now runs under node and bun, and bun's results live in their own subdir
-    // — so accept either the plain RESULTS_DIR or that resolver, but still require
-    // the existence check itself.
-    expect(source).toMatch(/existsSync\(join\((?:RESULTS_DIR|runtimeResultsDir\(runtime\)), `\$\{competitor}\.json`\)\)/);
+    // A round that never ran wrote no result file; the dir is per runtime, as bun's results live in their own subdir.
+    expect(source).toContain('existsSync(validationRoundFile(resultsDir(lane.runtime), lane.competitor, round))');
   });
 });
 
@@ -228,6 +224,26 @@ describe('the default bench run is a correctness gate', () => {
       expect(run.stderr).toContain('bench: --only needs a comma list of competitors');
     }
   }, 120_000);
+
+  it('takes --rounds on the bare run and refuses a count that runs no round', () => {
+    const bench = (...args: string[]) =>
+      spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), 'bench', ...args], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+    const missing = bench('--rounds');
+    expect(missing.status, missing.stderr).toBe(2);
+    expect(missing.stderr).toContain('bench: --rounds needs a number');
+    // The 0 must get past the dispatcher's stray-command check, to be refused by the driver.
+    for (const args of [
+      ['--rounds', '0'],
+      ['--quick', '--rounds=2.5'],
+    ]) {
+      const run = bench(...args);
+      expect(run.status, run.stderr).toBe(2);
+      expect(run.stderr).toContain('MION_VALIDATION_BENCH_ROUNDS must be a whole number');
+    }
+  }, 180_000);
 
   // `--only` is how CI runs just the competitors not yet proven green.
   it('runs only the competitors --only names, and refuses an unknown one', async () => {

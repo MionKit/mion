@@ -1,0 +1,174 @@
+package resolver_test
+
+import (
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/pkg/protocol"
+)
+
+// armedValidatePrefix is the entry-key prefix of the ARMED (rejectCircularRefs)
+// validate family, derived rather than spelled out: fnHashes move whenever the
+// operation registry grows enough to force a FnHashLen bump, and a hardcoded
+// prefix turns that into a confusing "no armed entry emitted" failure far from
+// the actual cause.
+func armedValidatePrefix(t *testing.T) string {
+	t.Helper()
+	op, ok := operations.ByName("validate")
+	if !ok {
+		t.Fatalf("validate operation missing from the registry")
+	}
+	return operations.FnHashFor(op, nil, "", true) + "_"
+}
+
+// End-to-end coverage for the inline circular-reference guard (the compile-time
+// `rejectCircularRefs` option). The armed variant of a guarded family must (a)
+// bake the guard prologue + skeleton into its body, (b) demand @mionjs/run-types/src/runtypes/circular-pure-fns#findCycle
+// by body reference (delivered like any built-in), while (c) a PLAIN cyclable type
+// carries no guard, no walker, and no RunType bundle — the pay-for-use win.
+
+func scanEntryModules(t *testing.T, src string) map[string]string {
+	t.Helper()
+	r := setupInline(t, map[string]string{"a.ts": src})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	return resp.EntryModules
+}
+
+// findEntryWith returns an entry module whose body factory has the given tag
+// prefix (e.g. the armed-validate prefix) — the module carrying that factory.
+//
+// Iterates in SORTED key order, never map order. A source with a named nested
+// type emits one entry per type in the same family, so map order made the pick
+// random: the test drew the root locally and the nested type in CI, and only the
+// second one failed. Deterministic here means such a mismatch fails the same way
+// everywhere; when a source really does emit several entries of one family, use
+// findEntryForType and name the one you mean.
+func findEntryWith(modules map[string]string, needle string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		if strings.Contains(modules[name], needle) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// findEntryForType is findEntryWith narrowed to ONE type: the entry tuple keeps
+// the source type name in its own slot, so a nested type's entry can never be
+// mistaken for the root's.
+func findEntryForType(modules map[string]string, needle string, typeName string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		mod := modules[name]
+		if strings.Contains(mod, needle) && strings.Contains(mod, ",'"+typeName+"',") {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func sortedEntryNames(modules map[string]string) []string {
+	names := make([]string, 0, len(modules))
+	for name := range modules {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func TestInlineGuard_ArmedValidateBakesGuardAndDemandsFindCycle(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Node {name: string; next?: Node}
+export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
+`)
+
+	// The armed entry (validate with rejectCircularRefs) must carry the guard prologue.
+	armedName, ok := findEntryWith(modules, armedValidatePrefix(t))
+	if !ok {
+		t.Fatalf("no armed validate entry emitted\nmodules: %v", keys(modules))
+	}
+	armed := modules[armedName]
+	// Quote-free substrings: the factory body is a quoted JS string, so single
+	// quotes inside it are escaped (\'), but these fragments carry none.
+	for _, want := range []string{"fc = utl.getPureFn(", "if(fc(v,cyP))return false", "const cyP = {c:["} {
+		if !strings.Contains(armed, want) {
+			t.Errorf("armed validate entry missing %q:\n%s", want, armed)
+		}
+	}
+	// It demands the built-in by body reference (the pure-fn dep tuple slot is a
+	// real JS array literal, so its single quotes are NOT escaped).
+	if !strings.Contains(armed, "'"+purefnids.FindCycle+"'") {
+		t.Errorf("armed entry does not list the findCycle pure-fn dep:\n%s", armed)
+	}
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(modules))
+	}
+}
+
+func TestInlineGuard_PlainCyclableTypeShipsNoGuardNoBundle(t *testing.T) {
+	// A plain (unarmed) createValidateFn over a cyclable type — the common case.
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Node {name: string; next?: Node}
+export const isNode = createValidateFn<Node>();
+`)
+	for name, mod := range modules {
+		if strings.Contains(mod, purefnids.FindCycle) {
+			t.Errorf("plain cyclable type served the walker in %q — demand leaked:\n%s", name, mod)
+		}
+		// No RunType data bundle (kind-4 row bundle) for a plain createX cyclable type.
+		if strings.HasPrefix(mod, "export const __rt_runtypes") || strings.Contains(mod, "rtmod:/runtypes.js") {
+			t.Errorf("plain cyclable type emitted / imported a RunType bundle in %q:\n%s", name, mod)
+		}
+	}
+}
+
+func TestInlineGuard_ArmedEncodersThrow(t *testing.T) {
+	// The armed jsonEncoder (jeCL|C) entry throws a CircularReferenceError via utl.circularError.
+	modules := scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+interface Node {name: string; next?: Node}
+export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+`)
+	throwers := 0
+	for _, mod := range modules {
+		if strings.Contains(mod, "if(cyR)throw utl.circularError(cyR)") {
+			throwers++
+		}
+	}
+	if throwers < 1 {
+		t.Errorf("expected the armed jsonEncoder to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
+	}
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" not served for armed encoders\nmodules: %v", keys(modules))
+	}
+}
+
+// TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing — regression: the armed JSON
+// composite carries the built-in findCycle id in its SoftDeps (that IS the
+// built-in's demand signal), but AssertCompositeSoftDeps must not read that
+// pure-fn edge as a composite-bound primitive: the assertion runs BEFORE
+// servePackagePureFns delivers the body, so treating it as a primitive fired a spurious
+// Error-severity internal-json-primitive-missing that failed batch builds.
+func TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing(t *testing.T) {
+	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@mionjs/run-types';
+interface Node {name: string; next?: Node}
+export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
+`})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	for _, d := range resp.Diagnostics {
+		if d.Code == diagnostics.CodeCompositeMissingPrimitive {
+			t.Fatalf("armed jsonEncoder tripped internal-json-primitive-missing on its pure-fn soft dep: args=%v", d.Args)
+		}
+	}
+	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(resp.EntryModules))
+	}
+}

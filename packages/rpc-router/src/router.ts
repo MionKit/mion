@@ -344,6 +344,8 @@ function recursiveFlatRoutes(
     if (typeof key !== 'string' || !isNaN(key as any))
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
     if (key.includes(',')) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
+    // `,` and `#` build the key a batch() call picks its id by
+    if (key.includes('#')) throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain '#'.`);
     // a route id is used as an object key on both ends of the wire, so a prototype name can never be one
     if (isUnsafePropertyName(key))
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${key}' is not a valid route name.`);

@@ -10,8 +10,15 @@ import {createHash} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MessageChannel, receiveMessageOnPort, Worker, type MessagePort} from 'node:worker_threads';
-import type {Diagnostic} from '../core/protocol.ts';
-import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
+import {registerCatalogEntries} from '../core/diagnosticCatalog.ts';
+import type {Capabilities, Diagnostic} from '../core/protocol.ts';
+import {
+  WAKE_INDEX,
+  type LintSessionOptions,
+  type LintWorkerCapabilitiesRequest,
+  type LintWorkerRequest,
+  type LintWorkerResponse,
+} from './session-protocol.ts';
 
 export type {LintSessionOptions} from './session-protocol.ts';
 
@@ -29,6 +36,8 @@ export class LintSession {
   private readonly cache = new Map<string, LintOutcome>();
   // Sticky engine failure: once the bridge is known-broken, later files reuse the reason instead of re-paying it.
   private dead: string | null = null;
+  // Fetched once by probesSync; empty when the engine cannot answer.
+  private probes: RegExp[] | null = null;
 
   // start resolves once the worker signals shimReady; the plugin entry awaits it at load so the launcher fork
   // precedes the host's memory ramp. Never rejects: on worker failure or grace timeout it surfaces per file.
@@ -68,6 +77,16 @@ export class LintSession {
     return outcome;
   }
 
+  // Opens the worker's connection as a first file would, and registers catalog entries on the thread that renders.
+  probesSync(options: LintSessionOptions = {}): readonly RegExp[] {
+    if (this.probes) return this.probes;
+    const response = this.dead
+      ? undefined
+      : this.exchange({capabilities: true, tsconfig: options.tsconfig ?? '', binary: options.binary ?? ''}, options);
+    this.probes = probesOf(response && 'capabilities' in response ? response.capabilities : undefined);
+    return this.probes;
+  }
+
   private remember(key: string, outcome: LintOutcome): void {
     if (this.cache.size >= CACHE_CAP) {
       const oldest = this.cache.keys().next().value;
@@ -77,6 +96,27 @@ export class LintSession {
   }
 
   private roundTrip(file: string, text: string, options: LintSessionOptions): LintOutcome {
+    // Forward ONLY an explicit tsconfig (strict: the daemon fails the op when it is missing or broken). Unset,
+    // the Go side searches upward from cwd exactly as tsc does, so this side carries no config logic.
+    const response = this.exchange({file, text, tsconfig: options.tsconfig ?? '', binary: options.binary ?? ''}, options, file);
+    if ('engineError' in response) return response;
+    if (response.error) {
+      const engineError = `resolver failed: ${response.error}`;
+      // Connection-level failures stick so later files answer instantly; per-file op errors don't.
+      if (response.fatal) this.dead = engineError;
+      return {engineError};
+    }
+    if (response.capabilities) registerCatalogEntries(response.capabilities.diagnostics);
+    const {diagnostics = [], downgradeErrors} = response;
+    return {diagnostics, downgradeErrors};
+  }
+
+  // exchange posts one request to the worker and blocks until its response, or reports the engine dead.
+  private exchange(
+    message: Omit<LintWorkerRequest, 'seq'> | Omit<LintWorkerCapabilitiesRequest, 'seq'>,
+    options: LintSessionOptions,
+    file = '(capabilities)'
+  ): LintWorkerResponse | {engineError: string} {
     let port: MessagePort;
     try {
       port = this.ensureWorker();
@@ -86,15 +126,7 @@ export class LintSession {
     }
 
     const seq = ++this.seq;
-    // Forward ONLY an explicit tsconfig (strict: the daemon fails the op when it is missing or broken). Unset,
-    // the Go side searches upward from cwd exactly as tsc does, so this side carries no config logic.
-    port.postMessage({
-      seq,
-      file,
-      text,
-      tsconfig: options.tsconfig ?? '',
-      binary: options.binary ?? '',
-    } satisfies LintWorkerRequest);
+    port.postMessage({seq, ...message} satisfies LintWorkerRequest | LintWorkerCapabilitiesRequest);
 
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;
@@ -117,14 +149,7 @@ export class LintSession {
         return {engineError: this.dead};
       }
       if (received.message.seq !== seq) continue;
-      if (received.message.error) {
-        const engineError = `resolver failed: ${received.message.error}`;
-        // Connection-level failures stick so later files answer instantly; per-file op errors don't.
-        if (received.message.fatal) this.dead = engineError;
-        return {engineError};
-      }
-      const {diagnostics = [], downgradeErrors} = received.message;
-      return {diagnostics, downgradeErrors};
+      return received.message;
     }
   }
 
@@ -150,7 +175,24 @@ export class LintSession {
     this.requestPort = null;
     this.cache.clear();
     this.dead = null;
+    this.probes = null;
   }
+}
+
+// An invalid probe is skipped: the Go side stays authoritative about what its check reports.
+function probesOf(capabilities: Capabilities | undefined): RegExp[] {
+  if (!capabilities) return [];
+  registerCatalogEntries(capabilities.diagnostics);
+  const probes: RegExp[] = [];
+  for (const check of capabilities.scanChecks) {
+    if (!check.probe) continue;
+    try {
+      probes.push(new RegExp(check.probe, 'm'));
+    } catch {
+      // An unreadable probe admits nothing extra.
+    }
+  }
+  return probes;
 }
 
 // resolveWorkerURL finds the worker ENTRY FILE: a worker thread loads it through plain Node, never vite's

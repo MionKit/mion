@@ -21,11 +21,11 @@ export const users = DZ.pgTable('users', {
 
 // stricter types for the API
 export const apiUsers = refineTableType(users, {
-  name: {minLength: 10},
+  name: {minLength: 10, generator: 'fullName'}, // mocks get real names
   age: {min: 18},
 });
 
-export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10}>
+export type User = InferSelectModel<typeof apiUsers>; // name: String<{maxLength: 100, minLength: 10, generator: 'fullName'}>
 export type NewUser = InferInsertModel<typeof apiUsers>; // id and createdAt optional (DB defaults)
 export type UserPatch = Partial<InferInsertModel<typeof apiUsers>>;
 
