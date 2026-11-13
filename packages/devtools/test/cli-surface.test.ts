@@ -1,13 +1,5 @@
-// CLI surface contract test — the regression guard for the binary's args[0]
-// command set. Over the built mion-bin/mion:
-//
-//   - Help golden: snapshot the top-level usage + each command's full --help.
-//     printUsage renders every flag via fs.VisitAll, so the golden captures the
-//     whole verb set + per-command flags automatically. Regenerate after an
-//     intentional surface change with:  pnpm exec vitest run cli-surface -u
-//   - Routing + exit codes: each verb routes to its handler; unknown / no args[0]
-//     -> usage on stderr + exit 2; -h / --help / --version are peeled early.
-//   - Parameter effects: compile --no-emit writes no genDir tree.
+// Guards the built mion-bin/mion args[0] command set: help golden, verb routing + exit codes, compile --no-emit.
+// printUsage walks every flag, so the golden holds the whole surface; regenerate: pnpm exec vitest run cli-surface -u
 
 import {describe, it, expect} from 'vitest';
 import {fileURLToPath} from 'node:url';

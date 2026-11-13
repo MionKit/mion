@@ -277,8 +277,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             random
           );
         }
-        // Hook Date bounds override the global range for an UNBRANDED Date only, so a format's own bounds,
-        // which validate enforces, are never widened out of range.
+        // Unbranded Date only: a format's own bounds, which validate enforces, are never widened by the hook.
         const hookBounds = hookNode ? options.hook!.bounds?.(options.hookCursor, hookNode) : undefined;
         const minDate = hookBounds?.min instanceof Date ? hookBounds.min : mOps.minDate;
         const maxDate = hookBounds?.max instanceof Date ? hookBounds.max : mOps.maxDate;
@@ -301,8 +300,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.array: {
       const child = runType.child as RunType | undefined;
       if (!child) throw new Error('Cannot mock array: child runtype missing.');
-      // A hook length overrides the global length. A formattedArray annotation clamps the draw into the declared bounds and fills unique-aware, so the
-      // mockSwitch rejection loop converges instead of re-rolling whole arrays.
+      // Clamping a formattedArray draw and filling unique-aware lets mockSwitch's rejection loop converge.
       const annotation = runType.formatAnnotation;
       const arrayParams =
         annotation?.name === 'formattedArray' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;

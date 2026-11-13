@@ -89,8 +89,7 @@ type Cache struct {
 	// edits can change that. Latched here, raised by the resolver, which owns the sites.
 	sampleConflicts []SampleConflict
 
-	// Two distinct structural ids landing on the same short id; the resolver takes it (→ marker-type-id-collision), and a
-	// caller running its own cache outside the resolver reads it as a plain error.
+	// Two structural ids on one short id: the resolver raises marker-type-id-collision, other callers see a plain error.
 	hashCollision *HashCollision
 	// Numbers the placeholder ids minted after a collision so the doomed walk cannot merge the colliding types into one entry.
 	collisionSeq int

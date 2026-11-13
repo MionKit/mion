@@ -1,15 +1,6 @@
-// Generated pattern mockSamples — the runtime half of the auto-generation
-// feature: a format pattern with NO declared mockSamples builds under the
-// real pipeline (the resolver generates a pool from the regex and bakes it
-// into the emitted annotation), so mocking works with nothing declared.
-// Pools are random per build unless a literal `{mock: {seed}}` at a
-// createMockDataFn call site pins them (the CompTimeHints lane). The Go
-// matrix (pkg/compiler/resolver/format_sample_validation_test.go)
-// proves the build-time sample generation, the seeded/unseeded pool semantics
-// across builds, and the format-sample-generation-failed failure lanes; this spec proves the
-// EMITTED artifacts behave within a build: mocks match the regex, validate
-// accepts every mock, and both marker call shapes ride the same cache
-// entry.
+// Runtime half of pattern-sample generation: a pattern with no mockSamples gets a pool baked in at build time,
+// random per build unless a literal `{mock: {seed}}` pins it. Generation, seeding and failure lanes are proven by
+// pkg/compiler/resolver/format_sample_validation_test.go; this spec checks the emitted artifacts within one build.
 
 import type * as TF from '@mionjs/run-types/formats';
 import * as TFV from '@mionjs/run-types/formats';

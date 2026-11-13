@@ -89,10 +89,8 @@ describe('client-side validation errors', () => {
       expect(emailError?.format?.name).toBe('email');
     });
 
-    // Canary (R20): pins the EXACT raw mion error shape (expected base type + format
-    // {name, formatPath, val}) that an error renderer consumes. Runs the real engine, so
-    // an upstream error-shape change fails here. Client param errors are relative to the
-    // positional params tuple (paths like [0, 'name']).
+    // Canary (R20): pins, through the real engine, the exact raw error shape a renderer consumes.
+    // Client param errors are relative to the positional params tuple (paths like [0, 'name']).
     it('pins the raw engine error shape for the format matrix', async () => {
       const {routes} = initClient<MyApi>({baseURL});
       const invalidUser = {name: 'A', age: 10, email: 'invalid-email' as Email};

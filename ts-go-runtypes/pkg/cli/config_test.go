@@ -43,11 +43,8 @@ func mustSymlinkDir(t *testing.T, target, linkPath string) {
 	}
 }
 
-// TestCanonicalize pins the symlink-space normalization mustAbs applies. A path
-// the user spelled through a symlink must land in the SAME space os.Getwd()
-// reports, because that is the space tsconfig discovery (and therefore RootDir)
-// lives in. Symlinks resolve on the longest EXISTING prefix so a not-yet-created
-// leaf — a `--out-dir` target — keeps its spelling appended.
+// TestCanonicalize: mustAbs moves a symlinked path into os.Getwd()'s space, where tsconfig discovery and RootDir live.
+// Symlinks resolve on the longest existing prefix, so a not-yet-created `--out-dir` leaf keeps its spelling.
 func TestCanonicalize(t *testing.T) {
 	base := t.TempDir()
 	real := filepath.Join(base, "real")

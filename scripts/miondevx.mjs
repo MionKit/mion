@@ -71,12 +71,8 @@ const die = (msg, code = 1) => {
 //            block IS the opt-in — it is a wall-clock commitment, and the
 //            workflows will pick the lane up from here automatically.
 //
-// ⚠ Scheduling rule: the *_SOAK_MS lanes
-// are TIME-BOXED — CPU contention silently buys LESS coverage in the same wall
-// clock, so never run two of them concurrently (ci.yml soaks them one at a
-// time; the soak workflows give each lane its own runner). The count-based
-// lanes (fixed iteration counts) have fixed coverage — contention only costs
-// wall clock, so they may share a runner.
+// ⚠ *_SOAK_MS lanes are time-boxed: contention silently buys less coverage, so never run two at once.
+// Count-based lanes have fixed coverage, so they may share a runner.
 //
 // ⚠ MION_FUZZ_ITER drives convert, convertcli, apiids and apitypes: exported in a shell it widens all four.
 // The tier blocks set it per lane, so `--quick` / `--soak` never collide.

@@ -199,8 +199,8 @@ type Session struct {
 	// shared entry kept, and the site that took the short id), read when a later site disagrees to name both ends of
 	// the conflict in format-sample-conflict and marker-type-id-collision.
 	idOrigins map[string]diagnostics.Site
-	// patternGenFailures records, per (pattern source \x00 flags), why the pattern-sample pass could not generate a pool;
-	// read at emit time by the pattern emitter's format-sample-generation-failed lane, which has the demanding call sites for anchoring.
+	// patternGenFailures: per `source \x00 flags`, why the pattern-sample pass could not generate a pool.
+	// Read at emit time by the format-sample-generation-failed lane, which has the call sites to anchor it.
 	patternGenFailures map[string]formats.PatternGenFailure
 	// overridesBuilt guards the one-time whole-program `overrideX<T>(pureFn)` pass (ensureOverrides), which must run
 	// before any AssignID so every id folds the override suffix; reset on SetProgram / Reset.

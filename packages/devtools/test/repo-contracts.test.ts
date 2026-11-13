@@ -1327,8 +1327,7 @@ describe('website-test-counts', () => {
     expect(generator).not.toMatch(/JSON\.parse\(listed\.stdout\)/);
   });
 
-  // `vitest list` drops skipped tests, and suites skip on the host (no binary, no playground wasm, a soak
-  // env var unset), so the release gate counted fewer tests than a dev machine and failed --check.
+  // `vitest list` drops skipped tests and suites skip per host, so the release gate's count failed --check.
   it('counts skipped tests too, so the number never moves with the host', () => {
     const dir = mkdtempSync(join(tmpdir(), 'declared-tests-'));
     try {

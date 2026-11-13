@@ -1,10 +1,8 @@
 package reflection
 
-// IsSafeName reports whether a property name is dot-access safe in emitted JS: ASCII letters, digits and
-// underscore, not starting with a digit. Deliberately narrower than the JS identifier grammar (no `$`, no
-// unicode): a name outside the set is quoted, which is always valid. ONE predicate for every emitted key, so a
-// key can never be emitted bare by one writer and quoted by another.
-// Hand-rolled byte loop: it runs once per projected property and the regexp engine was measurable churn.
+// IsSafeName reports whether name is dot-access safe in emitted JS: ASCII letters, digits, underscore, no leading digit.
+// Narrower than JS identifiers on purpose (quoting is always valid); one predicate so writers never disagree on a key.
+// Hand-rolled byte loop: it runs once per projected property and regexp was measurable churn.
 func IsSafeName(name string) bool {
 	if name == "" {
 		return false

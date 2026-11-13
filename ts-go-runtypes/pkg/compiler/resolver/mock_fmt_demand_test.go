@@ -27,9 +27,8 @@ func moduleBasenames(resp protocol.Response) []string {
 	return names
 }
 
-// TestMockSite_DemandsFormatTransform — a createMockDataFn site demands the
-// fmt family for its type, and the reflection facade imports the entry (soft
-// dep) so the injected import loads it.
+// TestMockSite_DemandsFormatTransform: a createMockDataFn site demands the fmt family, and the reflection facade
+// soft-imports the entry so the injected import loads it.
 func TestMockSite_DemandsFormatTransform(t *testing.T) {
 	resp := scopeScan(t, `import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {Lowercase} from '@mionjs/run-types/formats';

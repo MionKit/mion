@@ -1,13 +1,7 @@
 /**
- * A sequence-of-actions skeleton for code that has MEMORY (use this when a valid input
- * is a list of operations, not one value).
- *
- * Each Command changes a small MODEL of the code's state, drives the real code, and
- * checks a rule (returning Violations). The input maker picks an applicable command
- * each step; the runner replays the whole sequence from one seed, and on a failure cuts
- * it down to the fewest leading actions that still fail. If fast-check is available,
- * `fc.commands([...]) + fc.modelRun` replaces the runner — the Command and rule design
- * carries over unchanged.
+ * Sequence-of-actions skeleton for code with memory, where a valid input is a list of operations.
+ * The runner replays a sequence from one seed and shrinks a failure to its fewest failing leading actions.
+ * With fast-check, `fc.commands([...]) + fc.modelRun` replaces the runner; Commands and rules carry over.
  */
 import type {Violation, CheckCtx} from './oracle-layer.ts';
 import {withSeededRandom, mixSeed, prefixShrink} from './seeded-runner.ts';

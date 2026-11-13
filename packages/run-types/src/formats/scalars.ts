@@ -61,9 +61,7 @@ export function number(
   return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'number', formatParams});
 }
 
-/** A currency (monetary amount) field builder: `currency()` ≡ `number({isCurrency: true})`, so unlike
- *  `number()` the no-params call still carries the mark. The currency UNIT is never a param: it is
- *  runtime data for whatever renders the message. **/
+/** `currency()` ≡ `number({isCurrency: true})`, so even the bare call carries the mark; the unit is runtime data. **/
 export function currency(id?: InjectRunTypeId<Currency>): RunType<Currency>;
 export function currency<const P extends NumberParams>(
   formatParams: CompTimeArgs<ExactParams<P, NumberParams>>,

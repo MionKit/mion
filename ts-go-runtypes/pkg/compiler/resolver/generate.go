@@ -302,9 +302,8 @@ func (sess *Session) absPath(p string) string {
 	return filepath.Join(sess.workingDir(), p)
 }
 
-// outputDirName is where files-mode output lands with no explicit outDir: <srcDir>/.mion/. A dot-folder
-// on purpose, since tsconfig `include` globs skip dot-dirs, so the regenerated cache never enters the user's
-// program by accident, and it cannot collide with a hand-authored `runtypes/` source dir.
+// outputDirName is the default <srcDir>/.mion/: `include` globs skip dot-dirs, so the cache stays out of the program.
+// It also cannot collide with a hand-authored `runtypes/` source dir.
 const outputDirName = ".mion"
 
 // resolveOutDir resolves the session's absolute output root, so a consumer that cannot parse tsconfig
