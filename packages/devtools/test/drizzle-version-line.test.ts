@@ -259,6 +259,22 @@ describe('drizzle line — a live version must mean the same bytes', () => {
     expect(tarballContentDiff(makeTarball(base), makeTarball(rebuilt))).toEqual(['.dist/esm/src/index.js']);
   });
 
+  it('ignores a source map whose positions alone moved, as a build tool bump re-encodes them', () => {
+    const map = (mappings: string) =>
+      JSON.stringify({version: 3, sources: ['../../../src/index.ts'], sourcesContent: ['export const one = 1;\n'], mappings});
+    const before = {...base, '.dist/esm/src/index.js.map': map('AAAA,OAAO,MAAM')};
+    const after = {...before, '.dist/esm/src/index.js.map': map('AAAA,MAAM,GAAG')};
+    expect(tarballContentDiff(makeTarball(before), makeTarball(after))).toEqual([]);
+  });
+
+  it('counts a source map whose source text changed', () => {
+    const map = (source: string) =>
+      JSON.stringify({version: 3, sources: ['../../../src/index.ts'], sourcesContent: [source], mappings: 'AAAA'});
+    const before = {...base, '.dist/esm/src/index.js.map': map('export const one = 1;\n')};
+    const after = {...before, '.dist/esm/src/index.js.map': map('export const one = 2;\n')};
+    expect(tarballContentDiff(makeTarball(before), makeTarball(after))).toEqual(['.dist/esm/src/index.js.map']);
+  });
+
   it('ignores the tsc cache a local build leaves in the dist dir', () => {
     const withCache = {...base, '.dist/esm/tsconfig.tsbuildinfo': '{"version":"5.9"}'};
     expect(tarballContentDiff(makeTarball(base), makeTarball(withCache))).toEqual([]);
