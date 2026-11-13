@@ -159,6 +159,7 @@ const tarRead = (tarball, entry) => execFileSync('tar', ['-xzOf', tarball, entry
 // name -> sha256 over every file a packed tarball ships. package.json is normalized first: its
 // own `version` is what the comparison DECIDES, and `devDependencies` are inert once published
 // while pnpm restamps the workspace:* ones at pack time, which would read as a change every release.
+// A source map drops `mappings`: a build tool bump re-encodes positions over the same code and source text.
 export function tarballFileDigests(tarball) {
   const digests = new Map();
   for (const entry of tarList(tarball)) {
@@ -167,6 +168,7 @@ export function tarballFileDigests(tarball) {
     if (!isPublishedFile(relPath)) continue;
     let body = tarRead(tarball, entry);
     if (relPath === 'package.json') body = Buffer.from(JSON.stringify({...JSON.parse(body.toString('utf8')), version: '', devDependencies: {}}));
+    else if (relPath.endsWith('.map')) body = Buffer.from(JSON.stringify({...JSON.parse(body.toString('utf8')), mappings: ''}));
     digests.set(relPath, createHash('sha256').update(body).digest('hex'));
   }
   return digests;
