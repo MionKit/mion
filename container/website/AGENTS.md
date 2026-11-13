@@ -23,8 +23,8 @@ Deps live ONLY in the podman image, never in the monorepo lockfile.
   then show), or **Why** it is done this way (the reason, short).
 - Titles name the job: Title Case noun phrase or gerund ("Defining a Route", "Parser Strategies").
   No slogans ("Fast by construction"), no questions, no backticks.
-- A title stands alone: "Rules", "Setup" fail; "Lint Rules", "FriendlyText Shape" pass. Feature names
-  (Type Builders, Transforms, RunType, FriendlyText) are fine.
+- A title stands alone: "Rules", "Setup" fail; "Lint Rules", "Mock Options" pass. Feature names
+  (Type Builders, Transforms, RunType, Type Formats) are fine.
 - No code names in a title (function, option, flag, keyword): "Dry Runs", not "Dry Runs with --check".
   First sentence names the API. Two things = two sections.
 - Renamed heading = new URL anchor: grep the content tree for the old slug, update every link.

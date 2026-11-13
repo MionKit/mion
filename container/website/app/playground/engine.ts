@@ -381,8 +381,8 @@ export function generatedFactories(modules: readonly CacheModule[]): GeneratedFa
   return factories;
 }
 
-// mock generates a random value for the type via createMockDataFn (the same
-// generator MockData feeds). Returns the value plus any diagnostics.
+// mock generates a random value for the type via createMockDataFn.
+// Returns the value plus any diagnostics.
 export async function mock(
   userCode: string,
   options?: ResolverOptions,

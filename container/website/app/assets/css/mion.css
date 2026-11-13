@@ -214,17 +214,14 @@ section[data-slot='root'] > [data-slot='container'] {
    gets an underline, in the primary colour; a whole-card link (`::card` with a
    `to:`, rendered as a.group) underlines its title the same way. */
 .home-features h3,
-.ai-steps-head h3,
 .rt-feature-text h3,
 .rt-object-fns h3,
-.home-toolbelt .group > p,
-.ai-artifacts .group > p {
+.home-toolbelt .group > p {
   color: var(--ui-text-highlighted);
   opacity: 1;
 }
 
 .home-features h3 a,
-.ai-steps-head h3 a,
 .rt-feature-text h3 a,
 .rt-object-fns h3 a {
   color: inherit;
@@ -232,11 +229,9 @@ section[data-slot='root'] > [data-slot='container'] {
 }
 
 .home-features h3 a[href]:not([href^='#']),
-.ai-steps-head h3 a[href]:not([href^='#']),
 .rt-feature-text h3 a[href]:not([href^='#']),
 .rt-object-fns h3 a[href]:not([href^='#']),
-.home-toolbelt a.group > p,
-.ai-artifacts a.group > p {
+.home-toolbelt a.group > p {
   text-decoration: underline;
   text-decoration-color: var(--ui-primary);
   text-decoration-thickness: 2px;
@@ -276,109 +271,6 @@ section[data-slot='root'] > [data-slot='container'] {
   100% {
     background-position: -200% center;
   }
-}
-
-/* AI section: the sparkles icon flows with the same gradient as the section
-   title (the generic h2 rule above paints the title itself). */
-.ai-section h2 .ai-title-icon {
-  background: var(--site-title-gradient);
-  background-size: 200% 100%;
-  animation: gradient-flow 12s linear infinite;
-  vertical-align: -0.12em;
-  margin-right: 0.45rem;
-}
-
-/* AI section: second row: a centered "how it works" heading + intro sitting
-   above the three step tiles. */
-.ai-steps-head {
-  text-align: center;
-  max-width: 52rem;
-  margin: 2.75rem auto 1.25rem;
-}
-
-.ai-steps-head h3 {
-  margin-bottom: 0.6rem;
-  font-size: 1.6rem;
-  line-height: 1.2;
-}
-
-.ai-explore {
-  text-align: center;
-  margin-top: 1.5rem;
-}
-
-/* "Experimental" pill under the AI section title */
-.ai-experimental {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-/* The three step tiles: a row of rounded, slightly-darker tiles reusing the
-   StatTiles treatment (border + radius + text-muted 6% wash), each led by a
-   gradient step number. */
-/* three tiles in a row spanning the full content width; stacks on narrow screens. */
-.ai-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin-top: 0.85rem;
-}
-
-@media (max-width: 720px) {
-  .ai-steps {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ai-step {
-  padding: 1rem 1.15rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 0.6rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 6%, transparent);
-}
-
-/* top row: the number and the title together */
-.ai-step > p:first-of-type {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0 0 0.45rem;
-}
-
-.ai-step-num {
-  font-size: 1.6rem;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  flex: 0 0 auto;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* per-tile hues, mirroring the StatTiles site-hue / blue / purple sweep */
-.ai-step:nth-child(1) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(var(--site-hue) var(--mion-pastel-s) var(--mion-pastel-l)), hsl(calc(var(--site-hue) + 38) var(--mion-pastel-s) var(--mion-pastel-l)));
-}
-.ai-step:nth-child(2) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(198 var(--mion-pastel-s) var(--mion-pastel-l)), hsl(236 var(--mion-pastel-s) var(--mion-pastel-l)));
-}
-.ai-step:nth-child(3) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(280 var(--mion-pastel-s) var(--mion-pastel-l)), hsl(318 var(--mion-pastel-s) var(--mion-pastel-l)));
-}
-
-.ai-step-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--ui-text-highlighted);
-}
-
-/* description row, below */
-.ai-step > p:last-of-type {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--ui-text-dimmed);
 }
 
 /* Home "Two ways to describe a shape", type-first vs builder, side by side.
@@ -676,84 +568,21 @@ section[data-slot='root'] > [data-slot='container'] {
   margin: 0;
 }
 
-/* Toolbelt + AI-artifact cards: icon and title share one row; the title borrows
+/* Toolbelt cards: icon and title share one row; the title borrows
    the feature-card h3 gradient (animated green→blue) at a smaller size. */
-.home-toolbelt .group > span.iconify,
-.ai-artifacts .group > span.iconify {
+.home-toolbelt .group > span.iconify {
   display: inline-block;
   vertical-align: middle;
   margin: 0 0.55rem 0.5rem 0;
 }
 
-.home-toolbelt .group > p,
-.ai-artifacts .group > p {
+.home-toolbelt .group > p {
   display: inline-block;
   vertical-align: middle;
   margin: 0 0 0.55rem 0;
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-}
-
-/* AI section example rows: one card per artifact (FriendlyText / MockData),
-   each holding the three-step code columns (type → scaffold → filled).
-   Icon and title share one row, same treatment as the ai-artifacts cards. */
-.rt-ai-example {
-  margin-top: 1rem;
-}
-
-.rt-ai-example > span.iconify {
-  display: inline-block;
-  vertical-align: middle;
-  margin: 0 0.55rem 0.5rem 0;
-}
-
-.rt-ai-example > p {
-  display: inline-block;
-  vertical-align: middle;
-  margin: 0 0 0.55rem 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.rt-ai-example-cols {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  align-items: stretch;
-  margin-top: 0.85rem;
-}
-
-.rt-ai-example-cols > * {
-  min-width: 0;
-  margin-block: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* code-group columns fill to the tallest column */
-.rt-ai-example-cols > * > div[role='tabpanel'] {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.rt-ai-example-cols > * > div[role='tabpanel'] > pre {
-  flex: 1;
-  margin: 0;
-}
-
-.rt-ai-example-cols :is(pre, code) {
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-
-/* a 3-col grid at 2 columns orphans the third, so drop straight to one */
-@media (max-width: 1100px) {
-  .rt-ai-example-cols {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* "All Special Markers" cards (guide markers page), gradient title over the

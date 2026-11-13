@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, '..', 'apps');
 
-// build-vite runs all 12 families; each light smoke runs the lean subset.
+// build-vite runs all 11 families; each light smoke runs the lean subset.
 const HEAVY = 'build-vite';
 const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-types-in-src', 'smoke-bun'];
 
@@ -27,7 +27,7 @@ test('build-vite: full feature matrix passes after the Vite-on-Rolldown build', 
   const report = mod.selfCheck();
   const detail = report.failures.map((failure) => `[${failure.family}] ${failure.name}${failure.detail ? ` — ${failure.detail}` : ''}`).join('\n');
   assert.ok(report.ok, `build-vite selfCheck failed (${report.passed}/${report.total}):\n${detail}`);
-  assert.equal(report.families, 12, 'build-vite must exercise all 12 feature families');
+  assert.equal(report.families, 11, 'build-vite must exercise all 11 feature families');
   assert.ok(report.total >= 50, `expected a substantial matrix, got ${report.total} checks`);
 });
 
@@ -84,7 +84,7 @@ test('smoke-next-ts: the cache holds typed .ts modules only', () => {
   assert.deepEqual(names.filter((name) => name.endsWith('.js')), [], 'smoke-next-ts: emitMode ts wrote .js modules');
 });
 
-// The genDir comes from the app's tsconfig, so Next reads the same folder the enrich CLI writes.
+// The genDir comes from the app's tsconfig, so Next reads the same folder the mion CLI writes.
 test('smoke-next: generates into the tsconfig genDir', () => {
   const stamp = path.join(APPS, 'smoke-next', '.rt/types/.rt-stamp');
   assert.ok(existsSync(stamp), `smoke-next: no stamp at ${stamp}, the tsconfig genDir was not honoured`);

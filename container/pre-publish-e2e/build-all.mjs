@@ -17,27 +17,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, 'apps');
 const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 
-// Enrichment preflight — AUTOGENERATE the shared app's FriendlyText/MockData
-// mirrors via the PUBLISHED `mion` CLI before any app that imports them
-// builds. In a real project these mirrors are committed; this fixture regenerates
-// them each run (they're gitignored — see the CLI-created src/.mion tree)
-// so the e2e exercises the generator + its `enrich --no-emit` validator against the
-// published package. Uses the launcher (@mionjs/bin-compiler's `mion` command);
-// MION_E2E_BINARY overrides it for host iteration.
-function ensureEnrichment() {
-  const sharedDir = path.join(APPS, 'shared');
-  const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/mion');
-  const model = 'src/models/enriched-user.ts';
-  const genDir = path.join(sharedDir, 'src/.mion/enriched');
-  for (const sub of ['friendly', 'mock', 'i18n']) rmSync(path.join(genDir, sub), {recursive: true, force: true});
-  const cli = (args) => execFileSync(rtCli, args, {cwd: sharedDir, stdio: 'inherit'});
-  console.log('enrichment: `mion enrich` (autogenerate FriendlyText + MockData mirrors)');
-  cli(['enrich', model, 'EnrichedUser']);
-  cli(['enrich', '--i18n', 'es', model]);
-  console.log('enrichment: `mion enrich --no-emit` (validate the generated mirrors)');
-  cli(['enrich', '--no-emit']);
-}
-
 // Packed first, so the apps resolve exactly what @acme/src-types's `files` list ships.
 // Unpacked by hand: `npm install` could prune the matrix root's BAKED toolchain manifest.
 function ensureSrcTypesFixture() {
@@ -348,9 +327,6 @@ async function main() {
     console.error(`no matching apps. Available: ${APP_LIST.map((app) => app.name).join(', ')}`);
     process.exit(1);
   }
-  // build-vite is the only app that imports the enrichment mirrors; regenerate
-  // them first (the smokes use the lean subset and don't need them).
-  if (apps.some((app) => app.name === 'build-vite')) ensureEnrichment();
   if (apps.some((app) => app.name === 'smoke-source' || app.name === 'smoke-types-in-src')) ensureSrcTypesFixture();
   let failed = 0;
   for (const app of apps) {

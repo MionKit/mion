@@ -17,7 +17,6 @@ export * from './markers';
 export * from './mocking';
 export * from './standard-schema';
 export * from './overrides';
-export {friendly, friendlyEs, mockUser} from './enrichment';
 
 import {checkValidation} from './validation';
 import {checkTypeBuilders} from './type-builders';
@@ -30,9 +29,8 @@ import {checkMarkers} from './markers';
 import {checkMocking} from './mocking';
 import {checkStandardSchema} from './standard-schema';
 import {checkOverrides} from './overrides';
-import {checkEnrichment} from './enrichment';
 
-// The 12 feature families (enrichment is family 12).
+// The 11 feature families.
 const FAMILIES: {family: string; run: () => CheckResult[]}[] = [
   {family: 'validation', run: checkValidation},
   {family: 'type-builders', run: checkTypeBuilders},
@@ -45,7 +43,6 @@ const FAMILIES: {family: string; run: () => CheckResult[]}[] = [
   {family: 'mocking', run: checkMocking},
   {family: 'standard-schema', run: checkStandardSchema},
   {family: 'overrides', run: checkOverrides},
-  {family: 'enrichment', run: checkEnrichment},
 ];
 
 export interface SelfCheckReport {
