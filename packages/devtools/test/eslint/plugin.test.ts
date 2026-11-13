@@ -6,7 +6,6 @@ import plugin, {meta, rules, sessionOptions} from '../../src/lint/index.ts';
 import {RULE_SPECS, type RuleName} from '../../src/lint/diagnosticRouting.ts';
 import {resetSharedSession} from '../../src/lint/session.ts';
 import {ResolverClient} from '../../src/core/resolver-client.ts';
-import {TODO_LINE, TODO_TAG} from '../../src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary, makeFixtureProject, runRule, type FixtureProject, type LintReportedProblem} from './fixture.ts';
 import {referencesMarkerModule} from '../../src/lint/prefilter.ts';
 
@@ -73,52 +72,7 @@ interface Widget {
 export const isWidget = createValidateFn<Widget>();
 `;
 
-const USER_TS = `export interface User {
-  name: string;
-  age: number;
-}
-`;
-
-const MIRROR_DIRTY_TS = `import type { User } from './user';
-import type { FriendlyText, MockData } from '@mionjs/run-types';
-
-/** @rtType User#u1 @rtIds {age: a1, name: n1} */
-${TODO_LINE}
-export const friendlyUser: FriendlyText<User> = {
-  name: {rt$label: 'Name'},
-  nope: {rt$label: 'Gone'},
-};
-
-/** @rtType User#u1 */
-export const mockUser: MockData<User> = {
-  age: {min: 1, max: 9},
-  vanished: {pool: ['x']},
-};
-
-/* @rtOrphan export const friendlyGone = {}; */
-export const keep = {/* @rtOrphanChild old: 1, */ fresh: 1};
-`;
-
-const MIRROR_CLEAN_TS = `import type { User } from './user';
-import type { FriendlyText } from '@mionjs/run-types';
-
-/** @rtType User#u1 @rtIds {age: a1, name: n1} */
-export const friendlyUser: FriendlyText<User> = {
-  name: {rt$label: 'Name'},
-  age: {rt$label: 'Age'},
-};
-`;
-
-const MIRROR_DRIFT_TS = `import type { Ghost } from './ghost';
-import type { FriendlyText } from '@mionjs/run-types';
-
-/** @rtType Ghost#g1 */
-export const friendlyGhost: FriendlyText<{name: string}> = {
-  name: {rt$label: 'Name'},
-};
-`;
-
-const PLAIN_TS = `// ${TODO_TAG}: hand-written file, not enrichment
+const PLAIN_TS = `// a hand-written file
 export const answer = 42;
 `;
 
@@ -283,10 +237,6 @@ export {sql as convert} from 'drizzle-orm';`,
       'tables.ts': TABLES_TS,
       'wrapped-generic.ts': WRAPPED_GENERIC_TS,
       'widget.ts': WIDGET_TS,
-      'user.ts': USER_TS,
-      'mirror-dirty.ts': MIRROR_DIRTY_TS,
-      'mirror-clean.ts': MIRROR_CLEAN_TS,
-      'mirror-drift.ts': MIRROR_DRIFT_TS,
       'plain.ts': PLAIN_TS,
       'unchecked-pattern.ts': UNCHECKED_PATTERN_TS,
       'routes.ts': ROUTES_TS,
@@ -427,68 +377,6 @@ export {sql as convert} from 'drizzle-orm';`,
       });
     });
 
-    describe('enrichment findings, one pass routed by level', () => {
-      it('the enrich-text-todo-left to-do reports once on the scaffold line with a tight tag span', () => {
-        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) =>
-          report.message.includes('[enrich-text-todo-left]')
-        );
-        expect(reports).toHaveLength(1);
-        const expected = locate(MIRROR_DIRTY_TS, TODO_TAG);
-        expect(reports[0]).toMatchObject({line: expected.line, column: expected.column});
-        expect(reports[0]!.endColumn).toBe(expected.column + TODO_TAG.length);
-        // The @todo sits above the FriendlyText const → the enrich-text-* code.
-        expect(reports[0]!.message).toContain('[enrich-text-todo-left]');
-      });
-
-      it('reports both carcass forms', () => {
-        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) =>
-          /\[enrich-mock-orphan-(?:type|field)\]/.test(report.message)
-        );
-        expect(reports).toHaveLength(2);
-        // Both carcasses carry no preserved annotation and sit after the last
-        // const, so they attribute to the nearest-before MockData family.
-        expect(reports[0]!.message).toContain('[enrich-mock-orphan-type]');
-        expect(reports[0]!.line).toBe(locate(MIRROR_DIRTY_TS, '@rtOrphan export').line);
-        expect(reports[1]!.message).toContain('[enrich-mock-orphan-field]');
-        expect(reports[1]!.line).toBe(locate(MIRROR_DIRTY_TS, '@rtOrphanChild old').line);
-      });
-
-      it('anchors enrich-text-unknown-field/enrich-mock-unknown-field on the dead keys', () => {
-        expect(codesFor('warning', 'mirror-dirty.ts').sort()).toEqual([
-          'enrich-mock-orphan-field',
-          'enrich-mock-orphan-type',
-          'enrich-mock-unknown-field',
-          'enrich-text-todo-left',
-          'enrich-text-unknown-field',
-        ]);
-        const reports = reportsFor('warning', 'mirror-dirty.ts');
-        const enrichTextUnknownField = reports.find((report) => report.message.includes('[enrich-text-unknown-field]'))!;
-        expect(enrichTextUnknownField.message).toContain('`nope`');
-        expect(enrichTextUnknownField).toMatchObject(locate(MIRROR_DIRTY_TS, 'nope:'));
-        const enrichMockUnknownField = reports.find((report) => report.message.includes('[enrich-mock-unknown-field]'))!;
-        expect(enrichMockUnknownField.message).toContain('`vanished`');
-        expect(enrichMockUnknownField).toMatchObject(locate(MIRROR_DIRTY_TS, 'vanished:'));
-      });
-
-      it('reports enrich-mirror-source-missing on a dead breadcrumb under mion/runtime-error, anchored to the import', () => {
-        const reports = reportsFor('runtime-error', 'mirror-drift.ts');
-        expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[enrich-mirror-source-missing]');
-        expect(reports[0]!.message).toContain('./ghost');
-        expect(reports[0]!.line).toBe(1);
-      });
-
-      it('a clean mirror (markers + @rtIds + valid content) produces ZERO reports on every rule', () => {
-        for (const ruleName of LEVEL_RULES) expect(reportsFor(ruleName, 'mirror-clean.ts')).toEqual([]);
-      });
-
-      it('replays from the session cache: a second identical pass returns the same reports', () => {
-        const first = reportsFor('warning', 'mirror-dirty.ts');
-        const second = reportsFor('warning', 'mirror-dirty.ts');
-        expect(second).toEqual(first);
-      });
-    });
-
     // A file with no runtypes marker still gets a resolver pass.
     describe('mion route findings', () => {
       it('admits package aliases while Go decides dependency ownership', () => {
@@ -554,7 +442,13 @@ export {sql as convert} from 'drizzle-orm';`,
     });
 
     describe('scoping', () => {
-      it('a hand-written file with a stray @todo comment never reaches the resolver (empty visitor)', () => {
+      it('replays from the session cache: a second identical pass returns the same reports', () => {
+        const first = reportsFor('runtime-error', 'routes.ts');
+        expect(first.length).toBeGreaterThan(0);
+        expect(reportsFor('runtime-error', 'routes.ts')).toEqual(first);
+      });
+
+      it('a file no gate admits never reaches the resolver (empty visitor)', () => {
         for (const ruleName of LEVEL_RULES) {
           const visitor = rules[ruleName].create({
             physicalFilename: abs.get('plain.ts')!,
@@ -573,7 +467,7 @@ export {sql as convert} from 'drizzle-orm';`,
         const visitor = rules['warning'].create({
           physicalFilename: '<input>',
           filename: '<input>',
-          sourceCode: {text: MIRROR_DIRTY_TS},
+          sourceCode: {text: FORMS_TS},
           settings,
           report: () => {
             throw new Error('must not report');

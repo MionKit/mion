@@ -21,7 +21,7 @@ const ruleOf = (partial: Partial<Diagnostic> & {code: string}) => routeDiagnosti
 describe('level routing (one rule per level, never per topic)', () => {
   it('sends Error to mion/error and RuntimeError to mion/runtime-error, whatever the family', () => {
     expect(ruleOf({code: 'marker-in-generic-function', family: Family.Marker, level: Level.Error})).toBe('error');
-    expect(ruleOf({code: 'enrich-text-reserved-prefix', family: Family.Enrich, level: Level.Error})).toBe('error');
+    expect(ruleOf({code: 'config-lib-missing-base', family: Family.RunType, level: Level.Error})).toBe('error');
     expect(ruleOf({code: 'validate-symbol-root', level: Level.RuntimeError})).toBe('runtime-error');
     expect(ruleOf({code: 'rpc-handler-missing-return-type', family: Family.MionRoute, level: Level.RuntimeError})).toBe(
       'runtime-error'
@@ -30,7 +30,6 @@ describe('level routing (one rule per level, never per topic)', () => {
 
   it('sends Warning to mion/warning and Info to mion/info', () => {
     expect(ruleOf({code: 'unknown-keys-function-shared', level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'enrich-text-todo-left', family: Family.Enrich, level: Level.Warning})).toBe('warning');
     expect(ruleOf({code: 'drizzle-type-not-allowed', family: Family.Drizzle, level: Level.Warning})).toBe('warning');
     expect(ruleOf({code: 'drizzle-mixed-types', family: Family.Drizzle, level: Level.RuntimeError})).toBe('runtime-error');
     expect(ruleOf({code: 'rpc-handler-non-data-property', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
@@ -103,8 +102,8 @@ describe('location conversion', () => {
   it('converts 1-based wire columns to 0-based loc columns and keeps 1-based lines', () => {
     const report = routeDiagnostic(
       diagnostic({
-        code: 'enrich-text-todo-left',
-        family: Family.Enrich,
+        code: 'rpc-handler-non-data-property',
+        family: Family.MionRoute,
         site: {filePath: 'm.ts', startLine: 5, startCol: 4, endLine: 5, endCol: 9},
       })
     );
@@ -128,9 +127,9 @@ describe('location conversion', () => {
 
 describe('message rendering', () => {
   it('substitutes positional args through the catalog headline', () => {
-    const message = renderMessage(diagnostic({code: 'enrich-text-unknown-field', family: Family.Enrich, args: ['nope']}));
+    const message = renderMessage(diagnostic({code: 'rpc-handler-non-data-property', family: Family.MionRoute, args: ['nope']}));
     expect(message).toBe(
-      '[enrich-text-unknown-field] Unknown field `nope`: the type does not declare it, so this FriendlyText entry is dead.'
+      '[rpc-handler-non-data-property] Property `nope` can never be data and is dropped from every compiled function; rename it.'
     );
   });
 

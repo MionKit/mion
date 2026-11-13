@@ -92,7 +92,6 @@ describe('mion compile (tsc-like CLI)', () => {
       expect(fs.readFileSync(path.join(genRoot, 'README.md'), 'utf8')).toContain('genDir');
       expect(fs.readFileSync(path.join(cacheDir, 'README.md'), 'utf8')).toContain('regenerated');
       expect(fs.readFileSync(path.join(cacheDir, '.gitignore'), 'utf8')).toContain('*');
-      expect(fs.readFileSync(path.join(genRoot, 'enriched', 'README.md'), 'utf8')).toContain('Committed');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }
