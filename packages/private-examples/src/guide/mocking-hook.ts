@@ -7,9 +7,9 @@ type User = {
 };
 
 // start-hook
-// the cursor is the field name; items and other steps turn the hook off
 const hook: MockNodeHook<string> = {
   root: '',
+  // the cursor is the field name; items and other steps turn the hook off
   descend: (cursor, step) =>
     step.kind === 'property' ? String(step.name) : undefined,
   value: (cursor) => (cursor === 'name' ? {value: 'Ada'} : undefined),
