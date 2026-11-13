@@ -179,8 +179,7 @@ export interface DiagnosticEntry {
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
   readonly family: 'purefn' | 'marker' | 'runtype' | 'mionroute' | 'drizzle';
-  /** Set on a code that marks unfinished content. Orthogonal to level: such a
-   *  code is a warning, and this bit is what a completeness gate promotes. */
+  /** Marks unfinished content: a warning by level, and the bit a completeness gate promotes. */
   readonly completeness?: boolean;
 }
 

@@ -1,6 +1,4 @@
-// config.go reads the `mion` entry of tsconfig's plugins[]: TypeScript resolves the config and tsgo parses every
-// TypeScript-owned value; the JSONC reader here exists ONLY for that entry, which tsc ignores and tsgo does not
-// parse.
+// config.go reads tsconfig's plugins[] `mion` entry; its JSONC reader exists only because tsgo does not parse that entry.
 package cli
 
 import (
@@ -30,8 +28,7 @@ import (
 // present.
 type tsRuntypesPlugin struct {
 	Name string `json:"name"`
-	// GenDir is the RunTypes output root; every location under it is
-	// convention (types/, rpc/) and NOT configurable.
+	// GenDir is the RunTypes output root; the layout under it (types/, rpc/) is convention, not configurable.
 	GenDir string `json:"genDir"`
 	// ClientRoutes: `bundle` (the default when absent) bundles every route this client calls, `fetch` fetches every route.
 	ClientRoutes string `json:"clientRoutes"`
@@ -39,13 +36,8 @@ type tsRuntypesPlugin struct {
 	EmitMode     string `json:"emitMode"`
 	InlineMode   string `json:"inlineMode"`
 
-	// Build-path project knobs, read by resolveBuildPlugin and merged in
-	// buildconfig.go.
-	//
-	// NB: there is deliberately NO cacheDir key. The RT disk cache follows
-	// TypeScript's own `incremental` / `composite` switch (on when the project
-	// is incremental, off otherwise) rather than a knob of ours; the internal
-	// MION_CACHE_DIR env var overrides it for tests / direct-binary power users.
+	// Build-path knobs, merged in buildconfig.go.
+	// No cacheDir key on purpose: the RT disk cache follows tsc's `incremental` / `composite`; MION_CACHE_DIR overrides it.
 	HashLength     *int  `json:"hashLength"`
 	SingleThreaded *bool `json:"singleThreaded"`
 	ParallelScan   *bool `json:"parallelScan"`
@@ -72,10 +64,9 @@ type tsRuntypesPlugin struct {
 	// back to its own numbers. A pointer so an absent key keeps the default.
 	// Build-lane project option — the host plugin forwards `--json-max-bytes=false`.
 	JSONMaxBytes *bool `json:"jsonMaxBytes"`
-	// DowngradeErrors lists RuntimeError codes to report as Warnings, so one finding does not block the rest, or "*" for a project that cannot name them yet.
+	// DowngradeErrors: RuntimeError codes that report as Warnings, unblocking the rest; "*" while a project cannot list them.
 	// A fatal Error stays fatal: the build produced no code for it, so not halting would ship a call that throws.
-	// Echoed on generate (protocol.Response.DowngradeErrors) for the JS host; `mion compile` applies it to its exit code.
-	// nil (absent) is the strict default.
+	// Echoed on generate for the JS host; `mion compile` applies it to its exit code. nil is the strict default.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
 	// Levels: absent hides LevelInfo, "all" shows it. Echoed on generate like downgradeErrors; `mion compile` reads it too.
 	Levels string `json:"levels"`
@@ -138,9 +129,8 @@ func ResolveConfigPath(absCwd, tsconfigFlag string) string {
 	return program.DiscoverTsconfig(absCwd)
 }
 
-// ResolveProject parses the ONE tsconfig of a command run EXACTLY ONCE, for buildProgram.
-// Its module resolution conditions are adopted wholesale, so a verb resolves like a build; in-tree src opts in via
-// customConditions:["source"]. "" + nil means no tsconfig anywhere.
+// ResolveProject parses the command's one tsconfig exactly once, for buildProgram; "" + nil means none anywhere.
+// Its resolution conditions apply wholesale, so a verb resolves like a build; customConditions:["source"] opts into src.
 func ResolveProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd := projectCwd("tsconfig discovery")
 	tsconfigPath := ResolveConfigPath(cwd, tsconfigFlag)
@@ -236,17 +226,8 @@ func mionPluginEntry(parsed tsconfigShape) (json.RawMessage, bool) {
 	return nil, false
 }
 
-// resolveBuildPlugin reads the compilerOptions.plugins[name=mion] entry
-// from the build path's tsconfig — the same file program.New loads in the
-// default (on-disk tsconfig) mode. Returns ok=false when no tsconfig resolves
-// or it carries no mion entry; the build path then runs on CLI flags +
-// binary defaults alone (the inline / server modes have no tsconfig, and a
-// project may simply never add the plugin entry).
-//
-// tsconfigFlag is the --tsconfig CLI value (empty → <absCwd>/tsconfig.json),
-// matching program.New's own resolution so the binary reads the very tsconfig
-// it compiles against. A missing or malformed tsconfig returns ok=false rather
-// than erroring.
+// resolveBuildPlugin reads plugins[name=mion] from the tsconfig program.New compiles (empty tsconfigFlag → <absCwd>).
+// A missing, malformed or entry-less tsconfig gives ok=false, not an error: the build runs on CLI flags + defaults.
 func resolveBuildPlugin(absCwd, tsconfigFlag string) (tsRuntypesPlugin, bool) {
 	parsed, ok := parseTsconfig(buildTsconfigPath(absCwd, tsconfigFlag))
 	if !ok {

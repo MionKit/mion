@@ -47,8 +47,8 @@ export interface PluginOptions {
   // Default 'bundle'; 'fetch' fetches every route. Same key as tsconfig `clientRoutes` and CLI `--client-routes`.
   // Under 'bundle', a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
   clientRoutes?: ClientRoutes;
-  // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored). Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
-  // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.
+  // Relative to cwd, modules under its gitignored `types/`; omitted, the resolver infers `<srcDir>/.mion`.
+  // In the project, not node_modules, so a dev watcher sees regenerated modules.
   genDir?: string;
   // What each RT cache entry ships in its code/factory slots:
   //   - 'code' (default): body string only; `materializeRTFn` rebuilds the factory via `new Function` on first lookup.
@@ -372,8 +372,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Report on the wire for both 'file' and 'callback'; the JSON file only for 'file'.
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
-      // Session config the wire does not carry: genDir rides --gen-dir so EVERY op roots identically.
-      // transformRelative: generated modules are real files.
+      // genDir is a spawn flag so every op roots identically; transformRelative because generated modules are real files.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientRoutes ? {clientRoutes: options.clientRoutes} : {}),
       transformRelative: true,
@@ -845,9 +844,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       await registerAdvertised();
       // The full check of the option, now that the binary's own codes are known, and before anything is written.
       if (options.downgradeErrors !== undefined) downgrade = resolveDowngradeErrors(options.downgradeErrors);
-      // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here.
-      // The VCS-hygiene files (per-folder READMEs, the
-      // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
+      // Adopt the echoed root: this host cannot compute the resolver's inferred <srcDir>/.mion.
+      // Go writes the READMEs and types/.gitignore inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
       cacheDigest = digestOf(gen);

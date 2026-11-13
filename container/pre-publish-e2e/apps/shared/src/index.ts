@@ -30,7 +30,6 @@ import {checkMocking} from './mocking';
 import {checkStandardSchema} from './standard-schema';
 import {checkOverrides} from './overrides';
 
-// The 11 feature families.
 const FAMILIES: {family: string; run: () => CheckResult[]}[] = [
   {family: 'validation', run: checkValidation},
   {family: 'type-builders', run: checkTypeBuilders},

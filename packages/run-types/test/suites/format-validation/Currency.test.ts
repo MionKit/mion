@@ -1,10 +1,5 @@
-// format-validation / Currency — every CURRENCY case through the same
-// per-variant it() blocks as NumberFormat: 5 validate + 5 getValidationErrors
-// forms (the format payload asserted across static / reflect /
-// deserialize-static / deserialize-reflect + the value-first schema contract) +
-// 2 mockType forms — plus a focused pair proving the `isCurrency` param is
-// echoed onto error payloads end-to-end (an error renderer's money
-// discriminator) in both marker call shapes.
+// Currency cases through NumberFormat's per-variant blocks, plus a pair proving `isCurrency` reaches error payloads
+// (a renderer's money discriminator) in both marker call shapes.
 import {describe, it, expect} from 'vitest';
 import * as TF from '@mionjs/run-types/formats';
 import {createGetValidationErrorsFn} from '@mionjs/run-types';

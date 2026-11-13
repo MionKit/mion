@@ -1,10 +1,5 @@
-// Tags <html> with the subsite (`data-site`, what sites/<id>/theme.css keys its colours
-// on) and <body> with a per-section class so CSS can control page width + TOC.
-// Docus' `pageClass` frontmatter is inert in this setup, and there's no per-page DOM
-// hook, so both are derived from the route. Reactive → rendered into the prerendered
-// HTML (no colour flash) and updated on client navigation. The runtypes Introduction
-// and Guide pages go wide (reclaiming the TOC rail), and so does every subsite home
-// (its about page at the subsite root, which carries a hero); benchmark pages stay normal width but lose the TOC too.
+// Sets <html data-site> (sites/<id>/theme.css keys on it) and a <body> width/TOC class from the route:
+// Docus' `pageClass` frontmatter is inert here. Reactive, so it is prerendered (no colour flash) and follows navigation.
 export default defineNuxtPlugin(() => {
   const route = useRoute()
   const {theme} = useSubsite()

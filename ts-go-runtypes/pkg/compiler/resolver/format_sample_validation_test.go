@@ -313,8 +313,7 @@ declare const value: Code;
 export const reflectForm = createValidateFn(value);
 `
 
-// generationScan runs the build-lane scan with the wire RunTypes included
-// so the sampled annotation is observable.
+// generationScan includes the wire RunTypes so the sampled annotation is observable.
 func generationScan(t testing.TB, session *resolver.Session) protocol.Response {
 	t.Helper()
 	resp := session.Dispatch(protocol.Request{
@@ -369,12 +368,8 @@ func withSampleKnobs(count, retries int) func(*program.Options, *resolver.Option
 	}
 }
 
-// TestFormatSamples_GeneratedSamplesFillAnnotation — the headline of the
-// auto-generation feature: a pattern with NO declared mockSamples builds
-// clean, the wire annotation carries generated samples that all match the
-// pattern, and both marker call shapes share the one sampled node. With
-// no mock.seed anywhere, pools are RANDOM per build: an independent
-// session (fresh engine child = a fresh build) draws a DIFFERENT list.
+// TestFormatSamples_GeneratedSamplesFillAnnotation: a sample-less pattern builds clean with matching generated samples.
+// Unseeded pools are random per build, so a fresh session (a fresh engine child) draws a different list.
 func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 	sources := map[string]string{"a.ts": samplelessPatternSource}
 	resp := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
@@ -404,8 +399,7 @@ func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 	if strings.Join(samplesAgain, "\x00") == strings.Join(samples, "\x00") {
 		t.Fatalf("unseeded pools must differ across builds, both: %v", samples)
 	}
-	// Within ONE session the pool is stable: re-dispatching returns the
-	// same sampled annotation (idempotent pass + engine memo).
+	// Within one session the pool is stable (idempotent pass + engine memo).
 	respSame := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
 	_, first := patternSamplesFrom(t, respSame)
 	_, second := patternSamplesFrom(t, respSame)

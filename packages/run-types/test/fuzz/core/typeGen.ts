@@ -1570,11 +1570,7 @@ export function renderDecl(decl: Decl): string {
   }
 }
 
-/** Render the decls block + the root type expression for a generated type.
- *  When the type carries format / structural shapes, the decls block LEADS
- *  with the import preamble (the shipped brands), so every
- *  resolver lane's `${decls}` interpolation stays correct with no per-harness
- *  wiring. **/
+/** Decls lead with the brand import preamble when formats are used, so every lane's `${decls}` needs no wiring. **/
 export function renderGenerated(gen: GeneratedType, preamble: string = FUZZ_FORMAT_PREAMBLE): {decls: string; rootExpr: string} {
   const decls = gen.decls.map(renderDecl).join('\n');
   const withPreamble = usesFormatLeaves(gen) ? `${preamble}\n${decls}` : decls;

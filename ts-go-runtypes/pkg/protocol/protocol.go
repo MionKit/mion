@@ -45,23 +45,11 @@ const (
 	OpCapabilities = "capabilities"
 )
 
-// Request is the union of all query operations (see resolver/dispatch).
-//
-// THE WIRE CARRIES EVENTS; THE SESSION CARRIES CONFIG. Every field is one of exactly three kinds:
-//
-//   - EVENTS — what is being asked: Op, Files, Sources.
-//   - PAYLOAD SELECTORS — how much of THIS request's answer to ship back:
-//     IncludeRunTypes, IncludeEntryModules, IncludeMetrics.
-//   - LANE SELECTORS — which walker/emit mode THIS request runs:
-//     CheckRouterRules, IncludeRtDiagnostics, EmitEdits.
-//
-// Anything session-constant belongs in resolver.Options instead, loaded once from a `serve` flag at
-// spawn (respawn-safe for free, since the client replays the same argv).
-//
-// Files is the op's file input: every file to scan (scanFiles) or rewrite (transform).
-// Response.Sites carries entries for every listed file (each tagged with
-// .File), and IncludeRunTypes / IncludeEntryModules scope their payload to THIS request's Files
-// only, never a session-wide accumulation; OpDump returns the whole in-memory cache.
+// Request is the union of all query operations (see resolver/dispatch). The wire carries events, the session config:
+// a field is an event (Op, Files, Sources), a payload selector (Include*) or a lane selector (CheckRouterRules,
+// IncludeRtDiagnostics, EmitEdits). Session-constant settings belong in resolver.Options, loaded from a `serve` flag
+// at spawn, so a respawn replays them. IncludeRunTypes / IncludeEntryModules cover this request's Files only;
+// OpDump returns the whole cache.
 type Request struct {
 	Op              string            `json:"op"`
 	Files           []string          `json:"files,omitempty"`
@@ -166,11 +154,9 @@ type Response struct {
 	SiteFiles []string `json:"siteFiles,omitempty"`
 	// ProgramHash (generate only) hashes program sources, compiler options and tsconfig text, for a host's transform cache.
 	ProgramHash string `json:"programHash,omitempty"`
-	// OutDir echoes the session-resolved output root OpGenerate wrote to (Options.GenDir > tsconfig genDir >
-	// inferred). With neither override the resolver infers <srcDir>/.mion from the tsconfig (rootDir >
-	// common-ancestor of the program's files > baseUrl > cwd), which the dependency-free plugin cannot compute
-	// yet needs, to write .gitignore/.gitkeep and to suppress HMR under it. With DowngradeErrors
-	// this is the sanctioned resolved-config server→client echo channel.
+	// OutDir echoes the output root OpGenerate wrote to (Options.GenDir > tsconfig genDir > inferred <srcDir>/.mion).
+	// The dependency-free plugin cannot infer it, yet needs it for .gitignore/.gitkeep and HMR suppression.
+	// With DowngradeErrors, the sanctioned resolved-config server→client echo channel.
 	OutDir string `json:"outDir,omitempty"`
 	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js` when OpGenerate wrote one, empty
 	// otherwise. The host uses it to know the module appeared or vanished; it never parses the file.

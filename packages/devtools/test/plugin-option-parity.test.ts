@@ -8,14 +8,8 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/core/go-generated/tsconfig-plugin-key
 // the Go-generated tsconfig key mirror, so adding an option to only one side
 // fails CI. See docs/todos (option-parity) for the rationale.
 
-// Options settable ONLY on the bundler plugin: host bootstrap (binary/cwd/tsconfig
-// are needed to FIND and READ the tsconfig, so they cannot come from it), internal
-// wire knobs (transformMode/sourcesContent produce identical artifacts either way,
-// never a project semantic), the JS-only in-process callbacks onPureFnReport,
-// onBatchReport and onSiteFilesChanged (loader options cross a bundler worker
-// boundary as plain JSON, so a function can never be one), and
-// `jsRuntime`, a host-machine path like `binary` (the plugin defaults it to its
-// own process.execPath at spawn).
+// Plugin-only: binary/cwd/tsconfig find the tsconfig so cannot come from it; jsRuntime is a host path like binary.
+// transformMode/sourcesContent yield identical artifacts; callbacks cannot cross a bundler worker boundary as JSON.
 const JS_ONLY = new Set([
   'binary',
   'cwd',
@@ -36,8 +30,7 @@ const JS_ONLY = new Set([
   // fills it from its own config, the Next broker from `next dev`.
   'devServer',
 ]);
-// Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
-// in the tsconfig `plugins` array, not a project option.
+// tsconfig-only: `name` identifies the plugin in the `plugins` array, not a project option.
 const GO_ONLY = new Set(['name']);
 
 describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {

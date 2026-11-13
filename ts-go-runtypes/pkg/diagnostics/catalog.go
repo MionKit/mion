@@ -177,8 +177,7 @@ type Definition struct {
 	// Severity is DERIVED from Level by Register; never write it in a codes_*.go
 	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
-	// Completeness marks INCOMPLETE (not-yet-authored) content rather than WRONG content. A gating bit ORTHOGONAL
-	// to Level: a gate that promotes unfinished content to a failure keys on the bit, never on the level.
+	// Completeness marks unfinished, not wrong, content; a gate promoting it to a failure keys on this bit, never Level.
 	Completeness bool
 	// Transient marks a verdict that depends on the build host rather than the type: today only the
 	// pattern-evaluation timeout (format-pattern-timeout). The disk cache never persists an entry that emitted one,
@@ -389,8 +388,7 @@ func ScopeOf(code string) Scope {
 	return definition.Scope
 }
 
-// IsCompleteness reports whether a code marks INCOMPLETE content rather than wrong content (see
-// Definition.Completeness). An unregistered code answers false.
+// IsCompleteness reports Definition.Completeness for code; an unregistered code answers false.
 func IsCompleteness(code string) bool {
 	return Definitions[code].Completeness
 }

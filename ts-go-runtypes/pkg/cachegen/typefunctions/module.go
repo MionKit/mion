@@ -56,10 +56,8 @@ type RenderOpts struct {
 	// JSEngine runs the format-pattern checks, the authority for pattern
 	// mockSamples (real `new RegExp` semantics). Nil fails them closed with format-no-js-runtime.
 	JSEngine jsengine.Engine
-	// PatternSampleCount mirrors the resolver's pattern mockSample knob, and
-	// PatternGenFailures the reasons its pattern-sample pass (which runs BEFORE the
-	// collects) could not generate, keyed by `source \x00 flags`. The format-sample-generation-failed lane
-	// reads both to tell disabled (count 0) from failed generation.
+	// PatternGenFailures (keyed `source \x00 flags`) come from the pattern-sample pass, which runs before the collects.
+	// With the mirrored PatternSampleCount, the generation-failed lane tells disabled (count 0) from failed.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
 	// MaxUnknownKeys mirrors the resolver knob; 0 means constants.DefaultMaxUnknownKeys.

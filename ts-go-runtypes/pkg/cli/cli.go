@@ -440,7 +440,7 @@ func runServe(args []string) {
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
-	// The wire carries events, the session config: --gen-dir (the host plugin's genDir option).
+	// Session config, never a request field: the host plugin's genDir option.
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
@@ -808,7 +808,6 @@ func splitArgs(args []string) (positional, flags []string) {
 	return positional, flags
 }
 
-// mustAbs resolves path to an absolute path, exiting on failure.
 func mustAbs(path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -817,7 +816,6 @@ func mustAbs(path string) string {
 	return canonicalize(abs)
 }
 
-// isDirArg reports whether a CLI path argument names an existing directory.
 func isDirArg(path string) bool {
 	info, err := os.Stat(mustAbs(path))
 	return err == nil && info.IsDir()

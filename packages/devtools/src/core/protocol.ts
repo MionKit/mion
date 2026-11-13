@@ -278,9 +278,7 @@ export type BuiltinOp = 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompi
 export interface Request {
   // Any op string: the binary looks it up in its op table and answers `unknown op: <op>` when it has none.
   op: BuiltinOp | (string & {});
-  // The op's file input: the files to scan (scanFiles) or rewrite (transform).
-  // The response's sites cover every listed file, each tagged with .file; the include* flags project
-  // runTypes / entryModules over these files only, never the session-wide cache (use dump for that).
+  // Files to scan or rewrite; the include* flags cover these files only, never the session cache (dump does that).
   files?: string[];
   // setSources only — { relpath: source-text }.
   sources?: Record<string, string>;
@@ -438,8 +436,7 @@ export const Severity = {
 } as const;
 export type Severity = (typeof Severity)[keyof typeof Severity];
 
-// Family classifies a Diagnostic by the subsystem that produced it, numeric on the wire like Severity.
-// MionRoute covers the opt-in route rules (Request.checkRouterRules).
+// The subsystem that raised a Diagnostic, numeric on the wire; MionRoute is the opt-in Request.checkRouterRules.
 export const Family = {
   PureFn: 1,
   Marker: 2,

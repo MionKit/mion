@@ -216,9 +216,9 @@ func (directive Directive) unusedCode() string {
 	return CodeExpectErrorUnused
 }
 
-// PassScope says what a pass could report, so a directive is judged only where the answer is real: never in a
-// file the pass did not read, a family it did not ask for (the build skips mion-route, which the
-// lint pass needs), or a code it cannot raise (Lacks). comment-expect-error-not-allowed / comment-expect-error-unknown-name need only Files; comment-expect-error-unused needs them all.
+// PassScope says what a pass could report, so a directive is judged only in a file it read, a family it asked for
+// (the build skips mion-route) and a code it can raise (Lacks).
+// comment-expect-error-not-allowed / comment-expect-error-unknown-name need only Files; comment-expect-error-unused needs all.
 type PassScope struct {
 	// Reports turns the comment-expect-error-* codes on. A pass that is only rewriting source
 	// leaves it false and silences without judging.

@@ -503,7 +503,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   args.push('--js-runtime', opts.jsRuntime ?? process.execPath);
   if (opts.pureFnReportWire) args.push('--pure-fn-report-wire');
   if (opts.pureFnReportFile) args.push('--pure-fn-report-file');
-  // Session config the wire deliberately does not carry: the output-root override.
+  // Session config, never a request field: the output-root override.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
   if (opts.clientRoutes) args.push('--client-routes', opts.clientRoutes);
   if (opts.transformRelative) args.push('--transform-relative');

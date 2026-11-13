@@ -9,14 +9,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// Root-widening cost, the number the ambient-declarations fix was asked to
-// record: every
-// NewInferred call parses lib + roots + import closure from scratch, so this
-// measures the REAL per-request delta of unioning the config's declaration
-// files (the daemon lanes: per lint request, per HMR edit) versus the full
-// config file list (the one-shot convert CLI) into the roots of a
-// program otherwise rooted at one file.
-//
+// Per-request cost of adding the config's declaration files (daemon lanes) vs its full file list (convert CLI)
+// to a one-file program's roots; NewInferred parses lib + roots + import closure from scratch every call.
 // Run: go -C ts-go-runtypes test ./pkg/compiler/program -bench=RootModes -benchmem -run='^$'
 func BenchmarkNewInferred_RootModes(b *testing.B) {
 	dir := tspath.NormalizePath(b.TempDir())

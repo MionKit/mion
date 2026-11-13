@@ -21,7 +21,6 @@ export interface IssueMappingOptions {
   message?: (err: RTValidationError) => string;
 }
 
-// constraintName is the failing param's name, else the format's own name.
 function constraintName(format: TypeFormatError | undefined): string {
   if (!format) return 'type';
   const tail = format.formatPath[format.formatPath.length - 1];
@@ -36,10 +35,8 @@ function primitiveBound(val: TypeFormatError['val']): string | number | bigint |
     : undefined;
 }
 
-// defaultMessage derives a mechanical, dependency-free message; human-readable phrasing is the
-// caller's job, wired through IssueMappingOptions.message. The parenthesized bound appears only
-// when it informs: a WILDCARD 'any' bound means the FORMAT itself failed, so the format name replaces
-// the sub-constraint, and a bound that merely echoes the constraint name is dropped too.
+// Mechanical and dependency-free; human phrasing goes through IssueMappingOptions.message.
+// A wildcard 'any' bound means the format itself failed, so its name replaces the sub-constraint.
 function defaultMessage(err: RTValidationError): string {
   if (err.expected === 'circular') return 'Circular reference';
   if (err.expected === 'tooManyUnknownKeys') return 'Too many unknown keys';

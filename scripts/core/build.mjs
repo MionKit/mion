@@ -1,8 +1,4 @@
-// build.mjs — ensure the build artifacts the rest of the workspace depends on
-// match the current source. Port of the former scripts/core/build.sh (same job for
-// the Go binary, plus structural checks on the two TS package dists the bench and
-// `pnpm test` load). Behavior is IDENTICAL to the shell version — build-id compare,
-// orphan-.d.ts.map detection, and mtime staleness are ported line-for-line.
+// Ensures the Go binaries and the TS package dists the bench and `pnpm test` load match the current source.
 //
 // Targets (positional):
 //   go            mion-bin/mion matches cmd/ + pkg/ (build-id compare).
