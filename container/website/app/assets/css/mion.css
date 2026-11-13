@@ -666,7 +666,7 @@ section[data-slot='root'] > [data-slot='container'] {
 }
 
 /* ── Per-section page width + TOC ───────────────────────────────────────────
-   `<body>` is tagged by app/plugins/section-class.ts: `rt-wide-page` on
+   `<body>` is tagged by app/plugins/site-attr.ts: `rt-wide-page` on
    Introduction + Guide, `rt-flush-page` on Benchmarks. The doc layout
    nests a 10-col grid: content (`col-span-8`) beside a right-hand TOC rail
    (`col-span-2`, a <div>; the left nav is an <aside>, so it's untouched). On
