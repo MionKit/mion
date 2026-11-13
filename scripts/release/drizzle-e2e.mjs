@@ -60,10 +60,12 @@ function writeManifests(outDir) {
 // rides the lockstep one, the drizzle packages their own drizzle-aligned one.
 function packedVersions() {
   const launcher = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/bin-compiler/package.json'), 'utf8')).version;
-  const drizzle = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/drizzle-orm/package.json'), 'utf8')).version;
+  const versionOf = (pkg) => JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages', pkg, 'package.json'), 'utf8')).version;
+  // The dialect packages version on their own, so @mionjs/drizzle-orm's version never names them.
+  const dialects = Object.fromEntries(['pg', 'mysql', 'sqlite'].map((dialect) => [dialect, versionOf(`drizzle-orm-${dialect}-core`)]));
   // drizzle-orm ITSELF, from the suites pin, so the in-container install can
   // name it and npm never sees an unresolvable peer.
-  return {launcher, drizzle, drizzleOrm: readPin().drizzleOrm};
+  return {launcher, drizzle: versionOf('drizzle-orm'), dialects, drizzleOrm: readPin().drizzleOrm};
 }
 
 // Newest mtime under a directory, ignoring node_modules. 0 when it is missing.
@@ -196,6 +198,7 @@ function startContainer(dialect, suitesDir, versions, {skipTypes}) {
       '-e', `MION_DRIZZLE_DIALECT=${dialect}`,
       '-e', `MION_DRIZZLE_VERSION=${versions.launcher}`,
       '-e', `MION_DRIZZLE_PKG_VERSION=${versions.drizzle}`,
+      '-e', `MION_DRIZZLE_DIALECT_VERSIONS=${JSON.stringify(versions.dialects)}`,
       '-e', `MION_DRIZZLE_ORM_VERSION=${versions.drizzleOrm}`,
       '-e', 'MION_DRIZZLE_REGISTRY=http://127.0.0.1:4873',
       '-e', 'MION_DRIZZLE_VERDACCIO_CONFIG=/drizzle-src/registry/verdaccio.yaml',
