@@ -1,25 +1,11 @@
 // Cheap text pre-filters the rules run BEFORE paying a resolver round trip: a file matching none of them can
 // produce no diagnostic, so the rules skip it, the common case for most files in a lint run.
 
-import {FRIENDLY_TEXT_NAME, MARKER_COMMENT_PREFIX, MOCK_DATA_NAME} from '../core/go-generated/runtypes-constants.generated.ts';
 import {mayHoldDrizzleSchemas, mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
 
 // Gates the compiler-diagnostics pass with the build fallback's own gate, so lint and build admit the same files.
 export function referencesMarkerModule(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return mayHoldMarkerCalls(text, file, markers);
-}
-
-// Mirrors the Go guard's const-annotation probe without masking comments: a comment-only match costs one round trip.
-const enrichConstAnnotationPattern = new RegExp(
-  `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+[A-Za-z_$][A-Za-z0-9_$]*[ \\t]*:\\s*(?:${FRIENDLY_TEXT_NAME}|${MOCK_DATA_NAME})[ \\t]*<`,
-  'm'
-);
-
-// looksLikeEnrichmentFile admits enrichment files, the JS twin of the authoritative Go-side
-// mirror.IsEnrichmentFile guard: a reconcile marker in its EMIT form, or the DSL-annotated const declaration.
-// A file merely mentioning the tags or types in strings, prose or parameter annotations never matches.
-export function looksLikeEnrichmentFile(text: string): boolean {
-  return text.includes(MARKER_COMMENT_PREFIX) || enrichConstAnnotationPattern.test(text);
 }
 
 // ROUTER_MODULE and ROUTER_HELPERS admit route files: a route file need not import the marker package
@@ -50,7 +36,6 @@ export function declaresUnsafePropertyName(text: string): boolean {
 export function needsResolverPass(text: string, file?: string, markers?: MarkerGateOptions): boolean {
   return (
     referencesMarkerModule(text, file, markers) ||
-    looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
     declaresUnsafePropertyName(text) ||
     mayHoldDrizzleSchemas(text)

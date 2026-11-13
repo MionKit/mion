@@ -78,7 +78,6 @@ describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
         expect(fs.readFileSync(path.join(OUT_DIR, 'README.md'), 'utf8')).toContain('genDir');
         expect(fs.readFileSync(path.join(typesDir, 'README.md'), 'utf8')).toContain('regenerated');
         expect(fs.readFileSync(path.join(typesDir, '.gitignore'), 'utf8')).toContain('*');
-        expect(fs.readFileSync(path.join(OUT_DIR, 'enriched', 'README.md'), 'utf8')).toContain('Committed');
       } finally {
         try {
           await callHook(plugin.buildEnd, ctx);

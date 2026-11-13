@@ -4,7 +4,6 @@ import type {Readable, Writable} from 'node:stream';
 import type {
   Capabilities,
   Diagnostic,
-  EnrichFile,
   Metrics,
   BatchSite,
   PureFnSite,
@@ -94,14 +93,6 @@ export interface ResolverClientOptions {
   // the heaviest single wire item. A spawn flag because it mirrors the immutable plugin option `sourcesContent: false`.
   // A pure wire trim: no artifact changes, and transforms are never disk-cached, so it is not a fingerprint input.
   omitSourcesContent?: boolean;
-  // Enrichment session config, forwarded as --enrich-friendly / --enrich-mock / --enrich-i18n / --enrich-locales /
-  // --enrich-source-locale. The wire's enrich op carries only `files`, so these flags select the families OpEnrich
-  // maintains and the per-locale mirror sync (locales / sourceLocale default from the tsconfig i18n block).
-  enrichFriendly?: boolean;
-  enrichMock?: boolean;
-  enrichI18n?: boolean;
-  enrichLocales?: string[];
-  enrichSourceLocale?: string;
   // Extension serve flags (MionExtension.serveArgs), appended to the spawn argv; a respawn replays them.
   extraArgs?: string[];
 }
@@ -229,9 +220,6 @@ export interface ScanFilesOptions {
   includeEntryModules?: boolean;
   // The per-op `metrics` block (checker counters, per-phase wall times, Go memory deltas). Bench-harness use.
   includeMetrics?: boolean;
-  // The enrichment-health pass (tag hygiene, FriendlyText/MockData content, breadcrumb drift) as Family.Enrich
-  // diagnostics. Lint-plugin use.
-  checkEnrich?: boolean;
   // The mion route rules over the request's files, as Family.MionRoute diagnostics. Lint-plugin use.
   checkRouterRules?: boolean;
   // The RunType-family render diagnostics without the entry-module payload. Lint-plugin use.
@@ -307,20 +295,11 @@ export interface GenerateResult {
   pureFnArtifact: Record<string, string>;
 }
 
-// EnrichResult is what enrich() returns: the computed mirror files, which the caller writes under its own
-// HMR-suppression window (the daemon never does), plus the hygiene diagnostics. Which families and locales are
-// synced, and where the mirror tree roots, is SESSION config (the enrich* / genDir spawn flags), never per call.
-export interface EnrichResult {
-  files: EnrichFile[];
-  diagnostics?: Diagnostic[];
-}
-
 // Shared by the spawn-based and stream-based clients, so a consumer need not care which transport is in use.
 export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
   transform(files: string[], opts?: TransformOptions): Promise<TransformFilesResult>;
   generate(): Promise<GenerateResult>;
-  enrich(files: string[]): Promise<EnrichResult>;
   dump(): Promise<Response>;
   setSources(sources: Record<string, string>): Promise<void>;
   reset(): Promise<void>;
@@ -360,7 +339,6 @@ abstract class ResolverClientBase implements ResolverConnection {
     if (opts.includeRunTypes) req.includeRunTypes = true;
     if (opts.includeEntryModules) req.includeEntryModules = true;
     if (opts.includeMetrics) req.includeMetrics = true;
-    if (opts.checkEnrich) req.checkEnrich = true;
     if (opts.checkRouterRules) req.checkRouterRules = true;
     if (opts.includeRtDiagnostics) req.includeRtDiagnostics = true;
     if (opts.ext && Object.keys(opts.ext).length > 0) req.ext = opts.ext;
@@ -422,15 +400,6 @@ abstract class ResolverClientBase implements ResolverConnection {
       logStyle: resp.logStyle,
       pureFnArtifact: resp.pureFnArtifact ?? {},
     };
-  }
-
-  // enrich syncs the FriendlyText / MockData mirrors for `files` (empty = whole program) and returns the computed
-  // content; it NEVER writes, the caller writes under its own HMR-suppression window.
-  // The wire carries only the event: the families / locales / output root are the session's spawn-time config.
-  async enrich(files: string[]): Promise<EnrichResult> {
-    const resp = await this.send({op: 'enrich', files});
-    if (resp.error) throw new Error(`enrich: ${resp.error}`);
-    return {files: resp.enrichFiles ?? [], diagnostics: resp.diagnostics};
   }
 
   async dump(): Promise<Response> {
@@ -534,16 +503,11 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   args.push('--js-runtime', opts.jsRuntime ?? process.execPath);
   if (opts.pureFnReportWire) args.push('--pure-fn-report-wire');
   if (opts.pureFnReportFile) args.push('--pure-fn-report-file');
-  // Session config the wire deliberately does not carry: the output-root override and the OpEnrich family / i18n selection.
+  // Session config the wire deliberately does not carry: the output-root override.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
   if (opts.clientRoutes) args.push('--client-routes', opts.clientRoutes);
   if (opts.transformRelative) args.push('--transform-relative');
   if (opts.omitSourcesContent) args.push('--omit-sources-content');
-  if (opts.enrichFriendly) args.push('--enrich-friendly');
-  if (opts.enrichMock) args.push('--enrich-mock');
-  if (opts.enrichI18n) args.push('--enrich-i18n');
-  if (opts.enrichLocales && opts.enrichLocales.length > 0) args.push('--enrich-locales', opts.enrichLocales.join(','));
-  if (opts.enrichSourceLocale) args.push('--enrich-source-locale', opts.enrichSourceLocale);
   // An extension binary's own serve flags; Go's flag package keeps the last value, so a repeat here wins.
   if (opts.extraArgs) args.push(...opts.extraArgs);
   return args;

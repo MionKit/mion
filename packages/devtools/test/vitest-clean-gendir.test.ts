@@ -56,7 +56,6 @@ describe('vitest-clean-gendir teardown', () => {
   it('sweeps every generated half of a .mion dir, the rpc batch transport included, never a stranger', async () => {
     const root = makeTempProjectRoot();
     const types = seed(root, '.mion/types');
-    const enriched = seed(root, '.mion/enriched/friendly');
     const rpc = seed(root, '.mion/rpc');
     fs.writeFileSync(path.join(root, '.mion', 'README.md'), '# RunTypes output\n');
     fs.writeFileSync(path.join(rpc, 'batches.generated.js'), 'export {};\n');
@@ -65,7 +64,6 @@ describe('vitest-clean-gendir teardown', () => {
     await cleanRunTypesGenDirs(asProject(root))();
 
     expect(fs.existsSync(types)).toBe(false);
-    expect(fs.existsSync(enriched)).toBe(false);
     expect(fs.existsSync(path.join(root, '.mion', 'README.md'))).toBe(false);
     // the resolver regenerates rpc/ on every generate, so nothing depends on it surviving a run
     expect(fs.existsSync(rpc)).toBe(false);

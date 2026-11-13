@@ -34,7 +34,6 @@ const PLUGIN_OPTION_KEY_TABLE = {
   onBatchReport: true,
   onSiteFilesChanged: true,
   onGenerate: true,
-  enrich: true,
   extensions: true,
 } satisfies Record<keyof PluginOptions, true>;
 

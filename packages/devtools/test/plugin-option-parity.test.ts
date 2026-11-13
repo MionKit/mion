@@ -13,9 +13,7 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/core/go-generated/tsconfig-plugin-key
 // wire knobs (transformMode/sourcesContent produce identical artifacts either way,
 // never a project semantic), the JS-only in-process callbacks onPureFnReport,
 // onBatchReport and onSiteFilesChanged (loader options cross a bundler worker
-// boundary as plain JSON, so a function can never be one),
-// `enrich` — the opt-in enrichment auto-sync is a host/dev-loop behavior (drives
-// disk writes from dev/watch), so it stays off the tsconfig plugin entry — and
+// boundary as plain JSON, so a function can never be one), and
 // `jsRuntime`, a host-machine path like `binary` (the plugin defaults it to its
 // own process.execPath at spawn).
 const JS_ONLY = new Set([
@@ -28,7 +26,6 @@ const JS_ONLY = new Set([
   'onBatchReport',
   'onSiteFilesChanged',
   'onGenerate',
-  'enrich',
   // Host code built on the plugin (serve flags, lifecycle hooks), never a project setting.
   'extensions',
   'jsRuntime',
@@ -40,11 +37,8 @@ const JS_ONLY = new Set([
   'devServer',
 ]);
 // Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
-// in the tsconfig `plugins` array (not a project option), and `i18n` is
-// enrichment-lane config the bundler build never consumes (a future feature may
-// drive enrichment from the plugin and move `i18n` into PluginOptions; until then
-// it stays tsconfig-only).
-const GO_ONLY = new Set(['name', 'i18n']);
+// in the tsconfig `plugins` array, not a project option.
+const GO_ONLY = new Set(['name']);
 
 describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {
   const js = new Set<string>(PLUGIN_OPTION_KEYS as readonly string[]);

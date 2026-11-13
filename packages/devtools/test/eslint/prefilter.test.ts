@@ -1,8 +1,4 @@
-// Prefilter gate tests + the Go↔TS constant-sync guard: the generated tag
-// constants the JS side matches with must be byte-identical to the literals
-// the Go emitters/detectors define in pkg/enrichment/mirror/tags.go (the
-// single source of truth). A drifted literal silently stops enforcing, so
-// this guard reads the Go source directly.
+// Prefilter gate tests: a file matching no gate skips the resolver round trip.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,56 +6,10 @@ import path from 'node:path';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {
   declaresUnsafePropertyName,
-  looksLikeEnrichmentFile,
   referencesRouter,
   needsResolverPass,
   referencesMarkerModule,
 } from '../../src/lint/prefilter.ts';
-import {
-  FRIENDLY_TEXT_NAME,
-  MARKER_COMMENT_PREFIX,
-  MOCK_DATA_NAME,
-  ORPHAN_BLOCK_PATTERN_SOURCE,
-  ORPHAN_CHILD_TAG,
-  ORPHAN_TAG,
-  RT_IDS_TAG,
-  RT_TYPE_TAG,
-  TODO_LINE,
-  TODO_TAG,
-} from '../../src/core/go-generated/runtypes-constants.generated.ts';
-
-const TAGS_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/pkg/enrichment/mirror/tags.go'), 'utf8');
-const NAMES_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/pkg/enrichment/names.go'), 'utf8');
-
-describe('constant sync with pkg/enrichment/mirror/tags.go', () => {
-  // gofmt re-aligns a const block when a comment or a neighbour changes, so the spacing around `=` is free.
-  const goConst = (name: string, value: string): RegExp =>
-    new RegExp(`\\b${name}\\s+=\\s+"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`);
-
-  it('tag literals match the Go definitions', () => {
-    expect(TAGS_GO).toMatch(goConst('RtTypeTag', RT_TYPE_TAG));
-    expect(TAGS_GO).toMatch(goConst('RtIdsTag', RT_IDS_TAG));
-    expect(TAGS_GO).toMatch(goConst('TodoTag', TODO_TAG));
-    expect(TAGS_GO).toMatch(goConst('OrphanTag', ORPHAN_TAG));
-    expect(ORPHAN_CHILD_TAG).toBe(`${ORPHAN_TAG}Child`);
-    expect(NAMES_GO).toMatch(goConst('FriendlyTextName', FRIENDLY_TEXT_NAME));
-    expect(NAMES_GO).toMatch(goConst('MockDataName', MOCK_DATA_NAME));
-  });
-
-  it('composite constants keep the Go composition shape', () => {
-    expect(TODO_LINE.startsWith(`// ${TODO_TAG}: `)).toBe(true);
-    expect(MARKER_COMMENT_PREFIX).toBe(`/** ${RT_TYPE_TAG} `);
-  });
-
-  it('the orphan-block pattern compiles in JS with the s flag and matches both emit forms', () => {
-    const pattern = new RegExp(ORPHAN_BLOCK_PATTERN_SOURCE, 'gs');
-    expect(`/* ${ORPHAN_TAG} export const gone = {}; */`).toMatch(pattern);
-    pattern.lastIndex = 0;
-    expect(`/* ${ORPHAN_CHILD_TAG} old: {},\nmore */`).toMatch(pattern);
-    // No Go-only inline flags leaked into the shared source.
-    expect(ORPHAN_BLOCK_PATTERN_SOURCE).not.toContain('(?s)');
-  });
-});
 
 describe('referencesMarkerModule', () => {
   it('matches quoted import specifiers only, not path mentions in comments', () => {
@@ -138,7 +88,6 @@ describe('referencesMarkerModule follows imports', () => {
     const file = path.join(dir, 'src/statement.ts');
     expect(referencesMarkerModule(text, file)).toBe(false);
     expect(referencesRouter(text)).toBe(false);
-    expect(looksLikeEnrichmentFile(text)).toBe(false);
     expect(declaresUnsafePropertyName(text)).toBe(false);
     expect(needsResolverPass(text, file)).toBe(true);
   });
@@ -188,22 +137,6 @@ describe('referencesMarkerModule follows imports', () => {
     const later = new Date(Date.now() + 5_000);
     fs.utimesSync(wrapper, later, later);
     expect(referencesMarkerModule(text, file)).toBe(true);
-  });
-});
-
-describe('looksLikeEnrichmentFile', () => {
-  it('matches the marker EMIT form and the annotation form', () => {
-    expect(looksLikeEnrichmentFile(`${MARKER_COMMENT_PREFIX}User#a1 */\nexport const friendlyUser = {};`)).toBe(true);
-    expect(looksLikeEnrichmentFile(`export const f: ${FRIENDLY_TEXT_NAME}<User> = {};`)).toBe(true);
-    expect(looksLikeEnrichmentFile(`export const m:\n  ${MOCK_DATA_NAME}<User> = {};`)).toBe(true);
-  });
-
-  it('never matches bare tag strings, declarations, parameter annotations, or prose mentions', () => {
-    expect(looksLikeEnrichmentFile(`export const RT_TYPE_TAG = '${RT_TYPE_TAG}';`)).toBe(false);
-    expect(looksLikeEnrichmentFile(`export type ${FRIENDLY_TEXT_NAME}<T> = unknown; // the \`${TODO_TAG}\` layer`)).toBe(false);
-    expect(looksLikeEnrichmentFile(`// ${TODO_TAG}: refactor\nexport const a = 1;`)).toBe(false);
-    // The runtime's own signature takes the map as a PARAMETER — not a mirror.
-    expect(looksLikeEnrichmentFile(`export function createFriendlyText<T>(map: ${FRIENDLY_TEXT_NAME}<T>) {}`)).toBe(false);
   });
 });
 
@@ -258,7 +191,6 @@ describe('needsResolverPass', () => {
   });
   it('is the union of all three gates', () => {
     expect(needsResolverPass(`import {getRunTypeId} from '@mionjs/run-types';`)).toBe(true);
-    expect(needsResolverPass(`export const f: ${FRIENDLY_TEXT_NAME}<User> = {};`)).toBe(true);
     expect(needsResolverPass('export const a = 1;')).toBe(false);
   });
 

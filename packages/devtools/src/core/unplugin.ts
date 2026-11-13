@@ -14,7 +14,7 @@ import {mayHoldDrizzleSchemas, mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveGrouped, resolveShowInfo} from './levels.ts';
 import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type HostContext} from './surface.ts';
-import type {CacheKeyGenerator, Finding, LogStyle, VitestCacheContext} from './types.ts';
+import type {CacheKeyGenerator, LogStyle, VitestCacheContext} from './types.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
@@ -24,29 +24,6 @@ const VIRTUAL_SFC_SCRIPT = /\.vue\.[mc]?[jt]sx?$/;
 
 // Host-facing plugin name, shared by every adapter entry (the bun one needs it before it builds the inner plugin).
 export const PLUGIN_NAME = '@mionjs/devtools';
-
-// Shares the SHAPE of the tsconfig `i18n` plugin entry but drives a different lane: the plugin's
-// per-locale translation-mirror auto-sync. `strict` is accepted for shape-parity and never gated on.
-export interface EnrichI18nSyncOptions {
-  sourceLocale?: string;
-  locales?: string[];
-  strict?: boolean;
-}
-
-// Opt-in (default OFF): from dev/watch, the committed mirrors under <genDir>/enriched/** get the same
-// value-preserving scaffold + reconcile `mion enrich --update` does, never translated content, never an LLM.
-// A production build never writes; it runs a read-only gate that warns and fails on a stale, missing or unfilled mirror.
-export interface EnrichSyncOptions {
-  // FriendlyText mirrors, under <genDir>/enriched/friendly/.
-  friendly?: boolean;
-  // MockData mirrors, under <genDir>/enriched/mock/.
-  mock?: boolean;
-  // Presence enables per-locale mirrors under <genDir>/enriched/i18n/<locale>/ — SCAFFOLD + SYNC only.
-  i18n?: EnrichI18nSyncOptions;
-  // Defaults to "any enrich family enabled", since the mirrors are write-only outputs.
-  // false restores reloads for debugging; true suppresses even with auto-gen off (hand / CLI edits during a dev run).
-  suppressHmr?: boolean;
-}
 
 /** What one generate produced, as handed to `onGenerate`. Paths are absolute. */
 export interface GenerateInfo {
@@ -70,8 +47,7 @@ export interface PluginOptions {
   // Default 'bundle'; 'fetch' fetches every route. Same key as tsconfig `clientRoutes` and CLI `--client-routes`.
   // Under 'bundle', a route the build did not see is reported, and fetched only if the client sets up `useFetchMetadata`.
   clientRoutes?: ClientRoutes;
-  // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored), committed
-  // enrichment under `<genDir>/enriched/`. Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
+  // Generated-output root, relative to cwd: cache modules under `<genDir>/types/` (gitignored). Omitted, the resolver infers `<srcDir>/.mion` from the tsconfig.
   // It lives in the project rather than node_modules so a dev watcher sees regenerated modules.
   genDir?: string;
   // What each RT cache entry ships in its code/factory slots:
@@ -221,9 +197,6 @@ export interface PluginOptions {
   onSiteFilesChanged?: (siteFiles: string[]) => void;
   // Fired after every generate; a host re-transforms router-init modules loaded before the batch module appeared.
   onGenerate?: (info: GenerateInfo) => void;
-  // Enrichment auto-sync (opt-in, default OFF). Bundler-plugin-only, a host/dev-loop behavior, so it has
-  // no tsconfig counterpart. See EnrichSyncOptions.
-  enrich?: EnrichSyncOptions;
   // An extension binary's host half. JS-only, so it has no tsconfig counterpart.
   extensions?: MionExtension[];
 }
@@ -298,17 +271,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       `[@mionjs/devtools] unknown transformMode ${JSON.stringify(options.transformMode)} — expected 'go' | 'edits'`
     );
   }
-  // The i18n object's PRESENCE, not a flag inside it, enables per-locale translation-mirror sync.
-  const enrichOptions = options.enrich;
-  const enrichFriendly = enrichOptions?.friendly === true;
-  const enrichMock = enrichOptions?.mock === true;
-  const enrichI18n = enrichOptions?.i18n;
-  const enrichI18nEnabled = enrichI18n !== undefined;
-  const enrichLocales = enrichI18n?.locales ?? [];
-  const enrichSourceLocale = enrichI18n?.sourceLocale;
-  const anyEnrichFamily = enrichFriendly || enrichMock || enrichI18nEnabled;
-  // The mirrors are write-only outputs, so any enrich family on suppresses HMR unless suppressHmr says otherwise.
-  const suppressEnrichHmr = enrichOptions?.suppressHmr ?? anyEnrichFamily;
   let resolver: ResolverClient | null = null;
   // Live buildStart/buildEnd pairs across this instance's plugin containers (vite spawns one per
   // environment); the shared resolver closes only when the LAST container tears down — see buildEnd.
@@ -326,8 +288,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let pureFnArtifact: Record<string, string> = {};
   // Stays empty under every other bundler (no equivalent hook), where ensureResolver falls back to cwd.
   let viteRoot = '';
-  // Empty under every other bundler. Gates enrichment auto-sync: 'serve' WRITES the mirrors, anything
-  // else runs the read-only drift gate, since a production build must never mutate committed source.
+  // Empty under every other bundler; 'serve' is the dev server.
   let viteCommand = '';
   // Vitest runs the serve command in `test` mode, and a test run is a build lane, not a dev server.
   let viteMode = '';
@@ -412,16 +373,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
       // Session config the wire does not carry: genDir rides --gen-dir so EVERY op roots identically.
-      // transformRelative: generated modules are real files; locales/sourceLocale default from the tsconfig i18n block.
+      // transformRelative: generated modules are real files.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientRoutes ? {clientRoutes: options.clientRoutes} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
-      ...(enrichFriendly ? {enrichFriendly: true} : {}),
-      ...(enrichMock ? {enrichMock: true} : {}),
-      ...(enrichI18nEnabled ? {enrichI18n: true} : {}),
-      ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
-      ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
       ...(extensionArgs.length > 0 ? {extraArgs: extensionArgs} : {}),
     });
     advertised = undefined;
@@ -579,110 +535,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       hostWarn(ctx, `@mionjs/devtools: 'edits' apply failed on ${rel} (${String(error)}) — falling back to 'go' mode.`);
       return transformViaGo(ctx, rel);
     }
-  }
-
-  // Write-only-on-change, so a converged mirror never churns the watcher, and best-effort per file, since
-  // one write failure must not tear down the dev loop. The created / updated split feeds the first-sync summary.
-  async function writeMirrorFiles(
-    files: {path: string; content: string; added?: boolean}[]
-  ): Promise<{created: number; updated: number}> {
-    let created = 0;
-    let updated = 0;
-    for (const file of files) {
-      try {
-        const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
-        if (existing === file.content) continue;
-        await fs.promises.mkdir(path.dirname(file.path), {recursive: true});
-        await fs.promises.writeFile(file.path, file.content);
-        if (file.added) created += 1;
-        else updated += 1;
-      } catch {
-        // best-effort; keep going with the remaining mirrors
-      }
-    }
-    return {created, updated};
-  }
-
-  // Scaffolds + reconciles the demanded mirrors for `files`, the whole program when [] is passed. The wire
-  // carries only the files: which families / locales to sync is the resolver session's spawn-time config.
-  // The daemon enriches every EXPORTED type a file declares that a marker call also demands.
-  // Dev/watch only (a production build takes the read-only drift gate), and never throws.
-  async function syncEnrich(files: string[]): Promise<void> {
-    if (!resolver || !anyEnrichFamily) return;
-    try {
-      const result = await resolver.enrich(files);
-      const written = await writeMirrorFiles(result.files);
-      // Only the whole-program pass speaks, so a fresh opt-in is never a silent burst of new files;
-      // per-file HMR syncs stay quiet, the diff in the editor being the feedback there.
-      if (files.length === 0 && written.created + written.updated > 0) {
-        console.log(
-          `[@mionjs/devtools] enrich sync: scaffolded ${written.created} new mirror file(s), reconciled ${written.updated} — review & commit; fill the blanks before a production build (its completeness gate fails on unfilled scaffolds).`
-        );
-      }
-    } catch {
-      // A resolver hiccup mid-edit heals on the next pass — swallow it.
-    }
-  }
-
-  // The production-build lane, the plugin analog of the CLI `enrich --require-complete`: the committed
-  // enrichment must be IN SYNC and COMPLETE, checked WITHOUT writing, since mutating committed source
-  // mid-build would break reproducibility. Two halves, both warning and both failing the build:
-  //
-  //   - DRIFT: an on-disk mirror missing or differing from the freshly computed one.
-  //   - INCOMPLETE or STALE: unfilled @todo scaffolds, blank values (empty label / message / pool) and
-  //     parked @rtOrphan carcasses — the daemon's hygiene findings.
-  //
-  // Dev/watch takes syncEnrich instead, which writes the scaffolds and tolerates the blanks.
-  async function enrichDriftGate(ctx: any): Promise<void> {
-    if (!resolver || !anyEnrichFamily) return;
-    let stale: string[];
-    let incomplete: Diagnostic[];
-    try {
-      const result = await resolver.enrich([]);
-      stale = [];
-      for (const file of result.files) {
-        const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
-        if (existing !== file.content) stale.push(file.path);
-      }
-      // EVERY hygiene finding is kept, with no level filter: these codes are all LevelWarning (a mirror
-      // with a blank label still runs), so filtering by level silently let the @rtOrphan carcasses
-      // through. Downgraded ones stay too — a downgrade lowers a finding, it never hides it; only the
-      // halt count below drops them.
-      incomplete = result.diagnostics ?? [];
-    } catch {
-      return;
-    }
-    if (stale.length === 0 && incomplete.length === 0) return;
-    for (const stalePath of stale) {
-      hostWarn(
-        ctx,
-        `@mionjs/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`mion enrich --update\` and commit it.`
-      );
-    }
-    let fatal = 0;
-    const findings: Finding[] = [];
-    for (const diagnostic of incomplete) {
-      // isDowngraded never lowers a completeness Warning, yet it halts here, so apply `downgradeErrors` by code or `*`.
-      const standDown =
-        isDowngraded(downgrade, diagnostic) ||
-        (catalogEntry(diagnostic.code)?.completeness === true && downgradeListed(diagnostic.code));
-      findings.push({diagnostic, downgraded: standDown});
-      if (!standDown) fatal += 1;
-    }
-    printFindings(ctx, findings, grouped, cwdAbs || process.cwd());
-    // The stale-mirror half carries no diagnostic code, so only the wildcard lowers it.
-    const staleCount = downgrade.all ? 0 : stale.length;
-    if (staleCount === 0 && fatal === 0) return;
-    const parts: string[] = [];
-    if (staleCount > 0) parts.push(`${staleCount} out of date or missing`);
-    if (fatal > 0) parts.push(`${fatal} incomplete or stale (unfilled @todo / blank value / @rtOrphan carcass)`);
-    hostHalt(
-      ctx,
-      new Error(
-        `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
-          `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
-      )
-    );
   }
 
   // Every generate goes through here, so the artifact always tracks the last whole-program render.
@@ -917,7 +769,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     }
 
     // AFTER generate, so the resolver's Program already reflects the edit.
-    if (anyEnrichFamily) await syncEnrich(rels);
     for (const extension of extensions) {
       await extension.filesChanged?.(
         extensionContext(ctx),
@@ -965,15 +816,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return [...stale].sort();
   }
 
-  // <genDirAbs>/enriched/ is the committed mirror tree the plugin writes (and the CLI or a developer may
-  // hand-edit); its changes are write-only outputs, which handleHotUpdate suppresses HMR for.
-  function isUnderEnrichedDir(file: string): boolean {
-    if (!genDirAbs) return false;
-    const enrichedRoot = path.join(genDirAbs, 'enriched');
-    const rel = path.relative(enrichedRoot, path.resolve(file));
-    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
-  }
-
   return {
     name: PLUGIN_NAME,
     // Not an unplugin hook: the escape hatch a host with no HMR hook of its own
@@ -1003,8 +845,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       await registerAdvertised();
       // The full check of the option, now that the binary's own codes are known, and before anything is written.
       if (options.downgradeErrors !== undefined) downgrade = resolveDowngradeErrors(options.downgradeErrors);
-      // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here,
-      // and the enriched-dir HMR suppression needs it. The VCS-hygiene files (per-folder READMEs, the
+      // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here.
+      // The VCS-hygiene files (per-folder READMEs, the
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
@@ -1028,12 +870,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // pure-fn, and a purity violation still ships the compiled body, so it is a RuntimeError.
       if (isDevServer()) devReporter.update(gen.diagnostics ?? [], downgrade);
       else surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd(), grouped});
-      // Dev/watch WRITES the mirrors up front, a whole-program pass so they exist before the first edit;
-      // every other lane (a production build, a non-Vite bundler) takes the read-only drift gate instead.
-      if (anyEnrichFamily) {
-        if (viteCommand === 'serve') await syncEnrich([]);
-        else await enrichDriftGate(this);
-      }
       for (const extension of extensions) await extension.buildStart?.(extensionContext(this));
     },
 
@@ -1163,9 +999,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         if (!resolver) return;
         const file: string = ctx.file;
         if (!file) return;
-        // A change under <genDir>/enriched/** is the plugin's own mirror write (or a hand / CLI edit), so
-        // reloading nothing is what keeps the auto-sync writes out of a reload loop.
-        if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
         if (extensions.some((extension) => extension.ignoreHotUpdate?.(file, extensionContext(this)))) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;

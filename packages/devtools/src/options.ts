@@ -17,8 +17,7 @@ export interface MionRunTypesOptions {
    *  installed `@mionkit/pro-bin-compiler`, then the published platform binary. MION_BIN also covers the ESLint
    *  lane, so prefer it when both must match. */
   binary?: string;
-  /** RunTypes generated-output root: gitignored modules under `<genDir>/types/`, committed enrichment under
-   *  `<genDir>/enriched/`. */
+  /** RunTypes generated-output root: gitignored modules under `<genDir>/types/`. */
   genDir?: string;
   /** What generated fn entries ship: 'code' (default) | 'both' | 'ts' ('both' as typed `.ts` modules).
    *

@@ -4,8 +4,8 @@
 // launcher (spawn-shim.ts) while the host process is still small enough to fork, handing it the real binary and
 // argv on the first request. Per request it mirrors the unplugin's HMR pivot: push the file's buffer text
 // (`setSources`, an inferred Program rooted at the file, its imports read from disk through the overlay FS),
-// then `scanFiles` with checkEnrich + checkRouterRules + includeRtDiagnostics, so ONE pass returns what a build
-// reports plus the two checks only lint runs.
+// then `scanFiles` with checkRouterRules + includeRtDiagnostics, so ONE pass returns what a build
+// reports plus the route rules only lint runs.
 
 import {spawn, type ChildProcess} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -103,7 +103,6 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const capabilities = await resolver.capabilities();
       const ext = Object.fromEntries(capabilities.scanChecks.map((check) => [check.name, true]));
       const result = await resolver.scanFiles([rel], {
-        checkEnrich: true,
         checkRouterRules: true,
         includeRtDiagnostics: true,
         ext,
