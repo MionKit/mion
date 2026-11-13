@@ -16,12 +16,12 @@ export interface RTValidationIssue<Format extends TypeFormatError = TypeFormatEr
   readonly format?: Format;
 }
 
-/** The `message` hook replaces the default mechanical derivation: the seam a friendly renderer plugs into. **/
+/** The `message` hook replaces the default mechanical derivation: the seam a message renderer plugs into. **/
 export interface IssueMappingOptions {
   message?: (err: RTValidationError) => string;
 }
 
-// constraintName mirrors createFriendlyText's `constraintKey`.
+// constraintName is the failing param's name, else the format's own name.
 function constraintName(format: TypeFormatError | undefined): string {
   if (!format) return 'type';
   const tail = format.formatPath[format.formatPath.length - 1];
@@ -37,7 +37,7 @@ function primitiveBound(val: TypeFormatError['val']): string | number | bigint |
 }
 
 // defaultMessage derives a mechanical, dependency-free message; human-readable phrasing is the
-// friendly-map's job, wired through IssueMappingOptions.message. The parenthesized bound appears only
+// caller's job, wired through IssueMappingOptions.message. The parenthesized bound appears only
 // when it informs: a WILDCARD 'any' bound means the FORMAT itself failed, so the format name replaces
 // the sub-constraint, and a bound that merely echoes the constraint name is dropped too.
 function defaultMessage(err: RTValidationError): string {

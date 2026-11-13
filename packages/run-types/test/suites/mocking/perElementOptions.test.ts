@@ -3,7 +3,7 @@
 // a tuple, so the same per-element indexing covers both a plain tuple and a
 // function's argument tuple. Driven low-level over a hand-built tuple runtype
 // (createMockDataFn needs a plugin-injected id; the walker takes a RunType
-// directly), mirroring mockData.test.ts.
+// directly).
 
 import {describe, it, expect} from 'vitest';
 import {mockRunType} from '../../../src/mocking/mockType.ts';

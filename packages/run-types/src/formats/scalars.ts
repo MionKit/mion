@@ -62,8 +62,8 @@ export function number(
 }
 
 /** A currency (monetary amount) field builder: `currency()` ≡ `number({isCurrency: true})`, so unlike
- *  `number()` the no-params call still carries the mark. The currency UNIT is never a param, pass it
- *  to the renderer (`createFriendlyTextI18n`'s `currency` option) instead. **/
+ *  `number()` the no-params call still carries the mark. The currency UNIT is never a param: it is
+ *  runtime data for whatever renders the message. **/
 export function currency(id?: InjectRunTypeId<Currency>): RunType<Currency>;
 export function currency<const P extends NumberParams>(
   formatParams: CompTimeArgs<ExactParams<P, NumberParams>>,

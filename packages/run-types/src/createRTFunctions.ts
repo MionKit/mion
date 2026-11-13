@@ -96,8 +96,8 @@ export interface TypeFormatError<Name extends string = string, Mode extends stri
    *  switch on it: `formatPath` locates the failing param, this names the mode. */
   errorType?: Mode;
   /** Echoed by the emitter when the field's number format sets the
-   *  `isCurrency` param — pure presentation metadata: `createFriendlyTextI18n`
-   *  renders the violated bound as money in the active locale. */
+   *  `isCurrency` param — pure presentation metadata: a message renderer
+   *  can show the violated bound as money. */
   isCurrency?: boolean;
 }
 

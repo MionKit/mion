@@ -162,7 +162,7 @@ describe('mock: an unsatisfiable combination throws instead of shipping a bad va
   it('a Set of booleans cannot hold 3 distinct members', () => {
     // Only `true` and `false` exist, so minItems 3 under uniqueItems is empty.
     const mock = createMockDataFn(RT.set(RT.boolean(), {minItems: 3, uniqueItems: true}));
-    expect(() => mock()).toThrow(/Cannot mock a structural format/);
+    expect(() => mock()).toThrow(/Cannot mock a structural format.*mock hook/);
   });
 
   it('a Map holds one entry per key, so a pinned key cannot reach minContains 2', () => {

@@ -5,7 +5,7 @@
 // Pools are random per build unless a literal `{mock: {seed}}` at a
 // createMockDataFn call site pins them (the CompTimeHints lane). The Go
 // matrix (pkg/compiler/resolver/format_sample_validation_test.go)
-// proves the build-time enrichment, the seeded/unseeded pool semantics
+// proves the build-time sample generation, the seeded/unseeded pool semantics
 // across builds, and the format-sample-generation-failed failure lanes; this spec proves the
 // EMITTED artifacts behave within a build: mocks match the regex, validate
 // accepts every mock, and both marker call shapes ride the same cache

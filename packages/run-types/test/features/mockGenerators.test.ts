@@ -1,8 +1,8 @@
 // Built-in generators pass their own validator; the type-first block pins both createMockDataFn call shapes.
 
 import {describe, it, expect} from 'vitest';
-import {createValidateFn, type RunType} from '@mionjs/run-types';
-import {createMockDataFn} from '@mionjs/run-types/mocking';
+import {createValidateFn, RunTypeKind, type RunType} from '@mionjs/run-types';
+import {createMockDataFn, type MockNodeHook} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 import {GEN} from '@mionjs/run-types/formats';
@@ -133,12 +133,23 @@ describe('mock generators: out of their natural lengths', () => {
   });
 });
 
-describe('mock generators: MockData on a union', () => {
-  it('a named format arm mocks itself, the string arm takes the generator', () => {
+describe('mock generators: a mock hook on a union', () => {
+  it('a named format arm mocks itself, the plain string arm takes the generator', () => {
     type Contact = {id: string | TF.Email};
     const validate = createValidateFn<Contact>();
-    const mock = createMockDataFn<Contact>(undefined, {data: {id: {generator: 'lastName'}}});
-    for (let seed = 1; seed <= 40; seed++) expect(validate(mock({mock: {seed}}))).toBe(true);
+    const plainString = (runType: RunType) => (runType.kind as number) === RunTypeKind.string && !runType.formatAnnotation;
+    const hook: MockNodeHook<string> = {
+      root: '',
+      descend: (_cursor, step) => (step.kind === 'property' ? String(step.name) : undefined),
+      value: (cursor, node) =>
+        cursor === 'id' && plainString(node.runType) ? {value: node.generate('lastName', {})} : undefined,
+    };
+    const mock = createMockDataFn<Contact>(undefined, {hook});
+    for (let seed = 1; seed <= 40; seed++) {
+      const contact = mock({mock: {seed}});
+      expect(validate(contact)).toBe(true);
+      if (!contact.id.includes('@')) expect(contact.id).toMatch(/^[A-Z][a-z]+$/);
+    }
   });
 });
 

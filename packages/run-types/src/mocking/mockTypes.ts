@@ -1,7 +1,6 @@
 // Public types for the mock-value generator; `createMockDataFn<T>()` merges caller options over
 // `defaultMockOptions` before walking the runtype graph.
 
-import type {MockData} from '../enrich/mockData.ts';
 import type {StringParams} from '../formats/string/stringFormats.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {MockRandom} from './mockRandom.ts';
@@ -78,40 +77,12 @@ export interface MockOptions {
   random?: MockRandom;
 }
 
-/** Loose runtime view of a `MockNode` (../enrich/mockData.ts), read structurally by the walker and typed
- *  permissively because it operates over erased `unknown` values; the typed surface is `MockData<T>` on the
- *  public `data` field. Every slot is optional, so an absent / partial node leaves its generation path untouched. **/
-export interface MockDataNode {
-  /** Value pool — leaf kinds draw `randomItem(pool)`. **/
-  pool?: unknown[];
-  /** A string leaf's mock generator by name, used when the pool is empty. **/
-  generator?: string;
-  /** Inclusive numeric / Date range bounds. **/
-  min?: number | Date;
-  max?: number | Date;
-  /** Array element data node. **/
-  rt$items?: MockDataNode;
-  /** Fixed-tuple slot data nodes, one per position. **/
-  rt$slots?: MockDataNode[];
-  /** Array element count — fixed `n` or `[min, max]` range. **/
-  rt$length?: number | [number, number];
-  /** Present-probability for optional object members (reserved; not yet read). **/
-  rt$optional?: number;
-  /** Per-property child node (objects), descended by property name. **/
-  [property: string]: unknown;
-}
-
 /** Wrapper bag passed at factory or call site, so future option groups (e.g. `validation`) don't break the signature.
- *  `data` is the optional `MockData<T>` enrichment map (per-field pools / ranges / element + length controls) and
- *  is strictly additive: when absent the walker behaves byte-identically.
- *  `dataNode` is the internal current-node cursor the walker threads and descends; callers supply `data`. **/
+ *  `T` is the mocked type: unused here, it lets an augmentation of this interface type its own fields against `T`. **/
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface RunTypeMockOptions<T = unknown> {
   mock?: DeepPartial<MockOptions>;
-  data?: MockData<T>;
-  /** Internal, set by the walker: seeded from `data` at walk entry, descended by field name / `rt$items` / element. **/
-  dataNode?: MockDataNode;
-  /** Supplies or shapes node values while the walker descends; runs beside `data`. A call-site hook replaces the
-   *  factory's. **/
+  /** Supplies or shapes node values while the walker descends. A call-site hook replaces the factory's. **/
   hook?: MockNodeHook;
   /** Internal, set by the walker: the hook's cursor at the current node, seeded from `hook.root`. **/
   hookCursor?: unknown;
@@ -149,8 +120,7 @@ export interface MockNodeContext {
   generate(name: string, params: StringParams): string;
 }
 
-/** The call-time `data` map is typed loosely so the return type stays structurally stable across `T`; the
- *  precisely-typed `MockData<T>` surface is the factory's `options` param. **/
+/** Call-time options are typed loosely so the return type stays structurally stable across `T`. **/
 export type MockTypeFn<T = unknown> = (options?: DeepPartial<RunTypeMockOptions>) => T;
 
 /** Recursive Partial — every object branch becomes optional. **/

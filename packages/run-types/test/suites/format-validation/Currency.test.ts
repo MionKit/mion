@@ -3,7 +3,7 @@
 // forms (the format payload asserted across static / reflect /
 // deserialize-static / deserialize-reflect + the value-first schema contract) +
 // 2 mockType forms — plus a focused pair proving the `isCurrency` param is
-// echoed onto error payloads end-to-end (the friendly renderer's money
+// echoed onto error payloads end-to-end (an error renderer's money
 // discriminator) in both marker call shapes.
 import {describe, it, expect} from 'vitest';
 import * as TF from '@mionjs/run-types/formats';
