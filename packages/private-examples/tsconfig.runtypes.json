@@ -40,7 +40,6 @@
     }
   },
   "include": [
-    "src/enrich",
     "src/guide",
     "src/_homepage/define-builder.ts",
     "src/_homepage/define-type.ts",

@@ -17,7 +17,6 @@ Detail for [SKILL.md](SKILL.md) step 0. These comments control builds, diagnosti
 - Mion diagnostics: `@mion-expect-error`, `@mion-downgrade-error`, incl. code lists, wildcards, file-versus-line scope.
 - Router declarations: `@mion:route`, `@mion:middleware`, `@mion:headersMiddleware`.
 - Resolver metadata: `@nonEnumerable`.
-- Enrichment metadata: `@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`, other compiler-owned `@rt` tags.
 - Markers: `// biome-`, `// ^?`, `// ^|`, `// @annotate`, `// start-` / `// end-`, `GC-GUARD`, any comment a tool reads.
 
 ## Tool directives
