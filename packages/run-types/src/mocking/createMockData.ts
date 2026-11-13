@@ -15,7 +15,7 @@ import {mockRunType} from './mockType.ts';
 import {mockRunTypeInvalid} from './mockInvalid.ts';
 import {MockRandom, nativeMockRandom} from './mockRandom.ts';
 import {defaultMockOptions} from './constants.mock.ts';
-import type {MockDataNode, MockNodeHook, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
+import type {MockNodeHook, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
 
 /** Returns a mock-value generator for `T`; each call produces a fresh value that passes `validate<T>`.
  *  Options merge: call < factory < defaults. Takes a value-first schema (`createMockDataFn(rt)`) or the value/static form.
@@ -56,9 +56,9 @@ export function createMockDataFn<T>(
       `createMockDataFn(): no RunType entry for "${effectiveId}" in rtUtils. The build pipeline didn't emit a cache entry for that runtype.`
     );
   }
-  const factoryOpts = mergeMockOptions(undefined, options as DeepPartial<RunTypeMockOptions<unknown>> | undefined);
+  const factoryOpts = mergeMockOptions(undefined, options as DeepPartial<RunTypeMockOptions> | undefined);
   return ((callOpts) => {
-    const merged = mergeMockOptions(factoryOpts, callOpts as DeepPartial<RunTypeMockOptions<unknown>> | undefined);
+    const merged = mergeMockOptions(factoryOpts, callOpts as DeepPartial<RunTypeMockOptions> | undefined);
     const mockOpts = merged.mock as MockOptions;
     // One random source per generation, carried on the options bag so it threads the whole walk (and the deferred
     // Promise resolver, which closes over `merged`). A fresh seeded instance each call ⇒ the same seed always
@@ -70,11 +70,11 @@ export function createMockDataFn<T>(
 }
 
 /** Shallow merge of the `mock` slot, so nested pool arrays are replaced when supplied, never merged.
- *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends. **/
+ *  A `hook` seeds `hookCursor` from its `root`. **/
 function mergeMockOptions(
-  factoryOpts: RunTypeMockOptions<unknown> | undefined,
-  callOpts: DeepPartial<RunTypeMockOptions<unknown>> | undefined
-): RunTypeMockOptions<unknown> {
+  factoryOpts: RunTypeMockOptions | undefined,
+  callOpts: DeepPartial<RunTypeMockOptions> | undefined
+): RunTypeMockOptions {
   const factoryMock = factoryOpts?.mock as Partial<MockOptions> | undefined;
   const callMock = callOpts?.mock as Partial<MockOptions> | undefined;
   const merged: MockOptions = {
@@ -82,12 +82,7 @@ function mergeMockOptions(
     ...factoryMock,
     ...callMock,
   };
-  const data = (callOpts?.data ?? factoryOpts?.data) as RunTypeMockOptions<unknown>['data'];
-  const result: RunTypeMockOptions<unknown> = {mock: merged};
-  if (data !== undefined) {
-    result.data = data;
-    result.dataNode = data as MockDataNode;
-  }
+  const result: RunTypeMockOptions = {mock: merged};
   const hook = (callOpts?.hook ?? factoryOpts?.hook) as MockNodeHook | undefined;
   if (hook !== undefined) {
     result.hook = hook;

@@ -4,7 +4,7 @@
 // Cyclic types terminate through `decayOptionsForNesting`, which divides `optionalProbability` and
 // `maxRandomItemsLength` by the re-entry count, and `mockRunType` bailing out past `maxMockRecursion`.
 
-import type {MockDataNode, MockNodeContext, MockOptions, MockStep, RunTypeMockOptions} from './mockTypes.ts';
+import type {MockNodeContext, MockOptions, MockStep, RunTypeMockOptions} from './mockTypes.ts';
 import type {RunType} from '../runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunTypeKindValue} from '../go-generated/runTypeKind.generated.ts';
@@ -19,7 +19,6 @@ import {mockBoundedNativeDate} from './mockDateTimeBounds.ts';
 import {mockTemporal, isTemporalSubKind, temporalBoundsFromAnnotation} from './mockTemporal.ts';
 import {mockUrlObject} from './mockStringFormat.ts';
 import {mockFromGenerator} from './generators/index.ts';
-import type {StringParams} from '../formats/string/stringFormats.ts';
 
 /** Public entry; the cycle detector is reference identity, since the runTypes cache shares one object per cyclic ref. **/
 export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
@@ -121,7 +120,7 @@ function isWrapperKind(kind: number): boolean {
 // Step 1 (60, 30, 10, 3) mocked a four-level Record / Set / Map in ~80 ms, step 2 (60, 20, 4, 1) in ~10 ms.
 const COLLECTION_LEVEL_STEP = 2;
 
-/** A flat cap multiplies per level (60^4 entries at four levels); an explicit `arrayLength` or `rt$length` wins. **/
+/** A flat cap multiplies per level (60^4 entries at four levels); an explicit `arrayLength` or hook length wins. **/
 function shrinkForNestedItems(options: RunTypeMockOptions, stack: RunType[]): RunTypeMockOptions {
   let nestLevel = 1;
   for (let i = 0; i < stack.length; i++) if (isItemCollection(stack[i])) nestLevel += COLLECTION_LEVEL_STEP;
@@ -129,19 +128,8 @@ function shrinkForNestedItems(options: RunTypeMockOptions, stack: RunType[]): Ru
   return {...options, mock: {...mOps, maxRandomItemsLength: decayItemsLength(mOps.maxRandomItemsLength, nestLevel)}};
 }
 
-// ─────────────────────── MockData node threading ───────────────────────
-// The walker carries the current MockData node in `options.dataNode`, descended by property name or `rt$items` at
-// each recursion. Everything below is a strict no-op without a data node, so behaviour is byte-identical.
-
-/** Shares the `mock` slot, read-only on the walk, and returns `options` untouched when the node is unchanged,
- *  so the no-data path allocates nothing extra. **/
-function withDataNode(options: RunTypeMockOptions, next: MockDataNode | undefined): RunTypeMockOptions {
-  if (options.dataNode === next) return options;
-  return {...options, dataNode: next};
-}
-
 // ─────────────────────── MockNodeHook cursor threading ───────────────────────
-// The hook cursor steps down at the same sites as the data node; with no cursor every helper returns `options` as is.
+// The hook cursor steps down at each property, item and slot; with no cursor every helper returns `options` as is.
 
 function withHookStep(options: RunTypeMockOptions, step: MockStep): RunTypeMockOptions {
   const hook = options.hook;
@@ -167,39 +155,6 @@ function hookNodeContext(runType: RunType, options: RunTypeMockOptions, random: 
   };
 }
 
-/** Only a plain object is a child node: pools / ranges are arrays / scalars and never descend. **/
-function asDataNode(value: unknown): MockDataNode | undefined {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value as MockDataNode;
-  return undefined;
-}
-
-/** Descend the current data node by object-property name. **/
-function childDataNodeByName(node: MockDataNode | undefined, name: string | number | undefined): MockDataNode | undefined {
-  if (!node || name === undefined) return undefined;
-  return asDataNode(node[name as string]);
-}
-
-/** The string params a MockData generator must satisfy, undefined for a named format, which mocks itself. **/
-function dataGeneratorParams(runType: RunType): StringParams | undefined {
-  const annotation = runType.formatAnnotation;
-  if (!annotation) return {};
-  return annotation.name === 'stringFormat' ? (annotation.params as StringParams) : undefined;
-}
-
-/** Non-empty value pool from the current data node, or undefined. **/
-function dataPool(node: MockDataNode | undefined): unknown[] | undefined {
-  if (node && Array.isArray(node.pool) && node.pool.length > 0) return node.pool;
-  return undefined;
-}
-
-/** Element count from `rt$length` (fixed `n` or `[min, max]`), or undefined to fall through to the global option. **/
-function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): number | undefined {
-  const len = node?.rt$length;
-  if (typeof len === 'number') return len;
-  if (Array.isArray(len) && len.length === 2) return random.int(len[0], len[1]);
-  return undefined;
-}
-
 // Bounded rejection sampling for constrained structural formats: the admissible set is dense, so a handful of
 // draws converges, and a type whose candidates keep failing is an authoring problem that must surface loudly.
 const STRUCTURAL_MOCK_ATTEMPTS = 32;
@@ -207,7 +162,7 @@ const STRUCTURAL_MOCK_ATTEMPTS = 32;
 /** One `contains` entry as the wire carries it on a node. **/
 type ContainsEntry = {child: RunType; min: number; max: number};
 
-/** Structural-format nodes reject-sample from the base generator, enrichment pools included, and keep the first
+/** Structural-format nodes reject-sample from the base generator, hook values included, and keep the first
  *  candidate satisfying the constraints; a pool that never satisfies them throws rather than ship unsound mocks. **/
 function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
   // The array case pre-shapes its draws (length clamp, unique-aware fill), so this guard mostly polices tuple /
@@ -227,7 +182,7 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
   }
   throw new Error(
     `Cannot mock a structural format: ${STRUCTURAL_MOCK_ATTEMPTS} candidates all failed the ${String(runType.formatAnnotation?.name)} constraints. ` +
-      'Provide a MockData pool for this type (enrich) with values that satisfy them.'
+      'Supply its values with a mock hook that satisfies them.'
   );
 }
 
@@ -238,13 +193,6 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
   // instance for a mock path that bypassed createMockDataFn (e.g. a test calling mockRunType directly).
   const random = mOps.random ?? nativeMockRandom;
   const kind = runType.kind as number;
-  // Current MockData node for this runtype; a pool short-circuits the kind default.
-  const dataNode = options.dataNode;
-  const pool = dataPool(dataNode);
-  if (pool) return random.pick(pool);
-  // A data-node generator beats the format's own (generator or samples) but keeps its string rules.
-  const generatorParams = typeof dataNode?.generator === 'string' && kind === RunTypeKind.string && dataGeneratorParams(runType);
-  if (generatorParams) return mockFromGenerator(dataNode!.generator as string, generatorParams, random);
   // A caller hook's value comes before the format and kind defaults.
   const hookNode = isWrapperKind(kind) ? undefined : hookNodeContext(runType, options, random);
   if (hookNode && options.hook!.value) {
@@ -272,10 +220,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       return random.string(mOps.stringLength ?? random.int(1, mOps.maxRandomStringLength), mOps.stringCharSet || stringCharSet);
     case RunTypeKind.number: {
       const hookBounds = hookNode ? options.hook!.bounds?.(options.hookCursor, hookNode) : undefined;
-      const dataMin = typeof dataNode?.min === 'number' ? dataNode.min : mOps.minNumber;
-      const dataMax = typeof dataNode?.max === 'number' ? dataNode.max : mOps.maxNumber;
-      const min = typeof hookBounds?.min === 'number' ? hookBounds.min : dataMin;
-      const max = typeof hookBounds?.max === 'number' ? hookBounds.max : dataMax;
+      const min = typeof hookBounds?.min === 'number' ? hookBounds.min : mOps.minNumber;
+      const max = typeof hookBounds?.max === 'number' ? hookBounds.max : mOps.maxNumber;
       return random.number(min, max);
     }
     case RunTypeKind.boolean:
@@ -331,19 +277,15 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             random
           );
         }
-        // Data-node Date min/max override the global range for an UNBRANDED Date only, so a format's own bounds,
+        // Hook Date bounds override the global range for an UNBRANDED Date only, so a format's own bounds,
         // which validate enforces, are never widened out of range.
         const hookBounds = hookNode ? options.hook!.bounds?.(options.hookCursor, hookNode) : undefined;
-        const dataMinDate = dataNode?.min instanceof Date ? dataNode.min : mOps.minDate;
-        const dataMaxDate = dataNode?.max instanceof Date ? dataNode.max : mOps.maxDate;
-        const minDate = hookBounds?.min instanceof Date ? hookBounds.min : dataMinDate;
-        const maxDate = hookBounds?.max instanceof Date ? hookBounds.max : dataMaxDate;
+        const minDate = hookBounds?.min instanceof Date ? hookBounds.min : mOps.minDate;
+        const maxDate = hookBounds?.max instanceof Date ? hookBounds.max : mOps.maxDate;
         return random.date(minDate, maxDate);
       }
-      // Map/Set MockData is v1-limited (no `rt$keys` / `rt$values` in the DSL), so clear the data node: a stray
-      // parent node must not leak into key / value / element generation.
-      if (subKind === RunTypeSubKind.map) return mockMap(runType, withDataNode(options, undefined), stack);
-      if (subKind === RunTypeSubKind.set) return mockSet(runType, withDataNode(options, undefined), stack);
+      if (subKind === RunTypeSubKind.map) return mockMap(runType, options, stack);
+      if (subKind === RunTypeSubKind.set) return mockSet(runType, options, stack);
       if (subKind === RunTypeSubKind.url) return mockUrlObject(runType.formatAnnotation, random);
       if (isTemporalSubKind(subKind)) {
         // FormatTemporalX<{min,max,gt,lt}> bounds must be honored so the mock re-passes validate.
@@ -359,20 +301,14 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.array: {
       const child = runType.child as RunType | undefined;
       if (!child) throw new Error('Cannot mock array: child runtype missing.');
-      // Data-node `rt$length` overrides the global length; `rt$items` is the element node threaded into each child.
-      // A formattedArray annotation clamps the draw into the declared bounds and fills unique-aware, so the
+      // A hook length overrides the global length. A formattedArray annotation clamps the draw into the declared bounds and fills unique-aware, so the
       // mockSwitch rejection loop converges instead of re-rolling whole arrays.
       const annotation = runType.formatAnnotation;
       const arrayParams =
         annotation?.name === 'formattedArray' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
       const hookLength = hookNode ? options.hook!.length?.(options.hookCursor, hookNode) : undefined;
-      const length = clampToItemBounds(
-        arrayParams,
-        hookLength ?? dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
-      );
-      const childOpts = withHookStep(withDataNode(shrinkForNestedItems(options, stack), asDataNode(dataNode?.rt$items)), {
-        kind: 'item',
-      });
+      const length = clampToItemBounds(arrayParams, hookLength ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength));
+      const childOpts = withHookStep(shrinkForNestedItems(options, stack), {kind: 'item'});
       // Contains entries splice exactly `min` CHILD MOCKS (valid by the mock soundness invariant) among fillers
       // the loose matcher DEFINITIVELY rejects, so per-entry counts are exact by construction.
       // Provable contradictions (min > max, or a matched item the element type definitively rejects) throw.
@@ -389,7 +325,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             if (!childSchemaMatches(item, child)) {
               throw new Error(
                 'Cannot mock contains: the contains child and the items type are contradictory. ' +
-                  'Provide a MockData pool for this type (enrich).'
+                  'Supply its values with a mock hook.'
               );
             }
             entryItems.push(item);
@@ -419,7 +355,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             if (surviving < entry.min) {
               throw new Error(
                 'Cannot mock contains with uniqueItems: the contains child cannot produce enough distinct values. ' +
-                  'Provide a MockData pool for this type (enrich).'
+                  'Supply its values with a mock hook.'
               );
             }
           });
@@ -444,7 +380,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         if (items.length < minItems) {
           throw new Error(
             `Cannot mock a uniqueItems array: the element type cannot produce ${minItems} distinct values. ` +
-              'Provide a MockData pool for this type (enrich) with enough distinct samples.'
+              'Supply enough distinct values with a mock hook.'
           );
         }
         return items;
@@ -458,14 +394,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // Per-element options indexed to each slot: `tupleOptions` for a plain tuple, `paramsOptions` for a
       // function's parameter tuple, which is what `Parameters<typeof fn>` reflects as, so params are mocked here.
       const perElemOptions = mOps.tupleOptions ?? mOps.paramsOptions;
-      // A fixed tuple's MockData is one node per slot (`rt$slots`); a variadic one shares `rt$items` across members.
-      const slotNodes = Array.isArray(dataNode?.rt$slots) ? dataNode.rt$slots : undefined;
-      const itemsNode = asDataNode(dataNode?.rt$items);
       const params = children.map((member, index) => {
-        const baseOpts = withHookStep(withDataNode(options, slotNodes ? asDataNode(slotNodes[index]) : itemsNode), {
-          kind: 'slot',
-          index,
-        });
+        const baseOpts = withHookStep(options, {kind: 'slot', index});
         const childOpts = perElemOptions?.[index] ? mergeChildOptions(baseOpts, perElemOptions[index]) : baseOpts;
         return mockRunType(member, childOpts, stack);
       });
@@ -501,9 +431,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       for (const entry of tupleContains) {
         const overCount = shaped.filter((item) => childSchemaMatches(item, entry.child)).length;
         if (entry.min > 0 || (entry.max >= 0 && overCount > entry.max)) {
-          throw new Error(
-            'Cannot mock contains over a tuple (prefixItems) base. Provide a MockData pool for this type (enrich).'
-          );
+          throw new Error('Cannot mock contains over a tuple (prefixItems) base. Supply its values with a mock hook.');
         }
       }
       return shaped;
@@ -653,7 +581,6 @@ function buildObjectLiteral(
 ): Record<string | number, unknown> {
   const children = (runType.children ?? []) as RunType[];
   const parent: Record<string | number, unknown> = mOps.parentObj ?? {};
-  const dataNode = options.dataNode;
   for (const member of children) {
     const memberKind = member.kind as number;
     if (memberKind === RunTypeKind.method || memberKind === RunTypeKind.methodSignature) {
@@ -670,7 +597,7 @@ function buildObjectLiteral(
     const name = member.name as string | number | undefined;
     if (name === undefined) continue;
     // The property / propertySignature arm threads these options through to the member's child value.
-    const memberOpts = withHookStep(withDataNode(options, childDataNodeByName(dataNode, name)), {kind: 'property', name});
+    const memberOpts = withHookStep(options, {kind: 'property', name});
     const value = mockRunType(member, memberOpts, stack);
     parent[name] = value;
   }
@@ -923,7 +850,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
       if (!childSchemaMatches(pair, child)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Map entry type are contradictory (a Map entry is its ' +
-            '[key, value] pair). Provide a MockData pool for this type (enrich).'
+            '[key, value] pair). Supply its values with a mock hook.'
         );
       }
       return pair;
@@ -932,7 +859,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     insertKeyOf: (pair) => pair[0],
     collapseError:
       'Cannot mock contains: a Map holds one entry per key, so the drawn matches collapsed and minContains cannot ' +
-      'be reached. Provide a MockData pool for this type (enrich).',
+      'be reached. Supply its values with a mock hook.',
   });
   for (const [key, value] of entries) result.set(key, value);
   return result;
@@ -957,7 +884,7 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
       if (!childSchemaMatches(item, elementType)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Set member type are contradictory. ' +
-            'Provide a MockData pool for this type (enrich).'
+            'Supply its values with a mock hook.'
         );
       }
       return item;
@@ -966,7 +893,7 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     insertKeyOf: (member) => member,
     collapseError:
       'Cannot mock contains: a Set holds one copy of a member, so the drawn matches collapsed and minContains ' +
-      'cannot be reached. Provide a MockData pool for this type (enrich).',
+      'cannot be reached. Supply its values with a mock hook.',
   });
   return new Set(members);
 }

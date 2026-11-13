@@ -289,7 +289,7 @@ function bigintParamsMatch(value: bigint, annotation: FormatAnnotation | undefin
 
 function childMatchError(reason: string): Error {
   return new Error(
-    `Cannot mock a constrained child (${reason}). Provide a MockData pool for this type (enrich) with values that satisfy the constraint.`
+    `Cannot mock a constrained child (${reason}). Supply its values with a mock hook that satisfies the constraint.`
   );
 }
 

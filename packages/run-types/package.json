@@ -50,15 +50,10 @@
             "default": "./dist/builders/index.js"
         }
     },
-    "bin": {
-        "mion-skills": "./bin/skills.mjs"
-    },
     "files": [
         "dist",
         "!dist/**/*.tsbuildinfo",
         "!dist/**/*.d.ts.map",
-        "bin",
-        "skills",
         "README.md"
     ],
     "publishConfig": {

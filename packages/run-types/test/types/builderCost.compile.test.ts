@@ -2,7 +2,7 @@
 // what a consumer's editor and every `tsc` run pay to type-check a schema.
 //
 // The existing compile-budget suites here cover the type-level WALKERS (DataOnly,
-// StripRunTypeMeta, SubstituteSelf, FriendlyText, MockData). Nothing covered the
+// StripRunTypeMeta, SubstituteSelf). Nothing covered the
 // call sites themselves, which is what a consumer actually writes, so a cost
 // regression in a builder signature or a format alias could land unnoticed. This
 // suite closes that gap across every builder and every format family.

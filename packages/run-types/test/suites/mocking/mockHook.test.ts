@@ -47,6 +47,15 @@ describe('mock hook', () => {
     );
   });
 
+  it('without a hook, a plain number stays in the default 0..10000 range, both call shapes', () => {
+    for (let i = 0; i < 50; i++) {
+      for (const n of [createMockDataFn<number>()(), createMockDataFn(TF.number())() as number]) {
+        expect(n).toBeGreaterThanOrEqual(0);
+        expect(n).toBeLessThanOrEqual(10000);
+      }
+    }
+  });
+
   it('a hook whose members return nothing leaves a seeded walk unchanged', () => {
     const schema = RT.object({name: TF.string(), list: RT.array(TF.number())});
     const hook = pathHook({value: () => undefined, bounds: () => undefined, length: () => undefined});
@@ -113,6 +122,7 @@ describe('mock hook', () => {
     const hook = pathHook({length: () => 4});
     expect(createMockDataFn(RT.array(TF.number()), {hook})()).toHaveLength(4);
     expect(createMockDataFn<number[]>(undefined, {hook})()).toHaveLength(4);
+    expect(createMockDataFn(RT.array(TF.number()), {hook, mock: {arrayLength: 2}})()).toHaveLength(4);
     expect(createMockDataFn(RT.array(TF.number(), {maxItems: 2}), {hook})()).toHaveLength(2);
   });
 
