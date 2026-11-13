@@ -118,7 +118,7 @@ func TestUnwritableOutDirError(t *testing.T) {
 // Options.GenDir (`serve --gen-dir`, the host plugin's own genDir option) wins,
 // else the tsconfig genDir, else the inferred <srcDir>/.mion. Relative
 // values anchor under the session cwd. Every op that needs the root — generate,
-// transform, enrich — reads it through here, so this ordering is the single
+// transform — reads it through here, so this ordering is the single
 // place the lanes can agree or drift.
 func TestResolveOutDir_Precedence(t *testing.T) {
 	cwd := t.TempDir()

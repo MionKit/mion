@@ -26,12 +26,12 @@ type Options struct {
 	SingleThreaded bool
 	// Overlay injects virtual file contents (absolute path → source) on top of the on-disk VFS.
 	Overlay map[string]string
-	// Conditions are extra package.json resolution conditions; the enrichment CLI passes ["source"] so `mion`
-	// resolves to its in-tree `src`, where the TypeFormat brands live. Consumed ONLY by the no-config fallback
+	// Conditions are extra package.json resolution conditions, e.g. ["source"] so `mion` resolves to its in-tree
+	// `src`, where the TypeFormat brands live. Consumed ONLY by the no-config fallback
 	// literal: with Config set, extras were folded in at parse time (pass the same to ParseInferredConfig).
 	Conditions []string
 	// Config carries the project tsconfig's frozen CompilerOptions for NewInferred to adopt WHOLESALE, so
-	// daemon / enrich Programs behave like the build lane. nil means no config anywhere, and the fixed
+	// daemon / CLI Programs behave like the build lane. nil means no config anywhere, and the fixed
 	// inferred defaults (tsc's loose-file posture) apply. NewInferred only.
 	Config *InferredConfig
 	// Overrides are compiler options laid over the tsconfig's, the way tsc's command-line flags are. New only.
@@ -136,7 +136,7 @@ func NewInferred(opts Options, fileNames []string) (*Program, error) {
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)
 
 	// One tsconfig, one behavior: adopt the parsed config's CompilerOptions WHOLESALE, zero curation, so a
-	// daemon rebuild, the inline one-shot and the enrich CLI type-check like the build lane. The pointer is
+	// daemon rebuild, the inline one-shot and the CLI verbs type-check like the build lane. The pointer is
 	// shared across sequential Programs (tsgo's own LSP pattern; nothing mutates it after parse). The literal
 	// below is ONLY the no-config fallback, for the WASM playground, bare test spawns and gen-builtin-purefns.
 	var compilerOptions *core.CompilerOptions

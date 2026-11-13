@@ -1,6 +1,6 @@
 // config.go reads the `mion` entry of tsconfig's plugins[]: TypeScript resolves the config and tsgo parses every
 // TypeScript-owned value; the JSONC reader here exists ONLY for that entry, which tsc ignores and tsgo does not
-// parse. The enrich-specific resolution lives in enrich_config.go.
+// parse.
 package cli
 
 import (
@@ -31,7 +31,7 @@ import (
 type tsRuntypesPlugin struct {
 	Name string `json:"name"`
 	// GenDir is the RunTypes output root; every location under it is
-	// convention (types/, enriched/{friendly,mock,i18n}) and NOT configurable.
+	// convention (types/, rpc/) and NOT configurable.
 	GenDir string `json:"genDir"`
 	// ClientRoutes: `bundle` (the default when absent) bundles every route this client calls, `fetch` fetches every route.
 	ClientRoutes string `json:"clientRoutes"`
@@ -39,12 +39,8 @@ type tsRuntypesPlugin struct {
 	EmitMode     string `json:"emitMode"`
 	InlineMode   string `json:"inlineMode"`
 
-	// I18n is the FriendlyText translation config. A pointer so an absent key
-	// (nil) keeps every i18n default dormant.
-	I18n *i18nPluginConfig `json:"i18n"`
-
 	// Build-path project knobs, read by resolveBuildPlugin and merged in
-	// buildconfig.go. The enrichment path ignores them.
+	// buildconfig.go.
 	//
 	// NB: there is deliberately NO cacheDir key. The RT disk cache follows
 	// TypeScript's own `incremental` / `composite` switch (on when the project
@@ -79,7 +75,7 @@ type tsRuntypesPlugin struct {
 	// DowngradeErrors lists RuntimeError codes to report as Warnings, so one finding does not block the rest, or "*" for a project that cannot name them yet.
 	// A fatal Error stays fatal: the build produced no code for it, so not halting would ship a call that throws.
 	// Echoed on generate (protocol.Response.DowngradeErrors) for the JS host; `mion compile` applies it to its exit code.
-	// nil (absent) is the strict default. The enrich lane ignores it.
+	// nil (absent) is the strict default.
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
 	// Levels: absent hides LevelInfo, "all" shows it. Echoed on generate like downgradeErrors; `mion compile` reads it too.
 	Levels string `json:"levels"`
@@ -142,9 +138,9 @@ func ResolveConfigPath(absCwd, tsconfigFlag string) string {
 	return program.DiscoverTsconfig(absCwd)
 }
 
-// ResolveProject parses the ONE tsconfig of a command run EXACTLY ONCE, for resolveEnrichConfig and buildProgram.
-// Its module resolution conditions are adopted wholesale, so enrich resolves like a build; in-tree src opts in via
-// customConditions:["source"] (enrich never forces it). "" + nil means no tsconfig anywhere.
+// ResolveProject parses the ONE tsconfig of a command run EXACTLY ONCE, for buildProgram.
+// Its module resolution conditions are adopted wholesale, so a verb resolves like a build; in-tree src opts in via
+// customConditions:["source"]. "" + nil means no tsconfig anywhere.
 func ResolveProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd := projectCwd("tsconfig discovery")
 	tsconfigPath := ResolveConfigPath(cwd, tsconfigFlag)
@@ -250,7 +246,7 @@ func mionPluginEntry(parsed tsconfigShape) (json.RawMessage, bool) {
 // tsconfigFlag is the --tsconfig CLI value (empty → <absCwd>/tsconfig.json),
 // matching program.New's own resolution so the binary reads the very tsconfig
 // it compiles against. A missing or malformed tsconfig returns ok=false rather
-// than erroring — same tolerant contract as resolveEnrichConfig.
+// than erroring.
 func resolveBuildPlugin(absCwd, tsconfigFlag string) (tsRuntypesPlugin, bool) {
 	parsed, ok := parseTsconfig(buildTsconfigPath(absCwd, tsconfigFlag))
 	if !ok {

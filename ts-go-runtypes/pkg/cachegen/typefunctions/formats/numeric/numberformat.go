@@ -69,7 +69,7 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 		return ""
 	}
 	params := annotation.Params
-	// isCurrency is presentation metadata, not a constraint: it rides every error so the friendly i18n renderer
+	// isCurrency is presentation metadata, not a constraint: it rides every error so a message renderer
 	// can show the violated bound as money.
 	extra := ""
 	if isCurrency, ok := formats.ReadBoolParam(params, "isCurrency"); ok && isCurrency {

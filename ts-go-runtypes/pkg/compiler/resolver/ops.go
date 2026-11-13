@@ -55,21 +55,12 @@ func init() {
 		{Name: protocol.OpGenerate, Run: (*Session).opGenerate},
 		{Name: protocol.OpSetSources, Run: (*Session).opSetSources},
 		{Name: protocol.OpReset, Run: (*Session).opReset},
-		{Name: protocol.OpEnrich, Run: func(sess *Session, request protocol.Request, _ *protocol.Metrics) protocol.Response {
-			return sess.dispatchEnrich(request)
-		}},
 		{Name: protocol.OpTsCompile, Run: (*Session).opTsCompile},
 		{Name: protocol.OpTransform, Run: (*Session).opTransform},
 		{Name: protocol.OpCapabilities, Run: (*Session).opCapabilities},
 	} {
 		RegisterOp(op)
 	}
-	RegisterScanCheck(ScanCheck{
-		Name:    "checkEnrich",
-		Family:  diagnostics.FamilyEnrich,
-		Enabled: func(request protocol.Request) bool { return request.CheckEnrich },
-		Run:     (*Session).checkEnrichFiles,
-	})
 	RegisterScanCheck(ScanCheck{
 		Name:    "checkRouterRules",
 		Family:  diagnostics.FamilyMionRoute,

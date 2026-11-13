@@ -12,7 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/reflection"
 )
 
-// PatternGenFailure is the reason the resolver's enrichment pass recorded for
+// PatternGenFailure is the reason the resolver's pattern-sample pass recorded for
 // a pattern it could not generate samples for.
 type PatternGenFailure struct {
 	// Reason is the engine's own explanation; "" means no failure recorded.

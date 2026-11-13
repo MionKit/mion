@@ -2,8 +2,8 @@ package reflection
 
 // IsSafeName reports whether a property name is dot-access safe in emitted JS: ASCII letters, digits and
 // underscore, not starting with a digit. Deliberately narrower than the JS identifier grammar (no `$`, no
-// unicode): a name outside the set is quoted, which is always valid. ONE predicate for the wire projection and
-// the enrichment mirror writers, so a key can never be emitted bare by one and quoted by the other.
+// unicode): a name outside the set is quoted, which is always valid. ONE predicate for every emitted key, so a
+// key can never be emitted bare by one writer and quoted by another.
 // Hand-rolled byte loop: it runs once per projected property and the regexp engine was measurable churn.
 func IsSafeName(name string) bool {
 	if name == "" {

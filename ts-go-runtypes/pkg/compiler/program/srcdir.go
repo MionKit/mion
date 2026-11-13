@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// InferSrcDir picks the base of the default <srcDir>/.mion; the resolver and the enrich CLI share it so their trees agree.
+// InferSrcDir picks the base of the default <srcDir>/.mion; the resolver and the CLI verbs share it so their trees agree.
 // rootDir and baseUrl may be relative to cwd; fileNames are the program's root files.
 func InferSrcDir(cwd, rootDir, baseUrl string, fileNames []string) string {
 	// A rootDir above cwd is an emit root for type-checking siblings; honoring it would put the output outside the project.

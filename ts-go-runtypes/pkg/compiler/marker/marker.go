@@ -238,7 +238,7 @@ func (opts Options) PackageSet() []string {
 // DeclaredInMarkerPackage reports whether symbol satisfies the module-of-origin gate: declared in
 // any package from PackageSet, or anywhere at all when SkipPackageCheck is set. Every caller asking
 // "did the marker package declare this?" goes through here (the marker scanner, the builders'
-// RunType recognition, DataOnly, the enrichment AST check), so a project's configured packages can
+// RunType recognition, DataOnly), so a project's configured packages can
 // never reach some of them and miss others.
 func (opts Options) DeclaredInMarkerPackage(symbol *ast.Symbol) bool {
 	if symbol == nil {

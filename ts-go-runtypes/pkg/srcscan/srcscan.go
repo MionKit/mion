@@ -1,7 +1,7 @@
 // Package srcscan is the ONE comment lexer for TypeScript source: a comment is whatever a tsgo PARSE leaves uncovered by a string,
 // template-literal or regex TOKEN. That is why `${/* … */ name}` IS a comment and `/*` inside a regex literal is NOT; a text-only lexer
 // cannot tell (the slash ambiguity), and a phantom comment there is the false positive that makes a probe match across live code.
-// Callers: the enrichment hygiene probes (pkg/enrichment/mirror) and the `@mion-expect-error` scan (pkg/compiler/resolver).
+// Caller: the `@mion-expect-error` scan (pkg/compiler/resolver).
 package srcscan
 
 import (

@@ -314,7 +314,7 @@ export const reflectForm = createValidateFn(value);
 `
 
 // generationScan runs the build-lane scan with the wire RunTypes included
-// so the enriched annotation is observable.
+// so the sampled annotation is observable.
 func generationScan(t testing.TB, session *resolver.Session) protocol.Response {
 	t.Helper()
 	resp := session.Dispatch(protocol.Request{
@@ -372,7 +372,7 @@ func withSampleKnobs(count, retries int) func(*program.Options, *resolver.Option
 // TestFormatSamples_GeneratedSamplesFillAnnotation — the headline of the
 // auto-generation feature: a pattern with NO declared mockSamples builds
 // clean, the wire annotation carries generated samples that all match the
-// pattern, and both marker call shapes share the one enriched node. With
+// pattern, and both marker call shapes share the one sampled node. With
 // no mock.seed anywhere, pools are RANDOM per build: an independent
 // session (fresh engine child = a fresh build) draws a DIFFERENT list.
 func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
@@ -405,7 +405,7 @@ func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 		t.Fatalf("unseeded pools must differ across builds, both: %v", samples)
 	}
 	// Within ONE session the pool is stable: re-dispatching returns the
-	// same enriched annotation (idempotent pass + engine memo).
+	// same sampled annotation (idempotent pass + engine memo).
 	respSame := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
 	_, first := patternSamplesFrom(t, respSame)
 	_, second := patternSamplesFrom(t, respSame)

@@ -29,7 +29,7 @@ func ErrorKeysFor(rt *reflection.RunType) []string {
 	return ErrorKeysForParams(rt.Kind, rt.FormatAnnotation.Name, rt.FormatAnnotation.Params)
 }
 
-// ErrorKeysForParams scans the emitter's validation-errors code; a panic yields no keys, so enrichment never crashes.
+// ErrorKeysForParams scans the emitter's validation-errors code; a panic yields no keys, so a caller never crashes.
 func ErrorKeysForParams(kind reflection.ReflectionKind, name string, params map[string]any) (keys []string) {
 	emitter, ok := Lookup(kind, name)
 	if !ok {

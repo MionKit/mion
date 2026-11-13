@@ -30,7 +30,7 @@ import (
 
 // Dispatch routes a request to the correct handler, adding the Metrics block when the request asks for it.
 // Every op returns through here, which is why the response's diagnostics are deduped at this ONE choke point: the
-// runtype, marker, pure-fn and enrich lanes assemble theirs on different branches, so deduping inside
+// runtype, marker and pure-fn lanes assemble theirs on different branches, so deduping inside
 // collectFamilies would cover only the runtype fan-out. See diagnostics.Dedupe for why the walker's own per-walk
 // latch cannot catch these.
 func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
@@ -621,7 +621,7 @@ func (sess *Session) opScanFiles(request protocol.Request, metrics *protocol.Met
 	addedRunTypes := len(added) > 0
 	combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
 	combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
-	// After cache.Added(before): a check can intern types (enrichment, route rules) that must stay out of HMR signals.
+	// After cache.Added(before): a check can intern types (route rules) that must stay out of HMR signals.
 	for _, check := range scanCheckTable.List() {
 		if check.Enabled(request) {
 			combinedDiagnostics = append(combinedDiagnostics, check.Run(sess, request.Files)...)
@@ -1002,7 +1002,7 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	}
 	// A `.d.ts` in the include set is what tsc sees without an import and a source-rooted program loses, leaving
 	// globals to check silently as `any`. Only that subset: rooting the full project would widen the
-	// whole-program ops (OpDump / OpGenerate / OpEnrich walk non-declaration files) and pay a per-request parse
+	// whole-program ops (OpDump / OpGenerate walk non-declaration files) and pay a per-request parse
 	// of every project file on the lint lane.
 	fileNames = program.UnionRoots(fileNames, sess.configDeclarationRoots)
 	prog, err := program.NewInferred(program.Options{

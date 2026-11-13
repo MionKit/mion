@@ -89,9 +89,6 @@ func TestDigest_ToolCommentsCount(t *testing.T) {
 		{"TypeScript expectation", "a.ts", "f();\n", "// @ts-expect-error\nf();\n"},
 		{"mion downgrade", "a.ts", "f();\n", "// @mion-downgrade-error marker-any-from-unresolved-name\nf();\n"},
 		{"mion route tag", "a.ts", "function f() {}\n", "/** @mion:route */\nfunction f() {}\n"},
-		{"enrichment metadata", "a.ts", "/** @rtType User#a */\nexport const a = {};\n", "/** @rtType User#b */\nexport const a = {};\n"},
-		{"orphan tag", "a.ts", "export const a = {};\n", "/* @rtOrphanChild field: 1, */\nexport const a = {};\n"},
-		{"todo tag", "a.ts", "export const a = {};\n", "// @todo: fill in data\nexport const a = {};\n"},
 		{"Vite directive", "a.ts", "const a = import('a');\n", "const a = import(/* @vite-ignore */ 'a');\n"},
 		{"Vitest directive", "a.ts", "export const a = 1;\n", "// @vitest-environment jsdom\nexport const a = 1;\n"},
 		{"unknown JSDoc tag", "a.ts", "export const a = 1;\n", "/** @futureSemanticTag value */\nexport const a = 1;\n"},
@@ -112,11 +109,11 @@ func TestDigest_ToolCommentsCount(t *testing.T) {
 // The digest of a fixed corpus is pinned, so a change to the token rules cannot ship without a toolVersion bump.
 func TestDigest_RulesChangeBumpsToolVersion(t *testing.T) {
 	// The toolVersion the goldens below were computed under.
-	const goldenVersion = "3"
+	const goldenVersion = "4"
 	corpus := []struct{ path, text, golden string }{
-		{"a.ts", "export const a = `x${1}` + /re/g.source; // c\n", "e5400691808bcdf01803810bf5a5eddc6a5efe769197ec1b15fb83526fc7d4ff"},
-		{"a.mjs", "/** @type {number} */\nexport const a = 1;\n", "8a83b5ab1ff85d263d3b554784b78983d9330ce852a0a6ddea7a4f397c8c069b"},
-		{"a.go", "package a\n\n//go:generate x\nvar A = 1 // c\n", "5f1888bb7012f0436f6455d6141b9c8d7d3d1cf6279bdbba4675aa0a795ec6f5"},
+		{"a.ts", "export const a = `x${1}` + /re/g.source; // c\n", "1e5453def10e8b0b68f988ccc5523615a9aab03ff662b412e312211e54df6096"},
+		{"a.mjs", "/** @type {number} */\nexport const a = 1;\n", "23b87780637a94da5e31be3bc830a18d5638e5e8fd0c5495f10aac1b7edbe64e"},
+		{"a.go", "package a\n\n//go:generate x\nvar A = 1 // c\n", "f2927b5daf9751fb86a81188edd388e39307fc56de6ad5202af0eeb30a197273"},
 	}
 	if toolVersion != goldenVersion {
 		t.Fatalf("toolVersion is %s: recompute the goldens below and set goldenVersion to it", toolVersion)

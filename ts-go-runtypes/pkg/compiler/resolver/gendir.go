@@ -61,8 +61,7 @@ func extensionGenDirMembers() string {
 	return ", the extension members " + strings.Join(names, ", ")
 }
 
-// mion's own members, registered at package init so every init() row (the `enriched` row in enrich_op.go, an
-// extension's) lands after them.
+// mion's own members, registered at package init so every init() row (an extension's) lands after them.
 var _ = registerBuiltinGenDirEntries()
 
 func registerBuiltinGenDirEntries() bool {

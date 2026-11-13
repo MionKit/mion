@@ -141,7 +141,7 @@ func validatePatternSafety(ctx formats.EmitContext, params map[string]any, sourc
 // is CodeFMTInvalidParams, since the validator would throw at factory load, and a mismatching mockSample is
 // CodeFMTSampleMismatch. It runs even with zero samples, because the compile check stands on its own.
 // An engine that cannot run at all leaves the pattern unverifiable, so CodeFMTMissingJsRuntime fails closed.
-// A pattern that compiles clean and still has NO samples is one the enrichment pass could not fill, either
+// A pattern that compiles clean and still has NO samples is one the pattern-sample pass could not fill, either
 // because generation is disabled or because it failed. Reporting both here puts the squiggle on the user's
 // createX<T>() call, which only this walk knows.
 func validateSamples(ctx formats.EmitContext, source, flags string, samples []string) {
@@ -175,7 +175,7 @@ func validateSamples(ctx formats.EmitContext, source, flags string, samples []st
 			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, "sample generation is disabled (patternSampleCount 0)")
 			return
 		}
-		// The enrichment pass recorded why it could not generate; report it here, where the walk has the
+		// The pattern-sample pass recorded why it could not generate; report it here, where the walk has the
 		// demanding call sites to anchor it.
 		if failure := ctx.PatternGenFailure(source, flags); failure.Reason != "" {
 			// Same transient lane as the validate-side timeout above.

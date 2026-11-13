@@ -118,19 +118,3 @@ export type ModuleMode = typeof MODULE_MODE_DEFAULT | typeof MODULE_MODE_ALL_SIN
 export const CLIENT_ROUTES_BUNDLE = 'bundle';
 export const CLIENT_ROUTES_FETCH = 'fetch';
 export type ClientRoutes = typeof CLIENT_ROUTES_BUNDLE | typeof CLIENT_ROUTES_FETCH;
-
-// Enrichment mirror tags (pkg/enrichment/mirror/tags.go): the reconcile
-// markers hygiene must never flag, the dirty-state tags it reports, and
-// the flag-free orphan-block regex body (compile with the 's' flag).
-export const RT_TYPE_TAG = '@rtType';
-export const RT_IDS_TAG = '@rtIds';
-export const MARKER_COMMENT_PREFIX = '/** @rtType ';
-export const TODO_TAG = '@todo';
-export const ORPHAN_TAG = '@rtOrphan';
-export const ORPHAN_CHILD_TAG = '@rtOrphanChild';
-export const TODO_LINE = '// @todo: generated skeleton — fill in real data, then delete this line';
-export const ORPHAN_BLOCK_PATTERN_SOURCE = '/\\* @rtOrphan(?:Child)? .*? \\*/';
-// The mion DSL type names enrichment consts are annotated with —
-// part of the enrichment-file guard alongside the marker tags.
-export const FRIENDLY_TEXT_NAME = 'FriendlyText';
-export const MOCK_DATA_NAME = 'MockData';

@@ -13,8 +13,6 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/codegen"
 	"github.com/mionkit/mion/ts-go-runtypes/pkg/constants"
-	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment"
-	"github.com/mionkit/mion/ts-go-runtypes/pkg/enrichment/mirror"
 )
 
 const vitePluginConstantsPath = "packages/devtools/src/core/go-generated/runtypes-constants.generated.ts"
@@ -87,13 +85,6 @@ func buildVitePluginConstants() string {
 
 	out.WriteString("\n")
 	writeEntryModuleConstants(out)
-	out.WriteString("\n")
-	// REFLECTION_SUB_KIND / ReflectionSubKind moved to cmd/gen-run-type-kind's
-	// devtools mirror (reflectionKind.generated.ts), generated from the FULL
-	// pkg/reflection/subkind.go parse so it can't drift (the old hand-list here
-	// was a partial subset that silently omitted the Temporal sub-kinds).
-	out.WriteString("\n")
-	writeEnrichmentTagConstants(out)
 
 	return out.String()
 }
@@ -129,30 +120,6 @@ func writeEntryModuleConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const CLIENT_ROUTES_BUNDLE = %q;\n", constants.ClientRoutesBundle)
 	fmt.Fprintf(out, "export const CLIENT_ROUTES_FETCH = %q;\n", constants.ClientRoutesFetch)
 	out.WriteString("export type ClientRoutes = typeof CLIENT_ROUTES_BUNDLE | typeof CLIENT_ROUTES_FETCH;\n")
-}
-
-// writeEnrichmentTagConstants emits the enrichment-mirror tag literals from
-// pkg/enrichment/mirror/tags.go (single source of truth — the emitters and
-// the Go hygiene detector derive from the same constants). The lint entry in
-// @mionjs/devtools uses them for its cheap pre-filters and its tests; the
-// regex body ships WITHOUT the Go `(?s)` prefix — JS compiles it with the
-// `s` flag.
-func writeEnrichmentTagConstants(out *strings.Builder) {
-	out.WriteString("// Enrichment mirror tags (pkg/enrichment/mirror/tags.go): the reconcile\n")
-	out.WriteString("// markers hygiene must never flag, the dirty-state tags it reports, and\n")
-	out.WriteString("// the flag-free orphan-block regex body (compile with the 's' flag).\n")
-	fmt.Fprintf(out, "export const RT_TYPE_TAG = %q;\n", mirror.RtTypeTag)
-	fmt.Fprintf(out, "export const RT_IDS_TAG = %q;\n", mirror.RtIdsTag)
-	fmt.Fprintf(out, "export const MARKER_COMMENT_PREFIX = %q;\n", mirror.MarkerCommentPrefix)
-	fmt.Fprintf(out, "export const TODO_TAG = %q;\n", mirror.TodoTag)
-	fmt.Fprintf(out, "export const ORPHAN_TAG = %q;\n", mirror.OrphanTag)
-	fmt.Fprintf(out, "export const ORPHAN_CHILD_TAG = %q;\n", mirror.OrphanChildTag)
-	fmt.Fprintf(out, "export const TODO_LINE = %q;\n", mirror.TodoLine)
-	fmt.Fprintf(out, "export const ORPHAN_BLOCK_PATTERN_SOURCE = %q;\n", mirror.OrphanBlockPatternSource)
-	out.WriteString("// The mion DSL type names enrichment consts are annotated with —\n")
-	out.WriteString("// part of the enrichment-file guard alongside the marker tags.\n")
-	fmt.Fprintf(out, "export const FRIENDLY_TEXT_NAME = %q;\n", enrichment.FriendlyTextName)
-	fmt.Fprintf(out, "export const MOCK_DATA_NAME = %q;\n", enrichment.MockDataName)
 }
 
 // tsKey wraps a key in quotes if it isn't a bare JS identifier. Keeps the

@@ -72,7 +72,8 @@ func TestExtension_DuplicateAndReplace(t *testing.T) {
 		t.Fatal("Replace must swap the row in place")
 	}
 
-	mustPanic(t, "duplicate registration of session flags enrich", func() { registerSessionFlags(SessionFlags{Name: "enrich"}) })
+	registerSessionFlags(SessionFlags{Name: "xflags"})
+	mustPanic(t, "duplicate registration of session flags xflags", func() { registerSessionFlags(SessionFlags{Name: "xflags"}) })
 	mustPanic(t, "nothing to replace", func() { registerSessionFlags(SessionFlags{Name: "xabsent", Replace: true}) })
 
 	mustPanic(t, "duplicate registration of plugin key genDir", func() { registerPluginKey(PluginKey{Name: "genDir"}) })
