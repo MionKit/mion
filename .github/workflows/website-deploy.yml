@@ -4,8 +4,9 @@ name: prod · deploy website
 # and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
 # from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
 # `dry_run` runs the whole build on either ref before anything is live and ships nothing.
-# `reuse_benchmarks` is for docs-only deploys: it ships the last deploy's benchmark data instead of
-# re-running every benchmark (an hour of the run). Leave it off after a release.
+# `reuse_benchmarks` ships the last deploy's benchmark data, skipping an hour of benchmarks. From `main`: docs-only
+# deploys. From `prod` (`stage-approve --reuse-benchmarks`): the release's dry run, same tree only.
+# A real prod deploy attaches bench-data/ to the version's GitHub Release, once: the release-day numbers stay.
 on:
   workflow_dispatch:
     inputs:
@@ -19,7 +20,7 @@ on:
         type: boolean
         default: false
       reuse_benchmarks:
-        description: "Docs-only deploy: reuse the last deploy's benchmark data, skip running the benchmarks"
+        description: "Reuse the last deploy's benchmark data, skip running the benchmarks (from prod: same tree only)"
         required: false
         type: boolean
         default: false
@@ -47,7 +48,9 @@ jobs:
     # multi-arch image (linux/amd64,linux/arm64), so it runs natively on arm64.
     runs-on: linux-arm64
     environment: production
-    # contents:read (checkout) + packages:read (pull the prebuilt shared image).
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    # packages:read pulls the prebuilt shared image.
     permissions:
       contents: read
       packages: read
@@ -114,6 +117,15 @@ jobs:
         if: ${{ inputs.reuse_benchmarks }}
         run: |
           test -n "$(find "$RUNNER_TEMP/last-site/bench-data" -name '*.json' -print -quit)"
+          # From prod these become the release's numbers, so they must be MEASURED on this tree, not just built.
+          # Trees, not SHAs: the prod merge commit is not the main commit the dry run built.
+          if [ "$GITHUB_REF_NAME" = prod ]; then
+            measured=$(cat "$RUNNER_TEMP/last-site/bench-data/tree" 2>/dev/null || true)
+            if [ "$measured" != "$(git rev-parse 'HEAD^{tree}')" ]; then
+              echo "::error::reuse_benchmarks: run ${{ steps.last-bench.outputs.run-id }} measured tree '$measured', not this prod tree; run a full deploy, or a dry run of this tree first."
+              exit 1
+            fi
+          fi
           mkdir -p container/website/public
           cp -R "$RUNNER_TEMP/last-site/bench-data" container/website/public/bench-data
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
@@ -153,6 +165,10 @@ jobs:
       # costs seconds.
       - name: Check the built site
         run: pnpm miondevx website check --static
+      # The tree these numbers were measured on: a prod reuse checks it, and a reuse run carries it along.
+      - name: Record the measured tree in bench-data/
+        if: ${{ !inputs.reuse_benchmarks }}
+        run: git rev-parse 'HEAD^{tree}' > container/website/.output/public/bench-data/tree
       - name: Upload static artifact
         uses: actions/upload-artifact@v7
         with:
@@ -169,6 +185,7 @@ jobs:
       # wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root, so both
       # Cloudflare steps run a pinned wrangler through `pnpm dlx` (a temp dir, never the workspace).
       - name: Deploy the site to Cloudflare Pages (mion.io)
+        id: deploy
         if: ${{ !inputs.dry_run }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -201,3 +218,43 @@ jobs:
           # numbers from this runner have been read at least once.
           MION_VALIDATION_BENCH_ENGINE_ASSERT: '0'
         run: pnpm miondevx bench engine-check
+
+  # Own job so only these steps hold a release-writing token, never the build's dependencies.
+  # Prod only: main carries unreleased code under the same version.
+  # !cancelled() so a failed engine check after the deploy never skips it.
+  attach-bench-data:
+    name: attach bench-data/ to the GitHub Release
+    needs: deploy-website
+    if: ${{ !cancelled() && !inputs.dry_run && github.ref_name == 'prod' && needs.deploy-website.outputs.deployed == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: version.json
+          sparse-checkout-cone-mode: false
+      - name: Download this run's site
+        uses: actions/download-artifact@v8
+        with:
+          name: website-output-deploy
+          path: ${{ runner.temp }}/site
+      - name: Attach the benchmark data to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version=$(jq -r .version version.json)
+          asset="bench-data-$version.tar.gz"
+          # verify-live proved the version is live, so publish.yml made its release: a missing one is a real error.
+          if ! assets=$(gh release view "v$version" --json assets --jq '.assets[].name'); then
+            echo "::error::GitHub Release v$version not found; cannot attach $asset."
+            exit 1
+          fi
+          if grep -qxF "$asset" <<<"$assets"; then
+            echo "::notice::v$version already has $asset; keeping the release-day numbers."
+            exit 0
+          fi
+          tar czf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP/site" bench-data
+          gh release upload "v$version" "$RUNNER_TEMP/$asset"

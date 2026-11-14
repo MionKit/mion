@@ -29,6 +29,8 @@
 //   --deploy-only  skip approvals; wait for the version to be live on npm and
 //                  dispatch the website deploy (for a run whose approvals
 //                  succeeded but whose deploy step didn't fire).
+//   --reuse-benchmarks  ship the green pre-merge dry run's numbers, no re-run; the
+//                  workflow fails unless they were measured on the same tree. Works with --deploy-only.
 
 import {readFileSync, readdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -38,6 +40,7 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, noteErr, reportCliError, run, success, warn} from '../lib/proc.mjs';
 import {lockstepPackages, publishRank, readWorkspaceManifests, topOfTrain} from '../lib/publish-order.mjs';
 import {checkoutGuard} from '../lib/release-checkout.mjs';
+import {websiteDeployDispatchArgs} from '../lib/website-deploy.mjs';
 
 // Staged publishing needs npm >= 11.15.0 (Trusted Publishing/OIDC needs >= 11.5.1).
 const MIN_NPM = [11, 15, 0];
@@ -191,16 +194,15 @@ async function waitUntilLive(version) {
   return false;
 }
 
-// Dispatch website-deploy.yml against prod. Failure is loud but non-fatal: the
-// approvals (this command's actual job) already succeeded.
-function dispatchWebsiteDeploy(version) {
+// Failure is loud but non-fatal: the approvals, this command's actual job, already succeeded.
+function dispatchWebsiteDeploy(version, reuseBenchmarks) {
   if (capture('gh', ['--version']).status !== 0) {
     warn('DEPLOY NOT TRIGGERED — the gh CLI is not available.');
     note('Dispatch by hand: Actions -> "prod · deploy website" -> Run workflow, on the prod ref.');
     return;
   }
-  note('dispatching the website deploy (website-deploy.yml @ prod)...');
-  const code = run('gh', ['workflow', 'run', 'website-deploy.yml', '--ref', 'prod', '-f', `version=${version}`]);
+  note(`dispatching the website deploy (website-deploy.yml @ prod${reuseBenchmarks ? ', reusing the dry run benchmarks' : ''})...`);
+  const code = run('gh', websiteDeployDispatchArgs(version, reuseBenchmarks));
   if (code !== 0) {
     warn(`DEPLOY NOT TRIGGERED — 'gh workflow run' exited with code ${code}.`);
     note('Dispatch by hand: Actions -> "prod · deploy website" -> Run workflow, on the prod ref.');
@@ -209,16 +211,17 @@ function dispatchWebsiteDeploy(version) {
   success('website deploy dispatched — watch it: Actions -> "prod · deploy website".');
 }
 
-async function deployAfterLive(version) {
-  if (await waitUntilLive(version)) return void dispatchWebsiteDeploy(version);
+async function deployAfterLive(version, reuseBenchmarks) {
+  if (await waitUntilLive(version)) return void dispatchWebsiteDeploy(version, reuseBenchmarks);
   warn(`DEPLOY NOT TRIGGERED — npm still does not serve ${version} after ${LIVE_POLL_TIMEOUT_MS / 1000}s.`);
-  note('Check the approvals (npm stage list), then re-run: pnpm miondevx release stage-approve --deploy-only');
+  note(`Check the approvals (npm stage list), then re-run: pnpm miondevx release stage-approve --deploy-only${reuseBenchmarks ? ' --reuse-benchmarks' : ''}`);
 }
 
 async function main(argv) {
   const dryRun = argv.includes('--dry-run');
   const noDeploy = argv.includes('--no-deploy');
   const deployOnly = argv.includes('--deploy-only');
+  const reuseBenchmarks = argv.includes('--reuse-benchmarks');
   ensureNpmSupportsStage();
   const version = readVersion();
   const guard = checkoutGuard(version, REPO_ROOT);
@@ -226,7 +229,7 @@ async function main(argv) {
   if (guard?.warn) warn(`stage-approve: ${guard.warn}`);
   note(`stage-approve for @mionjs/* @ ${version}`);
 
-  if (deployOnly) return deployAfterLive(version);
+  if (deployOnly) return deployAfterLive(version, reuseBenchmarks);
 
   const listed = capture('npm', ['stage', 'list', '--json']);
   if (listed.status !== 0) return manualFallback(version, `\`npm stage list\` exited with code ${listed.status ?? '?'} (npm login? staged anything yet?).\n${listed.stderr.trim()}`);
@@ -278,8 +281,8 @@ async function main(argv) {
   console.log('');
   success(`Approved ${ordered.length} package(s) for ${version}.`);
 
-  if (noDeploy) return void note('--no-deploy: skipping the website deploy. Dispatch later with: pnpm miondevx release stage-approve --deploy-only');
-  await deployAfterLive(version);
+  if (noDeploy) return void note(`--no-deploy: skipping the website deploy. Dispatch later with: pnpm miondevx release stage-approve --deploy-only${reuseBenchmarks ? ' --reuse-benchmarks' : ''}`);
+  await deployAfterLive(version, reuseBenchmarks);
 }
 
 loadEnv();

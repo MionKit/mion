@@ -109,3 +109,44 @@ describe('website-deploy reuse_benchmarks', () => {
     expect(step('Engine-branch throughput check (counter inversion, node + bun)')).toContain(FULL);
   });
 });
+
+// A release's bench-data/ asset is never replaced, so only numbers measured on that release's tree may get there.
+describe('website-deploy release benchmark data', () => {
+  const attachJob = workflow.slice(workflow.indexOf('\n  attach-bench-data:'));
+
+  it('records the measured tree on every full-bench run, before the artifact upload', () => {
+    const record = step('Record the measured tree in bench-data/');
+    expect(record).toContain('if: ${{ !inputs.reuse_benchmarks }}');
+    expect(record).toContain("git rev-parse 'HEAD^{tree}' > container/website/.output/public/bench-data/tree");
+    expect(workflow.indexOf('- name: Record the measured tree')).toBeLessThan(workflow.indexOf('- name: Upload static artifact'));
+  });
+
+  it('reuses from prod only numbers measured on the same tree', () => {
+    const reuse = step('Reuse its benchmark data (reuse_benchmarks)');
+    expect(reuse).toContain('if [ "$GITHUB_REF_NAME" = prod ]; then');
+    expect(reuse).toContain('bench-data/tree');
+    expect(reuse).toContain('"$(git rev-parse \'HEAD^{tree}\')"');
+  });
+
+  it('attaches only after a real prod deploy, in its own job', () => {
+    expect(attachJob).toContain('needs: deploy-website');
+    expect(attachJob).toContain(
+      "if: ${{ !cancelled() && !inputs.dry_run && github.ref_name == 'prod' && needs.deploy-website.outputs.deployed == 'true' }}"
+    );
+    expect(workflow).toContain("deployed: ${{ steps.deploy.outcome == 'success' }}");
+    expect(step('Deploy the site to Cloudflare Pages (mion.io)')).toContain('id: deploy');
+  });
+
+  it('gives write access to the attach job only, without persisting it in git', () => {
+    expect(workflow.match(/contents: write/g)?.length).toBe(1);
+    expect(attachJob).toContain('contents: write');
+    expect(attachJob).toContain('persist-credentials: false');
+  });
+
+  it('never replaces an asset a release already has', () => {
+    const attach = step('Attach the benchmark data to the GitHub Release');
+    expect(attach).toContain('grep -qxF "$asset" <<<"$assets"');
+    expect(attach).toContain('gh release upload "v$version" "$RUNNER_TEMP/$asset"');
+    expect(attach).not.toContain('--clobber');
+  });
+});
