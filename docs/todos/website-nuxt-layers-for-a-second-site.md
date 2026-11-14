@@ -39,9 +39,9 @@ created: 2026-11-14
 ### Layout
 
 ```
+website.config.json                 NEW, repo root: mion's site config (example tool values, container name)
 container/website/                 mion.io site (content/, public/, .output keep their paths)
 ├── nuxt.config.ts                 extends parts + playground + shell; name, url, prerender routes
-├── examples.config.json           NEW: mion's example tool values
 ├── app/app.config.ts              mion identity only
 ├── app/pages/runtypes/playground.vue
 ├── content/  public/  _deps/  Containerfile  parked/  tests/  scripts/
@@ -97,7 +97,7 @@ container/website/                 mion.io site (content/, public/, .output keep
   banners, `bench-data/`. Arrays concatenate across layers and object keys fill in as defaults, so they would leak.
 - Vite aliases + Monaco exclude only in the playground layer.
 - Shell + parts each register one inline module (`modules: [(_, nuxt) => {…}]`): runs once, `nuxt.options.rootDir` =
-  the consuming site. Shell's reads `examples.config.json`, sets `runtimeConfig.exampleTool`, registers
+  the consuming site. Shell's reads `<rootDir>/website.config.json`, sets `runtimeConfig.exampleTool`, registers
   `content:file:beforeParse` (markdown-import, code-import) and the dev watcher plugin. Parts' registers the
   function-catalog hook.
 
@@ -124,19 +124,44 @@ container/website/                 mion.io site (content/, public/, .output keep
 
 ### Example tool
 
-`<site>/examples.config.json`, read by the shell module (build + server) and by `scripts/website/site.mjs` (mounts).
-Removes the "change both ends" pair.
+### Config file
+
+ONE file, `website.config.json`, at the root of the repo that owns the site. Read by `scripts/website/site.mjs`
+(where the site is, what to mount) and by the shell module (the example tool). Removes the "change both ends" pair.
+
+- Lookup: walk up from the working directory to the first folder holding the file. None found → the mion checkout
+  the script lives in. So the same command builds mion.io from mion and pro.mion.io from mion-pro, no flag, no new
+  host env var.
+- The file's folder IS the repo context. Every path in it is relative to that folder.
+- A missing key takes its default. A missing `examples` = empty example tool, no error.
 
 ```json
 {
-  "packages": [{"dir": "packages/run-types", "name": "@mionjs/run-types"}],
-  "exampleDirs": ["packages/private-examples/src"],
-  "readRoots": ["packages"],
-  "externalDeps": ["drizzle-orm"],
-  "importableDocs": {"json-schema-2020-12-javascript": "docs/json-schema-2020-12-javascript.md"},
-  "contentDir": "content"
+  "site": "container/website",
+  "container": "tsrt-website",
+  "examples": {
+    "packages": [{"dir": "packages/run-types", "name": "@mionjs/run-types"}],
+    "exampleDirs": ["packages/private-examples/src"],
+    "readRoots": ["packages"],
+    "externalDeps": ["drizzle-orm"],
+    "importableDocs": {"json-schema-2020-12-javascript": "docs/json-schema-2020-12-javascript.md"}
+  }
 }
 ```
+
+| Key | Default | Use |
+|---|---|---|
+| `site` | `container/website` | the site folder, mounted at `/app`; `.output` is copied back into it |
+| `container` | `<repo folder name>-website` | container + cache volume names, so two sites never share them |
+| `layers` | the `site-layers/` of the mion checkout the script lives in | mounted at `/app/site-layers` |
+| `benchData` | none | opt-in folder of benchmark result files, mounted read-only at `/bench-data` |
+| `examples` | empty | the example tool, keys below |
+
+- mion's file (above) holds exactly today's values. mion-pro's holds `"site": "website"` and its own `examples`.
+- Existing env vars keep winning over the file: `MION_WEBSITE_CONTAINER`, `MION_WEBSITE_REPO_CONTEXT`.
+- The script mounts the file read-only at `/app/website.config.json`; the shell module reads it from the site root.
+
+### Example tool (`examples` key)
 
 - `packages`: folder → published name, mounted in the twoslash virtual file system (moves out of `twoslash.post.ts`).
 - `exampleDirs`: what `/api/read-file` + `/api/twoslash` may serve, what the dev watcher watches, the files loaded for
@@ -144,34 +169,24 @@ Removes the "change both ends" pair.
 - `readRoots`: what `<code-import>` may read (`resolveInPackages` → `resolveInRoots`). Same traversal wall.
 - `externalDeps`: read from `<repo>/node_modules/<name>`. A consumer lists the `@mionjs/*` it imports here.
   Apply the `.ts` import-suffix rewrite to these too.
-- `importableDocs`, `contentDir` (the folder the watcher stamps, always the consuming site's).
-- All paths relative to the repo root (`MION_REPO_ROOT`), except `contentDir` (relative to the site).
-- mion's file holds exactly today's values. Missing file = empty tool, no error.
+- `importableDocs`: name → file a page may inline with `<markdown-import>`.
+- The dev watcher stamps the consuming site's own `content/` (`<rootDir>/content`), never a layer's.
+- In the container the paths resolve under `MION_REPO_ROOT` (`/repo-context`).
 - `scripts/check-links.mts` + `scripts/check-code-imports.mjs` keep working for mion (paths unchanged).
 
 ### Site scripts
 
-- `scripts/website/site.mjs`: inputs are env vars only, no flags. ONE var is enough for another repo; the rest derive.
+- `scripts/website/site.mjs`: every input comes from `website.config.json` (see Config file). No new flag, no new
+  host env var. Another repo runs `node third_party/mion/scripts/website/site.mjs generate` from its root.
+- "Is this mion's own site" = the config file found is the mion checkout's own. Never a separate switch.
 
-  | Env | Default |
-  |---|---|
-  | `MION_WEBSITE_SITE` | `<mion>/container/website`. A relative value resolves from the working directory. |
-  | `MION_WEBSITE_REPO_CONTEXT` (exists) | the git root of the site folder |
-  | `MION_WEBSITE_CONTAINER` (exists) | `tsrt-website` for mion's site, else `<repo folder name>-website` |
-  | `MION_WEBSITE_LAYERS_DIR` | `<mion>/container/website/site-layers` (mion = the checkout the script lives in) |
-  | `MION_WEBSITE_BENCH_DATA` | none |
-
-- Another repo runs `MION_WEBSITE_SITE=website node third_party/mion/scripts/website/site.mjs generate`, usually
-  from a `package.json` script. `loadEnv` keeps reading mion's `.env` only; a consumer sets vars in its own script.
-- "Is this mion's own site" = the resolved site folder equals `<mion>/container/website`. Never a separate switch.
-
-- Mounts: site dirs + config files (add `examples.config.json`) at `/app`; layers at `/app/site-layers` (read-only
+- Mounts: site dirs + config files at `/app`, `website.config.json` at `/app/website.config.json`; layers at `/app/site-layers` (read-only
   when the site is not mion's); each `readRoots` entry, each importable doc, each `externalDeps` dir under
-  `/repo-context`; the `MION_WEBSITE_BENCH_DATA` folder at `/bench-data` read-only.
+  `/repo-context`; the `benchData` folder at `/bench-data` read-only.
 - Container env: `MION_WEBSITE_LAYERS=/app/site-layers`, `MION_WEBSITE_BENCH_DATA=/bench-data` when set. Parts' module
-  adds `nitro.publicAssets {dir, baseURL: '/bench-data'}` when the env is set. Register new vars in
-  `.agents/docs/env-vars.md` + the env registry.
-- `.docdata`, `.output`, `.output-staging` resolve under the repo context / site folder, never the mion checkout.
+  adds `nitro.publicAssets {dir, baseURL: '/bench-data'}` when the env is set. Register the two
+  in-container vars in `.agents/docs/env-vars.md` + the env registry.
+- `.docdata`, `.output`, `.output-staging` resolve under the config file's folder / the site folder, never the mion checkout.
 - `ensureMionDists` + `ensurePlayground` run only for mion's own site. `homeTwoslashPaths` + `cmdVerifyDocs` read
   `exampleDirs` instead of the `private-examples` literal.
 - Drop every `--extends docus` (also `_deps/package.json` scripts).
@@ -202,7 +217,7 @@ Removes the "change both ends" pair.
 3. `content.config.ts` to shell. Check: same routes.
 4. CSS split. Check: `tests/theme.spec.ts`, computed `--ui-primary` equal on `/`, `/rpc`, `/runtypes`, `/benchmarks`.
 5. Shell chrome + settings + section list. Check: HTML diff empty apart from the pro menu entry.
-6. Server + `examples.config.json`. Check: `pnpm miondevx website check --docs`; editing an example reloads its page.
+6. Server + `website.config.json`. Check: `pnpm miondevx website check --docs`; editing an example reloads its page.
 7. Parts. Check: Docus is the last layer, HTML diff empty.
 8. Playground. Check: `/runtypes/playground` loads.
 9. Scripts inputs + path updates + tests. Check: `pnpm run lint`, devtools tests, card export.
@@ -215,16 +230,16 @@ Removes the "change both ends" pair.
   content dir. Docus pin on the `[...slug].vue` copy stays.
 - `website-links.test.ts`: a link may resolve to a file in any layer `public/`; CSS `@import` glob covers
   `site-layers/**`.
-- `repo-contracts.test.ts`: package list guard reads `examples.config.json` (`:787`); bench components must import
+- `repo-contracts.test.ts`: package list guard reads `website.config.json` (`:787`); bench components must import
   from `#layers/mion-parts/app/utils/...` (`:1714-1740`); CodeCard, counts, client size, playground asset guards
   follow the files.
 - New contract tests (static, no container):
   - no `~/`, `@/`, `~~/` import or `css` entry inside `site-layers/**`;
   - no layer `nuxt.config.ts` sets `site`, `nitro.prerender` or a routed page; only playground sets `vite.resolve.alias`;
   - mion's `extends` ends with shell; every layer has `$meta.name` and an `app/` folder;
-  - `examples.config.json` `externalDeps` + `packages` are the only source (no literal list left in server or scripts);
-  - `site.mjs` resolves every output path under the site folder / repo context, and derives repo context + container name
-    from `MION_WEBSITE_SITE` alone.
+  - `website.config.json` `examples.externalDeps` + `examples.packages` are the only source (no literal list left in server or scripts);
+  - `site.mjs` resolves every output path under the site folder / repo context, and finds the config by walking up from the working
+    directory, falls back to mion's.
 - Unit test the pure helpers: `resolveInRoots` (traversal, absolute path, sibling-prefix root), section resolving
   (own entry → local, other → full link, longest path wins).
 - No marker API involved.
@@ -234,11 +249,10 @@ Removes the "change both ends" pair.
 - `container/website/AGENTS.md`, `app/AGENTS.md`, `app/components/AGENTS.md`, `server/AGENTS.md`: new paths, the layer
   rules above, split per layer where it reads better. Keep each under the size limit.
 - `container/website/CONTAINER.md`: mounts, new inputs, and a new section "Using the Layers from Another Repo":
-  what to extend + the shell-last rule, settings to fill, `#layers/…` aliases, `examples.config.json`, opt-in steps,
-  exact site-script inputs, the one-install rule (new website package → mion `_deps/` + image rebuild), and the Vite
+  what to extend + the shell-last rule, settings to fill, `#layers/…` aliases, every `website.config.json` key, opt-in steps, the one-install rule (new website package → mion `_deps/` + image rebuild), and the Vite
   alias a live demo needs to run a consumer package in the browser.
 - Opt-in text: playground = add the layer + run `container/website/scripts/build-playground.mjs` (needs Go + a
-  bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `MION_WEBSITE_BENCH_DATA=<dir>` holding a
+  bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `"benchData": "<dir>"` holding a
   `bench-data` tree (from a benchmark run or a release asset).
 - Also: `docs/WEBSITE-DOCGEN.md`, `SETUP.md:211-221`, `.agents/docs/env-vars.md`, `.agents/skills/card/commands.md`,
   `tools/code-card/README.md`, `container/benchmarks/README.md:377`, `go-generated/README.md`, `scripts/AGENTS.md` if
@@ -266,12 +280,12 @@ None: no parser or codec added. `resolveInRoots` gets table-driven unit tests in
 - `pnpm miondevx website build` + `pnpm miondevx website check --static` + `check --docs` pass for mion.io.
 - mion.io output: same route list as the baseline, same look, plus the `Pro` menu entry.
 - Outside proof, described in the PR: a throwaway site in a folder outside `container/website/` that
-  (a) extends the layers through `MION_WEBSITE_LAYERS`,
+  (a) has its own `website.config.json` and extends the layers through `MION_WEBSITE_LAYERS`,
   (b) renders one page using a shell component, a parts component and one of its own,
   (c) overrides one layer component with a same-named file,
-  (d) shows a `<code-import>` example from its own folder, listed in its own `examples.config.json`,
+  (d) shows a `<code-import>` example from its own folder, listed in its own `website.config.json`,
   (e) builds with no mion page, no `_redirects` and no `mion.io` address in its output, and leaves the mion checkout
   clean (`git status --porcelain` empty).
-- Final report lists: layer paths, aliases, settings a consumer fills, opt-in steps, exact site-script inputs.
+- Final report lists: layer paths, aliases, settings a consumer fills, opt-in steps, the config file keys.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each
   committed on its own.
