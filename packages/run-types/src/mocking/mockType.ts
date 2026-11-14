@@ -139,7 +139,7 @@ function withHookStep(options: RunTypeMockOptions, step: MockStep): RunTypeMockO
   return {...options, hookCursor: next};
 }
 
-/** Detaches the hook below a node no step names (an index signature, a `contains` draw). **/
+/** Detaches the hook below a node no step names (an index signature). **/
 function withoutHook(options: RunTypeMockOptions): RunTypeMockOptions {
   if (options.hookCursor === undefined) return options;
   return {...options, hookCursor: undefined};
@@ -153,6 +153,13 @@ function hookNodeContext(runType: RunType, options: RunTypeMockOptions, random: 
     mock: options.mock as MockOptions,
     generate: (name, params) => mockFromGenerator(name, params, random),
   };
+}
+
+/** A hook's verdict on an optional member, asked before the draw: true keeps it, false omits it, undefined draws. **/
+function hookPresence(runType: RunType, options: RunTypeMockOptions, random: MockRandom): boolean | undefined {
+  if (!options.hook?.present) return undefined;
+  const node = hookNodeContext(runType, options, random);
+  return node ? options.hook.present(options.hookCursor, node) : undefined;
 }
 
 // Bounded rejection sampling for constrained structural formats: the admissible set is dense, so a handful of
@@ -319,7 +326,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
           }
           const entryItems: unknown[] = [];
           for (let n = 0; n < entry.min; n++) {
-            const item = mockRunType(entry.child, withoutHook(childOpts), stack);
+            const item = mockRunType(entry.child, childOpts, stack);
             if (!childSchemaMatches(item, child)) {
               throw new Error(
                 'Cannot mock contains: the contains child and the items type are contradictory. ' +
@@ -448,7 +455,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         return items;
       }
       if (runType.optional && !isRestTupleMember(runType)) {
-        if (random.float() > mOps.optionalProbability) return undefined;
+        const present = hookPresence(runType, options, random);
+        if (present === false || (present === undefined && random.float() > mOps.optionalProbability)) return undefined;
       }
       return mockRunType(child, options, stack);
     }
@@ -475,7 +483,10 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       if (probability < 0 || probability > 1) {
         throw new Error('optionalProbability must be between 0 and 1');
       }
-      if (runType.optional && random.float() > probability) return undefined;
+      if (runType.optional) {
+        const present = hookPresence(runType, options, random);
+        if (present === false || (present === undefined && random.float() > probability)) return undefined;
+      }
       return mockRunType(child, options, stack);
     }
     case RunTypeKind.indexSignature: {
@@ -841,7 +852,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     // half": a draw the Map's own key / value type rejects is REDRAWN from that type and the repaired pair
     // re-checked, so only a pair that still fails is a real contradiction.
     drawMatch: (child) => {
-      const drawn = mockRunType(child, withoutHook(entryOpts), stack);
+      const drawn = mockRunType(child, withHookStep(entryOpts, {kind: 'item'}), stack);
       const pair: [unknown, unknown] = Array.isArray(drawn) && drawn.length === 2 ? [drawn[0], drawn[1]] : [undefined, undefined];
       if (!childSchemaMatches(pair[0], keyType)) pair[0] = mockRunType(keyType, keyOpts, stack);
       if (!childSchemaMatches(pair[1], valueType)) pair[1] = mockRunType(valueType, valueOpts, stack);
@@ -872,13 +883,16 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const elementType = args[0]?.child as RunType | undefined;
   if (!elementType) return new Set<unknown>();
   const setParams = structuralParamsOf(runType, 'formattedSet');
-  const memberOpts = withHookStep(shrinkForNestedItems(options, stack), {kind: 'setValue'});
+  const setOpts = shrinkForNestedItems(options, stack);
+  const memberOpts = withHookStep(setOpts, {kind: 'setValue'});
+  // A contains draw is one of the members it must hold, reached as an item.
+  const containsOpts = withHookStep(setOpts, {kind: 'item'});
   const members = drawCollectionEntries<unknown>({
     length: clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
     unique: setParams?.uniqueItems === true,
     drawMatch: (child) => {
-      const item = mockRunType(child, withoutHook(memberOpts), stack);
+      const item = mockRunType(child, containsOpts, stack);
       if (!childSchemaMatches(item, elementType)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Set member type are contradictory. ' +
