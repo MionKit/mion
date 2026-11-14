@@ -100,8 +100,7 @@ export interface MockNodeHook<C = unknown> {
   bounds?(cursor: C, node: MockNodeContext): {min?: number | Date; max?: number | Date} | undefined;
   /** An array's element count, before a formattedArray annotation clamps it. **/
   length?(cursor: C, node: MockNodeContext): number | undefined;
-  /** Whether an optional property or tuple member is present, asked before the draw with `node.runType` the member
-   *  itself: true keeps it, false omits it, undefined draws as usual. **/
+  /** Optional property or tuple member, asked before the draw with `node.runType` the member: true keeps, false omits, undefined draws. **/
   present?(cursor: C, node: MockNodeContext): boolean | undefined;
 }
 
