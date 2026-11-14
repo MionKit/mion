@@ -17,6 +17,7 @@ const rtDist = fileURLToPath(new URL('./app/playground/.vendor/ts-runtypes-dist'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  extends: ['./site-layers/shell'],
   // ONE site, THREE subsites (/rpc, /runtypes, /benchmarks): see app/utils/subsites.ts.
   // `url` is what canonical links, the sitemap and the og:url tags are built from.
   site: {
