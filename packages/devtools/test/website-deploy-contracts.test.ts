@@ -110,8 +110,7 @@ describe('website-deploy reuse_benchmarks', () => {
   });
 });
 
-// A release's bench-data/ is attached to its GitHub Release for good, so only numbers measured on that release's
-// tree may get there, and only the small attach job may hold a token that writes releases.
+// A release's bench-data/ asset is never replaced, so only numbers measured on that release's tree may get there.
 describe('website-deploy release benchmark data', () => {
   const attachJob = workflow.slice(workflow.indexOf('\n  attach-bench-data:'));
 
