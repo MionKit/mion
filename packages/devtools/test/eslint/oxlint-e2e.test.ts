@@ -6,7 +6,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {TODO_LINE} from '../../src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary, linkVue, makeFixtureProject, type FixtureProject} from './fixture.ts';
 
 const execFileAsync = promisify(execFile);
@@ -21,16 +20,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
   beforeAll(() => {
     project = makeFixtureProject({
-      'user.ts': 'export interface User {\n  name: string;\n}\n',
-      'mirror.ts':
-        "import type { User } from './user';\n" +
-        "import type { FriendlyText } from '@mionjs/run-types';\n\n" +
-        '/** @rtType User#u1 @rtIds {name: n1} */\n' +
-        `${TODO_LINE}\n` +
-        'export const friendlyUser: FriendlyText<User> = {\n' +
-        "  name: {rt$label: 'Name'},\n" +
-        "  nope: {rt$label: 'Gone'},\n" +
-        '};\n',
+      // A Warning: the declaration alone is reported, before any route uses it.
+      'settings.ts': 'export interface Settings {\n  ok: number;\n  __proto__: string;\n}\n',
       'widget.ts':
         "import {createValidateFn} from '@mionjs/run-types';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
@@ -173,8 +164,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).toContain('[rpc-handler-missing-return-type]');
     expect(stdout).toMatch(/mion\(runtime-error\)[^\n]*\[rpc-client-imports-server-value\]/);
     expect(stdout).toContain('mion(warning)');
-    expect(stdout).toContain('[enrich-text-todo-left]');
-    expect(stdout).toContain('[enrich-text-unknown-field]');
+    expect(stdout).toContain('[rpc-handler-non-data-property]');
     // validate-method-dropped is Info, shown only because the config above turns mion/info on.
     expect(stdout).toContain('mion(info)');
     expect(stdout).toContain('[validate-method-dropped]');
@@ -314,7 +304,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     ).toBe(true);
     expect(
       diagnostics.some(
-        (diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[enrich-text-todo-left]')
+        (diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[rpc-handler-non-data-property]')
       )
     ).toBe(true);
     expect(stdout).not.toContain('resolver failed');

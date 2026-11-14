@@ -46,7 +46,6 @@ All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 | `cloning/cloneOracle.ts` | The cloning oracle layer: `CloneFuzzTarget` + the O15–O17 checks, a local Temporal-aware `deepEqual`, and the shared-mutable-reference walker. |
 | `cloning/cloneFuzzRunner.ts` | The cloning driver: `runCloneFuzz` / `runCloneFuzzForDuration` — valid / extras / junk streams per seed. |
 | `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createRemoveUnknownKeysFn` factories, plus the unknown-keys-object-union throw-corpus and the cyclic-value pin. |
-| `enrich/enrichModel.ts`, `i18nModel.ts`, `typeModFuzzRunner.ts` | The model-based enrichment lanes: random command sequences against the real CLI, checked by the `R*` / `T*` / `NL RC CB P` rule sets. |
 | `**/*.unit.test.ts` | Offline unit tests (no Go binary) over hand-built `RunType` graphs + the generator / value / budget layers. |
 
 ## Data generation — three streams
@@ -109,16 +108,11 @@ O10 / O12 / O14 are the non-data lane's additions
 where values come from the REAL `createMockDataFn` and the serialize-vs-fail
 tier is read off the ACTUAL encoder behaviour.
 
-Three more lanes carry their own catalogues, on the same principle:
+One more lane carries its own catalogue, on the same principle:
 
 | Ids | Lane | Where |
 | --- | --- | --- |
 | **RT-VALIDATE / RT-AGREE / RT-STABLE / RT-FAILAGREE / RT-NATIVE / RT-THROW** | all-strategy round-trip: every codec strategy for one generated type agrees | [`roundtrip/roundtripOracle.ts`](../packages/run-types/test/fuzz/roundtrip/roundtripOracle.ts) |
-| **R1 R2 R3 R5 R6 R7a R8 R10** | enrichment sync: idempotence, preservation, convergence, orphan carcasses, prune, totality | [`enrich/enrichModel.ts`](../packages/run-types/test/fuzz/enrich/enrichModel.ts) |
-| **T1–T7, T10** / **NL RC CB P** | i18n reconcile / type-modification: never-copy, arms-owned, kind-stable, todo discipline / nothing-lost, rename-carry, content-blindness, parse-safety | [`enrich/i18nModel.ts`](../packages/run-types/test/fuzz/enrich/i18nModel.ts), [`enrich/typeModFuzzRunner.ts`](../packages/run-types/test/fuzz/enrich/typeModFuzzRunner.ts) |
-
-Those three ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
-alone will not find them.
 
 O5 compares the **wire image** (`encode∘decode∘encode === encode`) rather than
 value equality, which sidesteps the optional-`undefined`-key vs dropped-key
@@ -164,8 +158,9 @@ All suites run through the internal CLI: `pnpm miondevx core fuzz <lane…>
 `MION_FUZZ_*` env for you from the `FUZZ` registry in
 [scripts/miondevx.mjs](../scripts/miondevx.mjs), which is the single source of truth for the
 lane list and every budget. Lanes: `unit | value | types | nondata | roundtrip |
-cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
-| convertcli | all`.
+jsonsize | typedemit | cloning | elision | sidecar | patterngen | convert |
+convertcli | apiids | apitypes | drizzletypes | all`, plus the `sec*` security
+lanes.
 
 Name several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`)
 to pay vitest's startup once. See the scheduling rule below before doing that.
@@ -193,8 +188,8 @@ The two budget shapes CANNOT be scheduled the same way:
   cloning, elision, jsonsize and the `sec*` lanes) fuzz until a wall clock runs out. Under CPU contention they
   silently buy LESS coverage in the same wall clock, so they must never run
   concurrently with each other.
-- **Count-based** lanes (sequences / iterations: enrich, i18n, typemod, race,
-  convert, convertcli) do a fixed amount of work. Contention costs wall clock
+- **Count-based** lanes (fixed iteration counts: convert, convertcli, apiids,
+  apitypes, drizzletypes) do a fixed amount of work. Contention costs wall clock
   only, so they can share a runner.
 
 `miondevx` enforces this rather than trusting you to remember it: a multi-lane
@@ -237,8 +232,7 @@ conversion — the other two exercise the paths that skip it.
 Every lane also runs under the ordinary test commands — `go test
 ./pkg/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
 the rest — at its DEFAULT budget. `miondevx core fuzz` is the tier / replay front
-door over those same commands, not a gate (`race` is the one lane it gates,
-since nothing else sets `MION_FUZZ_RACE=1`).
+door over those same commands, not a gate.
 
 Every lane runs on EVERY PR at its quick budget, in
 [ci.yml](../.github/workflows/ci.yml): the count-based lanes run in parallel
@@ -271,8 +265,8 @@ soak as a timeout failure.
 # offline unit tests — pure logic, no Go binary needed
 pnpm miondevx core fuzz unit
 
-# EVERY lane at its default budget: the whole fuzz tree, both sidecar lanes,
-# the race test and both Go sweeps (builds binary + plugin first)
+# EVERY lane at its default budget: the whole fuzz tree, both sidecar lanes
+# and both Go sweeps (builds binary + plugin first)
 pnpm miondevx core fuzz all
 
 # what CI runs per PR: the time-boxed lanes, one sequential batch

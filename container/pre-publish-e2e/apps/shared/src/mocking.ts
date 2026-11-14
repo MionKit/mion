@@ -19,7 +19,6 @@ interface Contact {
   name: string;
 }
 
-// Register a custom mock for string formats: emails get a fixed friendly value.
 registerMockingFunction(RunTypeKind.string, (annotation: FormatAnnotation) => {
   if (annotation.name === 'email') return 'someone@example.com';
   return undefined; // defer to the built-in mock otherwise
@@ -41,7 +40,6 @@ export function checkMocking(): CheckResult[] {
     ok('mocking: generated value has the declared keys', typeof generated.id === 'number' && Array.isArray(generated.roles)),
     ok('mocking: bounded option keeps numbers in range', mockBounded().id >= 0 && mockBounded().id <= 1000),
     ok('mocking: two calls produce independent values', mockUser() !== mockUser()),
-    // The custom mock fn drove the email format to the fixed friendly value.
     ok('mocking: custom mock fn shapes the email format', contact.email === 'someone@example.com'),
   ];
 }

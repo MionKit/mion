@@ -441,7 +441,6 @@ describe('every AGENTS.md, CLAUDE.md and skill file stays short and narrow', () 
       '.agents/skills/foo/SKILL.md',
       '.agents/skills/foo/references/notes.md',
       '.agents/skills/foo/setup.sh',
-      'packages/run-types/skills/bar/SKILL.md',
     ];
     expect(agentDocOffenders(files.map((file) => ({file, text: longText(max + 1)})))).toHaveLength(files.length);
   });
@@ -1328,8 +1327,7 @@ describe('website-test-counts', () => {
     expect(generator).not.toMatch(/JSON\.parse\(listed\.stdout\)/);
   });
 
-  // `vitest list` drops skipped tests, and suites skip on the host (no binary, no playground wasm, a soak
-  // or race env var unset), so the release gate counted fewer tests than a dev machine and failed --check.
+  // `vitest list` drops skipped tests and suites skip per host, so the release gate's count failed --check.
   it('counts skipped tests too, so the number never moves with the host', () => {
     const dir = mkdtempSync(join(tmpdir(), 'declared-tests-'));
     try {

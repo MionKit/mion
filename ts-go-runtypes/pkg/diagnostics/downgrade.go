@@ -57,8 +57,7 @@ func (set DowngradeSet) Downgraded(diagnostic Diagnostic) bool {
 	return set.all || set.codes[diagnostic.Code]
 }
 
-// All reports whether the set is the wildcard, for a consumer gating on something that carries no
-// code (the enrichment build gate also halts on stale mirror FILES).
+// All reports whether the set is the wildcard, for a consumer gating on something that carries no code.
 func (set DowngradeSet) All() bool {
 	return set.all
 }

@@ -39,53 +39,6 @@
   "drizzle-type-not-allowed": [
     "position"
   ],
-  "enrich-mirror-moved": [
-    "expected",
-    "actual"
-  ],
-  "enrich-mirror-source-missing": [
-    "source",
-    "reason"
-  ],
-  "enrich-mirror-type-missing": [
-    "source",
-    "type"
-  ],
-  "enrich-mirror-unreadable": [
-    "reason"
-  ],
-  "enrich-mock-invalid-generator": [
-    "generator",
-    "field",
-    "reason"
-  ],
-  "enrich-mock-reserved-prefix": [
-    "property"
-  ],
-  "enrich-mock-unknown-field": [
-    "field"
-  ],
-  "enrich-text-missing-message": [
-    "key"
-  ],
-  "enrich-text-plural-without-count": [
-    "constraint"
-  ],
-  "enrich-text-reserved-prefix": [
-    "property"
-  ],
-  "enrich-text-unknown-error-key": [
-    "key"
-  ],
-  "enrich-text-unknown-field": [
-    "field"
-  ],
-  "enrich-text-unknown-placeholder": [
-    "placeholder"
-  ],
-  "enrich-text-unknown-plural-arm": [
-    "arm"
-  ],
   "format-generator-invalid": [
     "generator",
     "reason"

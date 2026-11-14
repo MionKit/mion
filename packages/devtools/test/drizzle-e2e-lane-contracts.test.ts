@@ -44,6 +44,16 @@ describe('drizzle-e2e lane wiring', () => {
     expect(config).not.toContain('downgradeErrors:');
   });
 
+  // 0.14.1 moved @mionjs/drizzle-orm to 0.45.3 and left the dialect packages on 0.45.2: one version for both
+  // asked verdaccio for a dialect package that was never packed, and every lane failed at install.
+  it('installs each dialect package at its own version, never the core package one', () => {
+    expect(frontDoor).toContain('MION_DRIZZLE_DIALECT_VERSIONS=${JSON.stringify(versions.dialects)}');
+    expect(runSuite).toContain(
+      '`@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${dialectVersions[spec.pkg ?? DIALECT] ?? VERSION}`'
+    );
+    expect(runSuite).not.toMatch(/drizzle-orm-\$\{[^}]*\}-core@\$\{process\.env\.MION_DRIZZLE_PKG_VERSION/);
+  });
+
   it('every lane the container knows is offered by the release script and by CI', () => {
     expect(lanes).toContain('durable'); // the shape most likely to be dropped: not a dialect
 

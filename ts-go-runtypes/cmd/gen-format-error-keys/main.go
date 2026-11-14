@@ -55,7 +55,7 @@ func union(keys []string) string {
 	return strings.Join(quoted(keys), " | ")
 }
 
-// Generate renders the module with no imports, so the FriendlyText type harness can inline it.
+// Generate renders the module with no imports, so a type harness can inline it.
 func Generate() string {
 	names := formatNames()
 	var out strings.Builder
@@ -64,7 +64,7 @@ func Generate() string {
 	out.WriteString("// Keys come from each format's own validation-errors code, run over the samples in\n")
 	out.WriteString("// ts-go-runtypes/pkg/cachegen/typefunctions/formats/errorkeys_samples.go.\n\n")
 
-	out.WriteString("// Every `rt$errors` key a format's validation errors can carry, per format name.\n")
+	out.WriteString("// Every key a format's validation errors can carry, per format name.\n")
 	out.WriteString("export type FormatErrorKeys = {\n")
 	for _, name := range names {
 		fmt.Fprintf(&out, "  %s: %s;\n", name, union(formats.AllErrorKeys(name)))

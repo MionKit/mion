@@ -105,12 +105,8 @@ getRunTypeId<{a: number}>();
 	}
 }
 
-// TestGenerate_RefusesOutDirInUse pins the collision guard: pointing the output
-// dir at a directory that already holds non-RunTypes content (a hand-authored
-// source folder) must abort with an actionable error naming the foreign entry,
-// instead of scattering generated modules over the user's files. A dir holding
-// only the recognized RunTypes members (types/, enriched/, VCS markers) is
-// still accepted.
+// TestGenerate_RefusesOutDirInUse: an out dir with non-RunTypes content aborts with an error naming the foreign entry.
+// A dir holding only types/, rpc/ and VCS markers is still accepted.
 func TestGenerate_RefusesOutDirInUse(t *testing.T) {
 	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number}>();
@@ -132,20 +128,20 @@ getRunTypeId<{a: number}>();
 
 	// Accepted: a dir containing only recognized RunTypes members.
 	okDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(okDir, "enriched"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(okDir, "types"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if resp := setupGen(t, sources, okDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
-		t.Fatalf("a RunTypes-only output dir (enriched/ present) must be accepted, got: %s", resp.Error)
+		t.Fatalf("a RunTypes-only output dir (types/ present) must be accepted, got: %s", resp.Error)
 	}
 
 	// Accepted: recognized members alongside harmless OS noise (Finder / Explorer
 	// cruft) — a stray .DS_Store / ._sibling / Thumbs.db must never crash a build.
 	noiseDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(noiseDir, "enriched"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(noiseDir, "types"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, junk := range []string{".DS_Store", "._enriched", "Thumbs.db"} {
+	for _, junk := range []string{".DS_Store", "._types", "Thumbs.db"} {
 		if err := os.WriteFile(filepath.Join(noiseDir, junk), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -192,8 +188,7 @@ getRunTypeId<{a: number}>();
 		t.Fatalf("a second generate into our own previous-run dir must be adopted, got: %s", second.Error)
 	}
 
-	// Refused: an extraneous FOLDER at the root (a real source or sub-project dir)
-	// — anything beyond types/ / enriched/ + VCS markers is treated as not ours.
+	// Refused: an extra folder at the root (a real source or sub-project dir).
 	extraneousDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(extraneousDir, "models"), 0o755); err != nil {
 		t.Fatal(err)

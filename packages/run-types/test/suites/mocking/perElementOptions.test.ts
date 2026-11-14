@@ -1,9 +1,5 @@
-// Per-element mock options: `tupleOptions` steers each tuple slot, and
-// `paramsOptions` is its alias. A function's `Parameters<typeof fn>` reflects as
-// a tuple, so the same per-element indexing covers both a plain tuple and a
-// function's argument tuple. Driven low-level over a hand-built tuple runtype
-// (createMockDataFn needs a plugin-injected id; the walker takes a RunType
-// directly), mirroring mockData.test.ts.
+// `paramsOptions` aliases `tupleOptions`: `Parameters<typeof fn>` reflects as a tuple, so one per-slot index covers both.
+// Driven over a hand-built tuple runtype, since createMockDataFn needs a plugin-injected id.
 
 import {describe, it, expect} from 'vitest';
 import {mockRunType} from '../../../src/mocking/mockType.ts';

@@ -13,9 +13,7 @@ const mionGenDirReadme = "# RunTypes output\n" +
 	"This folder is managed by RunTypes (the `genDir` option, set in tsconfig\n" +
 	"or on the bundler plugin). Everything under it follows convention:\n" +
 	"\n" +
-	"- `types/`, `api/`, `rpc/` — modules generated on every build. Not committed; do not edit.\n" +
-	"- `enriched/` — committed enrichment files: `friendly/` (labels and\n" +
-	"  messages), `mock/` (sample data), `i18n/<locale>/` (translations).\n"
+	"- `types/`, `api/`, `rpc/` — modules generated on every build. Not committed; do not edit.\n"
 
 func TestGenDir_MionReadmeUnchanged(t *testing.T) {
 	outDir := t.TempDir()
@@ -28,15 +26,13 @@ func TestGenDir_MionReadmeUnchanged(t *testing.T) {
 	if got := readFile(t, filepath.Join(outDir, "README.md")); got != mionGenDirReadme {
 		t.Fatalf("genDir README drifted:\n%s", got)
 	}
-	for _, readme := range []string{"types/README.md", "enriched/README.md"} {
-		if readFile(t, filepath.Join(outDir, readme)) == "" {
-			t.Errorf("%s not written", readme)
-		}
+	if readFile(t, filepath.Join(outDir, "types", "README.md")) == "" {
+		t.Error("types/README.md not written")
 	}
 }
 
-// The enrich CLI self-documents a genDir that does not exist yet, before any types/: the root README and the
-// enriched/ folder must still land, and only the missing types/ fails.
+// A caller may self-document a genDir that does not exist yet, before any types/: the root README must still
+// land, and only the missing types/ fails.
 func TestGenDir_HygieneOnAMissingDir(t *testing.T) {
 	outDir := filepath.Join(t.TempDir(), "gen")
 	if err := EnsureOutputHygiene(outDir, filepath.Join(outDir, typesSubdir)); err == nil {
@@ -44,9 +40,6 @@ func TestGenDir_HygieneOnAMissingDir(t *testing.T) {
 	}
 	if got := readFile(t, filepath.Join(outDir, "README.md")); got != mionGenDirReadme {
 		t.Fatalf("genDir README on a fresh dir:\n%s", got)
-	}
-	if readFile(t, filepath.Join(outDir, "enriched", "README.md")) == "" {
-		t.Fatal("enriched/README.md not written on a fresh dir")
 	}
 }
 

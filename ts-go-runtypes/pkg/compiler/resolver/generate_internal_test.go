@@ -113,13 +113,8 @@ func TestUnwritableOutDirError(t *testing.T) {
 	}
 }
 
-// TestResolveOutDir_Precedence pins the output-root layering now that it is
-// SESSION config rather than a request field: the explicit spawn-time
-// Options.GenDir (`serve --gen-dir`, the host plugin's own genDir option) wins,
-// else the tsconfig genDir, else the inferred <srcDir>/.mion. Relative
-// values anchor under the session cwd. Every op that needs the root — generate,
-// transform, enrich — reads it through here, so this ordering is the single
-// place the lanes can agree or drift.
+// TestResolveOutDir_Precedence: Options.GenDir (`serve --gen-dir`) > tsconfig genDir > inferred <srcDir>/.mion.
+// Relative values anchor under the session cwd; generate and transform both read the root through here.
 func TestResolveOutDir_Precedence(t *testing.T) {
 	cwd := t.TempDir()
 	tests := []struct {

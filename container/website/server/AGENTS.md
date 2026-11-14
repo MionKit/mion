@@ -18,7 +18,7 @@ How TypeScript examples reach a page. Read before writing an example or editing 
 ## Examples package
 
 - `packages/private-examples/src/`: real, compilable TS. Private, not published; build script is a noop.
-- Topics: `_homepage/`, `introduction/`, `guide/`, `enrich/`, `suites/`.
+- Topics: `_homepage/`, `introduction/`, `guide/`, `suites/`.
 - Must compile: import public names (`@mionjs/run-types`, `@mionjs/devtools`) via tsconfig `paths` → built dist
   `.d.ts` (the published surface).
 - Used by `<code-import>` and `twoslash-code`.

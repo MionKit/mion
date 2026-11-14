@@ -117,23 +117,17 @@ tmp
 .nx
 
 # The RunTypes output root (default `.mion/` next to each project's source):
-# generated cache modules under `types/` and, in THIS repo only, throwaway
-# enrichment scaffolds under `enriched/` (in a consumer project `enriched/` is
-# committed; every in-repo tree is a test artifact). The project-root `.mion/`
-# also holds the serverMapFrom mapper manifests (build artifact, regenerated
-# every build). `.mion-<target>/` are the extra genDirs test-server's
-# edge/cloudflare builds need, because those builds disagree with the node build
-# on emitMode and must not share one dir.
+# generated cache modules under `types/` (every in-repo tree is a test
+# artifact). The project-root `.mion/` also holds the serverMapFrom mapper
+# manifests (build artifact, regenerated every build). `.mion-<target>/` are
+# the extra genDirs test-server's edge/cloudflare builds need, because those
+# builds disagree with the node build on emitMode and must not share one dir.
 .mion/
 .mion-*/
 
 ########################
 # type-system side
 ########################
-
-# AI-enrichment generation suite — synthesized temp module files
-# (recreated + cleaned per run by test/util/enrichGen.ts).
-packages/run-types/test/suites/enrich/.tmp/
 
 # Converted-suite trees: the whole suite tree rewritten into the value forms by
 # `pnpm miondevx core converted-suites`, which generates, runs and removes them.
@@ -189,11 +183,9 @@ packages/*/.uws-cache/
 *.timestamp-*.mjs
 
 # RunTypes files-mode output: every `.mion/` tree in this repo (the marker
-# package's own test suite, the isolated mock-format-registry project, the enrich
-# fuzz dir, the repo root when a solution-style tsconfig resolves there) is a
-# build artifact, covered by the repo-wide `.mion/` rule above. A leaked scaffold
-# under enriched/ once got swept into a commit, which `types/`'s own inner
-# .gitignore cannot prevent for the enriched/ half — hence wholesale.
+# package's own test suite, the isolated mock-format-registry project, the repo
+# root when a solution-style tsconfig resolves there) is a build artifact,
+# covered by the repo-wide `.mion/` rule above.
 
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/

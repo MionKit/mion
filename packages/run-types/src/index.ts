@@ -43,34 +43,6 @@ export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta
 export {type JSONShape} from './runtypes/jsonShape.ts';
 export {type InferType, type AnyOf} from './builders/static.ts';
 
-// AI enrichment — type-keyed, committed maps validated against `T` at scan time (see
-// docs/AI_ENRICHMENT.md). `FriendlyText<T>` is labels + error templates; `MockData<T>` is the sample
-// pools/ranges feeding `createMockDataFn`.
-export {
-  type FriendlyText,
-  type FriendlyNode,
-  type FriendlyMeta,
-  type ErrorTemplates,
-  type FriendlyTemplate,
-  type PluralCategory,
-  type PluralTemplate,
-  type TemplateLeaf,
-} from './enrich/friendlyText.ts';
-export {type MockData, type MockNode} from './enrich/mockData.ts';
-// Pure-data runtime: render `getValidationErrors` output into human messages.
-// `createFriendlyTextI18n` is the locale-selecting wrapper over the same walk — the source map is
-// the source language + terminal fallback, translations are same-tree per-locale consts, plurals
-// select via Intl.PluralRules, and `$[val]` renders type-driven (an isCurrency-marked bound via the
-// app-supplied `currency` option, date-family bounds via Intl.DateTimeFormat).
-export {
-  createFriendlyText,
-  createFriendlyTextI18n,
-  resolveLocale,
-  type FriendlyMessage,
-  type FriendlyRenderer,
-  type FriendlyI18nOptions,
-} from './enrich/createFriendlyText.ts';
-
 // Side-effect import: registers the package's own pure fns (newRunTypeErr, getUnknownKeysFromArray, …),
 // which MUST evaluate before any materialised factory reaches one.
 import './runtypes/pure-fns-utils.ts';

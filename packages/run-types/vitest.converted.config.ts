@@ -40,16 +40,6 @@ export default defineConfig({
     // vitest would otherwise resolve `include` against the repo root.
     root: PACKAGE_ROOT,
     include: ['test/converted-*/**/*.test.ts'],
-    // The two enrich lanes that SPAWN the CLI are excluded, and only those.
-    // They drive `mion enrich` over fixture projects they generate at
-    // runtime, writing through a `.tmp` root and a repo-level `.mion/`
-    // output that are anchored by absolute path — so the builders copy, the
-    // JSON Schema copy and the original all target one directory and reconcile
-    // on top of each other. Nothing about that exercises the CONVERSION: the
-    // fixtures are written by the test, not by the suite file, so the notation
-    // the suite file is authored in never reaches the CLI. Every other enrich
-    // test (the type-driven `cases/`, createFriendlyText, …) converts and runs.
-    exclude: ['**/enrich/enrichTranslate.test.ts', '**/enrich/enrichReconcile.test.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
     setupFiles: ['./test/support/setup.ts'],

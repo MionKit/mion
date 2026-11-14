@@ -101,7 +101,7 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
   });
 });
 
-describe('buildResolverArgs — session config the wire does not carry (enrich + output/transform)', () => {
+describe('buildResolverArgs — session config the wire does not carry (output/transform)', () => {
   it('forwards genDir as `--gen-dir <abs>`', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {genDir: '/proj/generated'});
     const idx = args.indexOf('--gen-dir');
@@ -117,41 +117,11 @@ describe('buildResolverArgs — session config the wire does not carry (enrich +
     expect(buildResolverArgs('/proj', 'tsconfig.json', {omitSourcesContent: true})).toContain('--omit-sources-content');
   });
 
-  it('forwards the enrich family + i18n selection as boolean flags', () => {
-    const args = buildResolverArgs('/proj', 'tsconfig.json', {enrichFriendly: true, enrichMock: true, enrichI18n: true});
-    expect(args).toContain('--enrich-friendly');
-    expect(args).toContain('--enrich-mock');
-    expect(args).toContain('--enrich-i18n');
-  });
-
-  it('forwards i18n overrides as `--enrich-locales a,b` + `--enrich-source-locale`', () => {
-    const args = buildResolverArgs('/proj', 'tsconfig.json', {enrichLocales: ['pl', 'pt-BR'], enrichSourceLocale: 'en'});
-    const locales = args.indexOf('--enrich-locales');
-    expect(locales).toBeGreaterThanOrEqual(0);
-    expect(args[locales + 1]).toBe('pl,pt-BR');
-    const source = args.indexOf('--enrich-source-locale');
-    expect(source).toBeGreaterThanOrEqual(0);
-    expect(args[source + 1]).toBe('en');
-  });
-
-  it('omits every enrich/gen-dir flag when unset (tsconfig + inference own the defaults)', () => {
+  it('omits every output/transform flag when unset (tsconfig + inference own the defaults)', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {});
-    for (const flag of [
-      '--gen-dir',
-      '--transform-relative',
-      '--omit-sources-content',
-      '--enrich-friendly',
-      '--enrich-mock',
-      '--enrich-i18n',
-      '--enrich-locales',
-      '--enrich-source-locale',
-    ]) {
+    for (const flag of ['--gen-dir', '--transform-relative', '--omit-sources-content']) {
       expect(args).not.toContain(flag);
     }
-  });
-
-  it('omits --enrich-locales for an empty list (falls through to tsconfig i18n.locales)', () => {
-    expect(buildResolverArgs('/proj', 'tsconfig.json', {enrichLocales: []})).not.toContain('--enrich-locales');
   });
 });
 

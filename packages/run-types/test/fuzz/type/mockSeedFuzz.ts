@@ -1,19 +1,6 @@
-// Determinism ("do-it-twice") fuzz for seeded mock data. For a RANDOM runtype
-// and a random seed S, generating a mock twice under seed S must produce
-// deep-equal values. The property is universal (it holds for every type), which
-// is what makes it a good fuzz oracle.
-//
-// Random runtypes come from the shared `core/runTypeGen.ts` generator (built
-// directly, no Go binary). It drives the walker `mockRunType(runType, options,
-// [])` — the same lower-level entry the MockData unit tests use — because
-// `createMockDataFn` needs a plugin-injected id a runtime-built graph can't carry.
-// A fresh `new MockRandom(seed)` per generation seeds the options bag exactly as
-// createMockDataFn would, so this measures the same code.
-//
-// Each iteration runs under `withSeededRandom`, so the generated shape and the
-// tested seed replay from one number; the seeded mock path draws from its OWN
-// PRNG (never the swapped global `Math.random`), so its determinism is what we
-// measure.
+// Seeded mock determinism fuzz: a random runtype mocked twice under one seed must be deep-equal, for every type.
+// Calls `mockRunType` directly because createMockDataFn needs a plugin-injected id a runtime-built graph can't carry.
+// The seeded path draws from its own PRNG, never the Math.random withSeededRandom swaps to replay the shape.
 
 import {isDeepStrictEqual} from 'node:util';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';

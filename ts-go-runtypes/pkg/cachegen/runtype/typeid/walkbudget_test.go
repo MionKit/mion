@@ -25,16 +25,9 @@ func diagnosticCodes(response protocol.Response) []string {
 	return codes
 }
 
-// TestWalkBudget_OpsCapRefusesTheSite pins the OPS branch of the walk backstop
-// (maxWalkOps), which the depth branch otherwise hides: a real spiral goes deep
-// before it goes wide, so maxWalkDepth always latches first and no source
-// fixture reaches the op count. Moving the cap to the walk is the only way to
-// exercise it, and it is worth exercising — the ops cap is what bounded the
-// `enrich --update` hang on a fuzz-corrupted source, where tsgo's error
-// recovery minted a fresh type per member query at shallow depth.
-//
-// The two halves are one test on purpose: the same source resolving under the
-// real budget is what proves the refusal came from the cap and not the type.
+// TestWalkBudget_OpsCapRefusesTheSite pins maxWalkOps, which maxWalkDepth hides: a spiral goes deep before wide,
+// so no fixture reaches the op count. The ops cap bounded a fuzz hang where tsgo minted a type per shallow member query.
+// One test on purpose: the same source resolving under the real budget proves the refusal came from the cap.
 func TestWalkBudget_OpsCapRefusesTheSite(t *testing.T) {
 	_, resolved := scanUnderLib(t, "es2023", budgetSource)
 	if len(resolved.Sites) != 1 {

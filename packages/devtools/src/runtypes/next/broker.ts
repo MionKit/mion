@@ -81,7 +81,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   const rootAbs = path.resolve(root);
   const socketPath = options.socketPath ?? socketPathFor(rootAbs);
 
-  // Set after buildStart, never defaulted: a default would beat the tsconfig or inferred genDir the enrich CLI uses.
+  // Set after buildStart, never defaulted: a default would beat the tsconfig or inferred genDir.
   let genDirAbs = '';
   let stampPath = '';
 

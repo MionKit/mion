@@ -1,11 +1,6 @@
-// list-declared-tests.mjs: write every test the vitest config declares, skipped ones
-// included, as JSON [{file, projectName}] to the path in argv[2].
-//
-// `vitest list` drops skipped tests, and many suites skip on the host (no resolver
-// binary, no playground wasm, a soak or race env var unset), so its count moves
-// with the machine. This collects through the same API without that filter.
-// Run as its own process: collection runs each project's globalSetup (the client
-// tests start a server), which must not live inside the caller.
+// Writes every declared test, skipped included, as JSON [{file, projectName}] to argv[2].
+// `vitest list` drops skipped tests and suites skip per host, so its count moves with the machine.
+// Own process: collection runs each project's globalSetup (the client tests start a server).
 
 import {writeFileSync} from 'node:fs';
 import {createVitest} from 'vitest/node';

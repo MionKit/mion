@@ -1,11 +1,5 @@
-// Currency cases — `TF.Currency<P>` is a param preset over the plain number
-// format (`Number<P & {isCurrency: true}>`), so validation, serialization and
-// mocking are identical to `TF.Number<P>`. The `isCurrency` param is pure
-// presentation metadata: the emitter echoes it onto every format error, the
-// discriminator `createFriendlyTextI18n` uses to render a violated bound via
-// `Intl.NumberFormat(locale, {style: 'currency', currency})` with the
-// app-supplied currency code. WHICH currency a value is in is runtime data,
-// deliberately never fixed in the type.
+// `TF.Currency<P>` is `Number<P & {isCurrency: true}>`, so validation, serialization and mocking match `TF.Number<P>`.
+// `isCurrency` is only echoed onto format errors; which currency a value is in is runtime data, never in the type.
 import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
 import '@mionjs/run-types/formats';
@@ -55,7 +49,7 @@ export const CURRENCY = {
   },
   currency_max: {
     title: 'Currency with inclusive max',
-    description: 'Currency with an upper bound; the format error echoes isCurrency (the friendly-renderer discriminator).',
+    description: 'Currency with an upper bound; the format error echoes isCurrency (the money-rendering discriminator).',
     validateNotes: [
       'Boundary value 100 passes (inclusive); 101 fails on `max` with an isCurrency-flagged format error. A non-number ("5") fails the number typeof gate before any format check.',
     ],

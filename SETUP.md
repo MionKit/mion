@@ -51,7 +51,7 @@ For Claude Code on the web, the environment setup script is
 install the Chromium build the repo's Playwright expects.
 
 To check discovery, start a fresh session at the root and in `packages/devtools/`.
-Confirm the governing `AGENTS.md` files, all 14 project skills, and the three
+Confirm the governing `AGENTS.md` files, all 13 project skills, and the three
 independent roles. Codex hosts without custom role selection can use the
 fresh-context fallback in the tool mapping; that fallback does not enforce a
 role-specific sandbox. Hosts without independent agents cannot complete the
@@ -281,7 +281,7 @@ pnpm format          # oxfmt (TS) + prettier (md) + gofmt
 pnpm check-format    # the read-only twin (CI-safe)
 ```
 
-Linting is a single root **oxlint** pass (config in [`.oxlintrc.json`](.oxlintrc.json)): the `correctness` category as errors plus the default `typescript`/`oxc`/`unicorn` plugins, which is a superset of the old `eslint:recommended` + `tseslint:recommended`. The same config hosts the enrichment `runtypes/*` rules via the built devtools lint plugin (`jsPlugins`). Type checking stays a separate `tsc`/tsgo step (`pnpm run typecheck`), which `pnpm run lint` chains after oxlint.
+Linting is a single root **oxlint** pass (config in [`.oxlintrc.json`](.oxlintrc.json)): the `correctness` category as errors plus the default `typescript`/`oxc`/`unicorn` plugins, which is a superset of the old `eslint:recommended` + `tseslint:recommended`. The same config hosts the `mion/*` rules via the built devtools lint plugin (`jsPlugins`). Type checking stays a separate `tsc`/tsgo step (`pnpm run typecheck`), which `pnpm run lint` chains after oxlint.
 
 Formatting splits by file type: **oxfmt** formats TypeScript (`packages/**/*.ts`, config in [`.oxfmtrc.json`](.oxfmtrc.json), a 1:1 port of `.prettierrc`), **Prettier** formats markdown (`packages/**/*.md`), and `gofmt` handles Go. Prettier stays for markdown and for the playground's in-browser beautifier.
 
@@ -601,7 +601,7 @@ the flags.
 pnpm test                        # build if stale, then the whole JS suite
 pnpm miondevx core test-pr [--base <ref>] [--list]   # vitest over only what the branch changed + its dependents
 pnpm miondevx core build              # build the resolver + dev dists if stale
-pnpm miondevx core fuzz <lane…> [--quick|--soak]   # unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+pnpm miondevx core fuzz <lane…> [--quick|--soak]   # lanes: pnpm miondevx core --help
 pnpm miondevx core fuzz-lanes         # the soak lane list as JSON (the soak workflows' matrix source)
 pnpm miondevx core smoke              # resolver + devtools end-to-end smoke
 pnpm miondevx website dev [--agent]   # hot-reload docs server (:3000, or :3100 --agent)

@@ -214,7 +214,7 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
   it("the sweep pins the count-based JS lanes' quick env values to the registry", () => {
     const sweep = ciStep('JS fuzz sweep (count-based lanes at quick budgets)');
     for (const lane of countBasedLanes) {
-      if (lane === 'race' || registry[lane].hasGoTest) continue; // own steps, pinned below
+      if (registry[lane].hasGoTest) continue; // own step, pinned below
       for (const [k, v] of Object.entries(registry[lane].quick)) expect(sweep).toContain(`${k}: '${v}'`);
     }
   });
@@ -227,10 +227,6 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
     expect(goLanes.sort()).toEqual(['apitypes', 'convert']);
     for (const lane of goLanes)
       for (const [k, v] of Object.entries(registry[lane].quick)) expect(goStep).toContain(`${k}: '${v}'`);
-  });
-
-  it('the race lane runs through miondevx at its quick budget', () => {
-    expect(ciStep('Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toContain('pnpm miondevx core fuzz race --quick');
   });
 });
 

@@ -167,7 +167,7 @@ func TestValidateParams(t *testing.T) {
 	}
 }
 
-// TestNumberFormat_IsCurrencyEcho: isCurrency adds no predicate; its errors carry it so i18n shows the bound as money.
+// TestNumberFormat_IsCurrencyEcho: isCurrency adds no predicate; its errors carry it so a message can show the bound as money.
 func TestNumberFormat_IsCurrencyEcho(t *testing.T) {
 	emitter := numberFormatEmitter{}
 	plain := map[string]any{"max": 100.0}

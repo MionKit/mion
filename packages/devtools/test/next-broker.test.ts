@@ -231,7 +231,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
     120_000
   );
 
-  // The broker once forced `<root>/.mion` over the tsconfig or inferred genDir, missing the enrich CLI mirrors.
+  // The broker must root its output at the tsconfig or inferred genDir, never a forced `<root>/.mion`.
   async function generatedRootOf(root: string): Promise<{stamp: string; code: string}> {
     const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json'});
     try {

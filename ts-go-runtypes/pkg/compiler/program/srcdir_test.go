@@ -48,7 +48,7 @@ func TestIsWithin(t *testing.T) {
 	}
 }
 
-// TestInferSrcDir pins the preference order both the resolver and the enrich CLI read the default genDir from.
+// TestInferSrcDir pins the preference order the resolver and the CLI verbs read the default genDir from.
 func TestInferSrcDir(t *testing.T) {
 	cases := []struct {
 		name, rootDir, baseUrl string

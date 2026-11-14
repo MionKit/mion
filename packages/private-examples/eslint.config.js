@@ -15,7 +15,6 @@ export default tseslint.config(
       // The runtypes example files share src/ but belong to the runtypes
       // program: tsconfig.runtypes.json type-checks them (root typecheck).
       // TODO(step 3): unify linting.
-      'src/enrich/**',
       'src/guide/**',
       'src/_homepage/define-builder.ts',
       'src/_homepage/define-type.ts',

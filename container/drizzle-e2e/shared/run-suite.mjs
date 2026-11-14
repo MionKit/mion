@@ -116,6 +116,8 @@ if (!VERSION) throw new Error('run-suite: MION_DRIZZLE_VERSION is not set (the v
 // `drizzle-orm@undefined` and then fails the slim packages' optional peer
 // against that. Naming it gives npm a concrete version to satisfy the peer with,
 // which is the honest fix — the peer really is satisfied.
+// The dialect packages keep their own versions, apart from @mionjs/drizzle-orm's.
+const dialectVersions = JSON.parse(process.env.MION_DRIZZLE_DIALECT_VERSIONS ?? '{}');
 const drizzleVersion = process.env.MION_DRIZZLE_ORM_VERSION ?? '';
 if (!drizzleVersion) throw new Error('run-suite: MION_DRIZZLE_ORM_VERSION is not set (the drizzle-orm version the suites are pinned to)');
 run('npm', [
@@ -138,7 +140,7 @@ run('npm', [
   `@mionjs/devtools@${VERSION}`,
   `@mionjs/run-types@${VERSION}`,
   `@mionjs/drizzle-orm@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
-  `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${process.env.MION_DRIZZLE_PKG_VERSION ?? VERSION}`,
+  `@mionjs/drizzle-orm-${spec.pkg ?? DIALECT}-core@${dialectVersions[spec.pkg ?? DIALECT] ?? VERSION}`,
   `drizzle-orm@${drizzleVersion}`,
 ]);
 // The LAUNCHER, not the platform binary: the `mion` command resolves whichever

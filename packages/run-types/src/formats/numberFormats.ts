@@ -27,9 +27,8 @@ export interface NumberParams {
   exclusiveMinimum?: number;
   /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
   exclusiveMaximum?: number;
-  /** PURE PRESENTATION METADATA: no failable constraint, so validation, JSON round trip and mocking ignore it, no `rt$errors` key.
-   *  Echoed onto the field's errors so `createFriendlyTextI18n` renders bounds with its `currency` renderer option.
-   *  WHICH currency is runtime data, deliberately never a type param. */
+  /** Presentation only: no error key, and validation, JSON and mocking ignore it.
+   *  Echoed onto errors to show bounds as money; which currency is runtime data, never a type param. */
   isCurrency?: boolean;
 }
 

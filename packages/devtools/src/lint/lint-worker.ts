@@ -1,11 +1,7 @@
-// Worker-thread half of the lint session's sync bridge (see session.ts): the Promise-based resolver work lives
-// here, behind the rule thread's Atomics.wait. The worker owns ONE long-lived resolver connection for the whole
-// run, so the tsgo Program machinery is amortised across files, and at PLUGIN LOAD it pre-spawns the generic
-// launcher (spawn-shim.ts) while the host process is still small enough to fork, handing it the real binary and
-// argv on the first request. Per request it mirrors the unplugin's HMR pivot: push the file's buffer text
-// (`setSources`, an inferred Program rooted at the file, its imports read from disk through the overlay FS),
-// then `scanFiles` with checkEnrich + checkRouterRules + includeRtDiagnostics, so ONE pass returns what a build
-// reports plus the two checks only lint runs.
+// Worker half of the lint session's sync bridge (session.ts): async resolver work behind the rule thread's Atomics.wait.
+// One resolver connection per run amortises the tsgo Program; spawn-shim.ts is pre-spawned at plugin load, while the
+// host is still small enough to fork. Per file, like the unplugin's HMR pivot: setSources with the buffer text, then one
+// scanFiles with checkRouterRules + includeRtDiagnostics returns the build's report plus the lint-only route rules.
 
 import {spawn, type ChildProcess} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -103,7 +99,6 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const capabilities = await resolver.capabilities();
       const ext = Object.fromEntries(capabilities.scanChecks.map((check) => [check.name, true]));
       const result = await resolver.scanFiles([rel], {
-        checkEnrich: true,
         checkRouterRules: true,
         includeRtDiagnostics: true,
         ext,

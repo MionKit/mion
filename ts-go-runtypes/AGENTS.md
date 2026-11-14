@@ -52,8 +52,6 @@ Pattern = TypeScript's own (its node builder + `.d.ts` emitter).
   sourcerewrite, entrymodules, batchcompile).
 - [cachegen/](pkg/cachegen/): cache generation (runtype, typefunctions, purefunctions, purefnindex, purefnids,
   operations, diskcache, hashid).
-- [enrichment/](pkg/enrichment/): FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen).
-  `enrichgen` = shared plan/config/check leaf the CLI verb and daemon op both call → they never drift.
 - [cli/](pkg/cli/): the `mion` command line (verbs, flags, the tsconfig plugin reader), `cli.Main`.
 - [diagnostics/](pkg/diagnostics/): diagnostic catalog, one row per code with its text, shared by resolver and lint.
 - [reflection/](pkg/reflection/): canonical RunType reflection model every stage shares

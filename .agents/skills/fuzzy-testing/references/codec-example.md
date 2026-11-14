@@ -1,8 +1,8 @@
 # A tiny complete example: codec fuzz test
 
 The whole method in 30 lines: pick an input maker, lean on fast-check for seed + shrink, watch the return value,
-sweep rule shapes ② ③ ① ⑧. Code that is not a simple in / out function (a stateful sync pipeline) →
-[enrich-pipeline.md](enrich-pipeline.md).
+sweep rule shapes ② ③ ① ⑧. Code that is not a simple in / out function (code with memory) →
+[model-based.ts](../templates/model-based.ts).
 
 ```ts
 import fc from 'fast-check';

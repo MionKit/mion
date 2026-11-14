@@ -888,7 +888,9 @@ describe('a new commit cancels only what it changed', () => {
     const ci = read('.github/workflows/ci.yml');
     const next = (after: string) => ci.slice(ci.indexOf(after)).split('\n      - ')[1] ?? '';
     expect(next('- name: Go test suite (fuzz sweeps at quick budgets)')).toMatch(/^name: Record the Go shard as green\n/);
-    expect(next('- name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toMatch(/^name: Record the JS fuzz sweep as green\n/);
+    expect(next('- name: JS fuzz sweep (count-based lanes at quick budgets)')).toMatch(
+      /^name: Record the JS fuzz sweep as green\n/
+    );
     expect(next('- name: Time-boxed fuzz lanes at quick budgets')).toMatch(/^name: Record the time-boxed fuzz lanes as green\n/);
     expect(next('- name: Website serves-a-page smoke')).toMatch(/^name: Record the website smoke as green\n/);
     expect(next('- name: Go vet (our code only; never third_party)')).toMatch(/^name: Record gofmt and vet as green\n/);

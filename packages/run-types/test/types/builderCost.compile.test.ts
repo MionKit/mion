@@ -1,11 +1,5 @@
-// Instantiation-budget test for the value-first BUILDER and FORMAT call sites —
-// what a consumer's editor and every `tsc` run pay to type-check a schema.
-//
-// The existing compile-budget suites here cover the type-level WALKERS (DataOnly,
-// StripRunTypeMeta, SubstituteSelf, FriendlyText, MockData). Nothing covered the
-// call sites themselves, which is what a consumer actually writes, so a cost
-// regression in a builder signature or a format alias could land unnoticed. This
-// suite closes that gap across every builder and every format family.
+// Instantiation budget for every value-first builder and format call site, what a consumer's editor pays per schema.
+// The other compile-budget suites cover only the type-level walkers (DataOnly, StripRunTypeMeta, SubstituteSelf).
 //
 // ── Two numbers per case, and why ────────────────────────────────────
 //

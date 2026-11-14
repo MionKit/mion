@@ -16,7 +16,7 @@ import (
 
 // Bump when the token rules change, so every marker saved under the old rules stops matching.
 // The marker tables are folded into the digest too, so editing them re-keys without a bump.
-const toolVersion = "3"
+const toolVersion = "4"
 
 var errUnsure = errors.New("unsure")
 
@@ -56,7 +56,7 @@ var scopedPackageMention = regexp.MustCompile(`@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-
 // Keep tool namespaces even when a directive's argument starts with a slash.
 func withoutPackageMentions(line string) string {
 	return scopedPackageMention.ReplaceAllStringFunc(line, func(mention string) string {
-		for _, prefix := range []string{"@mion-", "@ts-", "@rt", "@todo/", "@vite-ignore", "@vitest-"} {
+		for _, prefix := range []string{"@mion-", "@ts-", "@vite-ignore", "@vitest-"} {
 			if strings.HasPrefix(mention, prefix) {
 				return mention
 			}

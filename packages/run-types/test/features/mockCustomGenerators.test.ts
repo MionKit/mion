@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vitest';
 import {createValidateFn} from '@mionjs/run-types';
-import {createMockDataFn, registerMockGenerator, type GeneratorContext} from '@mionjs/run-types/mocking';
+import {createMockDataFn, registerMockGenerator, type GeneratorContext, type MockNodeHook} from '@mionjs/run-types/mocking';
 import * as TF from '@mionjs/run-types/formats';
 
 declare module '@mionjs/run-types/formats' {
@@ -39,8 +39,13 @@ describe('custom mock generators', () => {
     expect(createMockDataFn(sample)().phone).toMatch(UK);
   });
 
-  it('a MockData node names the generator for a plain string field', () => {
-    const mock = createMockDataFn<{phone: string}>(undefined, {data: {phone: {generator: 'phoneNumberUk'}}});
+  it('a mock hook runs a registered generator for a plain string field', () => {
+    const hook: MockNodeHook<string> = {
+      root: '',
+      descend: (_cursor, step) => (step.kind === 'property' ? String(step.name) : undefined),
+      value: (cursor, node) => (cursor === 'phone' ? {value: node.generate('phoneNumberUk', {})} : undefined),
+    };
+    const mock = createMockDataFn<{phone: string}>(undefined, {hook});
     expect(mock().phone).toMatch(UK);
   });
 

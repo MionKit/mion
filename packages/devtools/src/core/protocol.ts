@@ -273,23 +273,12 @@ export interface FormatAnnotation {
 }
 
 // mion's own ops; an extension binary answers more, which `ResolverConnection.request` sends by name.
-export type BuiltinOp =
-  | 'scanFiles'
-  | 'dump'
-  | 'setSources'
-  | 'reset'
-  | 'tsCompile'
-  | 'transform'
-  | 'generate'
-  | 'enrich'
-  | 'capabilities';
+export type BuiltinOp = 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompile' | 'transform' | 'generate' | 'capabilities';
 
 export interface Request {
   // Any op string: the binary looks it up in its op table and answers `unknown op: <op>` when it has none.
   op: BuiltinOp | (string & {});
-  // The op's file input: the files to scan (scanFiles), rewrite (transform) or enrichment-check (enrich).
-  // The response's sites cover every listed file, each tagged with .file; the include* flags project
-  // runTypes / entryModules over these files only, never the session-wide cache (use dump for that).
+  // Files to scan or rewrite; the include* flags cover these files only, never the session cache (dump does that).
   files?: string[];
   // setSources only — { relpath: source-text }.
   sources?: Record<string, string>;
@@ -301,9 +290,6 @@ export interface Request {
   // Opts into the `metrics` block: tsgo extendedDiagnostics counters, per-phase wall times, Go memory deltas.
   // Mirrors the Go-side Request.IncludeMetrics; zero measurement cost when unset.
   includeMetrics?: boolean;
-  // scanFiles only: the enrichment-health pass (tag hygiene, FriendlyText/MockData content, breadcrumb drift),
-  // appended to diagnostics as Family.Enrich. Off by default so the rewrite pipeline pays nothing; the lint plugin consumes it.
-  checkEnrich?: boolean;
   // scanFiles only: the mion route rules (handler annotations, a throw escaping a handler, a declared error that is
   // not an RpcError, a property named after a prototype slot), appended as Family.MionRoute. Off by default, because
   // every one is an error-severity code and a build running them would fail on a finding the team may have turned off in lint.
@@ -314,8 +300,6 @@ export interface Request {
   // transform only: 'edits' mode instead of 'go' mode. A per-request wire knob, because the artifacts are identical
   // either way, so it never affects the disk cache.
   emitEdits?: boolean;
-  // enrich carries NOTHING beyond `files` (empty = whole program): the families, i18n locales and output root ride
-  // the spawn flags (--gen-dir / --enrich-*), defaulting from the tsconfig plugin entry.
   // An extension's own request fields, keyed by name: a registered scan check is switched on by `ext[name] = true`.
   ext?: Record<string, unknown>;
 }
@@ -403,9 +387,6 @@ export interface Response {
   siteFiles?: string[];
   // `generate` only: hash of program sources, compiler options and tsconfig text, for a host caching transforms.
   programHash?: string;
-  // enrich only: the computed mirror files (path + content + added + kind).
-  // The daemon never writes; the caller writes them under its own HMR-suppression window.
-  enrichFiles?: EnrichFile[];
   // The output root `generate` actually wrote to: with outDir left empty the resolver infers <srcDir>/.mion
   // from the tsconfig and echoes the absolute path here, so the plugin can adopt it.
   outDir?: string;
@@ -455,14 +436,11 @@ export const Severity = {
 } as const;
 export type Severity = (typeof Severity)[keyof typeof Severity];
 
-// Family classifies a Diagnostic by the subsystem that produced it, numeric on the wire like Severity.
-// Enrich covers the opt-in enrichment-health pass (Request.checkEnrich): tag hygiene, FriendlyText / MockData
-// content validity, mirror breadcrumb drift. MionRoute covers the opt-in route rules (Request.checkRouterRules).
+// The subsystem that raised a Diagnostic, numeric on the wire; MionRoute is the opt-in Request.checkRouterRules.
 export const Family = {
   PureFn: 1,
   Marker: 2,
   RunType: 3,
-  Enrich: 4,
   MionRoute: 5,
   Drizzle: 6,
 } as const;
@@ -480,15 +458,6 @@ export interface DiagnosticSite {
 
 export interface DiagnosticRelated extends DiagnosticSite {
   message: string;
-}
-
-// EnrichFile mirrors Go protocol.EnrichFile: one computed mirror file from the `enrich` op, with the content
-// the caller writes (the daemon never does), `added` when no on-disk file existed, `kind` 'friendly' | 'mock'.
-export interface EnrichFile {
-  path: string;
-  content: string;
-  added?: boolean;
-  kind?: string;
 }
 
 // Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).

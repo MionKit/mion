@@ -49,7 +49,7 @@ touched, CHANGELOG.md.
    `git-cliff $(git merge-base origin/main origin/prod)..HEAD --tag vX.Y.Z --strip all -o /tmp/section.md`
 2. Curate to match existing entries' voice:
    - hand-write the opening prose paragraph summarizing release themes;
-   - enrich important bullets with the "why";
+   - add the "why" to important bullets;
    - mark breaking changes `[**breaking**]`, including ones the commit author forgot to mark with `!`;
    - drop internal noise (todo-filing docs commits, spec moves).
 3. Never regenerate the whole file: past intros are hand-written, a full `git-cliff -o CHANGELOG.md` erases them.

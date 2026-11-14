@@ -140,7 +140,8 @@ function manualFallback(version, why) {
   console.log('  npm stage list                # find the stage-id for each package');
   console.log('  npm stage approve <stage-id>  # 2FA per id, in the order above');
   console.log('');
-  console.log(`All packages are @ ${version}. Full runbook: SETUP.md → Publishing.`);
+  const drizzle = [...drizzleTreeVersions()].map(([name, own]) => `${name}@${own}`).join(', ');
+  console.log(`Packages are @ ${version}${drizzle ? `, except the drizzle line: ${drizzle}` : ''}. Full runbook: SETUP.md → Publishing.`);
   die('', 1);
 }
 

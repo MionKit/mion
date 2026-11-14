@@ -66,6 +66,5 @@ Read before adding a diagnostic code or picking its Level.
     `config-lib-missing-base`.
   - `detectSilentAnyInGraph` tells the two apart.
 - `Completeness` is deliberately NOT a level.
-  - Unfilled-scaffold codes are warnings (a mirror with blank labels still runs).
-  - That bit is what `enrich --require-complete` + the bundler's production enrichment gate promote.
+  - An unfinished-content code is a warning, and a gate that fails on unfinished content promotes this bit.
   - A gate keying on the level instead silently stops working.

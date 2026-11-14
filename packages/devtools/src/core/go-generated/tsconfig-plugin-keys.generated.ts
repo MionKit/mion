@@ -12,7 +12,6 @@ export const TSCONFIG_PLUGIN_KEYS = [
   'emitMode',
   'genDir',
   'hashLength',
-  'i18n',
   'inlineMode',
   'jsonMaxBytes',
   'levels',

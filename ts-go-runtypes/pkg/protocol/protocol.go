@@ -41,31 +41,15 @@ const (
 	// inferred <srcDir>/.mion) and echoes on Response.OutDir; Response.Generated lists the live basenames.
 	// OpTransform injects relative imports to these real files when the session sets Options.TransformRelative.
 	OpGenerate = "generate"
-	// OpEnrich is the daemon face of the CLI `enrich` verb, so a plugin drives the scaffold + sync pass over the
-	// warm connection instead of spawning. It returns the mirror CONTENT (Response.EnrichFiles) and NEVER writes.
-	// Shares enrichgen.Plan + mirror.Scaffold/Reconcile with the CLI verb, so both produce byte-identical mirrors.
-	OpEnrich = "enrich"
 	// OpCapabilities lists what the binary's extensions add (Response.Capabilities); the public binary answers empty.
 	OpCapabilities = "capabilities"
 )
 
-// Request is the union of all query operations (see resolver/dispatch).
-//
-// THE WIRE CARRIES EVENTS; THE SESSION CARRIES CONFIG. Every field is one of exactly three kinds:
-//
-//   - EVENTS — what is being asked: Op, Files, Sources.
-//   - PAYLOAD SELECTORS — how much of THIS request's answer to ship back:
-//     IncludeRunTypes, IncludeEntryModules, IncludeMetrics.
-//   - LANE SELECTORS — which walker/emit mode THIS request runs:
-//     CheckEnrich, CheckRouterRules, IncludeRtDiagnostics, EmitEdits.
-//
-// Anything session-constant belongs in resolver.Options instead, loaded once from a `serve` flag at
-// spawn (respawn-safe for free, since the client replays the same argv).
-//
-// Files is the op's file input: every file to scan (scanFiles), rewrite (transform) or
-// enrichment-check (enrich). Response.Sites carries entries for every listed file (each tagged with
-// .File), and IncludeRunTypes / IncludeEntryModules scope their payload to THIS request's Files
-// only, never a session-wide accumulation; OpDump returns the whole in-memory cache.
+// Request is the union of all query operations (see resolver/dispatch). The wire carries events, the session config:
+// a field is an event (Op, Files, Sources), a payload selector (Include*) or a lane selector (CheckRouterRules,
+// IncludeRtDiagnostics, EmitEdits). Session-constant settings belong in resolver.Options, loaded from a `serve` flag
+// at spawn, so a respawn replays them. IncludeRunTypes / IncludeEntryModules cover this request's Files only;
+// OpDump returns the whole cache.
 type Request struct {
 	Op              string            `json:"op"`
 	Files           []string          `json:"files,omitempty"`
@@ -77,10 +61,6 @@ type Request struct {
 	// IncludeMetrics opts the response into the Metrics block; unset costs nothing, the dispatcher
 	// skips every ReadMemStats and stopwatch.
 	IncludeMetrics bool `json:"includeMetrics,omitempty"`
-	// CheckEnrich adds the enrichment-health pass over this request's Files (tag hygiene,
-	// FriendlyText/MockData content validity, breadcrumb drift) to Response.Diagnostics as FamilyEnrich
-	// entries. Off by default so the rewrite pipeline pays nothing; the devtools lint plugin is the consumer.
-	CheckEnrich bool `json:"checkEnrich,omitempty"`
 	// CheckRouterRules adds the mion route rules over Files as FamilyMionRoute entries. Only the lint plugin sets it:
 	// most are RuntimeErrors that would stop a build.
 	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
@@ -92,10 +72,6 @@ type Request struct {
 	// Edits + SourceHash per file for the FE to apply, Code/Map empty. It changes only the wire shape, never
 	// the artifacts, so it must never fold into any disk-cache fingerprint. Ignored by every other op.
 	EmitEdits bool `json:"emitEdits,omitempty"`
-	// OpEnrich carries NO fields beyond Files (which files changed; empty = whole program): families, i18n
-	// locales and the output root all ride resolver.Options, loaded once at spawn from the serve --gen-dir /
-	// --enrich-* flags. The daemon owns the demanded type name → source file mapping the caller cannot do itself.
-
 	// Ext carries an extension's own request fields, keyed by name, e.g. a registered scan check's switch
 	// (ExtFlag). A sub-object, so a request decodes in one pass and no extension key can clash with a mion field.
 	Ext map[string]json.RawMessage `json:"ext,omitempty"`
@@ -178,14 +154,9 @@ type Response struct {
 	SiteFiles []string `json:"siteFiles,omitempty"`
 	// ProgramHash (generate only) hashes program sources, compiler options and tsconfig text, for a host's transform cache.
 	ProgramHash string `json:"programHash,omitempty"`
-	// EnrichFiles is OpEnrich's computed mirror files; the daemon never writes, the caller writes them under its
-	// own HMR-suppression window. Emitted via the hand-rolled MarshalJSON below (the struct tag alone doesn't).
-	EnrichFiles []EnrichFile `json:"enrichFiles,omitempty"`
-	// OutDir echoes the session-resolved output root OpGenerate wrote to (Options.GenDir > tsconfig genDir >
-	// inferred). With neither override the resolver infers <srcDir>/.mion from the tsconfig (rootDir >
-	// common-ancestor of the program's files > baseUrl > cwd), which the dependency-free plugin cannot compute
-	// yet needs, to write .gitignore/.gitkeep and to suppress HMR under the enriched dir. With DowngradeErrors
-	// this is the sanctioned resolved-config server→client echo channel.
+	// OutDir echoes the output root OpGenerate wrote to (Options.GenDir > tsconfig genDir > inferred <srcDir>/.mion).
+	// The dependency-free plugin cannot infer it, yet needs it for .gitignore/.gitkeep and HMR suppression.
+	// With DowngradeErrors, the sanctioned resolved-config server→client echo channel.
 	OutDir string `json:"outDir,omitempty"`
 	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js` when OpGenerate wrote one, empty
 	// otherwise. The host uses it to know the module appeared or vanished; it never parses the file.
@@ -295,15 +266,6 @@ type SiteDemand struct {
 	RejectCircular bool `json:"rejectCircular,omitempty"`
 	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
 	ComposedBy string `json:"composedBy,omitempty"`
-}
-
-// EnrichFile is one computed mirror file returned by OpEnrich: absolute Path, the desired Content the caller
-// writes, whether it is newly Added (no prior on-disk file), and its family Kind ("friendly" | "mock").
-type EnrichFile struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-	Added   bool   `json:"added,omitempty"`
-	Kind    string `json:"kind,omitempty"`
 }
 
 // PureFnSite is one generated pure-fn entry, reported for host tooling that relocates pure-fn bodies across
@@ -518,9 +480,6 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.ProgramHash != "" {
 		out["programHash"] = response.ProgramHash
-	}
-	if len(response.EnrichFiles) > 0 {
-		out["enrichFiles"] = response.EnrichFiles
 	}
 	if response.OutDir != "" {
 		out["outDir"] = response.OutDir

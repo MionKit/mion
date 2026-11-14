@@ -47,10 +47,106 @@ describe('mock hook', () => {
     );
   });
 
+  it('without a hook, a plain number stays in the default 0..10000 range, both call shapes', () => {
+    for (let i = 0; i < 50; i++) {
+      for (const n of [createMockDataFn<number>()(), createMockDataFn(TF.number())() as number]) {
+        expect(n).toBeGreaterThanOrEqual(0);
+        expect(n).toBeLessThanOrEqual(10000);
+      }
+    }
+  });
+
   it('a hook whose members return nothing leaves a seeded walk unchanged', () => {
     const schema = RT.object({name: TF.string(), list: RT.array(TF.number())});
     const hook = pathHook({value: () => undefined, bounds: () => undefined, length: () => undefined});
     expect(createMockDataFn(schema, {mock: {seed: 3}, hook})()).toEqual(createMockDataFn(schema, {mock: {seed: 3}})());
+  });
+
+  it('present: true keeps an optional member the draw would drop, both call shapes', () => {
+    type Opt = {a?: string; pair: [string, number?]};
+    const keep = pathHook({present: () => true});
+    const schema = RT.object({a: RT.optional(TF.string())});
+    for (let seed = 1; seed <= 20; seed++) {
+      const mock = {seed, optionalProbability: 0};
+      const typed = createMockDataFn<Opt>(undefined, {mock, hook: keep})();
+      expect(typed.a).toBeTypeOf('string');
+      expect(typed.pair[1]).toBeTypeOf('number');
+      expect((createMockDataFn(schema, {mock, hook: keep})() as {a?: string}).a).toBeTypeOf('string');
+    }
+  });
+
+  it('present: false omits an optional member the draw would keep, both call shapes', () => {
+    type Opt = {a?: string; pair: [string, number?]};
+    const drop = pathHook({present: () => false});
+    const sample: Opt = {a: 'x', pair: ['x', 1]};
+    for (let seed = 1; seed <= 20; seed++) {
+      const mock = {seed, optionalProbability: 1};
+      for (const value of [
+        createMockDataFn<Opt>(undefined, {mock, hook: drop})(),
+        createMockDataFn(sample, {mock, hook: drop})(),
+      ]) {
+        expect(value.a).toBeUndefined();
+        expect(value.pair[1]).toBeUndefined();
+      }
+    }
+  });
+
+  it('present: undefined draws as usual, and node.runType is the optional member itself', () => {
+    type Opt = {a?: string; b: number; pair: [string, number?]};
+    const kinds: number[] = [];
+    const undecided = pathHook({
+      present: (_cursor, node) => {
+        expect(node.runType.optional).toBe(true);
+        kinds.push(node.runType.kind as number);
+        return undefined;
+      },
+    });
+    for (let seed = 1; seed <= 20; seed++) {
+      const mock = {seed};
+      expect(createMockDataFn<Opt>(undefined, {mock, hook: undecided})()).toEqual(createMockDataFn<Opt>(undefined, {mock})());
+    }
+    expect(new Set(kinds)).toEqual(new Set([RunTypeKind.propertySignature, RunTypeKind.tupleMember]));
+  });
+
+  it('a hook without present leaves a seeded walk over optional members byte-identical', () => {
+    type Opt = {a?: string; b?: {c?: number}; pair: [string, number?]};
+    const hook = pathHook({value: () => undefined});
+    for (let seed = 1; seed <= 20; seed++) {
+      const mock = {seed};
+      expect(JSON.stringify(createMockDataFn<Opt>(undefined, {mock, hook})())).toBe(
+        JSON.stringify(createMockDataFn<Opt>(undefined, {mock})())
+      );
+    }
+  });
+
+  it('a contains draw reaches the hook as an item: array, Map and Set', () => {
+    const seen: string[] = [];
+    const hook = pathHook(
+      {
+        value: (cursor, node) =>
+          at(cursor).endsWith('<item>') && (node.runType.kind as number) === RunTypeKind.literal ? {value: 'hooked'} : undefined,
+      },
+      seen
+    );
+    const list = RT.array(TF.string(), {contains: RT.literal('x'), minContains: 2});
+    expect((createMockDataFn(list, {hook})() as string[]).filter((item) => item === 'hooked')).toHaveLength(2);
+    createMockDataFn(RT.set(TF.string(), {contains: RT.literal('x'), minContains: 1}), {hook})();
+    createMockDataFn(RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('k'), RT.unknown()]})}), {
+      hook,
+    })();
+    expect(seen).toContain('<item>');
+  });
+
+  it('without a hook, a seeded walk over contains rules is unchanged by a hook that returns nothing', () => {
+    const schema = RT.object({
+      list: RT.array(TF.string(), {contains: RT.literal('x'), minContains: 2}),
+      set: RT.set(TF.string(), {contains: RT.literal('y'), minContains: 1}),
+      map: RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('k'), RT.unknown()]})}),
+    });
+    const hook = pathHook({value: () => undefined});
+    for (let seed = 1; seed <= 10; seed++) {
+      expect(createMockDataFn(schema, {mock: {seed}, hook})()).toEqual(createMockDataFn(schema, {mock: {seed}})());
+    }
   });
 
   it('value short-circuits a leaf and a whole object, both call shapes', () => {
@@ -113,6 +209,7 @@ describe('mock hook', () => {
     const hook = pathHook({length: () => 4});
     expect(createMockDataFn(RT.array(TF.number()), {hook})()).toHaveLength(4);
     expect(createMockDataFn<number[]>(undefined, {hook})()).toHaveLength(4);
+    expect(createMockDataFn(RT.array(TF.number()), {hook, mock: {arrayLength: 2}})()).toHaveLength(4);
     expect(createMockDataFn(RT.array(TF.number(), {maxItems: 2}), {hook})()).toHaveLength(2);
   });
 

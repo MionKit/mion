@@ -119,15 +119,6 @@ type Options struct {
 	// NOT a disk-fingerprint input: it forks each entry's fnHash like a per-site option, so distinct defaults key
 	// distinct cache entries on their own.
 	ValidateDefaults ValidateDefaults
-	// Enrichment session config for OpEnrich: spawn-time only, the wire carries just the target Files.
-	// EnrichFriendly / EnrichMock select the families to maintain; both false means both (the CLI default).
-	// EnrichI18n syncs per-locale translation mirrors (scaffold and sync only, never translated content); serve seeds
-	// EnrichLocales / EnrichSourceLocale from the tsconfig plugin i18n block, with the matching flags as overrides.
-	EnrichFriendly     bool
-	EnrichMock         bool
-	EnrichI18n         bool
-	EnrichLocales      []string
-	EnrichSourceLocale string
 	// Ext is per-extension session config, keyed by extension name and filled by its SessionFlags.
 	// Never a typeID, fnHash or disk-fingerprint input: an extension must never change a public answer.
 	Ext map[string]any
@@ -208,8 +199,8 @@ type Session struct {
 	// shared entry kept, and the site that took the short id), read when a later site disagrees to name both ends of
 	// the conflict in format-sample-conflict and marker-type-id-collision.
 	idOrigins map[string]diagnostics.Site
-	// patternGenFailures records, per (pattern source \x00 flags), why the enrichment pass could not generate a pool;
-	// read at emit time by the pattern emitter's format-sample-generation-failed lane, which has the demanding call sites for anchoring.
+	// patternGenFailures: per `source \x00 flags`, why the pattern-sample pass could not generate a pool.
+	// Read at emit time by the format-sample-generation-failed lane, which has the call sites to anchor it.
 	patternGenFailures map[string]formats.PatternGenFailure
 	// overridesBuilt guards the one-time whole-program `overrideX<T>(pureFn)` pass (ensureOverrides), which must run
 	// before any AssignID so every id folds the override suffix; reset on SetProgram / Reset.
@@ -481,8 +472,7 @@ func (sess *Session) Close() {
 
 func (sess *Session) Cache() *runtype.Cache { return sess.cache }
 
-// Checker returns the bound type checker, for the out-of-band enrichment bridge (pkg/enrichment) to resolve a
-// named type declaration before projecting it through the cache; the hot scan/render path uses the field directly.
+// Checker returns the bound type checker for out-of-band CLI verbs; the hot scan/render path uses the field directly.
 func (sess *Session) Checker() *checker.Checker { return sess.checker }
 
 // MarkerOptions returns the session's marker detection options (the accepted marker package set plus the program's

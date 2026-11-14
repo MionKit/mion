@@ -1,12 +1,8 @@
-// build.mjs — ensure the build artifacts the rest of the workspace depends on
-// match the current source. Port of the former scripts/core/build.sh (same job for
-// the Go binary, plus structural checks on the two TS package dists the bench and
-// `pnpm test` load). Behavior is IDENTICAL to the shell version — build-id compare,
-// orphan-.d.ts.map detection, and mtime staleness are ported line-for-line.
+// Ensures the Go binaries and the TS package dists the bench and `pnpm test` load match the current source.
 //
 // Targets (positional):
 //   go            mion-bin/mion matches cmd/ + pkg/ (build-id compare).
-//   extract       mion-bin/extract-fn-bodies (the enrich tests spawn it), same checks as `go`.
+//   extract       mion-bin/extract-fn-bodies (the serialization bench spawns it), same checks as `go`.
 //   linux-go      mion-bin/mion-linux-<arch> matches the host binary —
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
 //                 container to mount a Linux ELF on the host.
@@ -212,7 +208,7 @@ function checkGo({trustStamp = false} = {}) {
 
 // ── extract ─────────────────────────────────────────────────────────────────
 
-// Prebuilt so the enrich tests and the serialization bench need no Go toolchain.
+// Prebuilt so the serialization bench needs no Go toolchain.
 function checkExtract({trustStamp = false} = {}) {
   checkStampedGoBin({bin: EXTRACT_BIN, stamp: EXTRACT_STAMP, pkg: EXTRACT_PKG, digest: extractDigest(), ldflags: '', trustStamp});
 }

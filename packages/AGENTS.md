@@ -44,7 +44,6 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
   Read [its AGENTS.md](devtools/AGENTS.md) first.
   - Transform: rewrites `createX<T>()` call sites, injects the import block.
   - Codegen: per-entry cache modules under `<genDir>/types/`.
-  - Enrich: scaffolds + keeps in sync the FriendlyText + MockData mirror files.
   - Lint: ONE `mion` plugin on the `./eslint` (and `./oxlint`) subpath, four rules, one per level
     (`mion/error`, `mion/runtime-error`, `mion/warning`, `mion/info`), never one per topic.
     Every check lives in the compiler: [src/lint/AGENTS.md](devtools/src/lint/AGENTS.md).

@@ -3,7 +3,7 @@
 Property-based / metamorphic fuzzing for RunTypes. Where the hand-written suites
 under [`test/features/`](../features/) and [`test/suites/`](../suites/) try the
 inputs _we_ thought of, the fuzzers here generate the ones nobody would write:
-random **values**, random **types**, and random **edit sequences** — all driven
+random **values** and random **types** — all driven
 through the real Go resolver → plugin → runtime pipeline, all checked against
 laws (oracles) that must hold for _every_ input rather than a hand-picked
 expected answer.
@@ -24,19 +24,15 @@ old shape, which is the one failure mode a fuzz suite cannot afford (a copied
 `email` leaf once drifted into 7 false soak findings before anyone noticed).
 
 Restating a type is a RARE, documented exception, allowed only where an import
-physically cannot resolve (fixtures written into scratch temp dirs with no
-mion install), and every such exception MUST carry a pin test that
-compares the restated spelling against the shipped type by structural id, so
-drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
-(typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`) and
-`i18nModel.ts`'s inline spellings (pinned by
-`enrich/i18nInlineSpelling.test.ts`), and the `apiids/` lane's `@mionjs/router` and
+physically cannot resolve, and every such exception MUST carry a pin test that
+compares the restated spelling against its source, so drift fails loudly. The
+full list today: the `apiids/` lane's `@mionjs/router` and
 `@mionjs/client` stubs (pinned against their sources by `apiids/routerStubPin.test.ts`,
 since a run-types test cannot import the packages that depend on it). The marker module itself needs no
 stand-in at all: `MARKER_PACKAGE_OVERLAY` (@mionjs/devtools helpers)
 serves the REAL package's package.json + built dist .d.ts tree as virtual
 node_modules, so `@mionjs/run-types` resolves the way a consumer install
-does. Before adding a third restatement, exhaust every way to import the
+does. Before adding another restatement, exhaust every way to import the
 real thing first.
 
 ## Why oracles, not examples
@@ -62,8 +58,7 @@ test/fuzz/
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 ├── security/                    # attack the DECODERS: hostile JSON trees, format pumps (SJ-*, SF-*, GC-*)
-├── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A4)
-└── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
+└── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A4)
 ```
 
 ### Test-file suffixes
@@ -73,12 +68,12 @@ test/fuzz/
 | `*.unit.test.ts`        | `vitest.fuzz-unit.config.ts` **and** the main package config | No — pure TS over hand-built graphs | Pins the fuzz _core_ (RNG, generators, mutators) without the compiler                                                  |
 | `*.integration.test.ts` | main package config                                          | Yes — `.skipIf(!HAS_BIN)`           | Drives the full plugin pipeline; a fixed-iteration batch by default, an unbounded soak when its `*_SOAK_MS` env is set |
 | `*.smoke.test.ts`       | main package config                                          | Yes (compiles types)                | A handful of seed-pinned shapes guarding one specific fix                                                              |
-| `*.test.ts` (plain)     | main package config                                          | Varies                              | Gate / regression-corpus tests (`tsValidateGate`, `bugReprosValidTs`, `enrichRace`)                                    |
+| `*.test.ts` (plain)     | main package config                                          | Varies                              | Gate / regression-corpus tests (`tsValidateGate`, `bugReprosValidTs`)                                                  |
 
 `pnpm test` runs everything that isn't opted out: the `*.unit`, `*.smoke`, and
 the **fixed-iteration** integration batches all run (the root `pretest` builds
-the Go binary first). The unbounded **soak** variants and the concurrency
-**race** test stay dormant until you set their env var.
+the Go binary first). The unbounded **soak** variants stay dormant until you
+set their env var.
 
 ## The shared core (`core/`)
 
@@ -521,57 +516,25 @@ API (`KEEP_n_`) or not (`POISON_n_`, often importing a fake heavy package).
 Each oracle has a negative control in the same file, and a coverage test fails when the generator
 stops writing one of the positions. Replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
 
-### `enrich/` — model-based (stateful) fuzzers
-
-Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
-random commands to a stateful system and re-check invariants after each step,
-maintaining a lightweight in-memory **model** of the expected state. Each
-shrinks a failing sequence to a minimal reproducer and replays by seed. All
-three skip without `mion-bin/mion`, and all drive the CLI through
-`enrichCli.ts` — a **non-throwing** wrapper so the oracles can observe exit
-code / stdout / stderr / JSON findings on both success and failure paths.
-
-- **enrich CLI sync** (`enrichModel.ts`, `enrichFuzzRunner.ts`,
-  `enrichFuzz.integration.test.ts`) — random edits to a source type reconciled
-  into the FriendlyText/MockData mirror via `enrich` / `enrich --update` / `enrich
---prune` / `enrich --no-emit`. Invariants: idempotence, metamorphic change, authored-value
-  preservation, orphan carcasses, prune scope, totality (`R1/R2/R3/R5/R6/R7a/R8/R10`).
-- **i18n sync** (`i18nModel.ts`, `i18nFuzzRunner.ts`,
-  `i18nFuzz.integration.test.ts`) — the source type is canonical; translations
-  are derived with `enrich --i18n`. Invariants include never-copy (mirror text
-  never leaks into a translation), plural-arm ownership, kind stability
-  (`T1–T7/T10`).
-- **type-mod** (`typeModify.ts`, `typeModFuzzRunner.ts`,
-  `typeModFuzz.integration.test.ts`) — a random deep type put through a sequence
-  of valid edits _and_ transient text-level corruptions; checks nothing-authored
-  is ever lost (`NL`), root renames carry labels onto the live const (`RC`), a
-  blank-valued twin reconciles to the same structure (`CB`), plus convergence /
-  totality / parse-safety.
-- **race** (`enrichRace.test.ts`) — fires several concurrent `enrich --update`
-  processes at one fixture to prove the atomic mirror write never tears. **Skips
-  by default**; it self-enables only under `MION_FUZZ_RACE=1` (set by
-  `miondevx core fuzz race`).
-
 ## Running
 
 The `miondevx` front door builds the binary first, then runs the suite:
 
 ```bash
 pnpm miondevx core fuzz <lane…> [--quick|--soak]
-#   lane ∈   unit | value | types | nondata | roundtrip | typedemit | cloning |
-#            secjson | secformat | secgen |
-#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | apitypes | all
+#   lane ∈   unit | value | types | nondata | roundtrip | jsonsize | typedemit | cloning | elision |
+#            secjson | secformat | secgen | sechttp |
+#            sidecar | patterngen | convert | convertcli | apiids | apitypes | drizzletypes | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
 #   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
   binary).
-- `value` / `types` / `cloning` / `enrich` / `i18n` / `typemod` each run one
+- `value` / `types` / `cloning` each run one
   integration file; `--quick` and `--soak` turn up its iteration/duration env.
-- `race` is the only path that sets `MION_FUZZ_RACE=1`.
 - `all` runs EVERY lane at its default budget: the whole `test/fuzz` tree, both
-  sidecar lanes, the race test, and both Go sweeps under `pkg/convert`
+  sidecar lanes, and both Go sweeps under `pkg/convert`
   (including the lane-less schemadoc determinism sweep). It takes no tier flag —
   a quick or soak round is per-lane, so the time-boxed lanes never share CPU.
 - Several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`) pay
@@ -581,8 +544,7 @@ pnpm miondevx core fuzz <lane…> [--quick|--soak]
 `pnpm test` alone already runs every fixed-iteration batch (roundtrip,
 non-data, and the smoke/gate tests included), and `go test ./pkg/...`
 runs the Go-side `convert` sweep. So `miondevx core fuzz` is not what makes a lane
-run — it is the **tier / replay** front door, and `race` is the only lane it
-gates (nothing else sets `MION_FUZZ_RACE=1`).
+run — it is the **tier / replay** front door.
 
 **Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
 the per-PR tier and runs on EVERY PR in
@@ -623,15 +585,9 @@ instructions:
 
 Vitest only surfaces that line when the test fails, which is exactly when it is
 needed. Every violation is ALSO logged with the per-iteration seed that produced
-it. To replay:
-
-- **Stateless fuzzers** (value / roundtrip / type): set the base seed
-  and a short soak so the runner re-derives the same stream, e.g.
-  `MION_FUZZ_SEED=<seed> MION_FUZZ_TYPES_SOAK_MS=5000 pnpm exec vitest run typeFuzz.integration`.
-- **Model-based fuzzers** (enrich / i18n / typemod): use the dedicated replay
-  var, which re-runs that one sequence verbatim and shrinks it to the minimal
-  reproducer — `MION_FUZZ_ENRICH_REPLAY=0x<seed>`, `MION_FUZZ_I18N_REPLAY=0x<seed>`,
-  `MION_FUZZ_TYPEMOD_REPLAY=0x<seed>`.
+it. To replay, set the base seed and a short soak so the runner re-derives the
+same stream, e.g.
+`MION_FUZZ_SEED=<seed> MION_FUZZ_TYPES_SOAK_MS=5000 pnpm exec vitest run typeFuzz.integration`.
 
 Then fix the bug and **pin it**: add the minimal repro to
 [`test/features/`](../features/) (stateless value/codec bugs) or a
@@ -668,21 +624,17 @@ The authoritative list is the `REGISTRY` in
 [`scripts/lib/env.mjs`](../../../../scripts/lib/env.mjs) (`pnpm run check:env`);
 all fuzz knobs are `dev`-scoped with sensible defaults.
 
-| Variable                                                                       | Effect                                                                  |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| `MION_FUZZ_SEED`                                                               | Entry seed for ANY run; unset derives one from the package version      |
-| `MION_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
-| `MION_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
-| `MION_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
-| `MION_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
-| `MION_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
-| `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders (ms)                                       |
-| `MION_FUZZ_SECFORMAT_SOAK_MS`                                                  | security fuzz, format validators + patterns (ms)                        |
-| `MION_FUZZ_SECHTTP_SOAK_MS`                                                    | security fuzz, hostile requests at the mion router + node adapter (ms)  |
-| `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
-| `MION_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
-| `MION_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
-| `MION_FUZZ_RACE` / `_RACE_ITERATIONS` / `_RACE_FANOUT`                         | enable + tune the enrich race test                                      |
+| Variable                      | Effect                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `MION_FUZZ_SEED`              | Entry seed for ANY run; unset derives one from the package version     |
+| `MION_FUZZ_SOAK_MS`           | value fuzz soak duration (ms)                                          |
+| `MION_FUZZ_TYPES_SOAK_MS`     | type fuzz soak duration (ms)                                           |
+| `MION_FUZZ_NONDATA_SOAK_MS`   | non-data type fuzz soak duration (ms)                                  |
+| `MION_FUZZ_CLONE_SOAK_MS`     | clone fuzz soak duration (ms)                                          |
+| `MION_FUZZ_ROUNDTRIP_SOAK_MS` | round-trip fuzz soak duration (ms)                                     |
+| `MION_FUZZ_SECJSON_SOAK_MS`   | security fuzz, JSON decoders (ms)                                      |
+| `MION_FUZZ_SECFORMAT_SOAK_MS` | security fuzz, format validators + patterns (ms)                       |
+| `MION_FUZZ_SECHTTP_SOAK_MS`   | security fuzz, hostile requests at the mion router + node adapter (ms) |
 
 ## Oracle catalog
 
@@ -701,9 +653,6 @@ Grouped by mode.
 | security / JSON           | **SJ-REJECT** ruled-out payloads never get through validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys, on every decoded value and its exact-shape clone, and no encoder writes a prototype-named key onto the wire · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                                                                                                                                                                                                                           |
 | security / formats        | **SF-TOTAL** returns a boolean, never throws · **SF-TIME** one validator call under 250 ms · **SF-PATTERN-TIME** the same per registered pattern regex                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | security / http (router)  | **SH-ALIVE** the router and the process still answer after every attack · **SH-ENVELOPE** a well-formed envelope, a token x-rpc-error header, nothing internal on a thrown error · **SH-NO5XX** malformed input never yields a 5xx · **SH-NOLEAK** no engine text or file path in a response · **SH-TIME** one request inside its budget · **SH-PROTO** Object.prototype untouched                                                                                                                                                                                                                                                                  |
-| enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 </content>
 </invoke>

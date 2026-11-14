@@ -18,7 +18,7 @@ export function registerCatalogEntries(records: readonly CatalogRecord[]): void 
       headline: record.headline,
       ...(record.slots?.length ? {slots: record.slots} : {}),
       level: record.level as DiagnosticEntry['level'],
-      family: record.family as DiagnosticEntry['family'],
+      family: record.family,
       ...(record.completeness ? {completeness: true} : {}),
     });
   }

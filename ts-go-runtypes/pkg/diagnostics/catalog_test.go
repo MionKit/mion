@@ -216,28 +216,13 @@ func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
 	}
 }
 
-// TestIsCompleteness pins the completeness tier: only the unfilled-@todo scaffold
-// codes are completeness, and they are the reason the bit exists as something
-// SEPARATE from the level. They are LevelWarning (a mirror with blank labels
-// still runs), so `enrich --require-complete` and the bundler's production
-// enrichment gate must read this bit, never the level. Flipping the bit, or
-// arming it on a wrong/stale code, breaks the exit-code contract and this test.
+// TestIsCompleteness: the bit is read off the registered definition, never the level.
 func TestIsCompleteness(t *testing.T) {
-	for _, code := range []string{CodeFriendlyTodo, CodeMockTodo, CodeFriendlyBlankValue, CodeMockBlankValue} {
-		if !IsCompleteness(code) {
-			t.Errorf("%s must be a completeness code", code)
-		}
-		if Definitions[code].Level != LevelWarning {
-			t.Errorf("%s is a blank label, not broken output: it must be LevelWarning", code)
-		}
-	}
-	for _, code := range []string{
-		CodeFriendlyUnknownField, CodeFriendlyOrphanConst, CodeFriendlyOrphanField,
-		CodeMockUnknownField, CodeMockOrphanConst, CodeMarkerFunctionCallArg,
-	} {
-		if IsCompleteness(code) {
-			t.Errorf("%s is wrong/stale, not completeness, it must fail every check lane", code)
-		}
+	const code = "internal-test-completeness"
+	Register(Definition{Code: code, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Completeness: true, Headline: "Unfinished.", Summary: "Unfinished."})
+	defer delete(Definitions, code)
+	if !IsCompleteness(code) {
+		t.Errorf("%s sets the bit, so it is a completeness code", code)
 	}
 	if IsCompleteness("internal-test-unregistered") {
 		t.Error("an unregistered code is not a completeness code")
@@ -363,8 +348,6 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeExpectErrorUnused:             LevelWarning, // only a comment is wrong
 		CodeExpectErrorNotSuppressible:    LevelWarning,
 		CodeExpectErrorUnknownCode:        LevelWarning,
-		CodeFriendlyTodo:                  LevelWarning, // blank labels, the app runs
-		CodeFriendlyUnknownField:          LevelWarning, // a dead map entry nothing reads
 		// Up from Warning: the build emits something broken.
 		CodeMarkerUntrustedPackage: LevelRuntimeError, // reflects `unknown`, accepts everything
 		CodeBatchNoRouterInit:      LevelRuntimeError, // the table is written, nothing imports it
@@ -383,7 +366,6 @@ func TestLevelsThatMoved(t *testing.T) {
 		CodeOverrideValidateCrossFamily:  LevelInfo,
 		CodeApiMetaRouteWidenedFetched:   LevelInfo, // the call still works
 		CodeDowngradeErrorAlreadyWarning: LevelInfo,
-		CodeFriendlyPluralNoCount:        LevelInfo,
 		// Staying Warning: the output surprises, it is not the documented drop.
 		CodeRUKFunctionPropDropped:     LevelWarning, // the clone SHARES the value with the original
 		CodeRUKNonSerializablePropDrop: LevelWarning,

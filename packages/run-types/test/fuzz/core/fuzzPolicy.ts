@@ -74,13 +74,6 @@ export function entrySeed(lane: string): number {
  *  still catches the failure mode. **/
 export const SUPPRESSION_CEILING = 0.1;
 
-/** Ceiling on the share of sequences a model-based lane may skip or write off
- *  as an unreproducible flake. The typemod lane only FAILS on a violation its
- *  shrinker can confirm; anything nondeterministic is logged and passes, which
- *  makes a genuinely nondeterministic reconciler bug unreportable. Keep the
- *  filter, but make a rising rate fail instead of accumulating in the log. **/
-export const FLAKE_CEILING = 0.25;
-
 /** Floor on the share of generated types that must reach the STRONG oracles
  *  rather than the robustness probe. The wild lane routes by a deliberately
  *  strict `valueOracleSafe` gate, so a large robustness share is normal and

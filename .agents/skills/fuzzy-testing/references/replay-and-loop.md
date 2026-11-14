@@ -44,7 +44,8 @@ export interface Violation {
 - Raw random failure = huge + noisy. Shrinking to the smallest still-failing input makes it diagnosable.
 - fast-check: free, built in. On failure prints seed, shrunk counterexample, shrink count.
 - By hand, pick one:
-  - smallest-prefix: fewest first-K actions that still fail (the enrich fuzzer uses this).
+  - smallest-prefix: fewest first-K actions that still fail
+    (`prefixShrink` in [seeded-runner.ts](../templates/seeded-runner.ts)).
   - drop-subsets: remove chunks, see if it still fails.
   - simplify-the-value: shrink the input itself.
   - conservative generation: failures already small. RunTypes corrupts exactly ONE position → O2 near-minimal.
@@ -85,6 +86,6 @@ Fill together, then build only what is **missing**:
 
 - Worked, RunTypes value fuzzing: every cell "have", each a real file (`createMockDataFn` / `invalidValue.ts` /
   `seededRng.ts` / return + throw / one-spot corruption / `fuzzRunner.ts`). Why it stood up fast.
-- Enrichment pipeline has gaps (event maker + state model):
-  [enrich-pipeline.md](enrich-pipeline.md#building-the-pieces).
+- Code with memory usually has gaps (event maker + state model): start from
+  [model-based.ts](../templates/model-based.ts).
 - Come in with rules from [rules.md](rules.md), or from [grow-test.md](grow-test.md) if an example test exists.

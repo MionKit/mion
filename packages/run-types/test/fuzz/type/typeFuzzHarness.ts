@@ -47,19 +47,10 @@ export {hasBinary, BIN};
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const FIXTURE = 'g.ts';
 
-// The resolver's serve/ops mode builds its program from the setSources keys
-// alone — a pure virtual filesystem — so a fixture cannot import the shipped
-// sources off disk. This is a WORKAROUND for that, not a mechanism to build
-// on: read the real `src/` tree once and hand it over whole, so fixture
-// imports like `./src/formats/index.ts` resolve to the shipped sources.
-//
-// ⚠️ THE RULE: fixtures always use the real shipped types, imported — never
-// hand-write a stand-in. A hand copy does not fail when the shipped type
-// changes; it silently keeps testing the old shape, which is the one failure
-// mode a fuzz suite cannot afford. The few tolerated, pinned exceptions
-// (fixtures in scratch temp dirs where no import can resolve) are listed in
-// "Real types, never copies" in test/fuzz/README.md. (`src/` imports nothing
-// non-relative, so the graph closes with no further stubs.)
+// Workaround, not a mechanism: serve mode reads only setSources keys, so `src/` is handed over whole for fixture imports.
+// `src/` imports nothing non-relative, so the graph closes with no further stubs.
+// ⚠️ Fixtures import the real shipped types: a hand copy silently keeps testing the old shape.
+// Pinned exceptions: "Real types, never copies" in test/fuzz/README.md.
 const SRC_ROOT = path.resolve(__dirname, '../../../src');
 function readSrcTree(dir: string, prefix: string, into: Record<string, string>): void {
   for (const entry of readdirSync(dir, {withFileTypes: true})) {

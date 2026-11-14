@@ -3,7 +3,7 @@
 // Keys come from each format's own validation-errors code, run over the samples in
 // ts-go-runtypes/pkg/cachegen/typefunctions/formats/errorkeys_samples.go.
 
-// Every `rt$errors` key a format's validation errors can carry, per format name.
+// Every key a format's validation errors can carry, per format name.
 export type FormatErrorKeys = {
   bigintFormat: 'gt' | 'lt' | 'max' | 'min' | 'multipleOf';
   creditCard: 'creditCard' | 'networks';
