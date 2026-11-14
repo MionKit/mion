@@ -30,7 +30,7 @@
 //                  dispatch the website deploy (for a run whose approvals
 //                  succeeded but whose deploy step didn't fire).
 //   --reuse-benchmarks  ship the green pre-merge dry run's numbers, no re-run; the
-//                  workflow fails unless that run built the same tree. Works with --deploy-only.
+//                  workflow fails unless they were measured on the same tree. Works with --deploy-only.
 
 import {readFileSync, readdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -202,7 +202,7 @@ function dispatchWebsiteDeploy(version, reuseBenchmarks) {
     return;
   }
   note(`dispatching the website deploy (website-deploy.yml @ prod${reuseBenchmarks ? ', reusing the dry run benchmarks' : ''})...`);
-  const code = run('gh', websiteDeployDispatchArgs(version, {reuseBenchmarks}));
+  const code = run('gh', websiteDeployDispatchArgs(version, reuseBenchmarks));
   if (code !== 0) {
     warn(`DEPLOY NOT TRIGGERED — 'gh workflow run' exited with code ${code}.`);
     note('Dispatch by hand: Actions -> "prod · deploy website" -> Run workflow, on the prod ref.');
@@ -281,7 +281,7 @@ async function main(argv) {
   console.log('');
   success(`Approved ${ordered.length} package(s) for ${version}.`);
 
-  if (noDeploy) return void note('--no-deploy: skipping the website deploy. Dispatch later with: pnpm miondevx release stage-approve --deploy-only');
+  if (noDeploy) return void note(`--no-deploy: skipping the website deploy. Dispatch later with: pnpm miondevx release stage-approve --deploy-only${reuseBenchmarks ? ' --reuse-benchmarks' : ''}`);
   await deployAfterLive(version, reuseBenchmarks);
 }
 

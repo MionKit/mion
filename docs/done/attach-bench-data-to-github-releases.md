@@ -108,8 +108,12 @@ this change touched, review its report against the code, and commit it as its ow
 Executed 2026-11-14 on branch `chore/attach-bench-data-to-releases`. The plan held; details that came out
 differently:
 
-- The source run's SHA comes from the artifact listing itself (`workflow_run.head_sha`), no second API call.
-  The step then `git fetch --depth=1 origin <sha>` and compares `^{tree}`, only when `GITHUB_REF_NAME` is `prod`.
+- The tree check reads `bench-data/tree`, written by every full-bench run and carried along by reuse runs,
+  so it proves the numbers were MEASURED on the prod tree (a run's own SHA only proves it built it). Only when
+  `GITHUB_REF_NAME` is `prod`; no git fetch.
+- The upload is its own job, `attach-bench-data`: prod only (main carries unreleased code under the same
+  version), the only job with `contents: write`, `persist-credentials: false`, and it still runs when the
+  report-only engine check fails, as long as the site deployed. Pinned in `website-deploy-contracts.test.ts`.
 - `stage-approve.mjs` runs `main()` at import, so the dispatch args live in a pure helper,
   `scripts/lib/website-deploy.mjs` (`websiteDeployDispatchArgs`), tested by
   `packages/devtools/test/website-deploy-dispatch.test.ts`. The flag also got a `devx-registry.mjs` help row,
