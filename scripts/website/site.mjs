@@ -28,7 +28,7 @@ import {capture, die, note, reportCliError, run, sleep, warn} from '../lib/proc.
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 // Source directories bind-mounted into /app (host is the source of truth).
 // `content/` is the one content tree, `sites/` holds the per-subsite colour schemes.
-const MOUNT_DIRS = ['app', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
+const MOUNT_DIRS = ['app', 'site-layers', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
 // Config files bind-mounted into /app (first-party, NOT baked into the image).
 const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
 // Third-party packages the twoslash VFS mounts so example imports type-resolve.
@@ -153,7 +153,7 @@ function cmdDev(cfg, args) {
   // behind and the next run collides. Remove any stale one first (user container only).
   rmContainer(cfg, `${cfg.containerBase}-dev`);
   note(`dev server at http://localhost:${cfg.port}  (Ctrl-C to stop)`);
-  const code = run(cfg.engine, ['run', '--rm', '-it', '--init', '--name', `${cfg.containerBase}-dev`, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--extends', 'docus', '--host', '0.0.0.0', '--port', '3000']);
+  const code = run(cfg.engine, ['run', '--rm', '-it', '--init', '--name', `${cfg.containerBase}-dev`, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--host', '0.0.0.0', '--port', '3000']);
   if (code !== 0) die('', code);
 }
 
@@ -163,7 +163,7 @@ function cmdDev(cfg, args) {
 const AGENT_WATCHDOG = `
       hb="$MION_AGENT_HEARTBEAT"; idle="\${MION_AGENT_IDLE_SECONDS:-300}"
       touch "$hb"
-      pnpm exec nuxt dev --extends docus --host 0.0.0.0 --port 3000 &
+      pnpm exec nuxt dev --host 0.0.0.0 --port 3000 &
       nuxt_pid=$!
       while kill -0 "$nuxt_pid" 2>/dev/null; do
         sleep 30
@@ -196,11 +196,11 @@ function cmdDevAgent(cfg, margs, pargs, nargs, eargs) {
 // The standard Nuxt `postinstall: nuxt prepare` never runs here (deps are baked into
 // the image, first-party config is bind-mounted at run time); locally it's masked
 // because the persistent .nuxt named volume was populated by an earlier `nuxt dev`.
-const PREPARE = 'pnpm exec nuxt prepare --extends docus';
+const PREPARE = 'pnpm exec nuxt prepare';
 
-const BUILD_SCRIPT = `${PREPARE} && pnpm exec nuxt build --extends docus`;
+const BUILD_SCRIPT = `${PREPARE} && pnpm exec nuxt build`;
 const GENERATE_SCRIPT = `${PREPARE} \\
-      && pnpm exec nuxt generate --extends docus \\
+      && pnpm exec nuxt generate \\
       && node scripts/embed-panel-highlights.mjs /app/.output/public`;
 
 // Build/generate into the container's OWN /app/.output, then `podman cp` it to the
@@ -298,7 +298,7 @@ async function cmdSmoke(cfg) {
   const pargs = pollArgs(cfg);
   const nargs = netArgs(cfg);
   const eargs = envArgs(cfg);
-  if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--extends', 'docus', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
+  if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
   const cleanup = withCleanup(cfg, cname);
 
   note(`smoke: probing / inside the container for HTTP 200 (timeout ${timeoutS}s; host port ${cfg.port} stays published)`);
@@ -384,7 +384,7 @@ async function cmdVerifyDocs(cfg) {
   const pargs = pollArgs(cfg);
   const nargs = netArgs(cfg);
   const eargs = envArgs(cfg);
-  if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--extends', 'docus', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
+  if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
   const cleanup = withCleanup(cfg, cname);
 
   note(`verify-docs: waiting for the dev server (in-container probe, timeout ${timeoutS}s)`);
