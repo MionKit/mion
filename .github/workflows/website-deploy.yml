@@ -4,8 +4,10 @@ name: prod · deploy website
 # and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
 # from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
 # `dry_run` runs the whole build on either ref before anything is live and ships nothing.
-# `reuse_benchmarks` is for docs-only deploys: it ships the last deploy's benchmark data instead of
-# re-running every benchmark (an hour of the run). Leave it off after a release.
+# `reuse_benchmarks` ships the last deploy's benchmark data instead of re-running every benchmark (an hour
+# of the run). From `main`: docs-only deploys. From `prod` (`stage-approve --reuse-benchmarks`): ships the
+# release's green dry run, and fails unless that run built the same tree.
+# A real deploy attaches bench-data/ to the version's GitHub Release, once: the release-day numbers stay.
 on:
   workflow_dispatch:
     inputs:
@@ -19,7 +21,7 @@ on:
         type: boolean
         default: false
       reuse_benchmarks:
-        description: "Docs-only deploy: reuse the last deploy's benchmark data, skip running the benchmarks"
+        description: "Reuse the last deploy's benchmark data, skip running the benchmarks (from prod: same tree only)"
         required: false
         type: boolean
         default: false
@@ -49,7 +51,8 @@ jobs:
     environment: production
     # contents:read (checkout) + packages:read (pull the prebuilt shared image).
     permissions:
-      contents: read
+      # write: a real deploy uploads bench-data/ to the version's GitHub Release.
+      contents: write
       packages: read
       # reuse_benchmarks reads the last deploy's artifact.
       actions: read
@@ -88,17 +91,29 @@ jobs:
       # reuse_benchmarks, also first and cheap: every deploy (dry runs too) uploads the built site as
       # `website-output-deploy`, bench-data/ included. Take the newest unexpired one, and fail here
       # rather than ship empty benchmark pages when none is left.
+      # From prod it must be the release's dry run: same tree (the prod merge commit's SHA differs from the
+      # main commit the dry run built, its tree does not). From main, older numbers are reused on purpose.
       - name: Find the last deploy's benchmark data (reuse_benchmarks)
         id: last-bench
         if: ${{ inputs.reuse_benchmarks }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=website-output-deploy&per_page=50" \
-            --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+          source_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=website-output-deploy&per_page=50" \
+            --jq '([.artifacts[] | select(.expired | not)][0].workflow_run // empty) | "\(.id) \(.head_sha)"')
+          run_id=${source_run% *}
+          head_sha=${source_run#* }
           if [ -z "$run_id" ]; then
             echo "::error::reuse_benchmarks: no unexpired website-output-deploy artifact left; run a full deploy instead."
             exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" = prod ]; then
+            # Shallow checkout: fetch the source run's commit to read its tree.
+            git fetch --no-tags --depth=1 origin "$head_sha"
+            if [ "$(git rev-parse "$head_sha^{tree}")" != "$(git rev-parse 'HEAD^{tree}')" ]; then
+              echo "::error::reuse_benchmarks: run $run_id built $head_sha, a different tree from this prod commit; run a full deploy, or a dry run of this tree first."
+              exit 1
+            fi
           fi
           echo "Reusing the benchmark data of run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id"
           echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
@@ -174,6 +189,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm dlx wrangler@4.134.0 pages deploy container/website/.output/public --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=prod
+      # Keeps the published numbers past artifact retention. Before the engine check, so its failure never skips this.
+      # First upload wins, never --clobber: a later docs-only redeploy of the same version keeps the release-day numbers.
+      - name: Attach the benchmark data to the GitHub Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r .version version.json)
+          asset="bench-data-$version.tar.gz"
+          # verify-live proved the version is live, so publish.yml made its release: a missing one is a real error.
+          if ! assets=$(gh release view "v$version" --json assets --jq '.assets[].name'); then
+            echo "::error::GitHub Release v$version not found; cannot attach $asset."
+            exit 1
+          fi
+          if grep -qxF "$asset" <<<"$assets"; then
+            echo "::notice::v$version already has $asset; keeping the release-day numbers."
+            exit 0
+          fi
+          tar czf "$RUNNER_TEMP/$asset" -C container/website/.output/public bench-data
+          gh release upload "v$version" "$RUNNER_TEMP/$asset"
       # Read-only stand-in for the deploy: listing the project's deployments fails
       # unless the token, the account id and the project name all line up.
       - name: Check the Cloudflare credentials reach the Pages project (dry run)

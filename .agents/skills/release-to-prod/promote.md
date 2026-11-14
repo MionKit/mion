@@ -88,6 +88,8 @@ Apply the clean/red rule from [Roles](SKILL.md#when-you-merge-and-when-you-ask):
      `version.json` differs from prod's): asks the 2FA OTP once (reused while its ~30s window lasts,
      re-prompted on expiry), approves leaves-first, waits for npm to serve the new version,
      then **auto-dispatches the website deploy** (`--no-deploy` skips; `--deploy-only` re-fires a skipped/failed one).
+     Phase 2 website dry run green → add `--reuse-benchmarks`: the deploy ships its numbers, skips the hour of
+     benchmarks, fails unless the dry run built the same tree. The deploy attaches them to the GitHub Release.
   2. After the approvals, the agent dispatches `post-publish.yml` (manual only, nothing else starts it):
      `gh workflow run post-publish.yml --ref prod -f version=X.Y.Z`, and watches it and the deploy to green.
   3. Only if step 1 reported `DEPLOY NOT TRIGGERED`: **Actions → "prod · deploy website" → Run workflow**

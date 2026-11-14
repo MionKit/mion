@@ -351,6 +351,7 @@ export const AREAS = {
           ['--dry-run', 'print what would be approved'],
           ['--no-deploy', 'skip the site deploy dispatch'],
           ['--deploy-only', 'only dispatch the site deploy'],
+          ['--reuse-benchmarks', "have the site deploy reuse the dry run's benchmarks (same tree only)"],
         ],
         ...noBuild,
       },
