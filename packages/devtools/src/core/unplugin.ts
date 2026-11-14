@@ -217,7 +217,10 @@ export interface MionExtension {
 /** What an extension hook works with: the plugin's resolver process and its reporting policy. **/
 export interface MionExtensionContext {
   resolver: ResolverConnection;
+  /** The dev-server verdict: 'serve' only on a dev server, so a Vitest run reads 'build'. **/
   command: 'serve' | 'build';
+  /** The host bundler's own command (Vite's `configResolved` one); 'build' for a host that has none. **/
+  bundlerCommand: 'serve' | 'build';
   cwd: string;
   genDir: string;
   warn(message: string): void;
@@ -314,6 +317,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return {
       resolver: resolver!,
       command: isDevServer() ? 'serve' : 'build',
+      bundlerCommand: viteCommand === 'serve' ? 'serve' : 'build',
       cwd,
       genDir: genDirAbs,
       warn: (message) => hostWarn(ctx, message),

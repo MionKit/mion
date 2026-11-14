@@ -242,7 +242,10 @@ describe('MionExtension hooks', () => {
     buildStart?: (this: unknown) => Promise<void>;
     buildEnd?: (this: unknown) => void;
     rtHotUpdate?: (ctx: unknown, updates: {file: string; content?: string}[]) => Promise<void>;
-    vite?: {handleHotUpdate?: (this: unknown, ctx: unknown) => Promise<unknown>};
+    vite?: {
+      handleHotUpdate?: (this: unknown, ctx: unknown) => Promise<unknown>;
+      configResolved?: (this: unknown, cfg: {root: string; command?: string; mode?: string}) => void;
+    };
   };
 
   function rawPlugin(root: string, extensions: MionExtension[], downgradeErrors?: string[] | '*'): RawPlugin {
@@ -291,6 +294,8 @@ describe('MionExtension hooks', () => {
         await plugin.buildStart?.call(ctx);
         expect(calls).toEqual(['serveArgs', 'buildStart:true']);
         expect(buildContext?.command).toBe('build');
+        // No host command (no configResolved): the bundler counts as a build.
+        expect(buildContext?.bundlerCommand).toBe('build');
         expect(buildContext?.downgradeListed('validate-symbol-root')).toBe(true);
         expect(buildContext?.downgradeListed('validate-function-root')).toBe(false);
         expect(buildContext?.catalogEntry('validate-symbol-root')?.level).toBe('runtimeError');
@@ -340,6 +345,32 @@ describe('MionExtension hooks', () => {
       } finally {
         wildcard.buildEnd?.call(ctx);
       }
+    },
+    120_000
+  );
+
+  // Vitest runs Vite's serve command in test mode: a serving bundler that is not a dev server.
+  register(
+    'bundlerCommand is the host command, command the dev-server verdict',
+    async () => {
+      const root = tempDir('rt-ext-command-');
+      writeProject(root);
+      const seen: Record<string, MionExtensionContext> = {};
+      const ctx = {warn: () => undefined, error: (message: unknown) => void message};
+      for (const [label, mode] of [
+        ['test', 'test'],
+        ['dev', 'development'],
+      ] as const) {
+        const plugin = rawPlugin(root, [{name: 'probe', buildStart: (hookCtx) => void (seen[label] = hookCtx)}]);
+        plugin.vite?.configResolved?.call(plugin, {root, command: 'serve', mode});
+        try {
+          await plugin.buildStart?.call(ctx);
+        } finally {
+          plugin.buildEnd?.call(ctx);
+        }
+      }
+      expect(seen.test).toMatchObject({command: 'build', bundlerCommand: 'serve'});
+      expect(seen.dev).toMatchObject({command: 'serve', bundlerCommand: 'serve'});
     },
     120_000
   );
