@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-11-14
 ---
 
@@ -102,3 +102,20 @@ this change touched, review its report against the code, and commit it as its ow
 - `pnpm run lint` and `pnpm run format` clean.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## What shipped
+
+Executed 2026-11-14 on branch `chore/attach-bench-data-to-releases`. The plan held; details that came out
+differently:
+
+- The source run's SHA comes from the artifact listing itself (`workflow_run.head_sha`), no second API call.
+  The step then `git fetch --depth=1 origin <sha>` and compares `^{tree}`, only when `GITHUB_REF_NAME` is `prod`.
+- `stage-approve.mjs` runs `main()` at import, so the dispatch args live in a pure helper,
+  `scripts/lib/website-deploy.mjs` (`websiteDeployDispatchArgs`), tested by
+  `packages/devtools/test/website-deploy-dispatch.test.ts`. The flag also got a `devx-registry.mjs` help row,
+  and the `--deploy-only` retry hint keeps `--reuse-benchmarks` when it was set.
+- The repo has no actionlint; the two workflow steps were run locally against a stubbed `gh` and a local git
+  origin (upload, skip-if-present, missing release; same tree, other tree from prod, other tree from main,
+  no artifact).
+- SETUP.md also got a short "Benchmark data on the GitHub Release" paragraph and a `--reuse-benchmarks` line in
+  the stage-approve command list.
