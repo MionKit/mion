@@ -29,10 +29,8 @@
 //   --deploy-only  skip approvals; wait for the version to be live on npm and
 //                  dispatch the website deploy (for a run whose approvals
 //                  succeeded but whose deploy step didn't fire).
-//   --reuse-benchmarks  dispatch the deploy with reuse_benchmarks=true: it ships
-//                  the green pre-merge dry run's numbers instead of re-running
-//                  every benchmark (the workflow fails unless that run built
-//                  the same tree). Works with --deploy-only too.
+//   --reuse-benchmarks  ship the green pre-merge dry run's numbers, no re-run; the
+//                  workflow fails unless that run built the same tree. Works with --deploy-only.
 
 import {readFileSync, readdirSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -196,8 +194,7 @@ async function waitUntilLive(version) {
   return false;
 }
 
-// Dispatch website-deploy.yml against prod. Failure is loud but non-fatal: the
-// approvals (this command's actual job) already succeeded.
+// Failure is loud but non-fatal: the approvals, this command's actual job, already succeeded.
 function dispatchWebsiteDeploy(version, reuseBenchmarks) {
   if (capture('gh', ['--version']).status !== 0) {
     warn('DEPLOY NOT TRIGGERED — the gh CLI is not available.');

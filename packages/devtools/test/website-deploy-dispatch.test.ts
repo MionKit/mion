@@ -1,4 +1,4 @@
-// stage-approve's website deploy dispatch. Lives here, like release-receipt.test.ts, because scripts/ has no vitest project.
+// Lives here, like release-receipt.test.ts, because scripts/ has no vitest project.
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error untyped .mjs
 import {websiteDeployDispatchArgs} from '../../../scripts/lib/website-deploy.mjs';

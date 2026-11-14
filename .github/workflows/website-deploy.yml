@@ -4,9 +4,8 @@ name: prod · deploy website
 # and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
 # from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
 # `dry_run` runs the whole build on either ref before anything is live and ships nothing.
-# `reuse_benchmarks` ships the last deploy's benchmark data instead of re-running every benchmark (an hour
-# of the run). From `main`: docs-only deploys. From `prod` (`stage-approve --reuse-benchmarks`): ships the
-# release's green dry run, and fails unless that run built the same tree.
+# `reuse_benchmarks` ships the last deploy's benchmark data, skipping an hour of benchmarks. From `main`: docs-only
+# deploys. From `prod` (`stage-approve --reuse-benchmarks`): the release's dry run, same tree only.
 # A real deploy attaches bench-data/ to the version's GitHub Release, once: the release-day numbers stay.
 on:
   workflow_dispatch:
@@ -49,7 +48,7 @@ jobs:
     # multi-arch image (linux/amd64,linux/arm64), so it runs natively on arm64.
     runs-on: linux-arm64
     environment: production
-    # contents:read (checkout) + packages:read (pull the prebuilt shared image).
+    # contents covers the checkout too; packages:read pulls the prebuilt shared image.
     permissions:
       # write: a real deploy uploads bench-data/ to the version's GitHub Release.
       contents: write
@@ -91,8 +90,8 @@ jobs:
       # reuse_benchmarks, also first and cheap: every deploy (dry runs too) uploads the built site as
       # `website-output-deploy`, bench-data/ included. Take the newest unexpired one, and fail here
       # rather than ship empty benchmark pages when none is left.
-      # From prod it must be the release's dry run: same tree (the prod merge commit's SHA differs from the
-      # main commit the dry run built, its tree does not). From main, older numbers are reused on purpose.
+      # From prod, match trees not SHAs: the prod merge commit is not the main commit the dry run built.
+      # From main, older numbers are reused on purpose.
       - name: Find the last deploy's benchmark data (reuse_benchmarks)
         id: last-bench
         if: ${{ inputs.reuse_benchmarks }}
@@ -190,7 +189,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm dlx wrangler@4.134.0 pages deploy container/website/.output/public --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=prod
       # Keeps the published numbers past artifact retention. Before the engine check, so its failure never skips this.
-      # First upload wins, never --clobber: a later docs-only redeploy of the same version keeps the release-day numbers.
+      # Never --clobber: a later docs-only redeploy of the same version keeps the release-day numbers.
       - name: Attach the benchmark data to the GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
