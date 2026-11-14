@@ -177,8 +177,8 @@ export interface DiagnosticEntry {
    *  (\`runtimeError\`: yes). Read by the config validators, which refuse to
    *  downgrade an \`error\`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
-  /** Which part of the compiler raises the code. */
-  readonly family: 'purefn' | 'marker' | 'runtype' | 'mionroute' | 'drizzle';
+  /** Which part of the compiler raises the code; an extension's own family arrives as any other string. */
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'mionroute' | 'drizzle' | (string & {});
   /** Marks unfinished content: a warning by level, and the bit a completeness gate promotes. */
   readonly completeness?: boolean;
 }
