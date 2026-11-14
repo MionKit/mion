@@ -151,23 +151,27 @@ Removes the "change both ends" pair.
 
 ### Site scripts
 
-- `scripts/website/site.mjs`: new inputs, flag or env, mion defaults.
+- `scripts/website/site.mjs`: inputs are env vars only, no flags. ONE var is enough for another repo; the rest derive.
 
-  | Flag | Env | Default |
-  |---|---|---|
-  | `--site <dir>` | `MION_WEBSITE_SITE` | `<mion>/container/website` |
-  | `--repo <dir>` | `MION_WEBSITE_REPO_CONTEXT` (exists) | mion repo |
-  | `--layers <dir>` | `MION_WEBSITE_LAYERS_DIR` | `<mion>/container/website/site-layers` |
-  | `--name <base>` | `MION_WEBSITE_CONTAINER` (exists) | `tsrt-website` |
-  | `--bench-data <dir>` | `MION_WEBSITE_BENCH_DATA` | none |
+  | Env | Default |
+  |---|---|
+  | `MION_WEBSITE_SITE` | `<mion>/container/website`. A relative value resolves from the working directory. |
+  | `MION_WEBSITE_REPO_CONTEXT` (exists) | the git root of the site folder |
+  | `MION_WEBSITE_CONTAINER` (exists) | `tsrt-website` for mion's site, else `<repo folder name>-website` |
+  | `MION_WEBSITE_LAYERS_DIR` | `<mion>/container/website/site-layers` (mion = the checkout the script lives in) |
+  | `MION_WEBSITE_BENCH_DATA` | none |
+
+- Another repo runs `MION_WEBSITE_SITE=website node third_party/mion/scripts/website/site.mjs generate`, usually
+  from a `package.json` script. `loadEnv` keeps reading mion's `.env` only; a consumer sets vars in its own script.
+- "Is this mion's own site" = the resolved site folder equals `<mion>/container/website`. Never a separate switch.
 
 - Mounts: site dirs + config files (add `examples.config.json`) at `/app`; layers at `/app/site-layers` (read-only
   when the site is not mion's); each `readRoots` entry, each importable doc, each `externalDeps` dir under
-  `/repo-context`; `--bench-data` at `/bench-data` read-only.
+  `/repo-context`; the `MION_WEBSITE_BENCH_DATA` folder at `/bench-data` read-only.
 - Container env: `MION_WEBSITE_LAYERS=/app/site-layers`, `MION_WEBSITE_BENCH_DATA=/bench-data` when set. Parts' module
   adds `nitro.publicAssets {dir, baseURL: '/bench-data'}` when the env is set. Register new vars in
   `.agents/docs/env-vars.md` + the env registry.
-- `.docdata`, `.output`, `.output-staging` resolve under `--repo` / `--site`, never the mion checkout.
+- `.docdata`, `.output`, `.output-staging` resolve under the repo context / site folder, never the mion checkout.
 - `ensureMionDists` + `ensurePlayground` run only for mion's own site. `homeTwoslashPaths` + `cmdVerifyDocs` read
   `exampleDirs` instead of the `private-examples` literal.
 - Drop every `--extends docus` (also `_deps/package.json` scripts).
@@ -219,7 +223,8 @@ Removes the "change both ends" pair.
   - no layer `nuxt.config.ts` sets `site`, `nitro.prerender` or a routed page; only playground sets `vite.resolve.alias`;
   - mion's `extends` ends with shell; every layer has `$meta.name` and an `app/` folder;
   - `examples.config.json` `externalDeps` + `packages` are the only source (no literal list left in server or scripts);
-  - `site.mjs` resolves every output path under `--site` / `--repo`.
+  - `site.mjs` resolves every output path under the site folder / repo context, and derives repo context + container name
+    from `MION_WEBSITE_SITE` alone.
 - Unit test the pure helpers: `resolveInRoots` (traversal, absolute path, sibling-prefix root), section resolving
   (own entry → local, other → full link, longest path wins).
 - No marker API involved.
@@ -233,7 +238,7 @@ Removes the "change both ends" pair.
   exact site-script inputs, the one-install rule (new website package → mion `_deps/` + image rebuild), and the Vite
   alias a live demo needs to run a consumer package in the browser.
 - Opt-in text: playground = add the layer + run `container/website/scripts/build-playground.mjs` (needs Go + a
-  bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `--bench-data <dir>` holding a
+  bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `MION_WEBSITE_BENCH_DATA=<dir>` holding a
   `bench-data` tree (from a benchmark run or a release asset).
 - Also: `docs/WEBSITE-DOCGEN.md`, `SETUP.md:211-221`, `.agents/docs/env-vars.md`, `.agents/skills/card/commands.md`,
   `tools/code-card/README.md`, `container/benchmarks/README.md:377`, `go-generated/README.md`, `scripts/AGENTS.md` if
