@@ -26,7 +26,8 @@ browser starts, naming the component.
 
 ## The website export
 
-- `container/website/app/data/cards/<name>.html` + `manifest.json`: the card and the hash of everything it was
+- All under `container/website/site-layers/parts/`.
+- `app/data/cards/<name>.html` + `manifest.json`: the card and the hash of everything it was
   built from. `pnpm run check:tree` fails when a source changed without a new export.
 - `app/assets/css/code-card.css`, `app/utils/codeCardPlayer.ts`, `public/fonts/code-card/`: shared by all cards.
 - Never edit these by hand: change the card or the components, export again.

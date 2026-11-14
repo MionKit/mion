@@ -145,7 +145,7 @@ packages/*/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
 # resolver) + the mion source overlay, produced by
 # container/website/scripts/build-playground.sh. Large + reproducible; the browser
-# copies are staged into container/website/public/playground-app/ (also ignored).
+# copies are staged into container/website/site-layers/playground/public/playground-app/ (also ignored).
 /.cache/rt-wasm/
 /.cache/release-bin/
 # drizzle's own integration suites, fetched on demand and sha256-verified against

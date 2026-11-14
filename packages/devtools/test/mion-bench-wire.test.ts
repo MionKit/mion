@@ -15,7 +15,7 @@ import {APPS} from '../../../container/mion-bench/shared/apps.mjs';
 // @ts-expect-error untyped .mjs
 import {toRow} from '../../../scripts/website/bench-data/gen-servers-docs.mjs';
 // @ts-expect-error untyped .js (the site's tsconfig only exists in its image)
-import {changeVsBase, formatChange, visibleRows} from '../../../container/website/app/utils/serverBenchRows.js';
+import {changeVsBase, formatChange, visibleRows} from '../../../container/website/site-layers/parts/app/utils/serverBenchRows.js';
 
 const ID = 4815162342108;
 const user = {...buildUser(), id: ID};

@@ -48,7 +48,7 @@ logs
 # Playground bundle (Monaco web component + resolver WASM) - built on the host by
 # scripts/build-playground.sh and served from public/. Large + reproducible;
 # never committed.
-/public/playground-app/
+/site-layers/playground/public/playground-app/
 
 # Generated docs data — benchmark result JSON the tables fetch at runtime.
 # Produced locally by `pnpm miondevx bench --website` (Go binary + benchmark harness);
@@ -58,4 +58,4 @@ logs
 
 # Host-vendored mion runtime source for the playground (build-playground.sh);
 # in-project so Vite dev can serve it. Reproducible, never committed.
-/app/playground/.vendor/
+/site-layers/playground/app/playground/.vendor/

@@ -1,0 +1,317 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+/* ONE `brand` palette for the whole site, filled per subsite. This @theme block is
+   the only one, and it holds no colour of its own: every shade is a reference to a
+   `--site-brand-N` token that each subsite's theme.css (sites/<id>/theme.css) sets
+   under its `[data-site='<id>']` selector. It sits in THIS import graph on purpose:
+   Tailwind v4 compiles one root, and a @theme block only feeds the brand-*
+   utilities when it is imported from that root. `static` is load-bearing: Nuxt UI
+   references the shades only through runtime var() strings, so without it
+   Tailwind prunes the unused palette. Nothing in the shared app/ tree may name a
+   site colour directly; it consumes these tokens. */
+@theme static {
+  --color-brand-50: var(--site-brand-50);
+  --color-brand-100: var(--site-brand-100);
+  --color-brand-200: var(--site-brand-200);
+  --color-brand-300: var(--site-brand-300);
+  --color-brand-400: var(--site-brand-400);
+  --color-brand-500: var(--site-brand-500);
+  --color-brand-600: var(--site-brand-600);
+  --color-brand-700: var(--site-brand-700);
+  --color-brand-800: var(--site-brand-800);
+  --color-brand-900: var(--site-brand-900);
+  --color-brand-950: var(--site-brand-950);
+}
+@import '../../../sites/rpc/theme.css';
+@import '../../../sites/runtypes/theme.css';
+@import '../../../sites/benchmarks/theme.css';
+@import '../../../sites/pro/theme.css';
+
+/* token layer: app/'s only raw colours are custom properties in this file's :root blocks (theme contracts test) */
+:root {
+  width: 100%;
+  overflow-x: hidden;
+  /* every Nuxt UI radius scales from this one value */
+  --ui-radius: 0.375rem;
+  /* code blocks (Nuxt UI rounded-md) and benchmark cards share this corner */
+  --mion-panel-radius: calc(var(--ui-radius) * 1.5);
+  /* the mion logo mark keeps its own colour on every subsite: it is the brand, not a subsite token */
+  --mion-logo-accent: #79af43;
+  /* TypeScript's brand blue: the tsgo badge mark */
+  --mion-ts-blue: #3178c6;
+  --mion-black: #000;
+  /* mermaid renders in its dark theme on both modes and wants literal colours (global/mermaid.vue reads these) */
+  --mion-diagram-text: #fff;
+  --mion-diagram-line: #a1a1aa;
+  --mion-diagram-secondary: #27272a;
+  --mion-diagram-tertiary: #18181b;
+}
+
+/* Where a `data-site` attribute sits, the subsite's colours apply. On <html>
+   (plugins/site-attr.ts) the @theme references above already resolve to that
+   subsite's tokens. On a BLOCK (an intro block on the root landing page carrying
+   another subsite's colours) the custom properties Tailwind and Nuxt UI declare on
+   :root have already resolved against the root's tokens, so this bridge re-derives
+   them on the element that carries the attribute. */
+[data-site] {
+  --color-brand-50: var(--site-brand-50);
+  --color-brand-100: var(--site-brand-100);
+  --color-brand-200: var(--site-brand-200);
+  --color-brand-300: var(--site-brand-300);
+  --color-brand-400: var(--site-brand-400);
+  --color-brand-500: var(--site-brand-500);
+  --color-brand-600: var(--site-brand-600);
+  --color-brand-700: var(--site-brand-700);
+  --color-brand-800: var(--site-brand-800);
+  --color-brand-900: var(--site-brand-900);
+  --color-brand-950: var(--site-brand-950);
+  --ui-color-primary-50: var(--color-brand-50);
+  --ui-color-primary-100: var(--color-brand-100);
+  --ui-color-primary-200: var(--color-brand-200);
+  --ui-color-primary-300: var(--color-brand-300);
+  --ui-color-primary-400: var(--color-brand-400);
+  --ui-color-primary-500: var(--color-brand-500);
+  --ui-color-primary-600: var(--color-brand-600);
+  --ui-color-primary-700: var(--color-brand-700);
+  --ui-color-primary-800: var(--color-brand-800);
+  --ui-color-primary-900: var(--color-brand-900);
+  --ui-color-primary-950: var(--color-brand-950);
+  --ui-primary: var(--ui-color-primary-500);
+  /* the animated title gradient, composed once from the subsite's three stops */
+  --site-title-gradient: linear-gradient(
+    90deg,
+    var(--site-gradient-from) 0%,
+    color-mix(in srgb, var(--site-gradient-from) 55%, var(--site-gradient-mix)) 25%,
+    var(--site-gradient-to) 50%,
+    color-mix(in srgb, var(--site-gradient-from) 55%, var(--site-gradient-mix)) 75%,
+    var(--site-gradient-from) 100%
+  );
+}
+
+.dark [data-site],
+[data-site].dark {
+  --ui-primary: var(--ui-color-primary-400);
+}
+
+:root.dark {
+  --elements-text-secondary-color-static: var(--color-gray-300);
+  /* the one surface of code blocks and benchmark cards: a faint lift off the page */
+  --mion-panel-bg: color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg));
+  /* code block header band (file name, tab labels): a shade off the panel surface */
+  --mion-panel-head-bg: color-mix(in srgb, var(--ui-text-muted) 6%, var(--mion-panel-bg));
+  /* hsl() gradient saturation + lightness (stat tiles, step numbers, Temporal heading): pastels on dark */
+  --mion-pastel-s: 62%;
+  --mion-pastel-l: 78%;
+  --mion-header-bg: rgba(20, 20, 20, 0.55);
+  --mion-badge-amber: #d9a13d;
+}
+
+/* Home Page header */
+:root.dark header,
+:root.light header {
+  background-color: var(--mion-header-bg);
+}
+/* Remove header background on home page */
+:root.dark:has(.slided-title-container) header {
+  background-color: transparent;
+}
+:root.light:has(.slided-title-container) header {
+  background-color: transparent;
+}
+
+:root.light {
+  --elements-text-secondary-color-static: var(--color-gray-600);
+  --ui-bg: #f0f0f0;
+  /* light panels: halfway between white and the faint lift dark mode uses */
+  --mion-panel-bg: color-mix(in srgb, var(--color-white) 50%, color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg)));
+  --mion-panel-head-bg: color-mix(in srgb, var(--ui-text-muted) 7%, var(--mion-panel-bg));
+  /* deeper, still muted tones: a pastel vanishes on the light ground */
+  --mion-pastel-s: 42%;
+  --mion-pastel-l: 48%;
+  --mion-header-bg: rgba(255, 255, 255, 0.65);
+  --mion-badge-amber: #9a6b17;
+}
+
+body h1 {
+  color: var(--ui-primary);
+}
+
+body .video-player > img {
+  width: 100%;
+}
+
+pre code {
+  font-size: 0.8rem;
+  letter-spacing: -0.01rem;
+  line-height: 1.1rem;
+}
+
+/* Selected text background color */
+:root.dark ::selection {
+  background-color: var(--color-brand-500);
+  color: var(--color-brand-50);
+}
+
+:root.light ::selection {
+  background-color: var(--color-brand-500);
+  color: var(--color-brand-50);
+}
+
+pre.px-4 {
+  padding-left: 0.8rem;
+  padding-right: 0.4rem;
+}
+
+.dark table tbody td strong {
+  color: var(--color-primary-300);
+}
+
+.dark table th {
+  color: var(--color-primary-400);
+}
+
+@media screen and (min-width: 780px) {
+  .home-features h2 {
+    font-size: 3rem;
+  }
+  .home-features h3 {
+    font-size: 2rem;
+  }
+}
+
+@keyframes gradient-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+/* ── Per-section page width + TOC ───────────────────────────────────────────
+   `<body>` is tagged by app/plugins/site-attr.ts: `rt-wide-page` on
+   Introduction + Guide, `rt-flush-page` on Benchmarks. The doc layout
+   nests a 10-col grid: content (`col-span-8`) beside a right-hand TOC rail
+   (`col-span-2`, a <div>; the left nav is an <aside>, so it's untouched). On
+   both sections we collapse that inner grid to a block so content reclaims the
+   rail, and hide the (already `toc:false`-emptied) rail. Wide pages additionally
+   bump the container so prose + code stretch past the old TOC edge; flush pages
+   keep the default container, so they lose the TOC without growing wider. */
+/* Both sections: lift the prose max-width cap and hide the (toc:false-emptied)
+   right-hand TOC rail. The rail is a <div>; the left nav is an <aside>, so the
+   sidebar is untouched. :has scopes to the inner content/TOC grid (the outer grid's
+   col-span-2 is the <aside>, which this selector skips). */
+body.rt-wide-page :is(.prose, article),
+body.rt-flush-page :is(.prose, article) {
+  max-width: none;
+}
+
+body.rt-wide-page [class~='lg:grid-cols-10'] > div[class~='lg:col-span-2'],
+body.rt-flush-page [class~='lg:grid-cols-10'] > div[class~='lg:col-span-2'] {
+  display: none;
+}
+
+/* Wide pages (Introduction + Guide): collapse the content/TOC grid to a block so
+   content reclaims the freed rail and runs the full width of the column. Flush pages
+   (Benchmarks) keep the grid, so content stays at its normal width, no TOC,
+   but not widened. No container bump either way, so the header, sidebar and content
+   left edges stay aligned across every page. */
+body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) {
+  display: block;
+}
+
+/* RPC pages: a `toc:false` page leaves the right rail with no <nav> in it, so the
+   rail reserves two columns and renders nothing. Collapse it from `lg` up (below
+   that the same div holds the mobile menu bar, which must stay) and turn the inner
+   grid into a block so the content runs the full width of the column. Pages that do
+   have a TOC keep their rail. */
+@media (min-width: 1024px) {
+  html[data-site='rpc'] [class~='lg:grid-cols-10'] > div[class~='lg:col-span-2']:not(:has(> nav)) {
+    display: none;
+  }
+
+  /* `:has()` cannot be nested inside `:has()`, so the "rail without a nav" test is
+     spelled as "has a rail" AND "has no rail nav". */
+  html[data-site='rpc']
+    [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']):not(:has(> div[class~='lg:col-span-2'] > nav)) {
+    display: block;
+  }
+
+  html[data-site='rpc']
+    [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']):not(:has(> div[class~='lg:col-span-2'] > nav))
+    :is(.prose, article) {
+    max-width: none;
+  }
+}
+
+/* ── Benchmark surfaces: theme-aware ────────────────────────────────────────
+   The benchmark tables + hover panels were a fixed dark "terminal". These
+   vars let the surrounding chrome flip with the color mode (text already rides
+   the theme-aware `--ui-*` tokens; code blocks carry Shiki's own dual-theme
+   colors). Dark values match the original look so dark mode is unchanged. */
+:root {
+  --rt-fail: #e0533d;
+  /* the "worst" end of the rank ramp legend */
+  --rt-rank-worst: hsl(0 55% 50%);
+  --rt-misaligned-bg: hsl(0deg 60% 50% / 0.18);
+  --rt-panel-shadow: rgba(0, 0, 0, 0.5);
+}
+
+:root.dark {
+  --rt-surface: rgba(20, 20, 20, 0.55);
+  --rt-panel: rgba(12, 12, 14, 0.97);
+  --rt-code-bg: rgba(0, 0, 0, 0.45);
+  --rt-note: #c8b072;
+  --rt-misaligned-text: hsl(0deg 75% 72%);
+  /* the shiki theme's own background (github-dark / -light), see DetailPanel.vue */
+  --rt-shiki-bg: #24292e;
+  /* fully opaque: the column tip overlays heat-mapped cells */
+  --rt-tip-bg: #14161a;
+  --rt-tip-shadow: rgba(0, 0, 0, 0.55);
+}
+
+:root.light {
+  --rt-surface: rgba(255, 255, 255, 0.85);
+  --rt-panel: #ffffff;
+  --rt-code-bg: rgba(15, 20, 10, 0.05);
+  --rt-note: #8a6a1e;
+  --rt-misaligned-text: hsl(0deg 70% 45%);
+  --rt-shiki-bg: #fff;
+  --rt-tip-bg: #ffffff;
+  --rt-tip-shadow: rgba(0, 0, 0, 0.18);
+}
+
+/* Playground (components/playground/PlaygroundStage.client.vue + PlaygroundTour.client.vue) */
+:root {
+  --rtpg-err: #e3534f;
+  --rtpg-warn: #d9a441;
+  --rtpg-on-accent: #0e1116;
+  --rtpg-shadow: rgba(0, 0, 0, 0.4);
+  --rtpg-hairline: rgba(255, 255, 255, 0.06);
+  --rtpg-ts-icon: #007acc;
+  --rtpg-js-icon: #f5de19;
+}
+
+/* per mode: the type stack matches Monaco's editor surface (vs-dark / vs); the tour's dim layer */
+:root.dark {
+  --rtpg-editor-bg: #1e1e1e;
+  --rtpg-scrim: rgba(0, 0, 0, 0.62);
+}
+
+:root.light {
+  --rtpg-editor-bg: #fffffe;
+  --rtpg-scrim: rgba(15, 20, 30, 0.45);
+}
+
+/* The page templates (app/pages/<id>/index.vue and the docs page) wrap their content
+   in a `.site-page` carrying the subsite's data-site, so a page paints in its own
+   colours straight from its markup. `contents` keeps the wrapper out of the layout. */
+.site-page {
+  display: contents;
+}
+
+/* `::tabs` squeezes each direct child of a tab to a 6px margin, so the middleware pages
+   wrap each tab's content in one `.tab-body` div; its first child gets a smaller top margin. */
+.tab-body > :first-child {
+  margin-top: 1.5rem;
+}

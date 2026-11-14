@@ -8,7 +8,7 @@ import {type App, type Component, createSSRApp} from 'vue';
 import {renderToString} from 'vue/server-renderer';
 import {COMPONENTS_DIR, PACKAGE_DIR, PAGE_WIDTH, REPO_DIR, escapeHtml} from './card.ts';
 
-const THEME_FILE = join(REPO_DIR, 'container/website/sites/rpc/theme.css');
+const THEME_FILE = join(REPO_DIR, 'container/website/site-layers/shell/sites/rpc/theme.css');
 
 const FONTS = [
   ['Card Inter', 'normal', '100 900', 'inter.woff2'],

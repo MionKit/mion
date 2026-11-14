@@ -32,10 +32,10 @@ const WASM_EXEC = join(CACHE_DIR, 'wasm_exec.js');
 const SOURCES_JSON = join(CACHE_DIR, 'runtypes-sources.json');
 const SIDECAR_HOOK = join(CACHE_DIR, 'sidecar-hook.js');
 const STAMP = join(CACHE_DIR, '.wasm-stamp');
-const OUT_DIR = join(WEBSITE_DIR, 'public/playground-app');
+const OUT_DIR = join(WEBSITE_DIR, 'site-layers/playground/public/playground-app');
 // The compiled DIST (not src) is vendored INTO the site (git-ignored, re-synced on
 // change) because Vite's dev server only serves modules inside the Nuxt project root.
-const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
+const VENDOR_DIR = join(WEBSITE_DIR, 'site-layers/playground/app/playground/.vendor/ts-runtypes-dist');
 
 const WASM_PKG = './cmd/mion-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,

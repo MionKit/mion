@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Zero-dependency static server for a prerendered docs site
-// (container/website/.output/public). Resolves clean URLs the same way Cloudflare
+// (<site>/.output/public, the site website.config.json names). Resolves clean URLs the same way Cloudflare
 // Pages does (/benchmarks/validation -> benchmarks/validation.html), which a plain
 // `python3 -m http.server` does not. No deps on purpose: works offline, needs no
 // install, and keeps the repo's dependency surface minimal.
@@ -17,11 +17,9 @@
 import {createServer} from 'node:http';
 import {createReadStream, existsSync, readFileSync, statSync} from 'node:fs';
 import path from 'node:path';
-import url from 'node:url';
+import {publicRoot} from './site-config.mjs';
 
-const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-/** The prerendered artifact: container/website/.output/public. */
-export const publicRoot = () => path.resolve(HERE, '..', '..', 'container/website/.output/public');
+export {publicRoot};
 export const DEFAULT_ROOT = publicRoot();
 
 const MIME = {

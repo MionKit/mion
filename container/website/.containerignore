@@ -5,7 +5,7 @@
 
 # Source directories — bind-mounted at run time, never baked.
 app/
-sites/
+site-layers/
 content/
 public/
 server/

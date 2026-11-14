@@ -6,16 +6,16 @@
 //     so `ui.colors.primary` alone moved a fraction of a page. Every shared consumer
 //     now reads the subsite's tokens (sites/<id>/theme.css); a literal creeping back
 //     in would silently give one subsite another's colour.
-//   - ONE `brand` palette, filled per subsite: mion.css declares the @theme block as
+//   - ONE `brand` palette, filled per subsite: shell.css declares the @theme block as
 //     pure references and each theme.css fills the shades + tokens under its
 //     `[data-site='<id>']` selector (a missing shade falls through to Tailwind's stock
 //     palette, which is exactly the off-brand 950 the old green ramp shipped with).
-//   - The subsite list (app/utils/subsites.ts) matches the content tree, the theme
-//     files and the landing pages.
+//   - The section list (the shell layer's app/utils/subsites.ts) matches the theme files, and
+//     mion's own sections match the content tree and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
-//   - No raw colour in app/ outside the token layer (custom properties in mion.css's :root,
-//     :root.dark, :root.light blocks), so one file shows every colour the shared tree paints.
+//   - No raw colour in any app/ folder outside the token layer (custom properties in shell.css's
+//     :root, :root.dark, :root.light blocks), so one file shows every colour the shared tree paints.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -24,17 +24,25 @@ import {dirname, join, posix, resolve} from 'node:path';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
-const SITES_DIR = join(WEBSITE, 'sites');
+const SHELL = join(WEBSITE, 'site-layers/shell');
+const PARTS = join(WEBSITE, 'site-layers/parts');
+const PLAYGROUND = join(WEBSITE, 'site-layers/playground');
+const SITES_DIR = join(SHELL, 'sites');
 const CONTENT_DIR = join(WEBSITE, 'content');
-const MION_CSS = join(WEBSITE, 'app/assets/css/mion.css');
+const SHELL_CSS = join(SHELL, 'app/assets/css/shell.css');
+const PAGES_CSS = join(PARTS, 'app/assets/css/mion-pages.css');
+// Every app/ folder the site is built from: its own and one per layer.
+const APP_DIRS = [WEBSITE, SHELL, PARTS, PLAYGROUND].map((dir) => join(dir, 'app'));
 
 // Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
-// The subsite ids app/utils/subsites.ts declares, in order.
-const SUBSITE_IDS = [...readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8').matchAll(/^\s*id: '([a-z]+)',$/gm)].map(
-  (m) => m[1]
-);
+// The section ids the shell's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
+const SUBSITES_SOURCE = readFileSync(join(SHELL, 'app/utils/subsites.ts'), 'utf8');
+const subsiteField = (id: string, field: string): string =>
+  new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
+const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((m) => m[1]!);
+const MION_IDS = SUBSITE_IDS.filter((id) => subsiteField(id, 'url').startsWith('https://mion.io/'));
 
 // Walk a tree, yielding repo-relative posix paths of files matching `keep`.
 function walk(dir: string, keep: (name: string) => boolean, skipDirs: string[] = []): string[] {
@@ -163,23 +171,23 @@ describe('website-no-site-colour', () => {
     /%234ade80/i,
   ];
   const SHARED = [
-    ...walk(join(WEBSITE, 'app'), (name) => /\.(vue|css|ts|mjs)$/.test(name), ['.vendor', 'go-generated']),
+    ...APP_DIRS.flatMap((dir) => walk(dir, (name) => /\.(vue|css|ts|mjs)$/.test(name), ['.vendor', 'go-generated'])),
     ...walk(CONTENT_DIR, (name) => name.endsWith('.md')),
   ];
 
   it('paints the logo mark with its own token, never the subsite accent', () => {
-    const logo = readFileSync(join(WEBSITE, 'app/components/content/MionLogo.vue'), 'utf8');
+    const logo = readFileSync(join(PARTS, 'app/components/content/MionLogo.vue'), 'utf8');
     expect(logo).toContain('var(--mion-logo-accent)');
     expect(logo).not.toContain('--site-accent');
-    expect(readFileSync(MION_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
+    expect(readFileSync(SHELL_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
   });
 
   it('scans the shared components, the logo and the content tree', () => {
     expect(SHARED.length).toBeGreaterThan(20);
-    expect(SHARED).toContain('container/website/app/assets/css/mion.css');
-    expect(SHARED).toContain('container/website/app/components/content/BenchTable.vue');
-    expect(SHARED).toContain('container/website/app/components/content/RuntypesBenchBars.vue');
-    expect(SHARED).toContain('container/website/app/components/content/MionLogo.vue');
+    expect(SHARED).toContain('container/website/site-layers/shell/app/assets/css/shell.css');
+    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/BenchTable.vue');
+    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/RuntypesBenchBars.vue');
+    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/MionLogo.vue');
   });
 
   it('leaves no site colour literal in the shared tree', () => {
@@ -188,7 +196,7 @@ describe('website-no-site-colour', () => {
       const lines = readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n');
       lines.forEach((line, i) => {
         // The one literal allowed: the mion logo mark's own colour, declared once in
-        // mion.css. It is the brand, the same on every subsite, so it is not a site colour.
+        // shell.css. It is the brand, the same on every subsite, so it is not a site colour.
         if (/^\s*--mion-logo-accent:\s*#79af43;\s*$/.test(line)) return;
         for (const pattern of FORBIDDEN) if (pattern.test(line)) offenders.push(`${rel}:${i + 1}: ${line.trim().slice(0, 100)}`);
       });
@@ -200,7 +208,7 @@ describe('website-no-site-colour', () => {
     // Comments stripped first: a rule's selector match would otherwise start at the
     // comment block above it. Then split into top-level rules, `selector {` … `}`
     // (the file has no nested rules outside @media / @keyframes, which carry no gradient).
-    const css = readFileSync(MION_CSS, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const css = readFileSync(PAGES_CSS, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const rules = [...css.matchAll(/^([^@{}\n][^{}]*?)\{([^{}]*)\}/gm)];
     const animated = rules.filter(([, , body]) => /animation:\s*gradient-flow/.test(body)).map(([, selector]) => selector.trim());
     expect(animated.some((selector) => selector.startsWith("h2[data-slot='title']"))).toBe(true);
@@ -209,8 +217,8 @@ describe('website-no-site-colour', () => {
 });
 
 describe('website-colour-tokens', () => {
-  const MION_CSS_REL = 'container/website/app/assets/css/mion.css';
-  const FILES = walk(join(WEBSITE, 'app'), (name) => /\.(css|vue|ts)$/.test(name), ['data', 'go-generated', '.vendor']);
+  const SHELL_CSS_REL = 'container/website/site-layers/shell/app/assets/css/shell.css';
+  const FILES = APP_DIRS.flatMap((dir) => walk(dir, (name) => /\.(css|vue|ts)$/.test(name), ['data', 'go-generated', '.vendor']));
   // `pnpm miondevx card export` writes these, stamped on their first line
   const generated = (rel: string): boolean =>
     /never edit by hand/.test(readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n')[0]!);
@@ -220,29 +228,30 @@ describe('website-colour-tokens', () => {
 
   it('scans every hand-written app file, skipping only the generated card exports', () => {
     expect(FILES.filter(generated).sort()).toEqual([
-      'container/website/app/assets/css/code-card.css',
-      'container/website/app/utils/codeCardPlayer.ts',
+      'container/website/site-layers/parts/app/assets/css/code-card.css',
+      'container/website/site-layers/parts/app/utils/codeCardPlayer.ts',
     ]);
     for (const rel of [
-      MION_CSS_REL,
-      'container/website/app/components/content/BenchTable.vue',
-      'container/website/app/components/global/mermaid.vue',
-      'container/website/app/components/playground/PlaygroundStage.client.vue',
-      'container/website/app/playground/engine.ts',
+      SHELL_CSS_REL,
+      'container/website/site-layers/parts/app/components/content/BenchTable.vue',
+      'container/website/site-layers/shell/app/components/global/mermaid.vue',
+      'container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
+      'container/website/site-layers/playground/app/playground/engine.ts',
     ])
       expect(SCANNED).toContain(rel);
   });
 
-  it('keeps every raw colour in the mion.css token layer', () => {
+  it('keeps every raw colour in the shell.css token layer', () => {
     const offenders = SCANNED.flatMap((rel) => {
       const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
       const lines = source.split('\n');
       const kind = rel.endsWith('.css') ? 'css' : rel.endsWith('.vue') ? 'vue' : 'ts';
-      return rawColourLines(source, kind, rel === MION_CSS_REL).map((n) => `${rel}:${n}: ${lines[n - 1]!.trim().slice(0, 100)}`);
+      return rawColourLines(source, kind, rel === SHELL_CSS_REL).map((n) => `${rel}:${n}: ${lines[n - 1]!.trim().slice(0, 100)}`);
     });
-    expect(offenders, "declare the colour as a token in mion.css's :root / :root.dark / :root.light, read it with var()").toEqual(
-      []
-    );
+    expect(
+      offenders,
+      "declare the colour as a token in shell.css's :root / :root.dark / :root.light, read it with var()"
+    ).toEqual([]);
   });
 
   it('flags raw colours and literal fallbacks, never token reads', () => {
@@ -294,7 +303,7 @@ describe('website-theme-tokens', () => {
   };
 
   it('every subsite carries a theme, and only a theme', () => {
-    expect(THEMES.length).toBe(3);
+    expect(THEMES.length).toBe(4);
     for (const {site, file} of THEMES) {
       expect(existsSync(file), site).toBe(true);
       expect(readdirSync(join(SITES_DIR, site)), `${site}: sites/<id>/ holds the theme and nothing else`).toEqual(['theme.css']);
@@ -309,7 +318,7 @@ describe('website-theme-tokens', () => {
       for (const shade of SHADES) expect(hex(value(main, `--site-brand-${shade}`) ?? ''), `${site} brand-${shade}`).toBe(true);
       for (const token of COLOUR_TOKENS) expect(hex(value(main, token) ?? ''), `${site} ${token}`).toBe(true);
       for (const token of HUE_TOKENS) expect(value(main, token), `${site} ${token}`).toMatch(/^\d+$/);
-      // A theme never declares the Tailwind names itself: the @theme block in mion.css
+      // A theme never declares the Tailwind names itself: the @theme block in shell.css
       // owns them, so a stray --color-brand-N here would shadow it for one subsite only.
       expect(css, `${site}: declares --color-brand-*`).not.toMatch(/--color-brand-\d+:/);
       expect(css, `${site}: has a :root or @theme block`).not.toMatch(/^\s*(:root|@theme)\b/m);
@@ -322,7 +331,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('declares the one brand palette as references in the Tailwind root, and imports every theme', () => {
-    const css = readFileSync(MION_CSS, 'utf8');
+    const css = readFileSync(SHELL_CSS, 'utf8');
     const themeBlocks = [...css.matchAll(/^@theme static \{([^}]*)\}/gm)];
     expect(themeBlocks.length, 'exactly one @theme block').toBe(1);
     const body = themeBlocks[0]![1]!;
@@ -334,7 +343,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('bridges the brand and Nuxt UI variables onto any element carrying data-site', () => {
-    const css = readFileSync(MION_CSS, 'utf8');
+    const css = readFileSync(SHELL_CSS, 'utf8');
     const bridge = block(css, '[data-site]');
     expect(bridge, 'no [data-site] bridge block').not.toBe('');
     for (const shade of SHADES) {
@@ -349,7 +358,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('points the app config at the brand palette and turns the per-subsite sidebar on', () => {
-    const config = readFileSync(join(WEBSITE, 'app/app.config.ts'), 'utf8');
+    const config = readFileSync(join(SHELL, 'app/app.config.ts'), 'utf8');
     expect(config).toMatch(/primary:\s*'brand'/);
     expect(config).not.toMatch(/\b(white|black):\s*\{/);
     expect(config, "navigation.sub is what scopes Docus' sidebar to the current subsite").toMatch(
@@ -358,10 +367,6 @@ describe('website-theme-tokens', () => {
   });
 });
 
-// What app/utils/subsites.ts declares for a subsite.
-const SUBSITES_SOURCE = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
-const subsiteField = (id: string, field: string): string =>
-  new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
 // A subsite's home page: the first page of its first section (its about page).
 function homeFile(dir: string): string {
   const intro = join(
@@ -380,18 +385,21 @@ function homeFile(dir: string): string {
 const frontmatter = (file: string): string => /^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '';
 
 describe('website-subsites', () => {
-  it('names the same subsites in the subsite list, the theme dirs, the content tree and the landing pages', () => {
-    expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
+  it('names the same sections in the section list, the theme dirs, the content tree and the landing pages', () => {
+    expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks', 'pro']);
     expect([...SITES].sort()).toEqual([...SUBSITE_IDS].sort());
+    // `pro` is the other site: mion.io paints its menu entry and serves no page for it.
+    expect(MION_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
+    expect(subsiteField('pro', 'url')).toBe('https://pro.mion.io');
     const contentDirs = readdirSync(CONTENT_DIR).filter((name) => /^\d\d\./.test(name));
-    expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(SUBSITE_IDS);
-    for (const [i, id] of SUBSITE_IDS.entries()) {
+    expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(MION_IDS);
+    for (const [i, id] of MION_IDS.entries()) {
       const dir = join(CONTENT_DIR, `0${i + 1}.${id}`);
       // the subsite home is a docs page inside the sidebar (its about page) served AT the
       // subsite root, so the short URL is the page itself; nothing may shadow that route
       const home = homeFile(dir);
       const meta = frontmatter(home);
-      expect(subsiteField(id, 'path'), `${id}: subsite path`).toBe(`/${id}`);
+      expect(subsiteField(id, 'url'), `${id}: section address`).toBe(`https://mion.io/${id}`);
       expect(meta, `${id}: home served at the subsite root`).toMatch(new RegExp(`^path: /${id}$`, 'm'));
       expect(meta, `${id}: home out of the generated tree (subsiteSidebar lists it)`).toMatch(/^navigation: false$/m);
       expect(meta, `${id}: homeTitle is the home page's title`).toContain(`\ntitle: ${subsiteField(id, 'homeTitle')}\n`);
@@ -416,23 +424,22 @@ describe('website-subsites', () => {
     // SubsiteMenu is the one subsite switch: a button naming the current subsite in
     // its accent, opening the list. Each entry carries its own data-site so the
     // [data-site] bridge paints it in that subsite's colours; the tabs are gone.
-    const subsites = readFileSync(join(WEBSITE, 'app/utils/subsites.ts'), 'utf8');
     for (const id of SUBSITE_IDS) {
-      // the trailing comma skips the union in the Subsite interface
-      const entry = subsites.slice(subsites.indexOf(`id: '${id}',`));
+      const entry = SUBSITES_SOURCE.slice(SUBSITES_SOURCE.indexOf(`id: '${id}',`));
       const block = entry.slice(0, entry.indexOf('}'));
       expect(block, `${id}: icon`).toMatch(/icon: '[^']+'/);
       expect(block, `${id}: description`).toMatch(/description: '[^']{20,}'/);
     }
-    const menu = readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8');
+    const menu = readFileSync(join(SHELL, 'app/components/SubsiteMenu.vue'), 'utf8');
     expect(menu).toContain('<UPopover');
     expect(menu).toContain(':data-site="entry.id"');
     expect(menu).toContain('color: var(--site-accent)');
-    const center = readFileSync(join(WEBSITE, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
+    const center = readFileSync(join(SHELL, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
     expect(center).toContain('<SubsiteMenu />');
     expect(center).not.toContain('UNavigationMenu');
     // beside the logo: nothing; the menu button is the one place that names the subsite
-    const logo = readFileSync(join(WEBSITE, 'app/components/content/AppHeaderLogo.vue'), 'utf8');
+    // the parts layer's logo replaces Docus' by name, so it sits where Docus keeps its own
+    const logo = readFileSync(join(PARTS, 'app/components/app/AppHeaderLogo.vue'), 'utf8');
     expect(logo).not.toContain('site-brand-word');
     expect(logo).not.toContain('useSubsite');
   });
@@ -440,10 +447,10 @@ describe('website-subsites', () => {
   it('renders the root landing as one block per subsite, no hero, with the live benchmark summary', () => {
     const home = readFileSync(join(CONTENT_DIR, 'index.md'), 'utf8');
     expect(home).not.toContain('u-page-hero');
-    for (const id of SUBSITE_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
+    for (const id of MION_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
     // One block per subsite, plus the testing block (2026-09), which borrows the
     // runtypes palette because every number on it is a runtypes number today.
-    expect(home.match(/class: home-features home-subsite-block/g)?.length).toBe(SUBSITE_IDS.length + 1);
+    expect(home.match(/class: home-features home-subsite-block/g)?.length).toBe(MION_IDS.length + 1);
     expect(home, 'the testing block').toContain('to the highest standard');
     expect(home, 'its tiles').toContain(':home-test-tiles');
     // the summary names both datasets, which is what check-static gates for it
@@ -452,24 +459,21 @@ describe('website-subsites', () => {
     expect(gate).toContain(':home-bench-table');
     expect(gate).toContain("metric: 'validate'");
     // the parallax is CSS alone and respects reduced motion
-    const css = readFileSync(MION_CSS, 'utf8');
+    const css = readFileSync(PAGES_CSS, 'utf8');
     expect(css).toMatch(/@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)/);
   });
 
   it('links every subsite entry to its root, and lists the home page in both sidebars', () => {
-    expect(readFileSync(join(WEBSITE, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
-    const mobile = readFileSync(join(WEBSITE, 'app/components/app/AppHeaderBody.vue'), 'utf8');
+    expect(readFileSync(join(SHELL, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
+    const mobile = readFileSync(join(SHELL, 'app/components/app/AppHeaderBody.vue'), 'utf8');
     expect(mobile).toContain('to: entry.path,');
-    expect(mobile).toContain('subsiteSidebar(navigation?.value, subsite.value)');
-    const aside = readFileSync(join(WEBSITE, 'app/components/docs/DocsAsideLeftBody.vue'), 'utf8');
-    expect(aside, 'the desktop sidebar lists the home page too').toContain('subsiteSidebar(navigation?.value, subsite.value)');
-    expect(existsSync(join(WEBSITE, 'app/components/SiteLanding.vue')), 'the landing renderer went with the landing pages').toBe(
-      false
-    );
+    expect(mobile).toContain('sidebar(navigation?.value)');
+    const aside = readFileSync(join(SHELL, 'app/components/docs/DocsAsideLeftBody.vue'), 'utf8');
+    expect(aside, 'the desktop sidebar lists the home page too').toContain('sidebar(navigation?.value)');
   });
 
   it('ships one logo and one favicon for the whole site', () => {
-    expect(existsSync(join(WEBSITE, 'app/components/content/MionLogo.vue'))).toBe(true);
+    expect(existsSync(join(PARTS, 'app/components/content/MionLogo.vue'))).toBe(true);
     expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(true);
     for (const site of SITES) {
       expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
@@ -478,15 +482,16 @@ describe('website-subsites', () => {
   });
 
   it('pins the docs page override to the installed docus version', () => {
-    const page = readFileSync(join(WEBSITE, 'app/pages/[[lang]]/[...slug].vue'), 'utf8');
+    const page = readFileSync(join(SHELL, 'app/pages/[[lang]]/[...slug].vue'), 'utf8');
     const copied = page.match(/copied from docus (\d+\.\d+\.\d+)/)?.[1];
     const deps = JSON.parse(readFileSync(join(WEBSITE, '_deps/package.json'), 'utf8')) as {dependencies: Record<string, string>};
     expect(copied, 'the override names the docus version it was copied from').toBeDefined();
-    expect(copied, 'docus was bumped: re-diff app/pages/[[lang]]/[...slug].vue against the new upstream file').toBe(
-      deps.dependencies.docus
-    );
+    expect(
+      copied,
+      'docus was bumped: re-diff the shell layer copy of app/pages/[[lang]]/[...slug].vue against the new upstream file'
+    ).toBe(deps.dependencies.docus);
     // The deliberate changes (listed at the top of the file).
-    expect(page).toContain('useHead({ titleTemplate: `%s - ${subsite.value.title}` })');
+    expect(page).toContain('useHead({ titleTemplate: `%s - ${titleSuffix}` })');
     expect(page, 'the docs page carries its subsite in its own markup').toContain(':data-site="subsite.id"');
     expect(page, 'a subsite home renders without the page header').toContain('v-if="!isSubsiteHome"');
     expect(page, 'no edit-this-page / report-an-issue footer').not.toContain('docs.edit');

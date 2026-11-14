@@ -11,6 +11,11 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const CONTENT_DIR = join(WEBSITE, 'content');
 const PUBLIC_DIR = join(WEBSITE, 'public');
+// A layer's public/ is served beside the site's own.
+const PUBLIC_DIRS = [
+  PUBLIC_DIR,
+  ...['shell', 'parts', 'playground'].map((layer) => join(WEBSITE, 'site-layers', layer, 'public')),
+];
 
 // Nuxt Content drops the numeric prefix from every path segment and maps a dir's
 // index.md onto the dir itself.
@@ -38,8 +43,8 @@ function siteRoutes(): Set<string> {
   return routes;
 }
 
-/** Every file the site serves as-is from public/ (fonts, banners, pictures). */
-const publicAsset = (path: string): boolean => existsSync(join(PUBLIC_DIR, path));
+/** Every file the site serves as-is from a public/ folder (fonts, banners, pictures). */
+const publicAsset = (path: string): boolean => PUBLIC_DIRS.some((dir) => existsSync(join(dir, path)));
 
 // Root-relative links in markdown, MDC props and yaml: `](/x)`, `to="/x"`, `to: /x`,
 // `redirect: /x`, `href="/x"`, `{to="/x"`. Anchors and query strings are dropped.
@@ -356,7 +361,9 @@ describe('website-redirects', () => {
 // A CSS-only commit skips the website build on a pull request, so a broken relative @import must fail here.
 describe('website-css-imports', () => {
   it('resolves every relative @import in the site CSS to a file', () => {
-    const cssFiles = globSync(['app/**/*.css', 'sites/**/*.css'], {cwd: WEBSITE}).map((rel) => join(WEBSITE, rel));
+    const cssFiles = globSync(['app/**/*.css', 'site-layers/*/app/**/*.css', 'site-layers/*/sites/**/*.css'], {cwd: WEBSITE}).map(
+      (rel) => join(WEBSITE, rel)
+    );
     const broken: string[] = [];
     let relativeImports = 0;
     for (const file of cssFiles) {

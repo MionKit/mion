@@ -3,16 +3,17 @@
 Nuxt 4 + Docus v5 docs site: Tailwind CSS 4 + Nuxt UI v4, Nuxt Content v3 (MDC), Shiki + Twoslash.
 Deps live ONLY in the podman image, never in the monorepo lockfile.
 
-- ONE Nuxt install builds ONE static site, mion.io. Subsite `<id>`: tree `content/NN.<id>/`, theme
-  `sites/<id>/theme.css`, home page served at `/<id>` (`/rpc`, `/runtypes`, `/benchmarks`): its about page, the
-  first page of its introduction section, with `path: /<id>` in its frontmatter.
-- Build output: `.output/public`.
+- ONE Nuxt install builds ONE static site, mion.io, into `.output/public`. Subsite `<id>` (`rpc`, `runtypes`,
+  `benchmarks`): tree `content/NN.<id>/`, theme `site-layers/shell/sites/<id>/theme.css`, home page served at `/<id>`:
+  its about page, the first page of its introduction section, with `path: /<id>` in its frontmatter.
+- Code lives in three Nuxt layers another repo's site can extend: [site-layers/AGENTS.md](site-layers/AGENTS.md).
+  Read before adding or moving ANY file under `app/`, `site-layers/` or a `nuxt.config.ts`. This folder keeps only
+  mion.io's identity. Which site the scripts run: `website.config.json` at the repo root.
 - Prose voice + what a style pass may touch: [website-writing.md](../../.agents/docs/website-writing.md).
-- Subsite wiring + styling: [app/AGENTS.md](app/AGENTS.md). Read before editing `app/`, `sites/`, `content.config.ts`.
-- Code import, examples, twoslash, API: [server/AGENTS.md](server/AGENTS.md). Read before an example or `server/` edit.
+- Subsite wiring + styling: [shell app](site-layers/shell/app/AGENTS.md). Read before a layer `app/` or `sites/` edit.
+- Code import, examples, twoslash, API: [shell server](site-layers/shell/server/AGENTS.md). Read before editing one.
 - Deps + build-script allowlist: [_deps/AGENTS.md](_deps/AGENTS.md). Read before a dependency change.
-- Run commands + image lifecycle: [CONTAINER.md](CONTAINER.md).
-- Benchmark data the docs read: [docs/WEBSITE-DOCGEN.md](../../docs/WEBSITE-DOCGEN.md).
+- Run commands + image: [CONTAINER.md](CONTAINER.md). Bench data: [WEBSITE-DOCGEN.md](../../docs/WEBSITE-DOCGEN.md).
 
 ## Writing guidelines
 
@@ -77,23 +78,23 @@ Check every added or changed section. In this order, first match wins:
 - ⚠️ Every prefix TWO digits, new ones too: text sort reorders single digits at a 10th entry (`1 < 10 < 2`).
   Nothing errors, only the nav breaks. URL strips the prefix, so padding is free.
   Pinned by `website-content-prefixes` in `packages/devtools/test/repo-contracts.test.ts`.
-- No `index.md` outside the root: any `<dir>/index.md` is a landing page ([app/AGENTS.md](app/AGENTS.md#subsites)).
+- No `index.md` outside the root: it is a landing page ([shell app](site-layers/shell/app/AGENTS.md#subsites)).
 - `03.middlewares/`: one page per middleware, export name minus `mion` (`fetch-metadata`): intro, then `::tabs`,
   `Server` + `Client` `:::tabs-item`, each one `::::div{class="tab-body"}` (else spacing squeezed). A link into a
-  hidden tab opens it (`app/plugins/tab-anchors.client.ts`).
+  hidden tab opens it (the shell's `tab-anchors.client.ts` plugin).
 - Root-relative links carry the subsite prefix (`/rpc/server/routes`). `website-links.test.ts` fails on a dead one.
 - `parked/` (outside `content/`, unseen by collections, link tests, post-build check): pages off the site, kept whole,
   top comment says why + how to republish.
 - Subsite homes (about pages) + root `index.md`: hand-tuned, densest custom MDC. Off limits to prose-only style passes;
   API-truth fixes to their examples still required. Root `content/index.md` gets the simplest wording.
-- MDC components (custom + Docus built-ins): [app/components/AGENTS.md](app/components/AGENTS.md).
+- MDC components (custom + Docus built-ins): [components](site-layers/parts/app/components/AGENTS.md).
 
 ## Development
 
 - Site runs ONLY in its container: `pnpm miondevx website …` from repo root, never raw in-container `pnpm run dev`.
-- Flags: `build --no-bench` (skip benchmarks), `preview --no-build`, `check --docs` (code-import + twoslash render),
+  Flags: `build --no-bench` (skip benchmarks), `preview --no-build`, `check --docs` (code-import + twoslash render),
   `check --static` (serve the BUILT site, assert not hollow).
 - Agents: `dev --agent` = own `tsrt-website-agent` container on :3100, stops after ~5 min idle (never hits a human's
   :3000). Browser checks: [website-browser](../../.agents/skills/website-browser/SKILL.md).
-- Hot-reload polling auto-on for macOS. `MION_WEBSITE_POLL=1` forces it anywhere.
-- In-container scripts: `pnpm run dev`, `dev:fresh`, `build`, `preview`, `check-links` (broken code-import paths).
+- Hot-reload polling auto-on for macOS. `MION_WEBSITE_POLL=1` forces it anywhere. In-container scripts:
+  `pnpm run dev`, `dev:fresh`, `build`, `preview`, `check-links` (broken code-import paths).

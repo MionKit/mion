@@ -16,9 +16,9 @@ import {
   transformedSource,
   versions,
   type RunTypeTreeNode,
-} from '../../../../container/website/app/playground/index.ts';
-import {PRESETS} from '../../../../container/website/app/playground/presets.ts';
-import {runtypesPackageSources} from '../../../../container/website/app/playground/packageSources.ts';
+} from '../../../../container/website/site-layers/playground/app/playground/index.ts';
+import {PRESETS} from '../../../../container/website/site-layers/playground/app/playground/presets.ts';
+import {runtypesPackageSources} from '../../../../container/website/site-layers/playground/app/playground/packageSources.ts';
 import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.ts';
 
 // End-to-end engine tests: each resolves <factory><MyType>() via the real WASM

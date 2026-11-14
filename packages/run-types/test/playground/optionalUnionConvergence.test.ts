@@ -7,7 +7,7 @@
 // while type-first generated the clean clone. Now the playground feeds the
 // resolver the REAL mion types, so both converge.
 import {beforeAll, describe, expect, it} from 'vitest';
-import {generatedCache, setResolver} from '../../../../container/website/app/playground/index.ts';
+import {generatedCache, setResolver} from '../../../../container/website/site-layers/playground/app/playground/index.ts';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
 const TYPE_FORM = `type MyType = {

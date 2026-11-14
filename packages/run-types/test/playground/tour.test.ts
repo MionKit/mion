@@ -16,11 +16,14 @@ import {
   tourStepsFor,
   writePref,
   type PrefStorage,
-} from '../../../../container/website/app/playground/tour.ts';
-import {operationByKey} from '../../../../container/website/app/playground/operations.ts';
+} from '../../../../container/website/site-layers/playground/app/playground/tour.ts';
+import {operationByKey} from '../../../../container/website/site-layers/playground/app/playground/operations.ts';
 
 const stage = readFileSync(
-  new URL('../../../../container/website/app/components/playground/PlaygroundStage.client.vue', import.meta.url),
+  new URL(
+    '../../../../container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
+    import.meta.url
+  ),
   'utf8'
 );
 

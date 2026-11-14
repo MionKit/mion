@@ -46,7 +46,7 @@ describe('code card: export', () => {
     expect(html).toContain('<div class="code-card cc-kind-code"');
     expect(html).not.toMatch(/<html|@font-face/);
     for (const file of ['app/assets/css/code-card.css', 'app/utils/codeCardPlayer.ts', 'public/fonts/code-card/inter.woff2', 'public/fonts/code-card/OFL-Inter.txt'])
-      expect(existsSync(join(root, 'container/website', file)), file).toBe(true);
+      expect(existsSync(join(root, 'container/website/site-layers/parts', file)), file).toBe(true);
     const entry = manifest()['typed-match'];
     expect(entry.hash).toBe(hashSources(REPO_DIR, entry.sources));
     expect(entry.outputs[`${CARDS_EXPORT_DIR}/typed-match.html`]).toBe(hashSources(root, [`${CARDS_EXPORT_DIR}/typed-match.html`]));
