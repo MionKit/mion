@@ -14,9 +14,9 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 
 | Lives **inside the image** (deps only)                       | Lives **on the host** (bind-mounted at run time)                 |
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `content/`, `public/`, `server/`, `scripts/`, `tests/` |
-| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
-| **`node_modules/`** (installed in the image only)            | (config + source are the source-of-truth on the host)            |
+| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `content/`, `public/`, `scripts/`, `tests/`, plus `sites/` and `server/` when the site has them |
+| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `tsconfig.json`, `eslint.config.mjs`, the repo root `website.config.json` |
+| **`node_modules/`** (installed in the image only)            | `site-layers/` at `/app/site-layers` (the three Nuxt layers, see [site-layers/AGENTS.md](./site-layers/AGENTS.md)) |
 
 - The package-manager files live in **`container/website/_deps/`**, not at the website
   root — so there is no `package.json` to accidentally `pnpm install` against on
@@ -76,19 +76,20 @@ image (offline, or to test a dep bump before pushing).
 | `MION_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
 | `MION_WEBSITE_USE_LOCAL`  | off              | Skip the GHCR pull; build/use a local image.         |
 | `MION_WEBSITE_REMOTE_IMAGE` | `ghcr.io/mionkit/tsrt-website:latest` | Published image ref to pull.        |
-| `MION_WEBSITE_REPO_CONTEXT` | this repo (else a sibling `../mion`) | Checkout containing `packages/`, mounted read-only for code-import/twoslash. |
+| `MION_WEBSITE_CONTAINER`  | `container` in `website.config.json` | Container + cache volume name prefix. |
+| `MION_WEBSITE_REPO_CONTEXT` | the repo holding `website.config.json` | Checkout whose code the docs show, mounted read-only for code-import/twoslash. |
 | `MION_WEBSITE_DOCDATA`    | `<repo>/.docdata` | Generated benchmark/test result JSON, mounted read-only at `/app/.docdata`. |
 
 ### Documenting first-party code (repo context)
 
 The `<code-import>` and `::twoslash-code` mechanisms read first-party source +
 built `.d.ts` from `packages/`, plus a short named allowlist of third-party packages
-(`TWOSLASH_EXTERNAL_DEPS` in `site.mjs`, today just `drizzle-orm`) mounted one dir at a
-time — never the whole `node_modules`. `site.mjs` mounts the checkout that contains them
-**read-only** and points the resolvers at it via `MION_REPO_ROOT` — this repo by
-default, so the indirection stays merge-agnostic (a sibling checkout still works
-via `MION_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
-`path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
+(`examples.externalDeps` in `website.config.json`, today just `drizzle-orm`) mounted one
+dir at a time — never the whole `node_modules`. `site.mjs` mounts the folders that config
+names **read-only** and points the resolvers at them via `MION_REPO_ROOT` — this repo by
+default (a sibling checkout still works via `MION_WEBSITE_REPO_CONTEXT`). Only the listed
+folders are exposed, and every `path=` read is confined to `examples.readRoots`
+(`site-layers/shell/server/utils/repo-root.ts`). Run
 `pnpm miondevx website check` to confirm the context is built and `pnpm miondevx website check --docs`
 to check both mechanisms render.
 
@@ -98,6 +99,74 @@ VM mount boundary, so polling is on by default there. Force it on any other host
 ```bash
 MION_WEBSITE_POLL=1 pnpm miondevx website dev
 ```
+
+## Using the Layers from Another Repo
+
+A second site (another repo that has mion as a git submodule) builds from the same
+layers and the same image. It installs no website package: its files are mounted
+into the image built from mion's `_deps/`. A new website dependency goes into
+mion's `_deps/` and needs an image rebuild.
+
+The other repo keeps ONE `website.config.json` at its root. The scripts find it by
+walking up from the working directory, and fall back to mion's own. Every path in
+it is relative to the folder holding the file.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `site` | `container/website` | The site folder: `nuxt.config.ts`, `app/`, `content/`, `public/`. Mounted at `/app`; the build lands in `<site>/.output`. |
+| `container` | `<repo folder>-website` | Container + cache volume name prefix, so two sites never share a cache. |
+| `layers` | mion's `container/website/site-layers` | The layers folder, mounted at `/app/site-layers` (read-only for another repo's site). |
+| `benchData` | none | A folder holding a generated `bench-data` tree. Mounted read-only and served at `/bench-data`, which is what the benchmark components fetch. |
+| `examples.packages` | `[]` | `{dir, name}` rows: a package folder and the published name its examples import. Twoslash mounts its built `.d.ts` under that name. |
+| `examples.exampleDirs` | `[]` | Folders of example files: served to `::twoslash-code`, watched in dev. |
+| `examples.readRoots` | `[]` | Folders a `<code-import path="…">` may read. |
+| `examples.externalDeps` | `[]` | Third-party packages whose types twoslash needs, read from `<repo>/node_modules/<name>`. |
+| `examples.importableDocs` | `{}` | Name → file a page may inline with `<markdown-import doc="name">`. |
+
+Run the same commands from the other repo, through its submodule path:
+
+```bash
+node third_party/mion/scripts/miondevx.mjs website dev
+node third_party/mion/scripts/miondevx.mjs website build
+```
+
+Its `nuxt.config.ts` extends the layers through the path the container sets, with
+the shell LAST (Docus must stay the lowest layer, the shell refuses to start otherwise):
+
+```ts
+const layers = process.env.MION_WEBSITE_LAYERS // /app/site-layers
+export default defineNuxtConfig({
+  extends: [`${layers}/parts`, `${layers}/shell`],
+  site: {name: 'mion pro', url: 'https://pro.mion.io'},
+})
+```
+
+- `shell` alone is a full docs site: Docus, the shared look, the section menu, the
+  example tool. `parts` adds mion's benchmark tables, code cards, tiles, logo and
+  footer note. Any component of either is usable in a page, and a same-named file in
+  the site replaces it.
+- Import a layer file with `#layers/mion-shell/…`, `#layers/mion-parts/…`,
+  `#layers/mion-playground/…` (the layer ROOT, so `#layers/mion-parts/app/utils/benchFormat`).
+- Settings the site fills (`site`, `app.config.ts` `shell.*`, logo, footer note, colours):
+  [site-layers/AGENTS.md](./site-layers/AGENTS.md#settings-a-site-fills).
+- The site gets none of mion.io's pages, redirects, prerender routes or name: those
+  live in mion's site folder, not in a layer.
+
+Two things are opt-in:
+
+- **Playground.** Add `${layers}/playground` before the shell and render
+  `<RuntypesPlayground />` on a page of the site. It needs the assets
+  `node container/website/scripts/build-playground.mjs` writes inside the mion
+  checkout (git-ignored; needs Go and a bootstrapped mion checkout).
+- **Benchmark data.** Set `benchData` to a folder with a `bench-data` tree, from a
+  benchmark run or a release asset.
+
+A live demo that runs one of the site's own packages in the browser needs a Vite
+alias in the site's `nuxt.config.ts` pointing the package name at its built files:
+the image holds no first-party package.
+
+`build` skips the mion-only stages (benchmarks, playground bundle, home page counts)
+for another repo's site, and `check --static` skips the playground check.
 
 ## Behind a corporate / MITM egress proxy
 

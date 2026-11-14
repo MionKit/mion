@@ -1,5 +1,5 @@
 import {beforeAll, describe, expect, it} from 'vitest';
-import {mock, run, setResolver} from '../../../../container/website/app/playground/index.ts';
+import {mock, run, setResolver} from '../../../../container/website/site-layers/playground/app/playground/index.ts';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
 // Type-format support: a user-written `import ... from '@mionjs/run-types/formats'`

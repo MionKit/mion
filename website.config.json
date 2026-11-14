@@ -1,0 +1,31 @@
+{
+  "site": "container/website",
+  "container": "tsrt-website",
+  "examples": {
+    "packages": [
+      {"dir": "packages/run-types", "name": "@mionjs/run-types"},
+      {"dir": "packages/devtools", "name": "@mionjs/devtools"},
+      {"dir": "packages/core", "name": "@mionjs/core"},
+      {"dir": "packages/rpc-router", "name": "@mionjs/router"},
+      {"dir": "packages/rpc-client", "name": "@mionjs/client"},
+      {"dir": "packages/drizzle-orm", "name": "@mionjs/drizzle-orm"},
+      {"dir": "packages/drizzle-orm-mysql-core", "name": "@mionjs/drizzle-orm-mysql-core"},
+      {"dir": "packages/drizzle-orm-pg-core", "name": "@mionjs/drizzle-orm-pg-core"},
+      {"dir": "packages/drizzle-orm-sqlite-core", "name": "@mionjs/drizzle-orm-sqlite-core"},
+      {"dir": "packages/platform-aws", "name": "@mionjs/platform-aws"},
+      {"dir": "packages/platform-bun", "name": "@mionjs/platform-bun"},
+      {"dir": "packages/platform-cloudflare", "name": "@mionjs/platform-cloudflare"},
+      {"dir": "packages/platform-gcloud", "name": "@mionjs/platform-gcloud"},
+      {"dir": "packages/platform-node", "name": "@mionjs/platform-node"},
+      {"dir": "packages/platform-uws", "name": "@mionjs/platform-uws"},
+      {"dir": "packages/bin-uws", "name": "@mionjs/bin-uws"},
+      {"dir": "packages/platform-vercel", "name": "@mionjs/platform-vercel"}
+    ],
+    "exampleDirs": ["packages/private-examples/src"],
+    "readRoots": ["packages"],
+    "externalDeps": ["drizzle-orm"],
+    "importableDocs": {
+      "json-schema-2020-12-javascript": "docs/json-schema-2020-12-javascript.md"
+    }
+  }
+}

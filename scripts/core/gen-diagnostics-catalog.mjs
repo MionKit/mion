@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const goRoot = resolve(repoRoot, 'ts-go-runtypes');
 const generatedTsPath = resolve(repoRoot, 'packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts');
-const websiteJsonPath = resolve(repoRoot, 'container/website/app/components/content/go-generated/diagnostics-catalog.json');
+const websiteJsonPath = resolve(repoRoot, 'container/website/site-layers/parts/app/components/content/go-generated/diagnostics-catalog.json');
 
 // Sections group the area prefixes, in page order; every prefix in pkg/diagnostics's slugRE must sit in one.
 // Descriptions stay plain and dash-free: the website voice rules apply when the component renders them.

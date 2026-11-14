@@ -1,5 +1,5 @@
 // Node loader for the resolver WASM — for the playground engine test suite.
-// The browser loader (container/website/app/playground/wasmLoader.ts) needs
+// The browser loader (container/website/site-layers/playground/app/playground/wasmLoader.ts) needs
 // document/fetch; this one reads the host-built assets from the git-ignored
 // .cache/rt-wasm/ dir, runs Go's wasm_exec.js as a classic script via
 // vm.runInThisContext (it defines globalThis.Go), instantiates the module, and
@@ -16,7 +16,10 @@ import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {buildRuntypesOverlay} from '../../../../scripts/website/playground-overlay.mjs';
 import {readWasmStamp, wasmInputsDigest} from '../../../../scripts/website/playground-wasm-inputs.mjs';
-import {setRuntypesPackageSources, type Resolver} from '../../../../container/website/app/playground/index.ts';
+import {
+  setRuntypesPackageSources,
+  type Resolver,
+} from '../../../../container/website/site-layers/playground/app/playground/index.ts';
 
 // Host-built WASM assets live in the repo cache dir (build-playground.mjs output).
 const CACHE = fileURLToPath(new URL('../../../../.cache/rt-wasm/', import.meta.url));

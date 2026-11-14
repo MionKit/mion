@@ -183,7 +183,7 @@ describe('the lane table', () => {
     expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
     expect(feeds('e2e', 'packages/core/src/errors.ts')).toEqual(['matrix', 'mion', 'host-smoke']);
     expect(feeds('smoke', 'container/benchmarks/competitors/ajv/cases.ts')).toEqual(['bench']);
-    expect(feeds('smoke', 'container/website/app/components/content/ServerBenchBars.vue')).toEqual(['website']);
+    expect(feeds('smoke', 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue')).toEqual(['website']);
     expect(feeds('smoke', 'container/website/content/index.md')).toEqual([]);
     // `bench smoke` builds the mion competitor with our packages, so a package edit re-runs it too.
     expect(feeds('smoke', 'packages/core/src/errors.ts')).toEqual(['website', 'bench']);
@@ -219,17 +219,18 @@ describe('the lane table', () => {
     const textAndStyle = [
       'container/website/content/01.rpc/01.intro.md',
       'container/website/content/01.rpc/_dir.yml',
-      'container/website/app/assets/css/mion.css',
-      'container/website/sites/rpc/theme.css',
+      'container/website/site-layers/shell/app/assets/css/shell.css',
+      'container/website/site-layers/shell/sites/rpc/theme.css',
     ];
     const siteCode = [
-      'container/website/app/components/content/ServerBenchBars.vue',
-      'container/website/app/plugins/theme.ts',
+      'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue',
+      'container/website/site-layers/shell/app/plugins/theme.ts',
       'container/website/nuxt.config.ts',
-      'container/website/content.config.ts',
+      'container/website/site-layers/shell/content.config.ts',
       'container/website/_deps/package.json',
       'container/website/Containerfile',
       'container/website/public/_redirects',
+      'website.config.json',
     ];
     const readers = (path: string): string[] => [
       ...['smoke', 'website'].filter((lane) => matches(path, LANES[lane].paths)),
@@ -247,7 +248,10 @@ describe('the lane table', () => {
     const readersOf = (path: string): string[] => ciLanes.filter((lane) => matches(path, LANES[lane].paths));
     for (const page of ['container/website/content/01.rpc/01.intro.md', 'container/website/content/01.rpc/_dir.yml'])
       expect(readersOf(page), page).toEqual(['js-static']);
-    for (const code of ['container/website/app/playground/index.ts', 'container/benchmarks/shared/cases/objects.ts'])
+    for (const code of [
+      'container/website/site-layers/playground/app/playground/index.ts',
+      'container/benchmarks/shared/cases/objects.ts',
+    ])
       expect(readersOf(code), code).toEqual(['js-fuzz', 'go-tools', 'js', 'js-static']);
   });
 
@@ -1138,7 +1142,7 @@ describe('the client size is checked per PR', () => {
     for (const input of [
       'packages/rpc-client/src/client.ts',
       'pnpm-lock.yaml',
-      'container/website/app/data/client-size.json',
+      'container/website/site-layers/parts/app/data/client-size.json',
       'scripts/website/gen-client-size.mjs',
     ]) {
       expect(itemFeeds(LANES.smoke, 'website', input), input).toBe(true);

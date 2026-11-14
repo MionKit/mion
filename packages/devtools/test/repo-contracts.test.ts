@@ -340,7 +340,7 @@ describe('every code card on the website matches its sources', () => {
 
 // CodeCard.vue renders an error box for a card never exported, and only a browser would notice.
 describe('every code card a page shows is exported', () => {
-  const CODE_CARD = join(REPO_ROOT, 'container/website/app/components/content/CodeCard.vue');
+  const CODE_CARD = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/CodeCard.vue');
 
   it('every ::code-card name has its exported HTML', () => {
     const pages = globSync('container/website/content/**/*.md', {cwd: REPO_ROOT});
@@ -784,17 +784,34 @@ describe('.env.sample mirrors the env REGISTRY', () => {
 });
 
 describe('twoslash VFS mounts the packages the examples import', () => {
-  const TWOSLASH_API = join(REPO_ROOT, 'container/website/server/api/twoslash.post.ts');
   const EXAMPLES_SRC = join(REPO_ROOT, 'packages/private-examples/src');
+  // The packages the endpoint mounts: website.config.json `examples.packages`, each a repo-relative
+  // `dir` and the npm `name` it is mounted under (/node_modules/<name>/ in the virtual file system).
+  const SITE_CONFIG = JSON.parse(readFileSync(join(REPO_ROOT, 'website.config.json'), 'utf8')) as {
+    examples: {packages: {dir: string; name: string}[]; externalDeps: string[]; exampleDirs: string[]};
+  };
+  const PACKAGES = SITE_CONFIG.examples.packages;
 
-  // Every `name:` in twoslash.post.ts's packageConfigs — the npm names it mounts
-  // under /node_modules/<name>/ in the virtual file system.
-  function mountedPackageNames(): Set<string> {
-    const source = readFileSync(TWOSLASH_API, 'utf8');
-    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
-    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
-    return new Set([...configs[1].matchAll(/name:\s*'([^']+)'/g)].map((match) => match[1]));
-  }
+  const mountedPackageNames = (): Set<string> => new Set(PACKAGES.map((pkg) => pkg.name));
+
+  // The list lives in the config file alone: a second copy in the endpoint or the site script would drift.
+  it('keeps the package list in website.config.json only', () => {
+    expect(PACKAGES.length).toBeGreaterThan(10);
+    expect(SITE_CONFIG.examples.exampleDirs).toEqual(['packages/private-examples/src']);
+    for (const rel of [
+      'container/website/site-layers/shell/server/api/twoslash.post.ts',
+      'container/website/site-layers/shell/server/api/read-file.post.ts',
+      'container/website/site-layers/shell/server/utils/code-import.ts',
+      'container/website/site-layers/shell/server/utils/repo-root.ts',
+      'container/website/site-layers/shell/nuxt.config.ts',
+      'scripts/website/site.mjs',
+    ]) {
+      const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
+      for (const {name} of PACKAGES) expect(source, `${rel} names ${name}`).not.toMatch(new RegExp(`['"]${name}['"]`));
+      expect(source, `${rel} names the examples folder`).not.toContain('private-examples');
+      for (const dep of SITE_CONFIG.examples.externalDeps) expect(source, `${rel} names ${dep}`).not.toContain(`'${dep}'`);
+    }
+  });
 
   // The first-party package roots the docs examples actually import, e.g.
   // `@mionjs/run-types/formats` counts as the root `@mionjs/run-types`. Covers BOTH
@@ -833,12 +850,9 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   // leaves a mount pointing at nothing: twoslash then silently emits no hover markup,
   // which only the containerized docs smoke catches.
   it('every mounted package directory exists', () => {
-    const source = readFileSync(TWOSLASH_API, 'utf8');
-    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
-    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
-    const dirs = [...configs[1].matchAll(/dir:\s*'([^']+)'/g)].map((match) => match[1]);
+    const dirs = PACKAGES.map((pkg) => pkg.dir);
     expect(dirs.length).toBeGreaterThan(0);
-    const missing = dirs.filter((dir) => !existsSync(join(REPO_ROOT, 'packages', dir)));
+    const missing = dirs.filter((dir) => !existsSync(join(REPO_ROOT, dir)));
     expect(missing).toEqual([]);
   });
 
@@ -858,13 +872,10 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   }
 
   function mountedPackages(): {dir: string; name: string; manifest: Record<string, any>}[] {
-    const source = readFileSync(TWOSLASH_API, 'utf8');
-    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
-    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
-    return [...configs[1].matchAll(/\{\s*dir:\s*'([^']+)',\s*name:\s*'([^']+)'/g)].map((match) => ({
-      dir: match[1],
-      name: match[2],
-      manifest: JSON.parse(readFileSync(join(REPO_ROOT, 'packages', match[1], 'package.json'), 'utf8')),
+    return PACKAGES.map(({dir, name}) => ({
+      dir,
+      name,
+      manifest: JSON.parse(readFileSync(join(REPO_ROOT, dir, 'package.json'), 'utf8')),
     }));
   }
 
@@ -888,9 +899,9 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     for (const {dir, name, manifest} of mountedPackages()) {
       const entry = declaredTypes(manifest, '.');
       if (!entry) continue;
-      const root = join(REPO_ROOT, 'packages', dir, posix.dirname(entry));
+      const root = join(REPO_ROOT, dir, posix.dirname(entry));
       if (!existsSync(root) || !hasDeclarations(root)) continue;
-      if (!existsSync(join(REPO_ROOT, 'packages', dir, entry))) wrong.push(`${name}: ${entry}`);
+      if (!existsSync(join(REPO_ROOT, dir, entry))) wrong.push(`${name}: ${entry}`);
     }
     expect(wrong).toEqual([]);
   });
@@ -1311,13 +1322,13 @@ describe('website-content-prefixes', () => {
 // Nothing else checks the seam between the generated file, the component that reads
 // it, and the content that names a count — and each end is in a different language.
 describe('website-test-counts', () => {
-  const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
-  const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
+  const COUNTS_FILE = join(REPO_ROOT, 'container/website/site-layers/parts/app/data/test-counts.json');
+  const STAT_TILES = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/StatTiles.vue');
   // The tiles live on the root landing (2026-09, moved off the runtypes home page:
   // the claim is about the whole project, not one package). Their list is authored in
   // HomeTestTiles.vue rather than in the page: on the landing collection a component's
   // frontmatter list collapses to its first key, silently.
-  const HOME = join(REPO_ROOT, 'container/website/app/components/content/HomeTestTiles.vue');
+  const HOME = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/HomeTestTiles.vue');
 
   // The client tests' globalSetup starts a server in the listing process and logs its port on stdout,
   // so a stdout parse failed and the generator silently kept a count thousands of tests stale.
@@ -1403,8 +1414,8 @@ describe('website-test-counts', () => {
 // Same seam as the test counts: a generated file, a component reading it and a page naming the
 // component, each in a different language and nothing else checking they still meet.
 describe('website-client-size', () => {
-  const SIZE_FILE = join(REPO_ROOT, 'container/website/app/data/client-size.json');
-  const COMPONENT = join(REPO_ROOT, 'container/website/app/components/content/ClientSize.vue');
+  const SIZE_FILE = join(REPO_ROOT, 'container/website/site-layers/parts/app/data/client-size.json');
+  const COMPONENT = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ClientSize.vue');
   const RPC_HOME = join(REPO_ROOT, 'container/website/content/01.rpc/01.introduction/01.about-mion-rpc.md');
 
   it('ships a committed size the component can import', () => {
@@ -1711,10 +1722,10 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('every reader of a server dataset hides the twin lanes unless asked', () => {
     // Twins share the datasets, so a reader that skips the filter puts them on every chart.
     const component = (name: string) =>
-      readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
+      readFileSync(join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`), 'utf8');
     for (const name of ['ServerBenchBars', 'HomeBenchTable'])
       expect(component(name), `${name} reads server rows without visibleRows`).toMatch(
-        /import \{[^}]*visibleRows[^}]*\} from '~\/utils\/serverBenchRows'/
+        /import \{[^}]*visibleRows[^}]*\} from '\.\.\/\.\.\/utils\/serverBenchRows'/
       );
     expect(component('ServerBenchBars')).toContain('visibleRows(source, props.twins)');
     expect(component('HomeBenchTable')).toContain('visibleRows(serversIndex.value?.rows ?? [])');
@@ -1722,11 +1733,14 @@ describe('mion server benchmarks stay wired end to end', () => {
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
     // BenchTable's "Overall" row and HomeBenchTable's headline for the same dataset must agree.
-    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.js');
+    const shared = join(REPO_ROOT, 'container/website/site-layers/parts/app/utils/benchAggregate.js');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {
-      const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
-      expect(component, `${name} imports the shared helpers`).toContain("from '~/utils/benchAggregate'");
+      const component = readFileSync(
+        join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`),
+        'utf8'
+      );
+      expect(component, `${name} imports the shared helpers`).toContain("from '../../utils/benchAggregate'");
       expect(component, `${name} carries its own geomean`).not.toMatch(
         /function (geomean|rowMeans|meanWithWorstFill|caseSupported|aggregateRows)\(/
       );
@@ -1737,11 +1751,14 @@ describe('mion server benchmarks stay wired end to end', () => {
     // Same reason as the geomeans: a value must not read "1.2M/s" on the chart and
     // "1200000" in the table, and the two disagreed on which metrics are
     // lower-is-better before this was shared (bytes counted as higher-is-better).
-    const shared = join(REPO_ROOT, 'container/website/app/utils/benchFormat.ts');
+    const shared = join(REPO_ROOT, 'container/website/site-layers/parts/app/utils/benchFormat.ts');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'RuntypesBenchBars']) {
-      const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
-      expect(component, `${name} imports the shared formatters`).toContain("from '~/utils/benchFormat'");
+      const component = readFileSync(
+        join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`),
+        'utf8'
+      );
+      expect(component, `${name} imports the shared formatters`).toContain("from '../../utils/benchFormat'");
       expect(component, `${name} carries its own formatter`).not.toMatch(/function (formatValue|strategyOf|shortVersion)\(/);
     }
   });
@@ -1847,17 +1864,26 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('the bars shell ServerBenchBars renders is the one check-static greps for', () => {
     // The bars replaced a chart library and the results tables (2026-09): one HTML
     // component, no dependency, and the gate greps its root class in the prerendered HTML.
-    const component = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
+    const component = readFileSync(
+      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      'utf8'
+    );
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
     expect(component).toContain('<div class="server-bench-bars">');
     expect(gate).toContain('class="server-bench-bars"');
     // Its runtypes twin (2026-09), which replaced the per-case tables on those pages.
-    const runtypesBars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/RuntypesBenchBars.vue'), 'utf8');
+    const runtypesBars = readFileSync(
+      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/RuntypesBenchBars.vue'),
+      'utf8'
+    );
     expect(runtypesBars).toContain('<div class="runtypes-bench-bars">');
     expect(gate).toContain('class="runtypes-bench-bars"');
     expect(gate, 'the gate proves each chart names a case file that exists').toContain('requireSource');
     for (const gone of ['BenchChart.vue', 'ServerBenchTable.vue', 'PerfBars.vue'])
-      expect(existsSync(join(REPO_ROOT, 'container/website/app/components/content', gone)), `${gone} came back`).toBe(false);
+      expect(
+        existsSync(join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content', gone)),
+        `${gone} came back`
+      ).toBe(false);
     const deps = JSON.parse(readFileSync(join(REPO_ROOT, 'container/website/_deps/package.json'), 'utf8')) as {
       dependencies: Record<string, string>;
     };
@@ -1903,7 +1929,10 @@ describe('mion server benchmarks stay wired end to end', () => {
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
     expect(generator).toContain('tolerance');
     expect(generator, 'the rows lose their per-round numbers').toContain('rounds: (result.rounds');
-    const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
+    const bars = readFileSync(
+      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      'utf8'
+    );
     expect(bars).toContain('meta.tolerance');
     expect(bars, 'the bars no longer show the round spread').toContain('row.spread');
   });
@@ -1962,7 +1991,10 @@ describe('mion server benchmarks stay wired end to end', () => {
     // The dataset-level "wrk -c N" line comes from the FIRST section, so once
     // concurrency varies by size it would misdescribe every other one.
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
-    const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
+    const bars = readFileSync(
+      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      'utf8'
+    );
     expect(generator, 'gen-servers-docs no longer emits per-section meta').toMatch(/meta:\s*metaFrom\(results\)/);
     expect(bars, "ServerBenchBars ignores a section's own meta").toMatch(/section\.value\?\.meta/);
   });
@@ -2121,8 +2153,8 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     // Both browser consumers are bundled inside the Nuxt root and cannot import the
     // manifest, so their URL literals are matched against it here instead.
     const consumers = [
-      'container/website/app/playground/wasmLoader.ts',
-      'container/website/app/components/playground/PlaygroundStage.client.vue',
+      'container/website/site-layers/playground/app/playground/wasmLoader.ts',
+      'container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
     ];
     const sources = consumers.map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'));
     for (const [index, source] of sources.entries()) {

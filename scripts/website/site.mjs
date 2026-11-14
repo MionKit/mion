@@ -2,13 +2,12 @@
 // scripts/website/site.sh. The image lifecycle lives in scripts/container/image.mjs
 // (imported here for `ensure`); this module only RUNS the site in that shared image.
 //
-// The website's source (app/ sites/ public/ server/ scripts/) is bind-mounted so
-// edits hot-reload; config + node_modules come from the image. You cannot run the
-// site on the host.
+// The site folder (app/ content/ public/ server/ + config) and mion's layers (site-layers/)
+// are bind-mounted so edits hot-reload; node_modules come from the image. You cannot run
+// the site on the host.
 //
-// ONE install, ONE site, three subsites under it (content/<NN>.<id>/, see
-// container/website/app/utils/subsites.ts). Build output lands at
-// container/website/.output.
+// WHICH site: the `website.config.json` found by walking up from the working directory, else
+// this checkout's own (site-config.mjs). Build output lands at `<site>/.output`.
 //
 // Commands: dev [--isAgent] | build | generate | smoke | verify-docs | shell.
 // TTY commands (dev/build/generate/shell) run podman with stdio inherited so SIGINT
@@ -19,33 +18,31 @@
 // inside the Linux container, which always has sh).
 
 import {existsSync, globSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync} from 'node:fs';
-import {join} from 'node:path';
+import {join, sep} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
 import {capture, die, note, reportCliError, run, sleep, warn} from '../lib/proc.mjs';
+import {CONFIG_FILE, loadSite, outputDir as siteOutputDir} from './site-config.mjs';
 
-const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
-// Source directories bind-mounted into /app (host is the source of truth).
-// `content/` is the one content tree, `sites/` holds the per-subsite colour schemes.
-const MOUNT_DIRS = ['app', 'site-layers', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
+// Source directories of the SITE bind-mounted into /app (host is the source of truth).
+const MOUNT_DIRS = ['app', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
 // Config files bind-mounted into /app (first-party, NOT baked into the image).
 const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
-// Third-party packages the twoslash VFS mounts so example imports type-resolve.
-// Deliberately a NAMED allowlist rather than the whole node_modules tree: it keeps
-// the container's read-only view of the repo as small as the packages/ mount is.
-// Must match `externalDeps` in container/website/server/api/twoslash.post.ts.
-const TWOSLASH_EXTERNAL_DEPS = ['drizzle-orm'];
-
+// Where mion's layers sit in the container: under /app, so they resolve packages from /app/node_modules.
+const LAYERS_MOUNT = '/app/site-layers';
+const BENCH_DATA_MOUNT = '/bench-data';
 
 // Env-dependent config, read fresh (matches lib.sh + site.sh's var block).
 function config(env = process.env) {
-  const containerBase = env.MION_WEBSITE_CONTAINER || 'tsrt-website';
+  const site = loadSite(env);
+  const containerBase = site.containerBase;
   // Watcher polling: bind mounts on macOS deliver no native fs events, so default
   // it on there; Linux passes events through natively. Override with MION_WEBSITE_POLL.
   let poll = env.MION_WEBSITE_POLL;
   if (poll === undefined || poll === '') poll = process.platform === 'darwin' ? '1' : '0';
   return {
+    site,
     engine: env.MION_WEBSITE_ENGINE || 'podman',
     image: env.MION_WEBSITE_IMAGE || 'tsrt-website:dev',
     containerBase,
@@ -55,8 +52,8 @@ function config(env = process.env) {
     agentIdle: env.MION_WEBSITE_AGENT_IDLE_SECONDS || '300',
     poll,
     runNetwork: env.MION_WEBSITE_RUN_NETWORK || '',
-    repoContext: env.MION_WEBSITE_REPO_CONTEXT || REPO_ROOT,
-    docdataDir: env.MION_WEBSITE_DOCDATA || join(REPO_ROOT, '.docdata'),
+    repoContext: site.repoContext,
+    docdataDir: env.MION_WEBSITE_DOCDATA || join(site.repoContext, '.docdata'),
     skipPlayground: env.MION_WEBSITE_SKIP_PLAYGROUND === '1',
     smokeTimeout: env.MION_WEBSITE_SMOKE_TIMEOUT || '',
     // Build state: .nuxt holds the generated scaffolding, .data the Nuxt Content
@@ -67,36 +64,50 @@ function config(env = process.env) {
   };
 }
 
-/** Host dir the built site is copied to: container/website/.output. */
-export const outputDir = () => join(WEBSITE_DIR, '.output');
+/** Host dir the built site is copied to: `<site>/.output`. */
+export const outputDir = () => siteOutputDir();
+
+// The repo folders the example tool reads, outermost only: a folder inside another listed one rides its mount.
+function contextDirs(examples) {
+  const dirs = [...new Set([...examples.readRoots, ...examples.exampleDirs, ...examples.packages.map((pkg) => pkg.dir)])];
+  return dirs.filter((dir) => !dirs.some((other) => other !== dir && (dir + '/').startsWith(other + '/')));
+}
 
 // The bind-mount + named-volume `-v …` args for `run`.
 function mountArgs(cfg) {
+  const {site} = cfg;
+  const siteDir = site.siteDir;
   const args = [];
   for (const dir of MOUNT_DIRS) {
-    if (existsSync(join(WEBSITE_DIR, dir))) args.push('-v', `${join(WEBSITE_DIR, dir)}:/app/${dir}${cfg.mountOpts}`);
+    if (existsSync(join(siteDir, dir))) args.push('-v', `${join(siteDir, dir)}:/app/${dir}${cfg.mountOpts}`);
   }
   for (const file of MOUNT_FILES) {
-    if (existsSync(join(WEBSITE_DIR, file))) args.push('-v', `${join(WEBSITE_DIR, file)}:/app/${file}:ro${cfg.mountOpts}`);
+    if (existsSync(join(siteDir, file))) args.push('-v', `${join(siteDir, file)}:/app/${file}:ro${cfg.mountOpts}`);
   }
-  // Repo context, READ-ONLY: only packages/ is exposed, never the repo root, so
-  // code-import/twoslash can read first-party code + types but nothing else.
-  // MION_REPO_ROOT=/repo-context (see envArgs). Third-party .d.ts come in one dir at a
-  // time through TWOSLASH_EXTERNAL_DEPS below, never as a whole node_modules tree.
-  if (existsSync(join(cfg.repoContext, 'packages'))) args.push('-v', `${join(cfg.repoContext, 'packages')}:/repo-context/packages:ro${cfg.mountOpts}`);
-  // docs/ holds the specs a content page inlines with <markdown-import>. Without
-  // this mount the import fails inside the container ("Document not readable").
-  // What a page may publish is still decided by the IMPORTABLE_DOCS allowlist in
-  // server/utils/repo-root.ts, never by the mount.
-  if (existsSync(join(cfg.repoContext, 'docs'))) args.push('-v', `${join(cfg.repoContext, 'docs')}:/repo-context/docs:ro${cfg.mountOpts}`);
+  // The shell layer reads the example tool's values from here.
+  args.push('-v', `${site.configPath}:/app/${CONFIG_FILE}:ro${cfg.mountOpts}`);
+  // Another repo's site never writes into the mion checkout it borrows the layers from.
+  args.push('-v', `${site.layersDir}:${LAYERS_MOUNT}${site.isMion ? '' : ':ro'}${cfg.mountOpts}`);
+  // Repo context, READ-ONLY (MION_REPO_ROOT=/repo-context): only the folders the site's config
+  // names are exposed, never the repo root.
+  const context = (rel) => `/repo-context/${rel.split(sep).join('/')}`;
+  for (const dir of contextDirs(site.examples)) {
+    if (existsSync(join(cfg.repoContext, dir))) args.push('-v', `${join(cfg.repoContext, dir)}:${context(dir)}:ro${cfg.mountOpts}`);
+  }
+  // Each document a page may inline with <markdown-import>, one file at a time.
+  for (const doc of Object.values(site.examples.importableDocs)) {
+    if (existsSync(join(cfg.repoContext, doc))) args.push('-v', `${join(cfg.repoContext, doc)}:${context(doc)}:ro${cfg.mountOpts}`);
+  }
   // One dir per third-party package the twoslash VFS needs, never node_modules itself.
-  for (const dep of TWOSLASH_EXTERNAL_DEPS) {
+  for (const dep of site.examples.externalDeps) {
     const depDir = join(cfg.repoContext, 'node_modules', dep);
     if (existsSync(depDir)) args.push('-v', `${realpathSync(depDir)}:/repo-context/node_modules/${dep}:ro${cfg.mountOpts}`);
   }
+  if (site.benchData) args.push('-v', `${site.benchData}:${BENCH_DATA_MOUNT}:ro${cfg.mountOpts}`);
   // Generated benchmark/test results the docs read (MION_DOCDATA=/app/.docdata).
-  mkdirSync(cfg.docdataDir, {recursive: true});
-  args.push('-v', `${cfg.docdataDir}:/app/.docdata:ro${cfg.mountOpts}`);
+  // Only mion's site makes the folder: another repo gets no stray directory.
+  if (site.isMion) mkdirSync(cfg.docdataDir, {recursive: true});
+  if (existsSync(cfg.docdataDir)) args.push('-v', `${cfg.docdataDir}:/app/.docdata:ro${cfg.mountOpts}`);
   args.push('-v', `${cfg.volNuxt}:/app/.nuxt`);
   args.push('-v', `${cfg.volData}:/app/.data`);
   args.push('-v', `${cfg.volCache}:/app/node_modules/.cache`);
@@ -105,7 +116,13 @@ function mountArgs(cfg) {
 
 const netArgs = (cfg) => (cfg.runNetwork ? [`--network=${cfg.runNetwork}`] : []);
 // MION_REPO_ROOT/MION_DOCDATA point the resolvers at the mounted repo context + results.
-const envArgs = () => ['-e', 'MION_REPO_ROOT=/repo-context', '-e', 'MION_DOCDATA=/app/.docdata'];
+// MION_WEBSITE_LAYERS is what a site's nuxt.config.ts extends the layers through.
+const envArgs = (cfg) => [
+  '-e', 'MION_REPO_ROOT=/repo-context',
+  '-e', 'MION_DOCDATA=/app/.docdata',
+  '-e', `MION_WEBSITE_LAYERS=${LAYERS_MOUNT}`,
+  ...(cfg.site.benchData ? ['-e', `MION_WEBSITE_BENCH_DATA=${BENCH_DATA_MOUNT}`] : []),
+];
 // CHOKIDAR_USEPOLLING (read by nuxt.config.ts) switches watchers to polling — the
 // only reliable mode over a bind mount that delivers no native fs events.
 const pollArgs = (cfg) => (cfg.poll === '1' ? ['-e', 'CHOKIDAR_USEPOLLING=true'] : []);
@@ -128,7 +145,7 @@ export function ensureMionDists() {
 // build-playground.mjs is staleness-gated and needs no Go while the wasm stamp matches, so always run it.
 function ensurePlayground(cfg) {
   if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
-  if (run('node', [join(WEBSITE_DIR, 'scripts/build-playground.mjs')]) !== 0) {
+  if (run('node', [join(REPO_ROOT, 'container/website/scripts/build-playground.mjs')]) !== 0) {
     warn('playground build failed - the site will run but /playground will 404 (see output above; needs Go + bootstrapped submodule, SETUP.md).');
   }
 }
@@ -201,7 +218,7 @@ const PREPARE = 'pnpm exec nuxt prepare';
 const BUILD_SCRIPT = `${PREPARE} && pnpm exec nuxt build`;
 const GENERATE_SCRIPT = `${PREPARE} \\
       && pnpm exec nuxt generate \\
-      && node scripts/embed-panel-highlights.mjs /app/.output/public`;
+      && node ${LAYERS_MOUNT}/parts/scripts/embed-panel-highlights.mjs /app/.output/public`;
 
 // Build/generate into the container's OWN /app/.output, then `podman cp` it to the
 // host - NOT a bind mount. A bind-mounted .output fails two ways: nitro rmdir's
@@ -219,7 +236,7 @@ function buildAndCopyOut(cfg, cname, script) {
   // podman cp is used in its `<dir> <parent>` form (below), which always lands the
   // copy as `<parent>/.output`. Stage it in an empty parent beside the target, then
   // rename the result into place.
-  const staging = join(WEBSITE_DIR, '.output-staging');
+  const staging = join(cfg.site.siteDir, '.output-staging');
   const engine = (args) => run(cfg.engine, args);
   rmContainer(cfg, cname); // drop any stale container from an ungraceful prior exit
   const code = engine(['run', '--init', '--name', cname, ...nargs, ...margs, ...eargs, '-e', 'NODE_ENV=production', '-e', 'NODE_OPTIONS=--max-old-space-size=6144', '-w', '/app', cfg.image, 'sh', '-c', script]);
@@ -263,7 +280,7 @@ function cmdGenerate(cfg) {
 export function buildSite(target) {
   const cfg = config();
   requireEngine(cfg.engine);
-  mkdirSync(join(WEBSITE_DIR, '.output'), {recursive: true});
+  mkdirSync(outputDir(), {recursive: true});
   return target === 'build' ? cmdBuild(cfg) : cmdGenerate(cfg);
 }
 
@@ -360,12 +377,13 @@ function containerHttp(cfg, cname, path, body) {
   return {status, body: result.stdout.slice(nl + 1)};
 }
 
-// Examples the landing pages render via ::twoslash-code, in page order (root landing plus the subsite about pages).
-function homeTwoslashPaths() {
-  const contentDir = join(WEBSITE_DIR, 'content');
+// Examples the pages render via ::twoslash-code, in page order.
+function homeTwoslashPaths(site) {
+  const contentDir = join(site.siteDir, 'content');
   const pages = globSync('**/*.md', {cwd: contentDir}).sort();
+  const isExample = (path) => site.examples.exampleDirs.some((dir) => path.startsWith(`${dir}/`));
   return pages.flatMap((page) =>
-    [...readFileSync(join(contentDir, page), 'utf8').matchAll(/^\s*path:\s*(packages\/private-examples\/src\/\S+\.ts)\s*$/gm)].map((match) => match[1])
+    [...readFileSync(join(contentDir, page), 'utf8').matchAll(/^\s*path:\s*(\S+\.ts)\s*$/gm)].map((match) => match[1]).filter(isExample)
   );
 }
 
@@ -374,9 +392,11 @@ async function cmdVerifyDocs(cfg) {
   const cname = `${cfg.containerBase}-verify`;
   const timeoutS = Number(cfg.smokeTimeout || '120');
   // Pick a real example file from the mounted context for the endpoint checks.
-  const examples = globSync('**/*.ts', {cwd: join(cfg.repoContext, 'packages/private-examples/src')});
-  if (examples.length === 0) die(`site: no examples found under ${cfg.repoContext}/packages/private-examples/src - run 'rt website check' after building packages`);
-  const relpath = `packages/private-examples/src/${examples[0]}`;
+  const exampleDir = cfg.site.examples.exampleDirs[0];
+  if (!exampleDir) die(`site: ${cfg.site.configPath} lists no examples.exampleDirs - nothing to verify`);
+  const examples = globSync('**/*.ts', {cwd: join(cfg.repoContext, exampleDir)});
+  if (examples.length === 0) die(`site: no examples found under ${join(cfg.repoContext, exampleDir)} - run 'pnpm miondevx website check' after building packages`);
+  const relpath = `${exampleDir}/${examples[0]}`;
   note(`verify-docs: example = ${relpath}`);
 
   rmContainer(cfg, cname);
@@ -417,7 +437,7 @@ async function cmdVerifyDocs(cfg) {
   //    reader sees documented, so it is the mount list this actually proves. The
   //    endpoint answers 500 on a compiler error (an unresolved import included), and
   //    2xx-with-no-markup is the same failure with the noise stripped.
-  const cards = homeTwoslashPaths();
+  const cards = homeTwoslashPaths(cfg.site);
   for (const card of cards.length > 0 ? cards : [relpath]) {
     if (postIncludes('/api/twoslash', {path: card, hoverMode: 'explicit'}, 'twoslash')) console.log(`  PASS  twoslash: rendered annotations for ${card}`);
     else (console.error(`  FAIL  twoslash: no annotation markup for ${card}`), (fails = 1));
@@ -425,9 +445,9 @@ async function cmdVerifyDocs(cfg) {
   // 2. file read (the resolver code-import uses) returns code from the context.
   if (postIncludes('/api/read-file', {path: relpath}, '"code"')) console.log(`  PASS  code read: ${relpath}`);
   else (console.error(`  FAIL  code read: ${relpath}`), (fails = 1));
-  // 3. security boundary: a path escaping packages/ is rejected (403).
-  const code = containerHttp(cfg, cname, '/api/read-file', {path: 'packages/private-examples/../../package.json'})?.status ?? 0;
-  if (code === 403) console.log('  PASS  security: out-of-packages path rejected (403)');
+  // 3. security boundary: a path escaping the example folders is rejected (403).
+  const code = containerHttp(cfg, cname, '/api/read-file', {path: `${exampleDir}/../../package.json`})?.status ?? 0;
+  if (code === 403) console.log('  PASS  security: path outside the example folders rejected (403)');
   else (console.error(`  FAIL  security: expected 403, got ${code}`), (fails = 1));
   // 4. homepage server-renders twoslash markup (full SSR path).
   const home = containerHttp(cfg, cname, '/');
@@ -451,10 +471,10 @@ function cmdShell(cfg) {
 export async function main(args) {
   const cfg = config();
   requireEngine(cfg.engine);
-  mkdirSync(join(WEBSITE_DIR, '.output'), {recursive: true});
+  mkdirSync(outputDir(), {recursive: true});
   const cmd = args[0];
   // Ensure the playground bundle is staged for every command that serves the site.
-  if (['dev', 'build', 'generate', 'smoke', 'verify-docs'].includes(cmd)) {
+  if (cfg.site.isMion && ['dev', 'build', 'generate', 'smoke', 'verify-docs'].includes(cmd)) {
     ensureMionDists();
     ensurePlayground(cfg);
   }

@@ -47,8 +47,8 @@ const GROUPS = [
       'container/website/.nitro',
       'container/website/.data',
       'container/website/.bench-deps',
-      'container/website/public/playground-app',
-      'container/website/app/playground/.vendor',
+      'container/website/site-layers/playground/public/playground-app',
+      'container/website/site-layers/playground/app/playground/.vendor',
     ],
   },
   {

@@ -1,5 +1,5 @@
 // check-static.mjs — post-build gate for the docs site: serve the PRERENDERED
-// artifact (container/website/.output/public) and prove it is not hollow.
+// artifact (<site>/.output/public) and prove it is not hollow.
 //
 // Every content page must have prerendered, and every benchmark component on it must
 // have the data it fetches at runtime:
@@ -37,11 +37,11 @@ import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join, relative} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError, warn} from '../lib/proc.mjs';
-import {createStaticServer, hasBuild, publicRoot} from './serve.mjs';
+import {createStaticServer, hasBuild} from './serve.mjs';
+import {loadSite, publicRoot} from './site-config.mjs';
 import {columnProblems} from './bench-data/columns.mjs';
 import {PLAYGROUND_ASSETS, playgroundAssetUrl} from './playground-assets.mjs';
 
-const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
 // ── page discovery ───────────────────────────────────────────────────────────
 
@@ -402,7 +402,7 @@ async function checkPlayground(base) {
 
 /** Every page prerendered with its pictures and its benchmark components; every
  *  dataset those components read actually shipped with rows in it. */
-async function checkSite(base, contentRoot) {
+async function checkSite(base, contentRoot, site) {
   const pages = allPages(contentRoot);
   if (pages.length === 0) die(`check-static: no .md pages under ${contentRoot}`);
   note(`check-static: checking ${pages.length} pages`);
@@ -495,18 +495,21 @@ async function checkSite(base, contentRoot) {
   }
 
   failures += await checkChartDatasets(base, datasets);
-  failures += await checkPlayground(base);
+  // Only mion's own site ships the playground page.
+  if (site.isMion) failures += await checkPlayground(base);
   return {
     failures,
-    summary: `every page prerendered (${pages.length} pages, ${tables} bench-tables, ${charts} charts, ${datasets.size} chart datasets) and the playground has its engine`,
+    summary: `every page prerendered (${pages.length} pages, ${tables} bench-tables, ${charts} charts, ${datasets.size} chart datasets)${site.isMion ? ' and the playground has its engine' : ''}`,
   };
 }
 
 export async function main(args) {
   const positional = args.filter((arg) => !arg.startsWith('-'));
-  const root = positional[0] ?? publicRoot();
+  const site = loadSite();
+  const contentDir = join(site.siteDir, 'content');
+  const root = positional[0] ?? publicRoot(site);
   if (!hasBuild(root)) die(`check-static: no prerendered site at ${root} - run 'pnpm miondevx website build' first.`);
-  if (!existsSync(CONTENT_DIR)) die(`check-static: no content tree at ${CONTENT_DIR}`);
+  if (!existsSync(contentDir)) die(`check-static: no content tree at ${contentDir}`);
 
   const server = createStaticServer(root);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -515,7 +518,7 @@ export async function main(args) {
 
   let result;
   try {
-    result = await checkSite(base, CONTENT_DIR);
+    result = await checkSite(base, contentDir, site);
   } finally {
     // close() alone leaves fetch's keep-alive sockets open, which would hold the
     // process (and the CI step) past the last check.

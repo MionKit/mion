@@ -158,7 +158,7 @@ describe('each competitor runs with the settings that make it do mion work', () 
   });
 
   it('the bench table fills a skipped case per metric (bytes are lower-is-better inside an ops bench)', () => {
-    expect(read('container/website/app/components/content/BenchTable.vue')).toContain(
+    expect(read('container/website/site-layers/parts/app/components/content/BenchTable.vue')).toContain(
       'aggregateRows(orderedSections.value, index.value.competitors, metricKey, lowerBetterFor(metricKey))'
     );
   });

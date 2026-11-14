@@ -50,6 +50,8 @@ const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && 
 const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
 // js-static still checks page links and CSS imports; the release gate and prod deploy still build them.
+// website.config.json names the site folder, its layers and the packages its code examples read.
+const WEBSITE_CONFIG = 'website.config.json';
 const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
 
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
@@ -60,7 +62,7 @@ const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
 // The JS half of the repo as js-static reads it.
 // `container/` is in: code-import and link checks read its docs pages, the contract tests those and its benchmark maps.
-const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'website.config.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
 // The JS test, fuzz and Go-backed lanes read the same minus the page text, which only js-static's checks read.
 const CONTAINER_CODE = {prefix: 'container/', keep: (path) => !path.startsWith('container/website/content/')};
 const JS = JS_STATIC.map((entry) => (entry === 'container/' ? CONTAINER_CODE : entry));
@@ -107,14 +109,14 @@ export const LANES = {
     job: 'container smoke',
     hash: 'tokens',
     gate: DEFAULTS,
-    paths: [WEBSITE_CODE, 'container/benchmarks/', ...PACKED],
+    paths: [WEBSITE_CODE, WEBSITE_CONFIG, 'container/benchmarks/', ...PACKED],
     items: {
-      website: {paths: [WEBSITE_CODE, 'packages/', 'scripts/website/', 'version.json', GO_BUILD]},
+      website: {paths: [WEBSITE_CODE, WEBSITE_CONFIG, 'packages/', 'scripts/website/', 'version.json', GO_BUILD]},
       bench: {paths: ['container/benchmarks/', 'packages/', 'version.json', GO_BUILD]},
     },
   },
   // pr-heavy.yml
-  website: {job: 'build the docs site', hash: 'tokens', gate: {label: 'website'}, paths: [WEBSITE_CODE, ...PACKED]},
+  website: {job: 'build the docs site', hash: 'tokens', gate: {label: 'website'}, paths: [WEBSITE_CODE, WEBSITE_CONFIG, ...PACKED]},
   // One item per competitor: only mion's runs our packages and the binary, so a package change re-runs only mion.
   bench: {
     job: 'validation benchmarks',

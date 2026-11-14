@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
 
-export const CARDS_EXPORT_DIR = 'container/website/app/data/cards';
+export const CARDS_EXPORT_DIR = 'container/website/site-layers/parts/app/data/cards';
 export const CARD_MANIFEST = `${CARDS_EXPORT_DIR}/manifest.json`;
 
 /** One hash over the repo-relative `sources`: path and content of each, in sorted order. */

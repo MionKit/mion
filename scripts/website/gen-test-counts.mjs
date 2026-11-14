@@ -8,8 +8,8 @@
 // this needs the resolver binary + the marker/plugin dists on the host (the website
 // build runs it right after the stage that builds them) and a Go toolchain.
 //
-// Output: container/website/app/data/test-counts.json — COMMITTED, and imported
-// by app/components/content/StatTiles.vue at build time rather than fetched at
+// Output: container/website/site-layers/parts/app/data/test-counts.json — COMMITTED, and imported
+// by the parts layer's StatTiles.vue at build time rather than fetched at
 // runtime, so the numbers are in the prerendered HTML with no hydration flash.
 // Committing it also means the site still builds where the tooling is absent (a
 // container-only build, a docs-only CI lane): a stage that cannot count leaves the
@@ -24,7 +24,7 @@ import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
 
-const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
+const OUT_DIR = join(REPO_ROOT, 'container/website/site-layers/parts/app/data');
 const OUT_FILE = join(OUT_DIR, 'test-counts.json');
 
 // Counts every DECLARED test, skipped ones included: `vitest list` leaves skipped tests

@@ -12,7 +12,7 @@
 //   6. check the built site is not hollow        (check-static.mjs, generate only)
 //
 // ONE Nuxt install builds ONE site, with three subsites under it (/rpc, /runtypes,
-// /benchmarks; see container/website/app/utils/subsites.ts).
+// /benchmarks; see container/website/site-layers/shell/app/utils/subsites.ts).
 //
 // The Nuxt pages FETCH public/bench-data/ at runtime and the playground page loads
 // public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
@@ -31,10 +31,9 @@ import {die, reportCliError, run, warn, which} from '../lib/proc.mjs';
 import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
 import {buildSite, ensureMionDists, outputDir} from './site.mjs';
+import {loadSite} from './site-config.mjs';
 import {main as testCountsMain} from './gen-test-counts.mjs';
 import {main as clientSizeMain} from './gen-client-size.mjs';
-
-const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 
 const step = (msg) => console.log(`\n========== website build  ${msg} ==========`);
 
@@ -46,8 +45,8 @@ function node(rel, args = []) {
 // --no-bench reuses already-generated data instead of re-running the (multi-minute)
 // benchmark stage. The dir is git-ignored and produced ONLY by that stage, so assert
 // UP FRONT and fail LOUD rather than shipping a wrong build.
-function requireBenchArtifacts() {
-  const dir = join(WEBSITE_DIR, 'public/bench-data');
+function requireBenchArtifacts(site) {
+  const dir = join(site.siteDir, 'public/bench-data');
   if (existsSync(dir) && globSync('**/*.json', {cwd: dir}).length > 0) return;
   console.error(`website build: --no-bench needs '${dir}' to already exist with data, but it is missing or empty.`);
   die("website build: run a full 'pnpm miondevx website build' once to generate bench-data, then re-run with --no-bench.");
@@ -58,6 +57,40 @@ function humanSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}M`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)}K`;
   return `${bytes}B`;
+}
+
+// Stages 2-4: what only mion's own site needs before its Nuxt build.
+async function mionOnlyStages(skipBench) {
+  step('2/6  Go resolver binary (+ marker/plugin dist)');
+  benchMain(['prep']);
+
+  // The @mionjs/* dists the rpc home page's type hovers read.
+  step('     @mionjs dists (the rpc home page renders type hovers from them)');
+  ensureMionDists();
+
+  if (skipBench) {
+    step('3/6  SKIPPED (--no-bench): reusing existing bench-data');
+  } else {
+    step('3/6  benchmarks -> container/website/public/bench-data/');
+    benchMain(['website-bench']);
+  }
+
+  // The playground bundle is independent of the bench data (runs even under
+  // --no-bench) but needs the stage-2 Go binary for its WASM.
+  step('4/6  playground assets -> container/website/site-layers/playground/public/playground-app/');
+  node('container/website/scripts/build-playground.mjs');
+
+  // Refresh the homepage's test-count tiles. Placed after stage 2 because
+  // collecting the Vitest suite needs the resolver binary + dists that stage
+  // builds. NOT fatal: the counts are committed, so a host that cannot recount
+  // ships the last known-good numbers rather than failing the whole site build.
+  step('     homepage test counts -> container/website/site-layers/parts/app/data/test-counts.json');
+  testCountsMain([]);
+
+  // The rpc home page's client-size line. Reads the @mionjs dists stage 2 built;
+  // committed like the counts, so a host that cannot measure ships the last good one.
+  step('     client size -> container/website/site-layers/parts/app/data/client-size.json');
+  clientSizeMain([]);
 }
 
 export async function main(args) {
@@ -80,42 +113,20 @@ export async function main(args) {
   }
 
   // Fail fast: verify the reused data exists before spending time on the prereqs.
-  if (skipBench) requireBenchArtifacts();
+  // Benchmarks, the playground bundle and the home page numbers belong to mion's own site.
+  // Another site reuses them through its layers and its website.config.json `benchData`.
+  const site = loadSite();
+  const mionStages = site.isMion;
+  if (skipBench && mionStages) requireBenchArtifacts(site);
 
   step('1/6  shared website+benchmark podman image');
   ensureImage();
 
-  step('2/6  Go resolver binary (+ marker/plugin dist)');
-  benchMain(['prep']);
-
-  // The @mionjs/* dists the rpc home page's type hovers read.
-  step('     @mionjs dists (the rpc home page renders type hovers from them)');
-  ensureMionDists();
-
-  if (skipBench) {
-    step('3/6  SKIPPED (--no-bench): reusing existing bench-data');
+  if (!mionStages) {
+    step(`2-4/6  SKIPPED: mion-only stages, building ${site.siteDir}`);
   } else {
-    step('3/6  benchmarks -> container/website/public/bench-data/');
-    benchMain(['website-bench']);
+    await mionOnlyStages(skipBench);
   }
-
-  // The playground bundle is independent of the bench data (runs even under
-  // --no-bench) but needs the stage-2 Go binary for its WASM.
-  step('4/6  playground assets -> container/website/public/playground-app/');
-  node('container/website/scripts/build-playground.mjs');
-
-  // Refresh the homepage's test-count tiles. Placed after stage 2 because
-  // collecting the Vitest suite needs the resolver binary + dists that stage
-  // builds. NOT fatal: the counts are committed, so a host that cannot recount
-  // ships the last known-good numbers rather than failing the whole site build.
-  step('     homepage test counts -> container/website/app/data/test-counts.json');
-  testCountsMain([]);
-
-  // The rpc home page's client-size line. Reads the @mionjs dists stage 2 built;
-  // committed like the counts, so a host that cannot measure ships the last good one.
-  step('     client size -> container/website/app/data/client-size.json');
-  clientSizeMain([]);
-
   const started = Date.now();
   step(`5/6  Nuxt ${target} -> ${outputDir()}`);
   buildSite(target);
