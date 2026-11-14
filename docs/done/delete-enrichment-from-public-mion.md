@@ -18,7 +18,7 @@ test and document none of it, while keeping every seam that product builds on.
 - **Go:** `pkg/enrichment`, the `enrich` verb and its serve flags, the `enrich` op and the `checkEnrich`
   scan check, the `enrich-text-*` / `enrich-mock-*` / `enrich-mirror-*` codes, `FamilyEnrich`, the
   tsconfig `i18n` plugin key and the `enriched/` genDir row are gone. `splitArgs` / `mustAbs` /
-  `isDirArg` moved to `pkg/cli/args.go` for `convert` and `drizzle-migrate`.
+  `isDirArg` moved to `pkg/cli/cli.go` for `convert` and `drizzle-migrate`.
 - **run-types:** `src/enrich` (FriendlyText, MockData, `createFriendlyText*`), the `data` / `dataNode`
   mock options, the three bundled agent skills and the `mion-skills` bin are gone. The per-node mock
   `hook` covers what `data` did. The mock error hints point at the hook.
