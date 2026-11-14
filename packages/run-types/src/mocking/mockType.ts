@@ -155,7 +155,7 @@ function hookNodeContext(runType: RunType, options: RunTypeMockOptions, random: 
   };
 }
 
-/** A hook's verdict on an optional member, asked before the draw: true keeps it, false omits it, undefined draws. **/
+/** MockNodeHook.present's verdict; see it there for what each answer means. **/
 function hookPresence(runType: RunType, options: RunTypeMockOptions, random: MockRandom): boolean | undefined {
   if (!options.hook?.present) return undefined;
   const node = hookNodeContext(runType, options, random);
@@ -314,9 +314,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const hookLength = hookNode ? options.hook!.length?.(options.hookCursor, hookNode) : undefined;
       const length = clampToItemBounds(arrayParams, hookLength ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength));
       const childOpts = withHookStep(shrinkForNestedItems(options, stack), {kind: 'item'});
-      // Contains entries splice exactly `min` CHILD MOCKS (valid by the mock soundness invariant) among fillers
-      // the loose matcher DEFINITIVELY rejects, so per-entry counts are exact by construction.
-      // Provable contradictions (min > max, or a matched item the element type definitively rejects) throw.
+      // Exact per-entry counts by construction: `min` child mocks (sound by invariant), fillers the matcher rejects.
       const containsChecks = (runType.contains ?? []) as ContainsEntry[];
       if (containsChecks.length > 0) {
         const matchedByEntry: unknown[][] = [];
@@ -443,8 +441,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     }
     case RunTypeKind.tupleMember:
     case RunTypeKind.parameter: {
-      // Rest members arrive either as a RunTypeKind.rest child or as flags: ['rest'] with the ELEMENT type as the
-      // direct child (the Go tuple form); the latter generates its member array here, mirroring the rest case.
+      // Rest arrives as a RunTypeKind.rest child or, in the Go tuple form, as flags ['rest'] over the element type.
       const child = runType.child as RunType | undefined;
       if (!child) return undefined;
       if (Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest') && child.kind !== RunTypeKind.rest) {
@@ -829,9 +826,7 @@ function drawCollectionEntries<T>(spec: {
   return entries;
 }
 
-/** Map mock builder; key/value types live at `runType.arguments[i].child`, the wire's KindParameter wrappers.
- *  A formattedMap annotation shapes the draw the way the Set arm does, over the `[key, value]` PAIR that is a
- *  Map's entry: `contains` entries are satisfied by construction from the TUPLE child. **/
+/** Key/value types live at `runType.arguments[i].child`; formattedMap and `contains` act on the `[key, value]` pair. **/
 function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Map<unknown, unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
@@ -848,9 +843,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     length: clampToItemBounds(mapParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
     unique: mapParams?.uniqueItems === true,
-    // A Map's contains child is a TUPLE over the `[key, value]` pair, and a slot left `unknown` means "skip this
-    // half": a draw the Map's own key / value type rejects is REDRAWN from that type and the repaired pair
-    // re-checked, so only a pair that still fails is a real contradiction.
+    // The contains child is a tuple over `[key, value]`; an `unknown` slot means "skip this half".
     drawMatch: (child) => {
       const drawn = mockRunType(child, withHookStep(entryOpts, {kind: 'item'}), stack);
       const pair: [unknown, unknown] = Array.isArray(drawn) && drawn.length === 2 ? [drawn[0], drawn[1]] : [undefined, undefined];
@@ -874,8 +867,7 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   return result;
 }
 
-/** Set mock builder; the element type lives at `runType.arguments[0].child`.
- *  A formattedSet annotation shapes the draw the way the array arm does, so the rejection loop converges. **/
+/** Element type lives at `runType.arguments[0].child`; formattedSet shapes the draw so the rejection loop converges. **/
 function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Set<unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
