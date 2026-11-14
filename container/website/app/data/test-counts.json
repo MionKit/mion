@@ -1,7 +1,7 @@
 {
   "frontEnd": {
-    "tests": 15600,
-    "files": 618,
+    "tests": 14856,
+    "files": 599,
     "projects": {
       "@mionjs/go-be-sidecar": 31,
       "bin-uws": 8,
@@ -9,7 +9,7 @@
       "client-bundled": 41,
       "core": 105,
       "devtools": 106,
-      "devtools-core": 1955,
+      "devtools-core": 1913,
       "drizzle-example-app": 150,
       "drizzle-mysql": 117,
       "drizzle-pg": 155,
@@ -24,14 +24,14 @@
       "platform-vercel": 43,
       "playground": 75,
       "router": 622,
-      "runtypes": 9191,
+      "runtypes": 8489,
       "runtypes-ts": 1928,
       "test-router-fuzz": 7,
       "type-budget": 163
     }
   },
   "go": {
-    "tests": 2637,
-    "packages": 52
+    "tests": 2421,
+    "packages": 47
   }
 }
