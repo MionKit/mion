@@ -1,9 +1,6 @@
 <script setup lang="ts">
-// Local override of docus/app/components/app/AppHeaderBody.vue, the mobile menu. Docus
-// renders the FULL navigation tree there (every subsite nested); this one renders the
-// subsite list (the same entries the header's SubsiteMenu popup shows, with their
-// icons), the site's own menu slot (AppHeaderBodyMenu), then only the current subsite's
-// sections, so the phone menu is the same scoped sidebar the desktop shows.
+// Overrides Docus' mobile menu, which renders the full navigation tree, so the phone gets the desktop's scoped
+// sidebar: SubsiteMenu's entries, then only the current subsite's sections.
 import type {ContentNavigationItem} from '@nuxt/content'
 
 const {subsites, subsite, sidebar} = useSubsite()
