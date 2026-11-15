@@ -41,7 +41,10 @@ const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, s
 // The section ids the shared layer's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
 // Sliced to SUBSITES, so MION_HOME (another site's entry) is left out.
 const SUBSITES_FILE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
-const SUBSITES_SOURCE = SUBSITES_FILE.slice(SUBSITES_FILE.indexOf('const SUBSITES'), SUBSITES_FILE.indexOf('\n]\n'));
+const SUBSITES_SOURCE = SUBSITES_FILE.slice(
+  SUBSITES_FILE.indexOf('const SUBSITES'),
+  SUBSITES_FILE.indexOf('\n]\n', SUBSITES_FILE.indexOf('const SUBSITES'))
+);
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
 const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((match) => match[1]!);
