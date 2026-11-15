@@ -221,7 +221,7 @@ describe('the lane table', () => {
     const textAndStyle = [
       'container/website/content/01.rpc/01.intro.md',
       'container/website/content/01.rpc/_dir.yml',
-      'container/website/site-layers/shared/app/assets/css/shell.css',
+      'container/website/site-layers/shared/app/assets/css/shared.css',
       'container/website/site-layers/shared/sites/rpc/theme.css',
     ];
     const siteCode = [
@@ -231,7 +231,7 @@ describe('the lane table', () => {
       'container/website/site-layers/shared/content.config.ts',
       'container/website/_deps/package.json',
       'container/website/Containerfile',
-      'container/website/public/_redirects',
+      'container/website/site-layers/mion-io/public/_redirects',
       'website.config.json',
     ];
     const readers = (path: string): string[] => [

@@ -14,7 +14,7 @@
 // ONE Nuxt install builds ONE site, with three subsites under it (/rpc, /runtypes,
 // /benchmarks; see container/website/site-layers/shared/app/utils/subsites.ts).
 //
-// The Nuxt pages FETCH public/bench-data/ at runtime and the playground page loads
+// The Nuxt pages FETCH mion-io/public/bench-data/ at runtime and the playground page loads
 // public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
 // site build (stage 5) bakes them in, and stage 6 serves the result and verifies every
 // benchmark page's data actually made it in (a silently-empty dataset ships a page that
@@ -46,7 +46,7 @@ function node(rel, args = []) {
 // benchmark stage. The dir is git-ignored and produced ONLY by that stage, so assert
 // UP FRONT and fail LOUD rather than shipping a wrong build.
 function requireBenchArtifacts(site) {
-  const dir = join(site.siteDir, 'public/bench-data');
+  const dir = join(site.layersDir, 'mion-io/public/bench-data');
   if (existsSync(dir) && globSync('**/*.json', {cwd: dir}).length > 0) return;
   console.error(`website build: --no-bench needs '${dir}' to already exist with data, but it is missing or empty.`);
   die("website build: run a full 'pnpm miondevx website build' once to generate bench-data, then re-run with --no-bench.");
@@ -71,7 +71,7 @@ async function mionOnlyStages(skipBench) {
   if (skipBench) {
     step('3/6  SKIPPED (--no-bench): reusing existing bench-data');
   } else {
-    step('3/6  benchmarks -> container/website/public/bench-data/');
+    step('3/6  benchmarks -> container/website/site-layers/mion-io/public/bench-data/');
     benchMain(['website-bench']);
   }
 

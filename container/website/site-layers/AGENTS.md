@@ -6,16 +6,16 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 
 ## Where a file goes
 
-- `shared/` (`mion-shared`): everything both sites use. Docus, the shared look (`app/app.config.ts`, `shell.css`),
+- `shared/` (`mion-shared`): everything both sites use. Docus, the shared look (`app/app.config.ts`, `shared.css`),
   section menu + section list, section themes (`sites/<id>/theme.css`), docs page, layouts, plugins, composables,
   prose components (`TwoslashCode`, `CodeSplit`, `DetailPanel`, …), the example tool (`server/`), benchmark tables +
   charts, code cards, tiles, diagnostics catalog, mion logo (`AppHeaderLogo`, `MionLogo`), footer note
   (`AppFooterNote`), the mion page classes (`mion-pages.css`), generated data (`app/data/`).
-- `mion-io/` (`mion-io`): mion.io ONLY, listed first. `app/app.config.ts` (github, seo, socials, footer, `shell.*`),
-  `app/pages/runtypes/playground.vue`, the RunTypes playground (components, engine, `scripts/build-playground.mjs`).
+- `mion-io/` (`mion-io`): mion.io ONLY, listed first. `app/app.config.ts` (github, seo, socials, footer, `shared.*`),
+  `app/pages/runtypes/playground.vue`, the RunTypes playground (components, engine, `scripts/build-playground.mjs`),
+  `public/` (`_redirects`, banners, favicon, generated `bench-data/`).
   Never extended by another site: it carries mion.io's identity and aliases `@mionjs/run-types` for the whole build.
-- `container/website/` itself has no `app/`: `nuxt.config.ts` (`extends`, `site`, prerender routes), `content/`,
-  `public/`.
+- `container/website/` itself has no `app/`: `nuxt.config.ts` (`extends`, `site`, prerender routes) + `content/`.
 - Used by both sites → shared. mion.io page, setting or playground piece → mion-io.
 
 ## Rules
@@ -40,7 +40,7 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 ## Settings a site fills
 
 - `nuxt.config.ts`: `extends`, `site: {name, url}`, own prerender routes, own `css`.
-- `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}`, and `shell`:
+- `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}`, and `shared`:
   - `sections`: extra menu entries only this site shows (a `SubsiteEntry`).
   - `widePages` / `flushPages`: regex sources on the route path. Wide = no prose width cap, no TOC rail.
     Flush = rail kept. A local section's home page is wide without being listed.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Transforms the benchmark harness output into website-consumable JSON under
-// container/website/public/bench-data/<bench>/:
+// container/website/site-layers/mion-io/public/bench-data/<bench>/:
 //
 //   index.json              — { bench, label, unit, metricLabel, competitors[],
 //                              sections: [{ key, label, cases: [{ key, title,
@@ -44,7 +44,7 @@ const REPO_ROOT = path.resolve(HERE, '..', '..', '..');
 const BENCH_DIR = path.join(REPO_ROOT, 'container/benchmarks');
 const RESULTS_DIR = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(BENCH_DIR, 'results');
 const COMPETITORS_DIR = path.join(BENCH_DIR, 'competitors');
-const OUT_ROOT = path.join(REPO_ROOT, 'container/website/public/bench-data');
+const OUT_ROOT = path.join(REPO_ROOT, 'container/website/site-layers/mion-io/public/bench-data');
 
 // Stable competitor column order (mirrors aggregate.mjs PREFERRED).
 const PREFERRED = ['mion', 'zod', 'typebox', 'ajv', 'typia'];
@@ -761,13 +761,13 @@ function stampSerializationMeta() {
 
 if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
   const v = buildValidationBench();
-  process.stdout.write(`validation bench: ${v} cases → container/website/public/bench-data/validation/\n`);
+  process.stdout.write(`validation bench: ${v} cases → container/website/site-layers/mion-io/public/bench-data/validation/\n`);
   const t = buildTypecostBench();
-  process.stdout.write(`typecost bench: ${t} cases → container/website/public/bench-data/typecost/\n`);
+  process.stdout.write(`typecost bench: ${t} cases → container/website/site-layers/mion-io/public/bench-data/typecost/\n`);
   const c = buildCompiletimeBench();
-  process.stdout.write(`compiletime bench: ${c} cases → container/website/public/bench-data/compiletime/\n`);
+  process.stdout.write(`compiletime bench: ${c} cases → container/website/site-layers/mion-io/public/bench-data/compiletime/\n`);
   const a = buildAlignmentBench();
-  process.stdout.write(`alignment bench: ${a} cases → container/website/public/bench-data/alignment/\n`);
+  process.stdout.write(`alignment bench: ${a} cases → container/website/site-layers/mion-io/public/bench-data/alignment/\n`);
   const stampNote = stampSerializationMeta() ? 'stamped' : 'skipped (no env.json or index.json yet)';
-  process.stdout.write(`serialization meta: ${stampNote} → container/website/public/bench-data/serialization/index.json\n`);
+  process.stdout.write(`serialization meta: ${stampNote} → container/website/site-layers/mion-io/public/bench-data/serialization/index.json\n`);
 }

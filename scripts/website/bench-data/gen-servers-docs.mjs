@@ -2,7 +2,7 @@
 // docs site fetches.
 //
 // The twin of gen-docs.mjs for the OTHER benchmark family. One file per suite at
-// container/website/public/bench-data/servers-<suite>/index.json, holding the rows
+// container/website/site-layers/mion-io/public/bench-data/servers-<suite>/index.json, holding the rows
 // AND the run metadata (machine, runtime versions, load settings). The pages render
 // both from it, so nothing about a benchmark run is transcribed into markdown by
 // hand - which is exactly how the previous numbers came to claim mion 0.6.2 forever.
@@ -13,7 +13,7 @@ import {REPO_ROOT} from '../../lib/env.mjs';
 import {note} from '../../lib/proc.mjs';
 
 const RESULTS_DIR = process.env.MION_BENCH_RESULTS_DIR || join(REPO_ROOT, 'container/mion-bench/results');
-const OUT_ROOT = join(REPO_ROOT, 'container/website/public/bench-data');
+const OUT_ROOT = join(REPO_ROOT, 'container/website/site-layers/mion-io/public/bench-data');
 
 // Suite key -> the page-facing label and blurb. Kept here rather than in the content
 // tree so a renamed suite cannot leave a page titled after the old one.

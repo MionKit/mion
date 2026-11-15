@@ -156,7 +156,7 @@ polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
 build of the source-body extractor (`mion-bin/extract-fn-bodies-linux-<arch>`, so no Go
 toolchain is needed in-container), and writes `serialization` straight into
-`container/website/public/bench-data`.
+`container/website/site-layers/mion-io/public/bench-data`.
 
 Two things this stage needs that the other lanes don't, because it loads the
 **marker package's own test program** rather than a competitor project:

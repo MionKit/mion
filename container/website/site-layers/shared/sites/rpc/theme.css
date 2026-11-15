@@ -1,5 +1,5 @@
 /* The rpc subsite's colour scheme (the mion olive). ONE `brand` ramp for the whole
-   site: app/assets/css/shell.css declares `--color-brand-N: var(--site-brand-N)` in
+   site: app/assets/css/shared.css declares `--color-brand-N: var(--site-brand-N)` in
    its `@theme static` block, and each subsite fills the `--site-brand-*` shades and
    the six tokens under its `[data-site='<id>']` selector. plugins/site-attr.ts puts
    that attribute on <html> for a subsite page; the root landing page puts it on the

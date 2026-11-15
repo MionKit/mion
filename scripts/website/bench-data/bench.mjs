@@ -375,7 +375,7 @@ function cmdBenchOne(cfg, name) {
   // Non-fatal here (unlike the publish path): this is the single-competitor dev
   // loop, and gen-docs legitimately has nothing to transform on a results dir
   // that only ever held one lane.
-  note('gen-bench-docs (host transform -> container/website/public/bench-data)');
+  note('gen-bench-docs (host transform -> container/website/site-layers/mion-io/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm miondevx bench --website` before building the site');
   if (!ok) die(brokenLanesMessage([name]));
 }
@@ -457,7 +457,7 @@ function cmdSerialization(cfg) {
   if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm miondevx bench prep' first.`);
   if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm miondevx bench prep' first.");
   if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm miondevx bench prep' first.");
-  const out = process.env.MION_VALIDATION_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
+  const out = process.env.MION_VALIDATION_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/site-layers/mion-io/public/bench-data');
   mkdirSync(out, {recursive: true});
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
   // MUST be checked: gen-serialization.mjs WIPES its output dir before writing, so a
@@ -465,7 +465,7 @@ function cmdSerialization(cfg) {
   // this code let cmdWebsiteBench carry on and ship a green site whose two
   // serialization pages rendered "Benchmark data not generated yet".
   const code = run(cfg.engine, serializationRunArgs(cfg, out), {stdio: ['ignore', 'inherit', 'inherit']});
-  if (code !== 0) die('bench: serialization bench FAILED - see output above. container/website/public/bench-data/serialization{,-formats}/ is now missing or half-written; re-run before building the site.');
+  if (code !== 0) die('bench: serialization bench FAILED - see output above. container/website/site-layers/mion-io/public/bench-data/serialization{,-formats}/ is now missing or half-written; re-run before building the site.');
 }
 
 function cmdWebsiteBench(cfg) {
@@ -476,7 +476,7 @@ function cmdWebsiteBench(cfg) {
   // native ttsc plugin). Both stay one command away - `pnpm miondevx bench compiletime`
   // and `bench audit` - and gen-docs still builds their datasets from whatever results
   // it finds, so re-publishing either page is putting its call back on this line.
-  note('gen-bench-docs (host transform -> container/website/public/bench-data)');
+  note('gen-bench-docs (host transform -> container/website/site-layers/mion-io/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
   // The OTHER family: the mion HTTP server benchmarks, in their own mion-bench image.
   // They run here so ONE command regenerates BOTH sites' numbers - the two sites are
@@ -487,7 +487,7 @@ function cmdWebsiteBench(cfg) {
   // flag a caller passes only shortens the runtypes half and the mion half still runs
   // full 20s windows - a "quick" both-sites run that quietly takes ~25 minutes longer.
   mionBenchMain(['website', ...(process.env.MION_VALIDATION_BENCH_QUICK === '1' ? ['--quick'] : [])]);
-  note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
+  note('website-bench: done. container/website/site-layers/mion-io/public/bench-data/ regenerated (Node 26 / native Temporal).');
   // The site is regenerated either way; a lane that never ran shipped an EMPTY
   // column, so say so with a non-zero exit instead of a line lost in the log.
   if (broken.length > 0) die(brokenLanesMessage(broken));

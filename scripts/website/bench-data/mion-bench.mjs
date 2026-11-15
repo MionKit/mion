@@ -351,7 +351,7 @@ function aggregate(cfg, rest = []) {
 // result files), right after a run, so the site can never render one run's table
 // beside another run's charts.
 function genDocs() {
-  note('gen-servers-docs (host transform -> container/website/public/bench-data)');
+  note('gen-servers-docs (host transform -> container/website/site-layers/mion-io/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-servers-docs.mjs')]) !== 0) die('mion-bench: gen-servers-docs failed - the site data was not regenerated.');
 }
 

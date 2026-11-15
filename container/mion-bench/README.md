@@ -122,7 +122,7 @@ data both docs sites render, which is what a website deploy calls.
 Each round lands in `results/<suite>/rounds/<app>.r<n>.json`, the merged lane in
 `results/<suite>/<app>.json` (git-ignored), and
 [`gen-servers-docs.mjs`](../../scripts/website/bench-data/gen-servers-docs.mjs) turns
-them into `container/website/public/bench-data/servers-<suite>/index.json`, which the
+them into `container/website/site-layers/mion-io/public/bench-data/servers-<suite>/index.json`, which the
 `:server-bench-bars` component renders. The pages carry no numbers
 of their own — the machine, the runtime versions and the load settings are all read
 back out of the results, so a page can never describe a different run than it shows.

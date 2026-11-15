@@ -1,5 +1,5 @@
 /* The benchmarks subsite's colour scheme. See sites/rpc/theme.css for how a theme
-   file plugs into the one `brand` ramp (app/assets/css/shell.css) and where the
+   file plugs into the one `brand` ramp (app/assets/css/shared.css) and where the
    `data-site` attribute comes from.
 
    The ramp keeps the rpc palette's lightness and chroma per shade (OKLCH) at hue 60

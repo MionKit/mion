@@ -122,7 +122,7 @@ jobs:
       - name: Write the report
         run: |
           node scripts/website/bench-data/pr-report.mjs \
-            --pr container/website/public/bench-data \
+            --pr container/website/site-layers/mion-io/public/bench-data \
             --live "$RUNNER_TEMP/live-site/bench-data" \
             --env container/benchmarks/results/env.json > "$RUNNER_TEMP/report.md"
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -133,8 +133,8 @@ jobs:
           path: |
             container/benchmarks/results/*.json
             container/benchmarks/results/bun/*.json
-            container/website/public/bench-data/validation
-            container/website/public/bench-data/validation-formats
+            container/website/site-layers/mion-io/public/bench-data/validation
+            container/website/site-layers/mion-io/public/bench-data/validation-formats
           if-no-files-found: error
       # One comment per pull request, found by its marker line.
       - name: Post the report on the pull request

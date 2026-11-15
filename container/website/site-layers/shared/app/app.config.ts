@@ -3,8 +3,8 @@ import type {SubsiteEntry} from './utils/subsites'
 // The shared look and the settings every site fills in; identity (github, seo, socials, footer text) is the site's.
 // Nuxt merges app configs with `defu`, the site first per key, so Docus' defaults still apply under anything left out.
 export default defineAppConfig({
-  shell: {
-    // The site's own address: a section link under it becomes local. Unset: the shell module fills it from `site.url`.
+  shared: {
+    // The site's own address: a section link under it becomes local. Unset: the layer fills it from `site.url`.
     origin: undefined as string | undefined,
     // Extra menu entries only this site shows.
     sections: [] as SubsiteEntry[],

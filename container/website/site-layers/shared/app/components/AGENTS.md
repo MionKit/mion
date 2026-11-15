@@ -27,12 +27,12 @@ They live in the `shared` layer (paths below are relative to it); the playground
     Library list + icons: `app/utils/replacedLibraries.ts`.
   - `PlatformTiles` (rpc home): logos from `public/platform-logos/`, a `dark` twin for black-ink logos.
     Never `public/platforms/`: the old `/platforms/*` redirect would capture it.
-  - Also here: `StatTiles`, `DiagnosticCatalog`, `RealWorldScenario`, `TypeSafeAnimation`, `MionType`, `MionLogo`.
-    Shell: `DetailPanel`, `SlidedTitle`, `StylishList`, `HoverList`, `Spacer`, `CodeSplit`.
-    Playground: `RuntypesPlayground`.
-- Docus overrides live beside Docus' own paths: `app/components/app/` (here: `AppHeaderLogo`, `AppFooterNote`;
-  shell: header body + centre, footer), shell `app/components/docs/`.
-- Shell `app/components/global/`: the `mermaid` component.
+  - Also here: `StatTiles`, `DiagnosticCatalog`, `RealWorldScenario`, `TypeSafeAnimation`, `MionType`, `MionLogo`,
+    `DetailPanel`, `SlidedTitle`, `StylishList`, `HoverList`, `Spacer`, `CodeSplit`.
+    Playground (in `mion-io`): `RuntypesPlayground`.
+- Docus overrides live beside Docus' own paths: `app/components/app/` (`AppHeaderLogo`, `AppFooterNote`,
+  header body + centre, footer), `app/components/docs/`.
+- `app/components/global/`: the `mermaid` component.
 - `app/components/content/go-generated/`: machine-generated data (e.g. diagnostics catalog JSON from
   `pnpm miondevx core codegen`). NEVER hand-edit.
 - Docus built-ins usable in MDC: `::code-group`, `::note`, `::card`, `::card-group`, `::alert`, `::div{class="..."}`.

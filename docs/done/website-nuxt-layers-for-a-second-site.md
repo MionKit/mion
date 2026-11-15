@@ -40,9 +40,9 @@ created: 2026-11-14
 
 ```
 website.config.json                 NEW, repo root: mion's site config (example tool values, container name)
-container/website/                  mion.io site (content/, public/, .output keep their paths)
+container/website/                  mion.io site (content/, .output keep their paths)
 ├── nuxt.config.ts                  extends mion-io + shared; name, url, prerender routes
-├── content/  public/  _deps/  Containerfile  parked/  tests/      (no app/, no scripts/)
+├── content/  _deps/  Containerfile  parked/  tests/      (no app/, no scripts/, no public/)
 └── site-layers/
     ├── shared/     everything both sites use                $meta.name 'mion-shared'
     └── mion-io/    mion.io only: settings, playground       $meta.name 'mion-io'
@@ -57,9 +57,9 @@ container/website/                  mion.io site (content/, public/, .output kee
 ### What goes where
 
 - **shared**: `extends: ['docus']`, the module list, `colorMode` and `nitro.output` in its `nuxt.config.ts`.
-  `content.config.ts`. `app/app.config.ts` (the shared look). `app/assets/css/shell.css` (the generic part of the old
+  `content.config.ts`. `app/app.config.ts` (the shared look). `app/assets/css/shared.css` (the generic part of the old
   `mion.css`) then `mion-pages.css` (the mion page classes; it opens with `@reference 'tailwindcss'` so Tailwind
-  still compiles it; listed after `shell.css`, the order the rules were in) + `sites/<id>/theme.css` for `rpc`,
+  still compiles it; listed after `shared.css`, the order the rules were in) + `sites/<id>/theme.css` for `rpc`,
   `runtypes`, `benchmarks`, `pro`. Site chrome (`SubsiteMenu`, header, footer, sidebar), prose components, the docs
   page, layouts, plugins, composables, `utils/subsites.ts`, all of `server/` (example tool, function catalog).
   Benchmark tables + charts, `CodeCard`, tiles, diagnostics catalog, `MionLogo`, `app/components/app/AppHeaderLogo.vue`
@@ -69,9 +69,8 @@ container/website/                  mion.io site (content/, public/, .output kee
 - **mion-io**: mion.io's `app/app.config.ts` (github, seo, docus title / socials / github / footer), the playground
   page, the playground itself (`content/RuntypesPlayground.vue`, `components/playground/*`, `app/playground/*` with
   `.vendor/`, the three `@mionjs/run-types` Vite aliases, the Monaco exclude, generated `public/playground-app/`,
-  `scripts/build-playground.mjs`). Only mion.io extends it, listed first.
-- **mion site folder**: `site: {name, url}`, `nitro.prerender.routes`, `app.buildAssetsDir`, `content/`,
-  `public/{_redirects,banners,favicon*,bench-data}`.
+  `scripts/build-playground.mjs`), `public/{_redirects,banners,favicon*,bench-data}`. Only mion.io extends it, listed first.
+- **mion site folder**: `site: {name, url}`, `nitro.prerender.routes`, `app.buildAssetsDir`, `content/`.
 - Deleted, unused: `public/mountains.webp`, `public/fonts/MonomaniacOne-Regular.ttf`.
 
 ### Layer rules (each one checked against upstream source)
@@ -97,12 +96,12 @@ container/website/                  mion.io site (content/, public/, .output kee
 
 - `nuxt.config.ts`: `site: {name, url}`, `extends`, own `css`, own prerender routes.
 - `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}` as today, plus a new
-  `shell` key: `origin` (the site's own address, used to localise menu links; left out, the shell module fills it
+  `shared` key: `origin` (the site's own address, used to localise menu links; left out, the layer fills it
   from `site.url`), `sections` (extra menu entries only this
   site shows), `widePages` + `flushPages` (regex sources; a local section's home page is wide without being listed),
   `menuLabel` (the aria text).
-- Logo and footer note: override `AppHeaderLogo.vue` / `AppFooterNote.vue` with a same-named file. Shell-only site
-  gets Docus' default wordmark and no note.
+- Logo and footer note: override `AppHeaderLogo.vue` / `AppFooterNote.vue` with a same-named file.
+  Left out, the site shows mion's.
 - Colours: a site adds `sites/<id>/theme.css` to its own `css`. Same `data-site` name as a shared one = override.
 
 ### Section list
@@ -110,7 +109,7 @@ container/website/                  mion.io site (content/, public/, .output kee
 - `shared/app/utils/subsites.ts`: `SUBSITES` holds full links: `https://mion.io/rpc`, `/runtypes`, `/benchmarks`,
   and `https://pro.mion.io` (`id: 'pro'`, label `Pro`, text "Paid extensions to mion.", icon `i-lucide-gem`, violet
   ramp built by the ramp rule in `app/AGENTS.md`). `id` becomes `string`.
-- `useSubsite()` returns the list with each entry resolved: link starts with `shell.origin` → local path, else
+- `useSubsite()` returns the list with each entry resolved: link starts with `shared.origin` → local path, else
   external link (`target="_blank"` not set, same tab). Site `sections` are appended.
 - `subsiteForPath` picks the longest matching local path (pro's own entry is `/`).
 - mion.io menu shows four entries. Pro's theme lives in `shared` because mion.io paints that entry.

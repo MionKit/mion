@@ -146,7 +146,7 @@ export default defineNuxtConfig({
   replaces it.
 - Import a layer file with `#layers/mion-shared/…` (the layer ROOT, so
   `#layers/mion-shared/app/utils/benchFormat`).
-- Settings the site fills (`site`, `app.config.ts` `shell.*`, logo, footer note, colours):
+- Settings the site fills (`site`, `app.config.ts` `shared.*`, logo, footer note, colours):
   [site-layers/AGENTS.md](./site-layers/AGENTS.md#settings-a-site-fills).
 - The site gets none of mion.io's pages, redirects, prerender routes, name or
   playground: those live in mion's site folder and its own `mion-io` layer.

@@ -18,7 +18,7 @@ export default defineAppConfig({
     description: 'mion is the definitive TypeScript framework for Full Stack APIs, built for exceptional developer experience.',
     image: '/banners/mion-v2-website-banner.png',
   },
-  shell: {
+  shared: {
     // Section home pages are wide without a pattern; flush pages keep the rail.
     widePages: ['^/runtypes/(introduction|guide)(/|$)'],
     flushPages: ['^/benchmarks/.+'],

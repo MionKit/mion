@@ -17,8 +17,8 @@ export default defineNuxtConfig({
   $meta: { name: 'mion-shared' },
   extends: ['docus'],
   css: [
-    // Order matters: mion-pages.css overrides rules of shell.css with the same weight.
-    fileURLToPath(new URL('./app/assets/css/shell.css', import.meta.url)),
+    // Order matters: mion-pages.css overrides rules of shared.css with the same weight.
+    fileURLToPath(new URL('./app/assets/css/shared.css', import.meta.url)),
     '@shikijs/twoslash/style-rich.css',
     fileURLToPath(new URL('./app/assets/css/mion-pages.css', import.meta.url)),
   ],
@@ -37,8 +37,8 @@ export default defineNuxtConfig({
 
       // Section links that start with the site's own address become local links (app/utils/subsites.ts).
       const siteUrl = (nuxt.options as { site?: { url?: string } }).site?.url
-      const appConfig = nuxt.options.appConfig as { shell?: { origin?: string } }
-      appConfig.shell = { origin: siteUrl ?? '', ...appConfig.shell }
+      const appConfig = nuxt.options.appConfig as { shared?: { origin?: string } }
+      appConfig.shared = { origin: siteUrl ?? '', ...appConfig.shared }
 
       // The example tool's values come from the consuming site's website.config.json.
       const tool = loadExampleTool(nuxt.options.rootDir)

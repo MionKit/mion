@@ -126,8 +126,8 @@ jobs:
               exit 1
             fi
           fi
-          mkdir -p container/website/public
-          cp -R "$RUNNER_TEMP/last-site/bench-data" container/website/public/bench-data
+          mkdir -p container/website/site-layers/mion-io/public
+          cp -R "$RUNNER_TEMP/last-site/bench-data" container/website/site-layers/mion-io/public/bench-data
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
