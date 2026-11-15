@@ -11,7 +11,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const CONTENT_DIR = join(WEBSITE, 'content');
 const LAYERS_DIR = join(WEBSITE, 'site-layers');
-// mion.io's own files (redirects, banners, favicon, bench data) live in its layer.
+// mion.io's own files (redirects, banners, bench data) live in its layer.
 const PUBLIC_DIR = join(LAYERS_DIR, 'mion-io/public');
 // Every layer's public/ is served.
 const PUBLIC_DIRS = readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer, 'public'));

@@ -129,19 +129,25 @@ node third_party/mion/scripts/miondevx.mjs website dev
 node third_party/mion/scripts/miondevx.mjs website build
 ```
 
-Its `nuxt.config.ts` extends the shared layer through the path the container sets,
-LAST in the list (Docus must stay the lowest layer, the layer refuses to start otherwise):
+The site's own layers live in `<site>/site-layers/<name>/`: that folder is mounted at
+`/app/site-layers`, like mion.io's. mion's `shared` layer is mounted read-only at
+`/app/mion-layers/shared`, the path `MION_WEBSITE_LAYERS` holds. mion.io's `mion-io`
+layer is never mounted.
+
+Its `nuxt.config.ts` extends its own layers as `./site-layers/<name>`, then the shared
+layer through the path the container sets, LAST in the list (Docus must stay the lowest
+layer, the layer refuses to start otherwise):
 
 ```ts
-const layers = process.env.MION_WEBSITE_LAYERS // /app/site-layers
+const layers = process.env.MION_WEBSITE_LAYERS // /app/mion-layers
 export default defineNuxtConfig({
-  extends: [`${layers}/shared`],
+  extends: ['./site-layers/mion-pro', `${layers}/shared`],
   site: {name: 'mion pro', url: 'https://pro.mion.io'},
 })
 ```
 
 - `shared` is the whole docs site both sites use: Docus, the look, the section menu,
-  the example tool, mion's benchmark tables, code cards, tiles, logo and footer note.
+  the example tool, mion's benchmark tables, code cards, tiles, logo, footer note and favicon.
   Any of its components is usable in a page, and a same-named file in the site
   replaces it.
 - Import a layer file with `#layers/mion-shared/…` (the layer ROOT, so

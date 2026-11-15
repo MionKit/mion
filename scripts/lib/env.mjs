@@ -224,7 +224,7 @@ export const REGISTRY = [
   {name: 'MION_E2E_VERDACCIO_CONFIG', scope: 'internal', task: '-', desc: "verdaccio config path inside the e2e registry container, read by e2e-serve.sh (default /etc/verdaccio/config.yaml). scripts/container/image.mjs sets it to /e2e-src/registry/verdaccio.yaml so the repo's config (with the '@mionjs/*' local-only rule) overrides the one baked into the pulled image without a republish"},
   {name: 'MION_AUDIT_ALIGNMENT', scope: 'internal', task: '-', desc: 'Bench mode flag: emit alignment records instead of timing (set by rt bench audit)'},
   {name: 'MION_REPO_ROOT', scope: 'internal', task: '-', desc: 'In-container repo-context mount point (passed via -e)'},
-  {name: 'MION_WEBSITE_LAYERS', scope: 'internal', task: '-', desc: "In-container folder of the website layers (/app/site-layers), read by a site's nuxt.config.ts `extends` (passed via -e)"},
+  {name: 'MION_WEBSITE_LAYERS', scope: 'internal', task: '-', desc: "In-container folder of mion's website layers (/app/site-layers for mion.io, /app/mion-layers for another repo's site), read by a site's nuxt.config.ts `extends` (passed via -e)"},
   {name: 'MION_WEBSITE_BENCH_DATA', scope: 'internal', task: '-', desc: 'In-container mount of the `benchData` folder from website.config.json, served at /bench-data (passed via -e)'},
   {name: 'MION_DOCDATA', scope: 'internal', task: '-', desc: 'In-container docdata mount point (passed via -e)'},
   {name: 'MION_AGENT', scope: 'internal', task: '-', desc: 'Agent-mode flag inside the container (passed via -e)'},

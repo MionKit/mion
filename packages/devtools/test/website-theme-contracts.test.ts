@@ -18,7 +18,7 @@
 //     :root, :root.dark, :root.light blocks), so one file shows every colour the shared tree paints.
 
 import {describe, it, expect} from 'vitest';
-import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {existsSync, globSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join, posix, resolve} from 'node:path';
 
@@ -476,9 +476,11 @@ describe('website-subsites', () => {
     expect(aside, 'the desktop sidebar lists the home page too').toContain('sidebar(navigation?.value)');
   });
 
-  it('ships one logo and one favicon for the whole site', () => {
+  it('ships one logo and one favicon set, in the shared layer every site extends', () => {
     expect(existsSync(join(SHARED_LAYER, 'app/components/content/MionLogo.vue'))).toBe(true);
-    expect(existsSync(join(LAYERS_DIR, 'mion-io/public/favicon.ico'))).toBe(true);
+    expect(existsSync(join(SHARED_LAYER, 'public/favicon.ico'))).toBe(true);
+    expect(existsSync(join(SHARED_LAYER, 'public/favicon_io/apple-touch-icon.png'))).toBe(true);
+    expect(globSync('**/favicon*', {cwd: join(LAYERS_DIR, 'mion-io/public')}), 'no second favicon in mion-io').toEqual([]);
     for (const site of SITES) {
       expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
       expect(existsSync(join(SITES_DIR, site, 'public')), site).toBe(false);

@@ -424,10 +424,28 @@ describe('website-site-config', () => {
     expect(contextDirs(examples)).toEqual(['packages', 'packages-x', 'docs/specs']);
   });
 
-  it('gives another repo site read-only layers, its own folders and no mion folder', () => {
+  it('gives mion.io both of its layers, writable, in one mount', () => {
+    const site = loadSite({}, REPO_ROOT);
+    const cfg = {
+      site,
+      repoContext: REPO_ROOT,
+      mountOpts: '',
+      docdataDir: join(REPO_ROOT, '.docdata'),
+      volNuxt: 'n',
+      volData: 'd',
+      volCache: 'c',
+    };
+    const layerMounts = (mountArgs(cfg) as string[]).filter((arg) => /:\/app\/(site|mion)-layers/.test(arg));
+    expect(layerMounts.map((arg) => arg.replace(/^.*:\/app/, '/app'))).toEqual(['/app/site-layers']);
+    expect(realpathSync(layerMounts[0].split(':')[0])).toBe(realpathSync(site.layersDir));
+    expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/site-layers');
+  });
+
+  it("gives another repo site its own layers, mion's shared layer read-only beside them, its own folders and no mion folder", () => {
     const repo = realpathSync(mkdtempSync(join(tmpdir(), 'other-repo-')));
     try {
-      for (const dir of ['docs-site/content', 'examples', 'docs', 'data/bench']) mkdirSync(join(repo, dir), {recursive: true});
+      for (const dir of ['docs-site/content', 'docs-site/site-layers/pro', 'examples', 'docs', 'data/bench'])
+        mkdirSync(join(repo, dir), {recursive: true});
       writeFileSync(join(repo, 'docs/spec.md'), '# spec');
       writeFileSync(join(repo, 'docs-site/content/index.md'), '  path: examples/a.ts\n  path: elsewhere/b.ts\n');
       const config = {site: 'docs-site', examples: {exampleDirs: ['examples'], importableDocs: {spec: 'docs/spec.md'}}};
@@ -445,8 +463,9 @@ describe('website-site-config', () => {
       const mounts = (mountArgs(cfg) as string[]).filter((arg) => arg !== '-v');
       expect(mounts).toEqual([
         `${join(repo, 'docs-site/content')}:/app/content`,
+        `${join(repo, 'docs-site/site-layers')}:/app/site-layers`,
         `${join(repo, 'website.config.json')}:/app/website.config.json:ro`,
-        `${site.layersDir}:/app/site-layers:ro`,
+        `${join(site.layersDir, 'shared')}:/app/mion-layers/shared:ro`,
         `${join(repo, 'examples')}:/repo-context/examples:ro`,
         `${join(repo, 'docs')}:/repo-context/docs:ro`,
         'n:/app/.nuxt',
@@ -454,8 +473,8 @@ describe('website-site-config', () => {
         'c:/app/node_modules/.cache',
       ]);
       expect(existsSync(join(repo, '.docdata')), 'no stray folder in the other repo').toBe(false);
-      // the name a site's nuxt.config.ts extends the layers through
-      expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/site-layers');
+      // the path a site's nuxt.config.ts extends mion's shared layer through, beside its own ./site-layers/
+      expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/mion-layers');
       expect((envArgs(cfg) as string[]).join(' ')).not.toContain('MION_WEBSITE_BENCH_DATA');
       // bench data is opt-in
       writeFileSync(join(repo, 'website.config.json'), JSON.stringify({...config, benchData: 'data/bench'}));

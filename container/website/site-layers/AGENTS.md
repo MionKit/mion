@@ -10,10 +10,11 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
   section menu + section list, section themes (`sites/<id>/theme.css`), docs page, layouts, plugins, composables,
   prose components (`TwoslashCode`, `CodeSplit`, `DetailPanel`, …), the example tool (`server/`), benchmark tables +
   charts, code cards, tiles, diagnostics catalog, mion logo (`AppHeaderLogo`, `MionLogo`), footer note
-  (`AppFooterNote`), the mion page classes (`mion-pages.css`), generated data (`app/data/`).
+  (`AppFooterNote`), the mion page classes (`mion-pages.css`), generated data (`app/data/`), favicon set
+  (`public/favicon.ico` + `favicon_io/`).
 - `mion-io/` (`mion-io`): mion.io ONLY, listed first. `app/app.config.ts` (github, seo, socials, footer, `shared.*`),
   `app/pages/runtypes/playground.vue`, the RunTypes playground (components, engine, `scripts/build-playground.mjs`),
-  `public/` (`_redirects`, banners, favicon, generated `bench-data/`).
+  `public/` (`_redirects`, banners, generated `bench-data/`).
   Never extended by another site: it carries mion.io's identity and aliases `@mionjs/run-types` for the whole build.
 - `container/website/` itself has no `app/`: `nuxt.config.ts` (`extends`, `site`, prerender routes) + `content/`.
 - Used by both sites → shared. mion.io page, setting or playground piece → mion-io.
@@ -63,4 +64,7 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
   Keys + mounts: [CONTAINER.md](../CONTAINER.md#using-the-layers-from-another-repo).
 - It installs no website package. Its files are mounted into the one image built from `_deps/`.
   New website dependency → mion's `_deps/` + image rebuild.
-- Its `nuxt.config.ts` extends `${process.env.MION_WEBSITE_LAYERS}/shared`, last in the list.
+- Its own layer lives in ITS repo at `<site>/site-layers/<name>/` (mion-pro: `container/website/site-layers/mion-pro`),
+  never in mion. That folder is mounted at `/app/site-layers`. mion's `shared` sits read-only at
+  `/app/mion-layers/shared` (`MION_WEBSITE_LAYERS`); `mion-io` is never mounted.
+- Its `nuxt.config.ts` extends ``['./site-layers/<name>', `${process.env.MION_WEBSITE_LAYERS}/shared`]``, shared last.

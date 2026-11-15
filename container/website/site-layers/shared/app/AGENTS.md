@@ -38,11 +38,11 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
   Block: title, intro, buttons; beside them a code example or the live bench summary (`HomeBenchTable.vue`).
   rpc block: server + client examples side by side under the intro.
 - Shared by all subsites: components, layouts, server utils, playground (`/runtypes/playground`), mion.io's
-  `mion-io/public/` (favicon, banners, `_redirects`, generated `bench-data/`).
+  `mion-io/public/` (banners, `_redirects`, generated `bench-data/`).
 - `app/app.config.ts`: the shared look (`ui.prose`, `primary` alias, `navigation.sub`, Docus aside / header).
   The site's own holds SEO, socials, footer. Nuxt merges app configs with `defu` (site first, per key): layer and
   Docus defaults still apply under anything left out.
-- Favicon: `mion-io/public/favicon.ico` + `favicon_io/`, one for the whole site.
+- Favicon: `public/favicon.ico` + `favicon_io/`, one for every site that extends `shared`.
 
 ## Styling
 
