@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error untyped .js (the site's tsconfig only exists in its image)
-import {aggregateRows, rowMeans} from '../../../container/website/site-layers/parts/app/utils/benchAggregate.js';
+import {aggregateRows, rowMeans} from '../../../container/website/site-layers/shared/app/utils/benchAggregate.js';
 
 type Status = 'ok' | 'fail' | 'not-supported';
 type Cell = number | Status;

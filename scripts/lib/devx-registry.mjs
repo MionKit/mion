@@ -431,7 +431,7 @@ export const AREAS = {
       {
         name: 'export',
         args: '<name…>',
-        summary: 'write cards, their stylesheet, fonts and player to the website (container/website/site-layers/parts/app/data/cards/)',
+        summary: 'write cards, their stylesheet, fonts and player to the website (container/website/site-layers/shared/app/data/cards/)',
         flags: [['--all', 'every card in cards/']],
       },
       {name: 'test', summary: 'type check + tests of tools/code-card (no CI lane runs them)'},

@@ -6,7 +6,7 @@ Private, never published. Turns a small `.vue` card, built from the components i
 pnpm miondevx card new <name> [--tmp]   # scaffold a code card + its snippet
 pnpm miondevx card serve                # preview: live pages, play / pause / replay, PNG downloads
 pnpm miondevx card shot <name>          # check the layout, render it to PNG (2400px wide)
-pnpm miondevx card export <name>        # hand it to the website (container/website/site-layers/parts/app/data/cards/)
+pnpm miondevx card export <name>        # hand it to the website (container/website/site-layers/shared/app/data/cards/)
 pnpm miondevx card test                 # its type check + tests (no CI lane runs them)
 ```
 

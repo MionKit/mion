@@ -16,7 +16,7 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
 | `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `content/`, `public/`, `scripts/`, `tests/`, plus `sites/` and `server/` when the site has them |
 | `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `tsconfig.json`, `eslint.config.mjs`, the repo root `website.config.json` |
-| **`node_modules/`** (installed in the image only)            | `site-layers/` at `/app/site-layers` (the three Nuxt layers, see [site-layers/AGENTS.md](./site-layers/AGENTS.md)) |
+| **`node_modules/`** (installed in the image only)            | `site-layers/` at `/app/site-layers` (the Nuxt layers, see [site-layers/AGENTS.md](./site-layers/AGENTS.md)) |
 
 - The package-manager files live in **`container/website/_deps/`**, not at the website
   root — so there is no `package.json` to accidentally `pnpm install` against on
@@ -89,7 +89,7 @@ dir at a time — never the whole `node_modules`. `site.mjs` mounts the folders 
 names **read-only** and points the resolvers at them via `MION_REPO_ROOT` — this repo by
 default (a sibling checkout still works via `MION_WEBSITE_REPO_CONTEXT`). Only the listed
 folders are exposed, and every `path=` read is confined to `examples.readRoots`
-(`site-layers/shell/server/utils/repo-root.ts`). Run
+(`site-layers/shared/server/utils/repo-root.ts`). Run
 `pnpm miondevx website check` to confirm the context is built and `pnpm miondevx website check --docs`
 to check both mechanisms render.
 
@@ -129,34 +129,30 @@ node third_party/mion/scripts/miondevx.mjs website dev
 node third_party/mion/scripts/miondevx.mjs website build
 ```
 
-Its `nuxt.config.ts` extends the layers through the path the container sets, with
-the shell LAST (Docus must stay the lowest layer, the shell refuses to start otherwise):
+Its `nuxt.config.ts` extends the shared layer through the path the container sets,
+LAST in the list (Docus must stay the lowest layer, the layer refuses to start otherwise):
 
 ```ts
 const layers = process.env.MION_WEBSITE_LAYERS // /app/site-layers
 export default defineNuxtConfig({
-  extends: [`${layers}/parts`, `${layers}/shell`],
+  extends: [`${layers}/shared`],
   site: {name: 'mion pro', url: 'https://pro.mion.io'},
 })
 ```
 
-- `shell` alone is a full docs site: Docus, the shared look, the section menu, the
-  example tool. `parts` adds mion's benchmark tables, code cards, tiles, logo and
-  footer note. Any component of either is usable in a page, and a same-named file in
-  the site replaces it.
-- Import a layer file with `#layers/mion-shell/…`, `#layers/mion-parts/…`,
-  `#layers/mion-playground/…` (the layer ROOT, so `#layers/mion-parts/app/utils/benchFormat`).
+- `shared` is the whole docs site both sites use: Docus, the look, the section menu,
+  the example tool, mion's benchmark tables, code cards, tiles, logo and footer note.
+  Any of its components is usable in a page, and a same-named file in the site
+  replaces it.
+- Import a layer file with `#layers/mion-shared/…` (the layer ROOT, so
+  `#layers/mion-shared/app/utils/benchFormat`).
 - Settings the site fills (`site`, `app.config.ts` `shell.*`, logo, footer note, colours):
   [site-layers/AGENTS.md](./site-layers/AGENTS.md#settings-a-site-fills).
-- The site gets none of mion.io's pages, redirects, prerender routes or name: those
-  live in mion's site folder, not in a layer.
+- The site gets none of mion.io's pages, redirects, prerender routes, name or
+  playground: those live in mion's site folder and its own `mion-io` layer.
 
-Two things are opt-in:
+One thing is opt-in:
 
-- **Playground.** Add `${layers}/playground` before the shell and render
-  `<RuntypesPlayground />` on a page of the site. It needs the assets
-  `node container/website/site-layers/playground/scripts/build-playground.mjs` writes inside the mion
-  checkout (git-ignored; needs Go and a bootstrapped mion checkout).
 - **Benchmark data.** Set `benchData` to a folder with a `bench-data` tree, from a
   benchmark run or a release asset.
 

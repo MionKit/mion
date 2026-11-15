@@ -12,7 +12,7 @@
 //   6. check the built site is not hollow        (check-static.mjs, generate only)
 //
 // ONE Nuxt install builds ONE site, with three subsites under it (/rpc, /runtypes,
-// /benchmarks; see container/website/site-layers/shell/app/utils/subsites.ts).
+// /benchmarks; see container/website/site-layers/shared/app/utils/subsites.ts).
 //
 // The Nuxt pages FETCH public/bench-data/ at runtime and the playground page loads
 // public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
@@ -77,19 +77,19 @@ async function mionOnlyStages(skipBench) {
 
   // The playground bundle is independent of the bench data (runs even under
   // --no-bench) but needs the stage-2 Go binary for its WASM.
-  step('4/6  playground assets -> container/website/site-layers/playground/public/playground-app/');
-  node('container/website/site-layers/playground/scripts/build-playground.mjs');
+  step('4/6  playground assets -> container/website/site-layers/mion-io/public/playground-app/');
+  node('container/website/site-layers/mion-io/scripts/build-playground.mjs');
 
   // Refresh the homepage's test-count tiles. Placed after stage 2 because
   // collecting the Vitest suite needs the resolver binary + dists that stage
   // builds. NOT fatal: the counts are committed, so a host that cannot recount
   // ships the last known-good numbers rather than failing the whole site build.
-  step('     homepage test counts -> container/website/site-layers/parts/app/data/test-counts.json');
+  step('     homepage test counts -> container/website/site-layers/shared/app/data/test-counts.json');
   testCountsMain([]);
 
   // The rpc home page's client-size line. Reads the @mionjs dists stage 2 built;
   // committed like the counts, so a host that cannot measure ships the last good one.
-  step('     client size -> container/website/site-layers/parts/app/data/client-size.json');
+  step('     client size -> container/website/site-layers/shared/app/data/client-size.json');
   clientSizeMain([]);
 }
 

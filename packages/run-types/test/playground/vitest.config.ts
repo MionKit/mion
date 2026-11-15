@@ -3,7 +3,7 @@ import {fileURLToPath} from 'node:url';
 
 // The playground engine test suite (relocated from the dissolved
 // runtypes-playground package). It exercises the relocated engine at
-// container/website/site-layers/playground/app/playground via the Node WASM resolver — no UI, no
+// container/website/site-layers/mion-io/app/playground via the Node WASM resolver — no UI, no
 // Monaco, no @mionjs/devtools transform (unlike the sibling marker project).
 //
 // `resolve.conditions: ['source']` resolves the engine's `import 'mion'`

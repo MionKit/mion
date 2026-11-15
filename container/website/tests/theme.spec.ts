@@ -1,6 +1,6 @@
 // Each subsite's colour scheme reaches the rendered page, and the header names the
 // subsite (the subsite menu button beside the search box). Run against a served site (`pnpm miondevx website dev`; the harness points at
-// :3000); the expected values come from each site-layers/shell/sites/<id>/theme.css. Not a CI gate: the
+// :3000); the expected values come from each site-layers/shared/sites/<id>/theme.css. Not a CI gate: the
 // shared image carries no Playwright browsers, so this is the manual check the
 // website-browser skill drives (every subsite, light and dark).
 import {expect, test} from '@playwright/test';
@@ -8,7 +8,7 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 
-const SITES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'site-layers', 'shell', 'sites');
+const SITES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'site-layers', 'shared', 'sites');
 const SUBSITES = [
   {id: 'rpc', path: '/rpc', word: 'RPC'},
   {id: 'runtypes', path: '/runtypes', word: 'RunTypes'},

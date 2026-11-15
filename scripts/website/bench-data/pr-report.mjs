@@ -5,7 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {rowMeans} from '../../../container/website/site-layers/parts/app/utils/benchAggregate.js';
+import {rowMeans} from '../../../container/website/site-layers/shared/app/utils/benchAggregate.js';
 
 const DATASETS = ['validation', 'validation-formats'];
 const MION = 'mion';

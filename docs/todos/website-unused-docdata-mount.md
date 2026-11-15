@@ -11,7 +11,7 @@ created: 2026-11-14
 
 `scripts/website/site.mjs` mounts `<repo>/.docdata` read-only at `/app/.docdata` and sets `MION_DOCDATA` in the
 container. The only code that reads the variable is `DOCDATA_DIR` in
-`container/website/site-layers/shell/server/utils/repo-root.ts`, and nothing imports `DOCDATA_DIR`. The site gets
+`container/website/site-layers/shared/server/utils/repo-root.ts`, and nothing imports `DOCDATA_DIR`. The site gets
 its benchmark data another way: the build copies it into `public/bench-data` on the host.
 
 So the mount, the in-container variable, the `MION_WEBSITE_DOCDATA` override and the lines that describe them look

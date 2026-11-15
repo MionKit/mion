@@ -1,7 +1,7 @@
 // gen-client-size.mjs — measures the published @mionjs/client the way a consumer's bundler would, so
 // the home page's size claim is measured rather than typed. Bundles the client dist with NOTHING
 // external (that dist externalises every @mionjs/* and is meaningless on its own), and gzips each
-// chunk SEPARATELY, as a server does. Its output, container/website/site-layers/parts/app/data/client-size.json, is
+// chunk SEPARATELY, as a server does. Its output, container/website/site-layers/shared/app/data/client-size.json, is
 // COMMITTED and imported at build time: the site still builds where the dists are absent, and the
 // number is in the prerendered HTML with no hydration flash. It carries NO timestamp, so a run that
 // finds the same bytes leaves the file byte-identical instead of dirtying the tree.
@@ -13,7 +13,7 @@ import {buildSync} from 'esbuild';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError, warn} from '../lib/proc.mjs';
 
-const OUT_DIR = join(REPO_ROOT, 'container/website/site-layers/parts/app/data');
+const OUT_DIR = join(REPO_ROOT, 'container/website/site-layers/shared/app/data');
 const OUT_FILE = join(OUT_DIR, 'client-size.json');
 const CLIENT_ENTRY = join(REPO_ROOT, 'packages/rpc-client/.dist/esm/index.js');
 

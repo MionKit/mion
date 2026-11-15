@@ -4,14 +4,14 @@ Nuxt 4 + Docus v5 docs site: Tailwind CSS 4 + Nuxt UI v4, Nuxt Content v3 (MDC),
 Deps live ONLY in the podman image, never in the monorepo lockfile.
 
 - ONE Nuxt install builds ONE static site, mion.io, into `.output/public`. Subsite `<id>` (`rpc`, `runtypes`,
-  `benchmarks`): tree `content/NN.<id>/`, theme `site-layers/shell/sites/<id>/theme.css`, home page served at `/<id>`:
+  `benchmarks`): tree `content/NN.<id>/`, theme `site-layers/shared/sites/<id>/theme.css`, home page served at `/<id>`:
   its about page, the first page of its introduction section, with `path: /<id>` in its frontmatter.
-- Code lives in three shared Nuxt layers + mion.io's own (`mion-io`): [site-layers/AGENTS.md](site-layers/AGENTS.md).
+- Code lives in two Nuxt layers, `shared` + mion.io's own `mion-io`: [site-layers/AGENTS.md](site-layers/AGENTS.md).
   Read before adding or moving ANY file under `site-layers/` or a `nuxt.config.ts`. This folder itself keeps
   only `nuxt.config.ts`, `content/`, `public/`. Which site the scripts run: `website.config.json` at the repo root.
 - Prose voice + what a style pass may touch: [website-writing.md](../../.agents/docs/website-writing.md).
-- Subsite wiring + styling: [shell app](site-layers/shell/app/AGENTS.md). Read before a layer `app/` or `sites/` edit.
-- Code import, examples, twoslash, API: [shell server](site-layers/shell/server/AGENTS.md). Read before editing one.
+- Subsite wiring + styling: [shared app](site-layers/shared/app/AGENTS.md). Read before a layer `app/` or `sites/` edit.
+- Code import, examples, twoslash, API: [shared server](site-layers/shared/server/AGENTS.md). Read before editing one.
 - Deps + build-script allowlist: [_deps/AGENTS.md](_deps/AGENTS.md). Read before a dependency change.
 - Run commands + image: [CONTAINER.md](CONTAINER.md). Bench data: [WEBSITE-DOCGEN.md](../../docs/WEBSITE-DOCGEN.md).
 
@@ -78,16 +78,16 @@ Check every added or changed section. In this order, first match wins:
 - ⚠️ Every prefix TWO digits, new ones too: text sort reorders single digits at a 10th entry (`1 < 10 < 2`).
   Nothing errors, only the nav breaks. URL strips the prefix, so padding is free.
   Pinned by `website-content-prefixes` in `packages/devtools/test/repo-contracts.test.ts`.
-- No `index.md` outside the root: it is a landing page ([shell app](site-layers/shell/app/AGENTS.md#subsites)).
+- No `index.md` outside the root: it is a landing page ([shared app](site-layers/shared/app/AGENTS.md#subsites)).
 - `03.middlewares/`: one page per middleware, export name minus `mion` (`fetch-metadata`): intro, then `::tabs`,
   `Server` + `Client` `:::tabs-item`, each one `::::div{class="tab-body"}` (else spacing squeezed). A link into a
-  hidden tab opens it (the shell's `tab-anchors.client.ts` plugin).
+  hidden tab opens it (the `tab-anchors.client.ts` plugin).
 - Root-relative links carry the subsite prefix (`/rpc/server/routes`). `website-links.test.ts` fails on a dead one.
 - `parked/` (outside `content/`, unseen by collections, link tests, post-build check): pages off the site, kept whole,
   top comment says why + how to republish.
 - Subsite homes (about pages) + root `index.md`: hand-tuned, densest custom MDC. Off limits to prose-only style passes;
   API-truth fixes to their examples still required. Root `content/index.md` gets the simplest wording.
-- MDC components (custom + Docus built-ins): [components](site-layers/parts/app/components/AGENTS.md).
+- MDC components (custom + Docus built-ins): [components](site-layers/shared/app/components/AGENTS.md).
 
 ## Development
 
@@ -97,4 +97,4 @@ Check every added or changed section. In this order, first match wins:
 - Agents: `dev --agent` = own `tsrt-website-agent` container on :3100, stops after ~5 min idle (never hits a human's
   :3000). Browser checks: [website-browser](../../.agents/skills/website-browser/SKILL.md).
 - Hot-reload polling auto-on for macOS. `MION_WEBSITE_POLL=1` forces it anywhere. In-container scripts:
-  `pnpm run preview`, `node site-layers/shell/scripts/check-links.mts` (broken code-import paths).
+  `pnpm run preview`, `node site-layers/shared/scripts/check-links.mts` (broken code-import paths).

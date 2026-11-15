@@ -1,7 +1,7 @@
-// mion.io's identity on top of the shared layers; the shell goes LAST, so Docus stays the lowest layer.
+// mion.io: its own layer on top of the shared one. The shared layer goes LAST, so Docus stays the lowest layer.
 export default defineNuxtConfig({
-  extends: ['./site-layers/mion-io', './site-layers/parts', './site-layers/playground', './site-layers/shell'],
-  // ONE site, three sections: see site-layers/shell/app/utils/subsites.ts.
+  extends: ['./site-layers/mion-io', './site-layers/shared'],
+  // ONE site, three sections: see site-layers/shared/app/utils/subsites.ts.
   // `url` is what canonical links, the sitemap and the og:url tags are built from.
   site: {
     name: 'mion',

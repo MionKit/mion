@@ -2,7 +2,7 @@
 //
 // Two consumers deliberately share this one implementation, so they can never
 // disagree about what "the wasm is out of date" means:
-//   - container/website/site-layers/playground/scripts/build-playground.mjs stamps the digest beside
+//   - container/website/site-layers/mion-io/scripts/build-playground.mjs stamps the digest beside
 //     the wasm it just built, and rebuilds when the digest no longer matches.
 //   - packages/run-types/test/playground/nodeResolver.ts re-computes it to
 //     decide whether the cached wasm still matches the tree under test.

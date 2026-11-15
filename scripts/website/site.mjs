@@ -83,7 +83,7 @@ export function mountArgs(cfg) {
   for (const file of MOUNT_FILES) {
     if (existsSync(join(siteDir, file))) args.push('-v', `${join(siteDir, file)}:/app/${file}:ro${cfg.mountOpts}`);
   }
-  // The shell layer reads the example tool's values from here.
+  // The shared layer reads the example tool's values from here.
   args.push('-v', `${site.configPath}:/app/${CONFIG_FILE}:ro${cfg.mountOpts}`);
   // Another repo's site never writes into the mion checkout it borrows the layers from.
   args.push('-v', `${site.layersDir}:${LAYERS_MOUNT}${site.isMion ? '' : ':ro'}${cfg.mountOpts}`);
@@ -161,7 +161,7 @@ function warnUnbuiltPackages(cfg) {
 // build-playground.mjs is staleness-gated and needs no Go while the wasm stamp matches, so always run it.
 function ensurePlayground(cfg) {
   if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
-  if (run('node', [join(REPO_ROOT, 'container/website/site-layers/playground/scripts/build-playground.mjs')]) !== 0) {
+  if (run('node', [join(REPO_ROOT, 'container/website/site-layers/mion-io/scripts/build-playground.mjs')]) !== 0) {
     warn('playground build failed - the site will run but /playground will 404 (see output above; needs Go + bootstrapped submodule, SETUP.md).');
   }
 }
@@ -234,7 +234,7 @@ const PREPARE = 'pnpm exec nuxt prepare';
 const BUILD_SCRIPT = `${PREPARE} && pnpm exec nuxt build`;
 const GENERATE_SCRIPT = `${PREPARE} \\
       && pnpm exec nuxt generate \\
-      && node ${LAYERS_MOUNT}/parts/scripts/embed-panel-highlights.mjs /app/.output/public`;
+      && node ${LAYERS_MOUNT}/shared/scripts/embed-panel-highlights.mjs /app/.output/public`;
 
 // Build/generate into the container's OWN /app/.output, then `podman cp` it to the
 // host - NOT a bind mount. A bind-mounted .output fails two ways: nitro rmdir's

@@ -160,8 +160,8 @@ const CODEGEN = {
   // compile for a type, with the name a marker calls it by, its factory and its
   // one-line description, all read off the operations registry. No `fmt` — the
   // output is website JSON, a tree the formatter deliberately never touches.
-  fncatalog: {run: [...GO_RUN, './cmd/gen-fn-catalog'], stdoutTo: 'container/website/site-layers/parts/app/components/content/go-generated/functions-catalog.json', outputs: ['container/website/site-layers/parts/app/components/content/go-generated/functions-catalog.json'], fmt: []},
-  diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts', 'container/website/site-layers/parts/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
+  fncatalog: {run: [...GO_RUN, './cmd/gen-fn-catalog'], stdoutTo: 'container/website/site-layers/shared/app/components/content/go-generated/functions-catalog.json', outputs: ['container/website/site-layers/shared/app/components/content/go-generated/functions-catalog.json'], fmt: []},
+  diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts', 'container/website/site-layers/shared/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
   // Built-in pure-fn IDS: extracts the package's own registrations from
   // packages/run-types/src and writes the id constants the emitters name them by,
   // plus the TS mirror of those ids. Only the ids are committed — the BODIES are
