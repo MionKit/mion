@@ -409,9 +409,10 @@ describe('website-subsites', () => {
       expect(meta, `${id}: homeTitle is the home page's title`).toContain(`\ntitle: ${subsiteField(id, 'homeTitle')}\n`);
       expect(existsSync(join(dir, 'index.md')), `${id}: a landing index.md would shadow the home page`).toBe(false);
       expect(existsSync(join(dir, '.navigation.yml')), `${id}: navigation title`).toBe(true);
-      expect(existsSync(join(WEBSITE, 'app/pages', id, 'index.vue')), `${id}: an app route would shadow the home page`).toBe(
-        false
-      );
+      expect(
+        existsSync(join(LAYERS_DIR, 'mion-io/app/pages', id, 'index.vue')),
+        `${id}: an app route would shadow the home page`
+      ).toBe(false);
       // the home page's file-derived address, which every old link used, redirects to the root
       const slug = home
         .slice(dir.length)
