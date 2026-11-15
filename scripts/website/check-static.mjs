@@ -42,7 +42,6 @@ import {loadSite, publicRoot} from './site-config.mjs';
 import {columnProblems} from './bench-data/columns.mjs';
 import {PLAYGROUND_ASSETS, playgroundAssetUrl} from './playground-assets.mjs';
 
-
 // ── page discovery ───────────────────────────────────────────────────────────
 
 // Nuxt Content drops the numeric ordering prefix from every path segment.

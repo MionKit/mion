@@ -1,3 +1,5 @@
+import type {SubsiteEntry} from './utils/subsites'
+
 // The shared look and the settings every site fills in. Nuxt merges app configs with `defu`
 // (the consuming site first, per key), so a site overrides any key here and Docus' own defaults
 // still apply under anything left out. Site identity (github, seo, socials, footer text) is the site's.
@@ -6,8 +8,8 @@ export default defineAppConfig({
     // The site's own address: a section whose link starts with it becomes a local link.
     // Left unset: the shell module fills it from `site.url` in the site's nuxt.config.ts.
     origin: undefined as string | undefined,
-    // Extra menu entries only this site shows, same shape as SUBSITES in app/utils/subsites.ts.
-    sections: [] as { id: string, label: string, title: string, url: string, homeTitle?: string, icon: string, description: string }[],
+    // Extra menu entries only this site shows.
+    sections: [] as SubsiteEntry[],
     // Regex sources matched against the route path: a wide page drops the prose width cap and
     // the table of contents rail, a flush page keeps the rail.
     widePages: [] as string[],

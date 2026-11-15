@@ -8,13 +8,11 @@ app/
 site-layers/
 content/
 public/
-server/
 scripts/
 tests/
 
 # First-party config — bind-mounted at run time now (no longer baked).
 nuxt.config.ts
-content.config.ts
 tsconfig.json
 eslint.config.mjs
 

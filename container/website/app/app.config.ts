@@ -20,8 +20,8 @@ export default defineAppConfig({
     image: '/banners/mion-v2-website-banner.png',
   },
   shell: {
-    // The three home pages and the RunTypes Introduction + Guide run wide; benchmark pages keep the rail.
-    widePages: ['^/(rpc|runtypes|benchmarks)$', '^/runtypes/(introduction|guide)(/|$)'],
+    // Section home pages are wide already. The RunTypes Introduction + Guide run wide too; benchmark pages keep the rail.
+    widePages: ['^/runtypes/(introduction|guide)(/|$)'],
     flushPages: ['^/benchmarks/.+'],
     menuLabel: 'Switch between RPC, RunTypes, Benchmarks and Pro',
   },

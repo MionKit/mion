@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 
 /** The `examples` key of a site's `website.config.json`: every path is relative to the repo root. */
-export interface ExampleTool {
+interface ExampleTool {
   /** Folder of a first-party package and the published name its examples import. */
   packages: { dir: string, name: string }[]
   /** Folders the API endpoints serve, the dev watcher watches and twoslash loads for relative imports. */
@@ -21,26 +21,15 @@ export interface ExampleToolContext extends ExampleTool {
   repoRoot: string
 }
 
-export const CONFIG_FILE = 'website.config.json'
-
-/** The first `website.config.json` at or above `from`, or undefined. */
-export function findSiteConfig(from: string): string | undefined {
-  let dir = resolve(from)
-  for (;;) {
-    const candidate = join(dir, CONFIG_FILE)
-    if (existsSync(candidate)) return candidate
-    const parent = dirname(dir)
-    if (parent === dir) return undefined
-    dir = parent
-  }
-}
+const CONFIG_FILE = 'website.config.json'
 
 /** The example tool of the site at `siteRoot`. A site without a config file gets an empty tool. */
 export function loadExampleTool(siteRoot: string): ExampleToolContext {
-  const configPath = findSiteConfig(siteRoot)
-  const examples: Partial<ExampleTool> = configPath ? (JSON.parse(readFileSync(configPath, 'utf-8')).examples ?? {}) : {}
+  // scripts/website/site.mjs mounts the config file at the site root.
+  const configPath = join(siteRoot, CONFIG_FILE)
+  const examples: Partial<ExampleTool> = existsSync(configPath) ? (JSON.parse(readFileSync(configPath, 'utf-8')).examples ?? {}) : {}
   // MION_REPO_ROOT is the read-only repo mount scripts/website/site.mjs sets in the container.
-  const repoRoot = process.env.MION_REPO_ROOT ? resolve(process.env.MION_REPO_ROOT) : dirname(configPath ?? join(siteRoot, CONFIG_FILE))
+  const repoRoot = process.env.MION_REPO_ROOT ? resolve(process.env.MION_REPO_ROOT) : siteRoot
   return {
     repoRoot,
     packages: examples.packages ?? [],
@@ -66,12 +55,12 @@ export function resolveInRoots(repoRoot: string, roots: readonly string[], relPa
   return abs
 }
 
-/** The listed folder `relPath` sits in, with the path inside it, or undefined. */
-export function splitByRoot(repoRoot: string, roots: readonly string[], relPath: string): { root: string, inside: string } | undefined {
+/** The path of `relPath` inside the listed folder it sits in, or undefined. */
+export function pathInsideRoot(repoRoot: string, roots: readonly string[], relPath: string): string | undefined {
   const abs = resolve(repoRoot, relPath)
   for (const root of roots) {
     const absRoot = resolve(repoRoot, root)
-    if (abs.startsWith(absRoot + sep)) return { root, inside: abs.slice(absRoot.length + 1).split(sep).join('/') }
+    if (abs.startsWith(absRoot + sep)) return abs.slice(absRoot.length + 1).split(sep).join('/')
   }
   return undefined
 }

@@ -19,7 +19,6 @@ import {createReadStream, existsSync, readFileSync, statSync} from 'node:fs';
 import path from 'node:path';
 import {publicRoot} from './site-config.mjs';
 
-export {publicRoot};
 export const DEFAULT_ROOT = publicRoot();
 
 const MIME = {

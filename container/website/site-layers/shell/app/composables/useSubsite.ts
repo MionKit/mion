@@ -9,10 +9,9 @@ export function useSubsite() {
   const subsites = computed(() => resolveSubsites(shell.origin ?? '', shell.sections))
   const subsite = computed(() => subsiteForPath(route.path, subsites.value))
   const theme = computed(() => subsite.value ?? subsites.value.find((entry) => !entry.external) ?? subsites.value[0]!)
-  const isRoot = computed(() => route.path === '/')
   // A site with no local section keeps Docus' whole navigation tree.
   const hasLocal = computed(() => subsites.value.some((entry) => !entry.external))
   const sidebar = (navigation: ContentNavigationItem[] | null | undefined): ContentNavigationItem[] =>
     hasLocal.value ? subsiteSidebar(navigation, subsite.value) : (navigation ?? [])
-  return {subsites, subsite, theme, isRoot, sidebar}
+  return {subsites, subsite, theme, sidebar}
 }
