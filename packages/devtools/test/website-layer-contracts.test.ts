@@ -188,6 +188,11 @@ interface Subsite {
   homeTitle?: string;
 }
 interface SubsitesModule {
+  MION_HOME: {id: string; url: string; theme?: string};
+  menuColumns(
+    subsites: Subsite[],
+    columns?: {label: string; ids: string[]}[]
+  ): {columns: {label?: string; entries: Subsite[]}[]; unknown: string[]};
   resolveSubsites(origin: string, extra?: object[]): Subsite[];
   subsiteForPath(path: string, subsites: Subsite[]): Subsite | undefined;
   pageWidthClass(path: string, subsites: Subsite[], wide: RegExp[], flush: RegExp[]): string;
@@ -198,7 +203,7 @@ interface SubsitesModule {
 }
 
 describe('website-section-links', async () => {
-  const {resolveSubsites, subsiteForPath, subsiteSidebar, pageWidthClass} = await load<SubsitesModule>(
+  const {MION_HOME, menuColumns, resolveSubsites, subsiteForPath, subsiteSidebar, pageWidthClass} = await load<SubsitesModule>(
     'container/website/site-layers/shared/app/utils/subsites.ts'
   );
   const byId = (list: Subsite[]): Record<string, Subsite> => Object.fromEntries(list.map((entry) => [entry.id, entry]));
@@ -211,6 +216,33 @@ describe('website-section-links', async () => {
     const pro = byId(resolveSubsites('https://pro.mion.io/'));
     expect(pro.pro).toMatchObject({path: '/', external: false});
     expect(pro.rpc).toMatchObject({path: 'https://mion.io/rpc', external: true});
+  });
+
+  it("gives another site mion.io's home page as an entry, never a section of mion.io", () => {
+    // on mion.io it would resolve to '/' and own every page, so a site opts in through shared.sections
+    expect(resolveSubsites('https://mion.io').map((entry) => entry.id)).not.toContain('mion');
+    const pro = resolveSubsites('https://pro.mion.io', [MION_HOME]);
+    expect(byId(pro).mion).toMatchObject({path: 'https://mion.io', external: true, theme: 'rpc'});
+    // an external entry never becomes the current section
+    expect(subsiteForPath('/', pro)).toMatchObject({id: 'pro'});
+    expect(existsSync(join(REPO_ROOT, 'container/website/site-layers/shared/sites', MION_HOME.theme!, 'theme.css'))).toBe(true);
+  });
+
+  it('splits the section menu into the columns a site asks for, in order, and names the ids that match none', () => {
+    const all = resolveSubsites('https://pro.mion.io', [MION_HOME]);
+    // no columns set, as on mion.io: one unlabelled column of every entry
+    expect(menuColumns(all)).toEqual({columns: [{entries: all}], unknown: []});
+    const ids = (columns: {entries: Subsite[]}[]) => columns.map((column) => column.entries.map((entry) => entry.id));
+    const split = menuColumns(all, [
+      {label: 'mion', ids: ['mion', 'rpc', 'runtypes', 'benchmarks']},
+      {label: 'mion pro', ids: ['pro']},
+    ]);
+    expect(split.columns.map((column) => column.label)).toEqual(['mion', 'mion pro']);
+    expect(ids(split.columns)).toEqual([['mion', 'rpc', 'runtypes', 'benchmarks'], ['pro']]);
+    expect(split.unknown).toEqual([]);
+    const typo = menuColumns(all, [{label: 'a', ids: ['benchmarks', 'pro', 'enrichmnt']}]);
+    expect(ids(typo.columns)).toEqual([['benchmarks', 'pro']]);
+    expect(typo.unknown).toEqual(['enrichmnt']);
   });
 
   it('never matches a sibling address that only starts the same', () => {

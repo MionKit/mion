@@ -35,7 +35,7 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
   `--mion-logo-accent`) + subsite menu (`SubsiteMenu.vue`, rendered by `AppHeaderCenter.vue`).
 - Footer: `AppFooterRight.vue` renders `<AppFooterNote />` (the lineage line). A site replaces it by name.
 - Subsite menu: one button naming the current subsite in its accent (`Explore` on root), opens a popup of every
-  entry, each with icon + one-line intro.
+  entry, each with icon + one-line intro, in `shared.menuColumns` columns when a site sets them.
 - Root `/` landing (`content/index.md`): one `.home-subsite` block per subsite, carrying its `data-site`.
   Block: title, intro, buttons; beside them a code example or the live bench summary (`HomeBenchTable.vue`).
   rpc block: server + client examples side by side under the intro.

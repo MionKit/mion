@@ -1,29 +1,44 @@
 <script setup lang="ts">
 // Overrides Docus' mobile menu, which renders the full navigation tree, so the phone gets the desktop's scoped
-// sidebar: SubsiteMenu's entries, then only the current subsite's sections.
+// sidebar: SubsiteMenu's entries, its columns (`shared.menuColumns`) stacked as headed groups, then only the current subsite's sections.
 import type {ContentNavigationItem} from '@nuxt/content'
 
 const {subsites, subsite, sidebar} = useSubsite()
+const {shared} = useAppConfig()
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 
-const tabs = computed(() => subsites.value.map((entry) => ({
-  label: entry.label,
-  icon: entry.icon,
-  to: entry.path,
-  active: entry.id === subsite.value?.id,
+const columns = computed(() => menuColumns(subsites.value, shared.menuColumns).columns.map((column) => ({
+  label: column.label,
+  tabs: column.entries.map((entry) => ({
+    label: entry.label,
+    icon: entry.icon,
+    to: entry.path,
+    active: entry.id === subsite.value?.id,
+  })),
 })))
 
 const sections = computed<ContentNavigationItem[]>(() => sidebar(navigation?.value))
 </script>
 
 <template>
-  <UNavigationMenu
-    :items="tabs"
-    orientation="vertical"
-    variant="pill"
-    highlight
+  <div
+    v-for="column in columns"
+    :key="column.label ?? ''"
     class="mb-4"
-  />
+  >
+    <p
+      v-if="column.label"
+      class="mb-1 px-2.5 text-xs font-semibold uppercase tracking-wide text-muted"
+    >
+      {{ column.label }}
+    </p>
+    <UNavigationMenu
+      :items="column.tabs"
+      orientation="vertical"
+      variant="pill"
+      highlight
+    />
+  </div>
 
   <AppHeaderBodyMenu />
 

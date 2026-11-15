@@ -1,4 +1,4 @@
-import type {SubsiteEntry} from './utils/subsites'
+import type {MenuColumn, SubsiteEntry} from './utils/subsites'
 
 // The shared look and the settings every site fills in; identity (github, seo, socials, footer text) is the site's.
 // Nuxt merges app configs with `defu`, the site first per key, so Docus' defaults still apply under anything left out.
@@ -13,6 +13,8 @@ export default defineAppConfig({
     flushPages: [] as string[],
     // The section menu button's aria-label.
     menuLabel: 'Switch section',
+    // The section menu popup's columns, each a heading and its entry ids. Empty: one column of every entry.
+    menuColumns: [] as MenuColumn[],
   },
   // `sub: 'aside'` makes Docus' useSubNavigation scope the sidebar to the route's top-level section.
   // The section anchors it would add are replaced by the header menu (DocsAsideLeftTop.vue is overridden to nothing).

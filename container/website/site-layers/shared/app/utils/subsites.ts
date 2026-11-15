@@ -18,6 +18,8 @@ export interface SubsiteEntry {
   icon: string
   /** Shown under the section's name in the section menu. */
   description: string
+  /** The section whose colours (`sites/<theme>/theme.css`) the entry wears. Left out: its own `id`. */
+  theme?: string
 }
 
 /** A section as one site sees it. */
@@ -66,6 +68,18 @@ const SUBSITES: readonly SubsiteEntry[] = [
   },
 ]
 
+/** mion.io's home page as a menu entry, in the colours mion.io's home page wears. Not in SUBSITES: on mion.io it
+ *  would own every page. Another site adds it to its `shared.sections`. */
+export const MION_HOME: SubsiteEntry = {
+  id: 'mion',
+  label: 'mion',
+  title: 'mion',
+  url: 'https://mion.io',
+  icon: 'i-lucide-house',
+  description: 'The open-source framework: RPC, RunTypes and their benchmarks.',
+  theme: 'rpc',
+}
+
 /** The shared list plus a site's own entries, each resolved against the site's address. */
 export function resolveSubsites(origin: string, extra: readonly SubsiteEntry[] = []): Subsite[] {
   const own = origin.replace(/\/+$/, '')
@@ -76,6 +90,25 @@ export function resolveSubsites(origin: string, extra: readonly SubsiteEntry[] =
     const isOwn = own !== '' && (url === own || url.startsWith(`${own}/`))
     return isOwn ? {...entry, path: url.slice(own.length) || '/', external: false} : {...entry, path: entry.url, external: true}
   })
+}
+
+/** One column of the section menu popup: a heading and the entry ids it lists, in order. */
+export interface MenuColumn {
+  label: string
+  ids: string[]
+}
+
+/** The section menu's columns (one unlabelled column of every entry when none is set), and the ids that match none. */
+export function menuColumns(
+  subsites: readonly Subsite[],
+  columns: readonly MenuColumn[] = []
+): {columns: {label?: string; entries: Subsite[]}[]; unknown: string[]} {
+  if (!columns.length) return {columns: [{entries: [...subsites]}], unknown: []}
+  const ids = columns.flatMap((column) => column.ids)
+  return {
+    columns: columns.map(({label, ids}) => ({label, entries: ids.flatMap((id) => subsites.filter((entry) => entry.id === id))})),
+    unknown: ids.filter((id) => !subsites.some((entry) => entry.id === id)),
+  }
 }
 
 const isUnder = (path: string, root: string): boolean => root === '/' || path === root || path.startsWith(`${root}/`)
