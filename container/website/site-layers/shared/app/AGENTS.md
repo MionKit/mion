@@ -22,6 +22,8 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
 - `app/app.config.ts` `navigation.sub: 'aside'`: the one Docus key scoping the sidebar to the current top-level
   section instead of the whole tree.
 - `DocsAsideLeftTop.vue` overridden to nothing: the header's subsite menu replaces Docus' section anchors.
+- `AppHeaderMenu.vue` / `AppHeaderBodyMenu.vue`: empty slots after the subsite menu (top bar / phone menu) that a
+  site replaces with its own menu. Keep them rendering no element: an empty one still adds a gap in the bar.
 - `AppHeaderBody.vue` (mobile menu): subsite list + current subsite's sections only.
 - `content.config.ts` redefines Docus' `docs` + `landing`: ANY `<dir>/index.md` = landing, never docs. Only root
   `content/index.md` has one (in a subsite dir it would shadow the redirect).

@@ -48,6 +48,8 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
   - `menuLabel`: the section menu button's aria text.
   - `origin`: the site's address. Leave it out: `shared` fills it from `site.url`.
 - Logo + footer note: a same-named `AppHeaderLogo.vue` / `AppFooterNote.vue` replaces mion's.
+- Own top-bar menu: a same-named `app/components/app/AppHeaderMenu.vue` (right after the section menu) and
+  `AppHeaderBodyMenu.vue` (phone menu, after the section list), any HTML. `shared` ships both empty, Docus-style.
 - Colours: add `sites/<id>/theme.css` to the site's own `css`. Same `data-site` as a shared theme = override.
 
 ## Section list
