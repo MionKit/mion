@@ -1,7 +1,6 @@
 import type {ContentNavigationItem} from '@nuxt/content'
 
-// A site's section menu entries come from its own `shared.sections`; resolveSubsites turns the ones under the
-// site's address into local links. Each id or `theme` has a theme at sites/<id>/theme.css; a mion.io section
+// Entries come from each site's `shared.sections`. Each id or `theme` has sites/<id>/theme.css; a mion.io section
 // also has a content tree at content/<NN>.<id>/ and its home page at the section root (`path: /<id>`
 // in its frontmatter). packages/devtools/test/website-theme-contracts.test.ts keeps them in step.
 export interface SubsiteEntry {

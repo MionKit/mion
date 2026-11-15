@@ -275,7 +275,7 @@ describe('website-section-links', async () => {
   });
 
   it('never matches a sibling address that only starts the same', () => {
-    // https://mion.io must not claim https://mion.io.evil/… nor pro.mion.io
+    // https://mion.io must not claim https://mion.io.example/… nor pro.mion.io
     const list = byId(
       resolveSubsites('https://mion.io', [entry('x', 'https://mion.io.example/docs'), entry('pro', 'https://pro.mion.io')])
     );
