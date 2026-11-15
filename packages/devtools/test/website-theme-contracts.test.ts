@@ -39,7 +39,9 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
 // The section ids the shared layer's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
-const SUBSITES_SOURCE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
+// Sliced to the SUBSITES list, so MION_HOME (another site's entry) is not one of them.
+const SUBSITES_FILE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
+const SUBSITES_SOURCE = SUBSITES_FILE.slice(SUBSITES_FILE.indexOf('const SUBSITES'), SUBSITES_FILE.indexOf('\n]\n'));
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
 const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((match) => match[1]!);
@@ -436,7 +438,12 @@ describe('website-subsites', () => {
     }
     const menu = readFileSync(join(SHARED_LAYER, 'app/components/SubsiteMenu.vue'), 'utf8');
     expect(menu).toContain('<UPopover');
-    expect(menu).toContain(':data-site="entry.id"');
+    expect(menu).toContain(':data-site="entry.theme ?? entry.id"');
+    // shared.menuColumns: columns in the popup, the same groups stacked in the phone menu
+    expect(menu).toContain('menuColumns(subsites.value, shared.menuColumns)');
+    expect(readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderBody.vue'), 'utf8')).toContain(
+      'menuColumns(subsites.value, shared.menuColumns)'
+    );
     expect(menu).toContain('color: var(--site-accent)');
     const center = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
     expect(center).toContain('<SubsiteMenu />');

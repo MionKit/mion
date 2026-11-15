@@ -1,14 +1,19 @@
 <!-- The subsite switch in the header: ONE button naming the current subsite, in the
      subsite's accent colour, that opens a popup listing every subsite with its icon
      and a one-line intro (app/utils/subsites.ts). An entry of the other site is a full link.
-     On a page outside every section, the button reads "Explore" in a neutral colour. Each popup
+     On a page outside every section, the button reads "Explore" in a neutral colour.
+     `shared.menuColumns` splits the popup into labelled columns, stacked when the screen is too narrow. Each popup
      entry carries its own `data-site`, so the [data-site] bridge in shared.css paints
      it in that subsite's colours, the same way the intro blocks on the root landing
      get theirs. Rendered by AppHeaderCenter on every page. -->
 <script setup lang="ts">
 const {subsites, subsite} = useSubsite()
 const {shared} = useAppConfig()
-const entries = computed(() => subsites.value.map((entry) => ({...entry, active: entry.id === subsite.value?.id})))
+const columns = computed(() => {
+  const {columns, unknown} = menuColumns(subsites.value, shared.menuColumns)
+  if (import.meta.dev && unknown.length) console.warn(`shared.menuColumns: no section with id ${unknown.join(', ')}`)
+  return columns.map((column) => ({...column, entries: column.entries.map((entry) => ({...entry, active: entry.id === subsite.value?.id}))}))
+})
 </script>
 
 <template>
@@ -32,30 +37,42 @@ const entries = computed(() => subsites.value.map((entry) => ({...entry, active:
         class="subsite-menu"
         aria-label="Subsites"
       >
-        <NuxtLink
-          v-for="entry in entries"
-          :key="entry.id"
-          :to="entry.path"
-          :data-site="entry.id"
-          class="subsite-menu-item"
-          :class="{'is-active': entry.active}"
-          :aria-current="entry.active ? 'page' : undefined"
-          @click="close()"
+        <div
+          v-for="column in columns"
+          :key="column.label ?? ''"
+          class="subsite-menu-column"
         >
-          <UIcon
-            :name="entry.icon"
-            class="subsite-menu-icon"
-          />
-          <span class="subsite-menu-text">
-            <span class="subsite-menu-label">{{ entry.label }}</span>
-            <span class="subsite-menu-desc">{{ entry.description }}</span>
-          </span>
-          <UIcon
-            v-if="entry.active"
-            name="i-lucide-check"
-            class="subsite-menu-check"
-          />
-        </NuxtLink>
+          <p
+            v-if="column.label"
+            class="subsite-menu-heading"
+          >
+            {{ column.label }}
+          </p>
+          <NuxtLink
+            v-for="entry in column.entries"
+            :key="entry.id"
+            :to="entry.path"
+            :data-site="entry.theme ?? entry.id"
+            class="subsite-menu-item"
+            :class="{'is-active': entry.active}"
+            :aria-current="entry.active ? 'page' : undefined"
+            @click="close()"
+          >
+            <UIcon
+              :name="entry.icon"
+              class="subsite-menu-icon"
+            />
+            <span class="subsite-menu-text">
+              <span class="subsite-menu-label">{{ entry.label }}</span>
+              <span class="subsite-menu-desc">{{ entry.description }}</span>
+            </span>
+            <UIcon
+              v-if="entry.active"
+              name="i-lucide-check"
+              class="subsite-menu-check"
+            />
+          </NuxtLink>
+        </div>
       </nav>
     </template>
   </UPopover>
@@ -72,12 +89,29 @@ const entries = computed(() => subsites.value.map((entry) => ({...entry, active:
   color: var(--site-accent);
 }
 
+/* columns sit side by side while the screen fits them all, else wrap into a stack (always on a phone) */
 .subsite-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem;
+}
+
+.subsite-menu-column {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  width: min(22rem, calc(100vw - 2rem));
-  padding: 0.4rem;
+  width: min(22rem, calc(100vw - 2.8rem));
+}
+
+.subsite-menu-heading {
+  padding: 0.3rem 0.7rem 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ui-text-muted);
 }
 
 .subsite-menu-item {
