@@ -467,6 +467,23 @@ describe('website-subsites', () => {
     expect(css).toMatch(/@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)/);
   });
 
+  it('leaves a site an empty menu slot after the subsite menu, in the top bar and the phone menu', () => {
+    const center = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
+    expect(center).toMatch(/<SubsiteMenu \/>\s*<AppHeaderMenu \/>/);
+    const body = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderBody.vue'), 'utf8');
+    expect(body).toContain('<AppHeaderBodyMenu />');
+    for (const slot of ['AppHeaderMenu', 'AppHeaderBodyMenu']) {
+      const template = /<template>([\s\S]*)<\/template>/.exec(
+        readFileSync(join(SHARED_LAYER, `app/components/app/${slot}.vue`), 'utf8')
+      )?.[1];
+      // an element, even empty, takes a gap in the bar on mion.io
+      expect(template?.replace(/<!--[\s\S]*?-->/g, '').trim(), `${slot} renders nothing`).toBe('');
+      for (const layer of readdirSync(LAYERS_DIR).filter((name) => name !== 'shared')) {
+        expect(existsSync(join(LAYERS_DIR, layer, `app/components/app/${slot}.vue`)), `${layer} fills ${slot}`).toBe(false);
+      }
+    }
+  });
+
   it('links every subsite entry to its root, and lists the home page in both sidebars', () => {
     expect(readFileSync(join(SHARED_LAYER, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
     const mobile = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderBody.vue'), 'utf8');
