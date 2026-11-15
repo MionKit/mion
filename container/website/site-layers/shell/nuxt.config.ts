@@ -7,12 +7,10 @@ import { layerOrderProblem } from './layer-order'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
-// Bind-mounted source on macOS/VM container hosts delivers no fs events into the container:
-// scripts/website/site.mjs sets this env to make the watchers poll instead.
+// Bind mounts on macOS/VM hosts deliver no fs events into the container: scripts/website/site.mjs sets this to poll.
 const usePolling = process.env.CHOKIDAR_USEPOLLING === 'true'
 
-// The generic docs site: Docus, the shared look, the section menu and the example tool.
-// It carries NO site identity (name, address, routes, content): the consuming site sets those.
+// The generic docs site. It carries NO site identity (name, address, routes, content): the consuming site sets those.
 export default defineNuxtConfig({
   $meta: { name: 'mion-shell' },
   extends: ['docus'],

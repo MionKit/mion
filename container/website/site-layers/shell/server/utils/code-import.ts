@@ -112,14 +112,8 @@ function extractByComments(
   return extracted.join('\n')
 }
 
-/**
- * Inline an allowlisted repo document (the site's `importableDocs`) into a content page
- * as MARKDOWN, so a spec that lives in the repo has exactly one copy and the
- * website renders it rather than restating it.
- *
- * The leading H1 is dropped: Docus takes the page title from frontmatter, so
- * keeping it would render the heading twice.
- */
+// The leading H1 is dropped: Docus takes the page title from frontmatter, so keeping it would render the heading twice.
+/** Inlines an allowlisted repo document (the site's `importableDocs`) as MARKDOWN: a repo spec has exactly one copy. */
 export function processMarkdownImports(tool: ExampleToolContext, body: string, isDev = false): string {
   const markdownImportRegex = /<markdown-import\s+([^>]*?)\s*\/>/g
 

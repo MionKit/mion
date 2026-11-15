@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// Local override of docus/app/components/app/AppFooterRight.vue. Preserves the
-// default icon row (socials + github + color-mode toggle) and prepends the site's
-// footer note (AppFooterNote.vue: empty here, a site or a higher layer overrides it by name).
+// Overrides docus/app/components/app/AppFooterRight.vue: same icon row, plus the footer note (AppFooterNote.vue).
 const appConfig = useAppConfig()
 const { forced: forcedColorMode } = useDocusColorMode()
 

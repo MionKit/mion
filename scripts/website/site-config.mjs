@@ -1,7 +1,6 @@
-// site-config.mjs: which site the website scripts act on. A repo that owns a site keeps ONE
-// `website.config.json` at its root; the scripts find it by walking up from the working directory
-// and fall back to this checkout's own, so the same command builds mion.io from here and another
-// site from a repo that reaches these scripts through its mion submodule.
+// Which site the website scripts act on. A repo that owns a site keeps ONE `website.config.json` at
+// its root; the scripts walk up to it from the working directory, else use this checkout's own, so one
+// command builds mion.io from here and another site from a repo that has mion as a submodule.
 
 import {existsSync, readFileSync, realpathSync} from 'node:fs';
 import {basename, dirname, join, resolve} from 'node:path';

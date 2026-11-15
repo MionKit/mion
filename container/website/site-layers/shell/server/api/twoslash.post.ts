@@ -161,11 +161,9 @@ function loadPackageTypes(tool: ExampleToolContext): Map<string, string> {
 
   const repoRoot = tool.repoRoot
 
-  // `name` MUST be the PUBLISHED npm name: the mount path is what an example's bare import
-  // resolves against, and a wrong one is silent (the module mounts, nothing imports it).
-  // The mount ROOT is the directory holding the package's own `.` types entry (typesEntry above):
-  // the dists are not laid out alike. Subpath imports resolve via the sibling `<sub>.d.ts` /
-  // `<sub>/index.d.ts` under classic node resolution.
+  // `name` MUST be the PUBLISHED npm name bare imports resolve against: a wrong one mounts and nothing imports it.
+  // The mount ROOT is the dir of the package's own `.` types entry (typesEntry): the dists are not laid out alike.
+  // Subpath imports resolve via the sibling `<sub>.d.ts` / `<sub>/index.d.ts` under classic node resolution.
   const packageConfigs = tool.packages
 
   for (const pkg of packageConfigs) {
@@ -204,9 +202,7 @@ function loadPackageTypes(tool: ExampleToolContext): Map<string, string> {
     }
   }
 
-  // Third-party deps an example imports, mounted from the repo root's node_modules. Keep the
-  // list short: every entry copies a whole .d.ts tree into the VFS. A missing dir is skipped,
-  // which is what a fresh clone without a full install looks like.
+  // Keep the list short: every entry copies a whole .d.ts tree into the VFS. A missing dir (no full install) is skipped.
   const externalDeps = tool.externalDeps
   for (const dep of externalDeps) {
     const depDir = join(repoRoot, 'node_modules', dep)
@@ -224,8 +220,7 @@ function loadPackageTypes(tool: ExampleToolContext): Map<string, string> {
     if (existsSync(depManifest)) fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(depManifest, 'utf-8'))
   }
 
-  // Example sources too, for relative imports between examples. The VFS path mirrors the path
-  // inside its example folder, so ./user.ts resolves.
+  // The VFS path mirrors the path inside the example folder, so relative imports between examples (./user.ts) resolve.
   const exampleOwner = new Map<string, string>()
   for (const exampleDir of tool.exampleDirs) {
     const examplesDir = join(repoRoot, exampleDir)

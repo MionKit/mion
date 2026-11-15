@@ -1,11 +1,9 @@
 import type {ContentNavigationItem} from '@nuxt/content'
 
-// The ONE section list both sites show in the header menu, with full links. A site turns the
-// entries under its own address into local links (resolveSubsites), so mion.io links to
-// /rpc and to https://pro.mion.io, and pro.mion.io the other way round. Each id has a theme
-// at sites/<id>/theme.css; a mion section also has a content tree at content/<NN>.<id>/ and
-// its home page served at the section root (`path: /<id>` in its frontmatter).
-// packages/devtools/test/website-theme-contracts.test.ts keeps them in step.
+// The ONE section list both sites show in the header menu; resolveSubsites turns the entries under
+// a site's own address into local links. Each id has a theme at sites/<id>/theme.css; a mion section
+// also has a content tree at content/<NN>.<id>/ and its home page at the section root (`path: /<id>`
+// in its frontmatter). packages/devtools/test/website-theme-contracts.test.ts keeps them in step.
 export interface SubsiteEntry {
   /** The `data-site` value; for a mion section also the URL segment and the content dir name. */
   id: string
@@ -17,9 +15,8 @@ export interface SubsiteEntry {
   url: string
   /** The home page's sidebar entry, its frontmatter `title`. Left out: no home entry is added. */
   homeTitle?: string
-  /** The icon on the section menu button and its entries. */
   icon: string
-  /** One line saying what the section is, shown under its name in the section menu. */
+  /** Shown under the section's name in the section menu. */
   description: string
 }
 
@@ -90,7 +87,7 @@ export function subsiteForPath(path: string, subsites: readonly Subsite[]): Subs
     .sort((first, second) => second.path.length - first.path.length)[0]
 }
 
-/** The `<body>` width class of a route: a local section's home page and a wide pattern run wide, a flush pattern keeps the rail. */
+/** The route's `<body>` width class; a local section's home page is always wide. */
 export function pageWidthClass(path: string, subsites: readonly Subsite[], wide: readonly RegExp[], flush: readonly RegExp[]): string {
   if (subsites.some((entry) => !entry.external && entry.path === path)) return 'rt-wide-page'
   if (wide.some((pattern) => pattern.test(path))) return 'rt-wide-page'
@@ -98,13 +95,7 @@ export function pageWidthClass(path: string, subsites: readonly Subsite[], wide:
   return ''
 }
 
-/**
- * The sidebar of `subsite`: its sections, with its home page first in the first one. The
- * home page sits at the subsite root, so Nuxt Content would make it the root node of the
- * subsite's navigation tree instead of an Introduction entry; its frontmatter takes it
- * out of the tree (`navigation: false`) and this puts it back where readers look for it.
- * A section at the site root owns the whole tree.
- */
+/** Re-adds the home page its frontmatter hides (`navigation: false`) so Nuxt Content does not make it the root node. */
 export function subsiteSidebar(navigation: ContentNavigationItem[] | null | undefined, subsite: Subsite | undefined): ContentNavigationItem[] {
   if (!subsite || !navigation) return []
   if (subsite.path === '/') return navigation

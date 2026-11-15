@@ -1,15 +1,9 @@
-// Docs-website layer contracts. container/website is three Nuxt layers (site-layers/shell, parts,
-// playground) plus mion.io's own identity on top, so a site in another repo can extend the layers
-// and get every component, style and server route without becoming mion.io. Nothing in this
-// repo's CI builds such a second site, so these pin the rules that keep it possible by reading
-// the files:
-//
-//   - A layer never reaches into the consuming site: no `~/`, `@/`, `~~/` path, which Nuxt
-//     resolves against the site that extends the layer, not the layer.
-//   - A layer carries no site identity: no name, address, prerender route, redirect or routed
-//     page besides the docs catch-all. Nuxt merges those into every site that extends it.
-//   - The shell goes LAST in `extends`, so Docus stays the lowest layer.
-//   - The website scripts take the site from website.config.json and write under that site.
+// Docs-website layer contracts. container/website is three Nuxt layers (site-layers/) plus mion.io's
+// identity on top, so a site in another repo can extend them without becoming mion.io. No CI here
+// builds such a second site, so these read the files to pin the rules that keep it possible: a layer
+// never reaches into the consuming site (Nuxt resolves `~/`, `@/`, `~~/` against the site, not the
+// layer) and carries no site identity (Nuxt merges it into every site), the shell goes LAST in
+// `extends`, and the website scripts take the site from website.config.json and write under it.
 
 import {afterAll, describe, it, expect, vi} from 'vitest';
 import {
@@ -56,8 +50,7 @@ function sources(dir: string): string[] {
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), 'utf8');
 const layerConfig = (layer: string): string => read(`container/website/site-layers/${layer}/nuxt.config.ts`);
 
-// The website's TypeScript runs under Nuxt's tsconfig, generated only inside the container, so
-// Vite cannot transform these files here. Their types are stripped and the plain module is loaded.
+// The website's TypeScript needs Nuxt's tsconfig, generated only inside the container, so Vite cannot transform it here.
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mion-website-modules-'));
 afterAll(() => rmSync(SCRATCH, {recursive: true, force: true}));
 async function load<T>(rel: string): Promise<T> {
@@ -234,7 +227,6 @@ describe('website-section-links', async () => {
   });
 
   it('gives mion.io the same page widths as before the layers', () => {
-    // The site's own patterns, read from its app.config.ts.
     const config = read('container/website/app/app.config.ts');
     const patterns = (key: string): RegExp[] =>
       [...(new RegExp(`${key}: \\[([^\\]]*)\\]`).exec(config)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(

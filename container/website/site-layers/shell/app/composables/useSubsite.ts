@@ -1,6 +1,5 @@
 import type {ContentNavigationItem} from '@nuxt/content'
 
-// The section list as this site sees it and the current section, derived from the route.
 // `subsite` is undefined on a page outside every local section (mion's root landing, a 404),
 // `theme` never is: such a page paints with the first local section's colours.
 export function useSubsite() {

@@ -65,7 +65,7 @@ function config(env = process.env) {
 }
 
 // The repo folders the example tool reads, outermost only: a folder inside another listed one rides its mount.
-// An inlined document brings its folder: a single-file mount keeps serving the old file after an editor's save-by-rename.
+// An inlined document brings its folder: a single-file mount serves the stale file after an editor's save-by-rename.
 export function contextDirs(examples) {
   const docDirs = Object.values(examples.importableDocs).map((doc) => dirname(doc)).filter((dir) => dir !== '.');
   const dirs = [...new Set([...examples.readRoots, ...examples.exampleDirs, ...examples.packages.map((pkg) => pkg.dir), ...docDirs])];
@@ -87,8 +87,7 @@ export function mountArgs(cfg) {
   args.push('-v', `${site.configPath}:/app/${CONFIG_FILE}:ro${cfg.mountOpts}`);
   // Another repo's site never writes into the mion checkout it borrows the layers from.
   args.push('-v', `${site.layersDir}:${LAYERS_MOUNT}${site.isMion ? '' : ':ro'}${cfg.mountOpts}`);
-  // Repo context, READ-ONLY (MION_REPO_ROOT=/repo-context): only the folders the site's config
-  // names are exposed, never the repo root.
+  // READ-ONLY repo context (MION_REPO_ROOT=/repo-context): only the folders the site's config names, never the repo root.
   const context = (rel) => `/repo-context/${rel}`;
   for (const dir of contextDirs(site.examples)) {
     if (existsSync(join(cfg.repoContext, dir))) args.push('-v', `${join(cfg.repoContext, dir)}:${context(dir)}:ro${cfg.mountOpts}`);
