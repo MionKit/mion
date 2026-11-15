@@ -38,12 +38,11 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 // Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
-// The section ids the shared layer's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
-// Sliced to SUBSITES, so MION_HOME (another site's entry) is left out.
-const SUBSITES_FILE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
-const SUBSITES_SOURCE = SUBSITES_FILE.slice(
-  SUBSITES_FILE.indexOf('const SUBSITES'),
-  SUBSITES_FILE.indexOf('\n]\n', SUBSITES_FILE.indexOf('const SUBSITES'))
+// The section ids mion.io's own app.config.ts lists in its section menu, in order.
+const SECTIONS_FILE = readFileSync(join(LAYERS_DIR, 'mion-io/app/app.config.ts'), 'utf8');
+const SUBSITES_SOURCE = SECTIONS_FILE.slice(
+  SECTIONS_FILE.indexOf('sections: ['),
+  SECTIONS_FILE.indexOf('\n    ],\n', SECTIONS_FILE.indexOf('sections: ['))
 );
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
@@ -394,11 +393,10 @@ const frontmatter = (file: string): string => /^---\n([\s\S]*?)\n---/.exec(readF
 
 describe('website-subsites', () => {
   it('names the same sections in the section list, the theme dirs, the content tree and the landing pages', () => {
-    expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks', 'pro']);
-    expect([...SITES].sort()).toEqual([...SUBSITE_IDS].sort());
-    // `pro` is the other site: mion.io paints its menu entry and serves no page for it.
-    expect(MION_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
-    expect(subsiteField('pro', 'url')).toBe('https://pro.mion.io');
+    expect(SUBSITE_IDS).toEqual(['rpc', 'runtypes', 'benchmarks']);
+    // `pro` is pro.mion.io's colours: mion.io's menu has no entry for it until that site is live.
+    expect([...SITES].sort()).toEqual([...SUBSITE_IDS, 'pro'].sort());
+    expect(MION_IDS).toEqual(SUBSITE_IDS);
     const contentDirs = readdirSync(CONTENT_DIR).filter((name) => /^\d\d\./.test(name));
     expect(contentDirs.map((name) => name.replace(/^\d\d\./, ''))).toEqual(MION_IDS);
     for (const [i, id] of MION_IDS.entries()) {

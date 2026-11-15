@@ -19,10 +19,39 @@ export default defineAppConfig({
     image: '/banners/mion-v2-website-banner.png',
   },
   shared: {
+    sections: [
+      {
+        id: 'rpc',
+        label: 'RPC',
+        title: 'RPC',
+        url: 'https://mion.io/rpc',
+        homeTitle: 'About mion RPC',
+        icon: 'icon-park-outline:lightning',
+        description: 'Full stack TypeScript APIs. A plain function is a validated route, called from a fully typed client.',
+      },
+      {
+        id: 'runtypes',
+        label: 'RunTypes',
+        title: 'RunTypes',
+        url: 'https://mion.io/runtypes',
+        homeTitle: 'About mion RunTypes',
+        icon: 'i-lucide-braces',
+        description: 'Validation, JSON round trip, mock data and reflection, generated from your TypeScript types.',
+      },
+      {
+        id: 'benchmarks',
+        label: 'Benchmarks',
+        title: 'Benchmarks',
+        url: 'https://mion.io/benchmarks',
+        homeTitle: 'mion Benchmarks',
+        icon: 'i-lucide-gauge',
+        description: 'The RPC server and RunTypes measured against other frameworks and validators, regenerated on every deploy.',
+      },
+    ],
     // Section home pages are wide without a pattern; flush pages keep the rail.
     widePages: ['^/runtypes/(introduction|guide)(/|$)'],
     flushPages: ['^/benchmarks/.+'],
-    menuLabel: 'Switch between RPC, RunTypes, Benchmarks and Pro',
+    menuLabel: 'Switch between RPC, RunTypes and Benchmarks',
   },
   docus: {
     title: 'Full Stack APIs at the speed of light 🚀',

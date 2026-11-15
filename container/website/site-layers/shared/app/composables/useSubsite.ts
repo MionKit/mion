@@ -5,7 +5,10 @@ import type {ContentNavigationItem} from '@nuxt/content'
 export function useSubsite() {
   const route = useRoute()
   const {shared} = useAppConfig()
-  const subsites = computed(() => resolveSubsites(shared.origin ?? '', shared.sections))
+  const subsites = computed(() => {
+    if (!shared.sections.length) throw new Error('shared.sections is empty: the site lists its section menu entries in app.config.ts')
+    return resolveSubsites(shared.origin ?? '', shared.sections)
+  })
   const subsite = computed(() => subsiteForPath(route.path, subsites.value))
   const theme = computed(() => subsite.value ?? subsites.value.find((entry) => !entry.external) ?? subsites.value[0]!)
   // A site with no local section keeps Docus' whole navigation tree.

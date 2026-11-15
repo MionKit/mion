@@ -42,8 +42,9 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 
 - `nuxt.config.ts`: `extends`, `site: {name, url}`, own prerender routes, own `css`.
 - `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}`, and `shared`:
-  - `sections`: extra menu entries only this site shows (a `SubsiteEntry`). `MION_HOME` (`utils/subsites.ts`):
-    mion.io's home page as an entry. `theme`: an entry wears another section's colours.
+  - `sections`: EVERY section menu entry, in order (`SubsiteEntry[]`, `utils/subsites.ts`). No shared list: each
+    site writes its own, repeating another site's entries as it likes. Empty → startup error.
+    `theme`: an entry wears another section's colours.
   - `widePages` / `flushPages`: regex sources on the route path. Wide = no prose width cap, no TOC rail.
     Flush = rail kept. A local section's home page is wide without being listed.
   - `menuLabel`: the section menu button's aria text.
@@ -58,8 +59,8 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 
 ## Section list
 
-- `shared/app/utils/subsites.ts` `SUBSITES`: the ONE list both sites show, with FULL links (`https://mion.io/rpc`,
-  `https://pro.mion.io`). An entry under the site's own address becomes a local link, the rest stay full links.
+- A site's `shared.sections` gives FULL links (`https://mion.io/rpc`, `https://pro.mion.io`). An entry under the
+  site's own address becomes a local link (`resolveSubsites`, `shared/app/utils/subsites.ts`), the rest stay full links.
 - The route's section = the local entry with the longest matching path. A site whose entry is its root (`pro`) owns
   the whole navigation tree.
 - A theme for another site's entry lives in `shared` too: this site paints that menu entry.

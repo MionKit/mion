@@ -6,7 +6,7 @@ export default defineAppConfig({
   shared: {
     // The site's own address: a section link under it becomes local. Unset: the layer fills it from `site.url`.
     origin: undefined as string | undefined,
-    // Extra menu entries only this site shows.
+    // Every section menu entry, in order: the site lists them all, its own sections and links to other sites.
     sections: [] as SubsiteEntry[],
     // Regex sources tested on the route path: wide drops the prose width cap and the contents rail, flush keeps the rail.
     widePages: [] as string[],
