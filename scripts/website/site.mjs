@@ -18,12 +18,12 @@
 // inside the Linux container, which always has sh).
 
 import {existsSync, globSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync} from 'node:fs';
-import {join, sep} from 'node:path';
+import {dirname, join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {requireEngine} from '../lib/engine.mjs';
 import {capture, die, note, reportCliError, run, sleep, warn} from '../lib/proc.mjs';
-import {CONFIG_FILE, loadSite, outputDir as siteOutputDir} from './site-config.mjs';
+import {CONFIG_FILE, loadSite, outputDir} from './site-config.mjs';
 
 // Source directories of the SITE bind-mounted into /app (host is the source of truth).
 const MOUNT_DIRS = ['app', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
@@ -64,17 +64,16 @@ function config(env = process.env) {
   };
 }
 
-/** Host dir the built site is copied to: `<site>/.output`. */
-export const outputDir = () => siteOutputDir();
-
 // The repo folders the example tool reads, outermost only: a folder inside another listed one rides its mount.
-function contextDirs(examples) {
-  const dirs = [...new Set([...examples.readRoots, ...examples.exampleDirs, ...examples.packages.map((pkg) => pkg.dir)])];
+// An inlined document brings its folder: a single-file mount keeps serving the old file after an editor's save-by-rename.
+export function contextDirs(examples) {
+  const docDirs = Object.values(examples.importableDocs).map((doc) => dirname(doc)).filter((dir) => dir !== '.');
+  const dirs = [...new Set([...examples.readRoots, ...examples.exampleDirs, ...examples.packages.map((pkg) => pkg.dir), ...docDirs])];
   return dirs.filter((dir) => !dirs.some((other) => other !== dir && (dir + '/').startsWith(other + '/')));
 }
 
 // The bind-mount + named-volume `-v …` args for `run`.
-function mountArgs(cfg) {
+export function mountArgs(cfg) {
   const {site} = cfg;
   const siteDir = site.siteDir;
   const args = [];
@@ -90,13 +89,13 @@ function mountArgs(cfg) {
   args.push('-v', `${site.layersDir}:${LAYERS_MOUNT}${site.isMion ? '' : ':ro'}${cfg.mountOpts}`);
   // Repo context, READ-ONLY (MION_REPO_ROOT=/repo-context): only the folders the site's config
   // names are exposed, never the repo root.
-  const context = (rel) => `/repo-context/${rel.split(sep).join('/')}`;
+  const context = (rel) => `/repo-context/${rel}`;
   for (const dir of contextDirs(site.examples)) {
     if (existsSync(join(cfg.repoContext, dir))) args.push('-v', `${join(cfg.repoContext, dir)}:${context(dir)}:ro${cfg.mountOpts}`);
   }
-  // Each document a page may inline with <markdown-import>, one file at a time.
+  // A document at the repo root has no folder to bring: it is mounted alone.
   for (const doc of Object.values(site.examples.importableDocs)) {
-    if (existsSync(join(cfg.repoContext, doc))) args.push('-v', `${join(cfg.repoContext, doc)}:${context(doc)}:ro${cfg.mountOpts}`);
+    if (dirname(doc) === '.' && existsSync(join(cfg.repoContext, doc))) args.push('-v', `${join(cfg.repoContext, doc)}:${context(doc)}:ro${cfg.mountOpts}`);
   }
   // One dir per third-party package the twoslash VFS needs, never node_modules itself.
   for (const dep of site.examples.externalDeps) {
@@ -117,7 +116,7 @@ function mountArgs(cfg) {
 const netArgs = (cfg) => (cfg.runNetwork ? [`--network=${cfg.runNetwork}`] : []);
 // MION_REPO_ROOT/MION_DOCDATA point the resolvers at the mounted repo context + results.
 // MION_WEBSITE_LAYERS is what a site's nuxt.config.ts extends the layers through.
-const envArgs = (cfg) => [
+export const envArgs = (cfg) => [
   '-e', 'MION_REPO_ROOT=/repo-context',
   '-e', 'MION_DOCDATA=/app/.docdata',
   '-e', `MION_WEBSITE_LAYERS=${LAYERS_MOUNT}`,
@@ -139,6 +138,24 @@ export function ensureMionDists() {
   const args = ['--filter', '@mionjs/*', '--filter', '!@mionjs/test-server', 'run', 'build'];
   if (run('pnpm', args, {cwd: REPO_ROOT}) !== 0) {
     warn('building the @mionjs dists failed - the mion home page will render type-hover errors (see output above).');
+  }
+}
+
+// Another repo's site builds its packages itself. Without built types every hover card of that
+// package renders an error and the build still exits 0, so say it before the build starts.
+function warnUnbuiltPackages(cfg) {
+  for (const pkg of cfg.site.examples.packages) {
+    const manifestPath = join(cfg.repoContext, pkg.dir, 'package.json');
+    if (!existsSync(manifestPath)) {
+      warn(`${pkg.name}: no package.json under ${pkg.dir} - its hover cards will render errors.`);
+      continue;
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const root = manifest.exports?.['.'];
+    const types = typeof root === 'string' ? root : (root?.types ?? manifest.types);
+    if (typeof types !== 'string' || !existsSync(join(cfg.repoContext, pkg.dir, types))) {
+      warn(`${pkg.name}: no built types under ${pkg.dir} - build it first, or its hover cards will render errors.`);
+    }
   }
 }
 
@@ -378,7 +395,7 @@ function containerHttp(cfg, cname, path, body) {
 }
 
 // Examples the pages render via ::twoslash-code, in page order.
-function homeTwoslashPaths(site) {
+export function homeTwoslashPaths(site) {
   const contentDir = join(site.siteDir, 'content');
   const pages = globSync('**/*.md', {cwd: contentDir}).sort();
   const isExample = (path) => site.examples.exampleDirs.some((dir) => path.startsWith(`${dir}/`));
@@ -474,9 +491,13 @@ export async function main(args) {
   mkdirSync(outputDir(), {recursive: true});
   const cmd = args[0];
   // Ensure the playground bundle is staged for every command that serves the site.
-  if (cfg.site.isMion && ['dev', 'build', 'generate', 'smoke', 'verify-docs'].includes(cmd)) {
-    ensureMionDists();
-    ensurePlayground(cfg);
+  if (['dev', 'build', 'generate', 'smoke', 'verify-docs'].includes(cmd)) {
+    if (cfg.site.isMion) {
+      ensureMionDists();
+      ensurePlayground(cfg);
+    } else {
+      warnUnbuiltPackages(cfg);
+    }
   }
   switch (cmd) {
     case 'dev': return cmdDev(cfg, args.slice(1));

@@ -6,13 +6,13 @@
 import {existsSync, readFileSync, realpathSync} from 'node:fs';
 import {basename, dirname, join, resolve} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
+import {die} from '../lib/proc.mjs';
 
 export const CONFIG_FILE = 'website.config.json';
 const MION_SITE_DIR = join(REPO_ROOT, 'container/website');
-const MION_LAYERS_DIR = join(MION_SITE_DIR, 'site-layers');
 
 /** The first website.config.json at or above `from`, else this checkout's own. */
-export function findSiteConfig(from = process.cwd()) {
+function findSiteConfig(from = process.cwd()) {
   let dir = resolve(from);
   for (;;) {
     const candidate = join(dir, CONFIG_FILE);
@@ -23,22 +23,34 @@ export function findSiteConfig(from = process.cwd()) {
   }
 }
 
+function readConfig(configPath) {
+  try {
+    return JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch (err) {
+    die(`${configPath}: not valid JSON (${err.message})`);
+  }
+}
+
 const real = (path) => (existsSync(path) ? realpathSync(path) : resolve(path));
 
 /** The site to run, every path absolute. Config paths resolve from the config file's folder. */
 export function loadSite(env = process.env, from = process.cwd()) {
   const configPath = findSiteConfig(from);
-  const raw = JSON.parse(readFileSync(configPath, 'utf8'));
+  const raw = readConfig(configPath);
   const configDir = dirname(configPath);
   const siteDir = resolve(configDir, raw.site ?? 'container/website');
   const examples = raw.examples ?? {};
+  for (const key of ['packages', 'exampleDirs', 'readRoots', 'externalDeps']) {
+    if (examples[key] !== undefined && !Array.isArray(examples[key])) die(`${configPath}: examples.${key} must be a list`);
+  }
   return {
     configPath,
     siteDir,
     // The repo whose code the docs show; MION_WEBSITE_REPO_CONTEXT points it at a sibling checkout.
     repoContext: env.MION_WEBSITE_REPO_CONTEXT ? resolve(env.MION_WEBSITE_REPO_CONTEXT) : configDir,
     containerBase: env.MION_WEBSITE_CONTAINER || raw.container || `${basename(configDir)}-website`,
-    layersDir: raw.layers ? resolve(configDir, raw.layers) : MION_LAYERS_DIR,
+    // Always this checkout's layers: another repo reaches them through its mion submodule.
+    layersDir: join(MION_SITE_DIR, 'site-layers'),
     benchData: raw.benchData ? resolve(configDir, raw.benchData) : '',
     // mion's own site gets the mion-only stages (its package dists, playground assets, benchmarks).
     isMion: real(siteDir) === real(MION_SITE_DIR),

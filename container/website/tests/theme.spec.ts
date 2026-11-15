@@ -1,6 +1,6 @@
 // Each subsite's colour scheme reaches the rendered page, and the header names the
 // subsite (the subsite menu button beside the search box). Run against a served site (`pnpm miondevx website dev`; the harness points at
-// :3000); the expected values come from each sites/<id>/theme.css. Not a CI gate: the
+// :3000); the expected values come from each site-layers/shell/sites/<id>/theme.css. Not a CI gate: the
 // shared image carries no Playwright browsers, so this is the manual check the
 // website-browser skill drives (every subsite, light and dark).
 import {expect, test} from '@playwright/test';
@@ -8,7 +8,7 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 
-const SITES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'sites');
+const SITES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'site-layers', 'shell', 'sites');
 const SUBSITES = [
   {id: 'rpc', path: '/rpc', word: 'RPC'},
   {id: 'runtypes', path: '/runtypes', word: 'RunTypes'},
@@ -49,7 +49,8 @@ for (const {id, path, word} of SUBSITES) {
     await expect(menuButton).toContainText(word);
     expect(await menuButton.evaluate((el) => getComputedStyle(el).color)).toBe(rgb(dark('--site-accent')));
     await menuButton.click();
-    await expect(page.locator('.subsite-menu-item')).toHaveCount(SUBSITES.length);
+    // plus the Pro entry, a link to the other site
+    await expect(page.locator('.subsite-menu-item')).toHaveCount(SUBSITES.length + 1);
     await expect(page.locator('.subsite-menu-item.is-active .subsite-menu-label')).toHaveText(word);
     await page.keyboard.press('Escape');
     // the hero title is painted with the accent

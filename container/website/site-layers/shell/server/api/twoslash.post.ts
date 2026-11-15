@@ -6,7 +6,7 @@ import { createTwoslasher } from 'twoslash-vue'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join, relative, resolve, dirname } from 'path'
 import { createRequire } from 'module'
-import { resolveInRoots, splitByRoot, type ExampleToolContext } from '../utils/repo-root'
+import { pathInsideRoot, resolveInRoots, type ExampleToolContext } from '../utils/repo-root'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -226,11 +226,17 @@ function loadPackageTypes(tool: ExampleToolContext): Map<string, string> {
 
   // Example sources too, for relative imports between examples. The VFS path mirrors the path
   // inside its example folder, so ./user.ts resolves.
+  const exampleOwner = new Map<string, string>()
   for (const exampleDir of tool.exampleDirs) {
     const examplesDir = join(repoRoot, exampleDir)
     for (const srcFile of findFiles(examplesDir, /\.ts$/)) {
+      const virtualPath = `/${relative(examplesDir, srcFile)}`
+      const owner = exampleOwner.get(virtualPath)
+      // Two folders share one VFS root: a same-named file would silently type-check against the wrong sibling.
+      if (owner) throw new Error(`[twoslash] example folders ${owner} and ${exampleDir} both hold ${virtualPath.slice(1)}: rename one`)
+      exampleOwner.set(virtualPath, exampleDir)
       try {
-        fsMap.set(`/${relative(examplesDir, srcFile)}`, readFileSync(srcFile, 'utf-8'))
+        fsMap.set(virtualPath, readFileSync(srcFile, 'utf-8'))
       } catch (e) {
         console.warn(`Failed to read ${srcFile}:`, e)
       }
@@ -316,9 +322,8 @@ export default defineEventHandler(async (event) => {
 
     // The path inside its example folder is the VFS path; its directory siblings go in so relative imports resolve.
     let extraFiles: Record<string, string> | undefined
-    const example = filePath ? splitByRoot(tool.repoRoot, tool.exampleDirs, filePath) : undefined
-    if (example) {
-      const relativePath = example.inside
+    const relativePath = filePath ? pathInsideRoot(tool.repoRoot, tool.exampleDirs, filePath) : undefined
+    if (relativePath) {
       const fileDir = relativePath.substring(0, relativePath.lastIndexOf('/'))
 
       extraFiles = {}

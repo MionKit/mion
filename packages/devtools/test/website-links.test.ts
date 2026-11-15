@@ -12,10 +12,8 @@ const WEBSITE = join(REPO_ROOT, 'container/website');
 const CONTENT_DIR = join(WEBSITE, 'content');
 const PUBLIC_DIR = join(WEBSITE, 'public');
 // A layer's public/ is served beside the site's own.
-const PUBLIC_DIRS = [
-  PUBLIC_DIR,
-  ...['shell', 'parts', 'playground'].map((layer) => join(WEBSITE, 'site-layers', layer, 'public')),
-];
+const LAYERS_DIR = join(WEBSITE, 'site-layers');
+const PUBLIC_DIRS = [PUBLIC_DIR, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer, 'public'))];
 
 // Nuxt Content drops the numeric prefix from every path segment and maps a dir's
 // index.md onto the dir itself.

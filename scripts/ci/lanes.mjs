@@ -62,7 +62,7 @@ const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
 // The JS half of the repo as js-static reads it.
 // `container/` is in: code-import and link checks read its docs pages, the contract tests those and its benchmark maps.
-const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'website.config.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', WEBSITE_CONFIG, 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
 // The JS test, fuzz and Go-backed lanes read the same minus the page text, which only js-static's checks read.
 const CONTAINER_CODE = {prefix: 'container/', keep: (path) => !path.startsWith('container/website/content/')};
 const JS = JS_STATIC.map((entry) => (entry === 'container/' ? CONTAINER_CODE : entry));

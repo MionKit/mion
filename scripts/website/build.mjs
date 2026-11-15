@@ -30,8 +30,8 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, reportCliError, run, warn, which} from '../lib/proc.mjs';
 import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
-import {buildSite, ensureMionDists, outputDir} from './site.mjs';
-import {loadSite} from './site-config.mjs';
+import {buildSite, ensureMionDists} from './site.mjs';
+import {loadSite, outputDir} from './site-config.mjs';
 import {main as testCountsMain} from './gen-test-counts.mjs';
 import {main as clientSizeMain} from './gen-client-size.mjs';
 
@@ -116,13 +116,12 @@ export async function main(args) {
   // Benchmarks, the playground bundle and the home page numbers belong to mion's own site.
   // Another site reuses them through its layers and its website.config.json `benchData`.
   const site = loadSite();
-  const mionStages = site.isMion;
-  if (skipBench && mionStages) requireBenchArtifacts(site);
+  if (skipBench && site.isMion) requireBenchArtifacts(site);
 
   step('1/6  shared website+benchmark podman image');
   ensureImage();
 
-  if (!mionStages) {
+  if (!site.isMion) {
     step(`2-4/6  SKIPPED: mion-only stages, building ${site.siteDir}`);
   } else {
     await mionOnlyStages(skipBench);
@@ -158,8 +157,8 @@ export async function main(args) {
   }
 
   console.log('');
-  const quick = process.env.MION_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
-  const nobench = skipBench ? ', no-bench: reused bench data' : '';
+  const quick = site.isMion && process.env.MION_VALIDATION_BENCH_QUICK ? ', quick benchmarks' : '';
+  const nobench = site.isMion && skipBench ? ', no-bench: reused bench data' : '';
   console.log(`==> website build DONE (target: ${target}${quick}${nobench})`);
   console.log(`    Nuxt ${target}: ${elapsed}s`);
   if (target === 'generate') {

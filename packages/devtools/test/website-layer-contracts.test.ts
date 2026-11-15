@@ -11,7 +11,7 @@
 //   - The shell goes LAST in `extends`, so Docus stays the lowest layer.
 //   - The website scripts take the site from website.config.json and write under that site.
 
-import {afterAll, describe, it, expect} from 'vitest';
+import {afterAll, describe, it, expect, vi} from 'vitest';
 import {
   existsSync,
   mkdirSync,
@@ -29,6 +29,8 @@ import {tmpdir} from 'node:os';
 import {dirname, join, posix, resolve} from 'node:path';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {loadSite, outputDir, publicRoot} from '../../../scripts/website/site-config.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {contextDirs, envArgs, homeTwoslashPaths, mountArgs} from '../../../scripts/website/site.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
@@ -142,12 +144,25 @@ describe('website-layers', () => {
   it('lists the shell last in the mion.io site, with Docus pulled in by the shell alone', () => {
     const site = read('container/website/nuxt.config.ts');
     const list = /extends:\s*\[([^\]]*)\]/.exec(site)?.[1] ?? '';
-    const entries = [...list.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    const entries = [...list.matchAll(/'([^']+)'/g)].map((match) => match[1]);
     // `./` matters: a bare `site-layers/shell` is read as an npm package name
     expect(entries).toEqual(['./site-layers/parts', './site-layers/playground', './site-layers/shell']);
     expect(layerConfig('shell')).toContain("extends: ['docus']");
-    expect(layerConfig('shell'), 'the startup guard').toContain('mion-shell must be the LAST entry of');
+    expect(layerConfig('shell'), 'the startup guard').toContain('if (orderProblem) throw new Error(orderProblem)');
     for (const layer of ['parts', 'playground']) expect(layerConfig(layer), layer).not.toContain('extends');
+  });
+
+  it('refuses a layer order where Docus is not the lowest layer', async () => {
+    const {layerOrderProblem} = await load<{layerOrderProblem(dirs: string[]): string | undefined}>(
+      'container/website/site-layers/shell/layer-order.ts'
+    );
+    const docus = '/app/node_modules/.pnpm/docus@5.9.0/node_modules/docus';
+    expect(layerOrderProblem(['/app', '/app/site-layers/parts', '/app/site-layers/shell', docus])).toBeUndefined();
+    expect(layerOrderProblem(['/app', '/app/site-layers/shell', `${docus}/`])).toBeUndefined();
+    expect(layerOrderProblem(['/app', '/app/site-layers/shell', docus, '/app/site-layers/parts'])).toMatch(
+      /must be the LAST entry/
+    );
+    expect(layerOrderProblem(['/app', '/app/site-layers/shell'])).toMatch(/found no Docus layer/);
   });
 
   it('reads the content of the consuming site, never the layer', () => {
@@ -161,7 +176,7 @@ describe('website-layers', () => {
       'container/website/app/app.config.ts',
       'container/website/app/pages/runtypes/playground.vue',
     ]);
-    for (const gone of ['server', 'sites', 'content.config.ts']) expect(existsSync(join(WEBSITE, gone)), gone).toBe(false);
+    for (const shared of ['server', 'sites']) expect(existsSync(join(WEBSITE, shared)), shared).toBe(false);
   });
 });
 
@@ -172,9 +187,9 @@ interface Subsite {
   homeTitle?: string;
 }
 interface SubsitesModule {
-  SUBSITES: {id: string; url: string}[];
   resolveSubsites(origin: string, extra?: object[]): Subsite[];
   subsiteForPath(path: string, subsites: Subsite[]): Subsite | undefined;
+  pageWidthClass(path: string, subsites: Subsite[], wide: RegExp[], flush: RegExp[]): string;
   subsiteSidebar(
     navigation: object[] | null | undefined,
     subsite: Subsite | undefined
@@ -182,7 +197,7 @@ interface SubsitesModule {
 }
 
 describe('website-section-links', async () => {
-  const {resolveSubsites, subsiteForPath, subsiteSidebar} = await load<SubsitesModule>(
+  const {resolveSubsites, subsiteForPath, subsiteSidebar, pageWidthClass} = await load<SubsitesModule>(
     'container/website/site-layers/shell/app/utils/subsites.ts'
   );
   const byId = (list: Subsite[]): Record<string, Subsite> => Object.fromEntries(list.map((entry) => [entry.id, entry]));
@@ -208,6 +223,32 @@ describe('website-section-links', async () => {
     const list = byId(resolveSubsites('', [local]));
     expect(list.rpc!.external).toBe(true);
     expect(list.cloud).toMatchObject({path: '/cloud', external: false});
+  });
+
+  it('reads an entry with a trailing slash as the same section', () => {
+    const base = {id: 'cloud', label: 'Cloud', title: 'Cloud', icon: 'i', description: 'd'};
+    for (const url of ['/cloud/', 'https://pro.mion.io/cloud/']) {
+      const pro = resolveSubsites('https://pro.mion.io', [{...base, url}]);
+      expect(subsiteForPath('/cloud/setup', pro), url).toMatchObject({id: 'cloud', path: '/cloud'});
+    }
+  });
+
+  it('gives mion.io the same page widths as before the layers', () => {
+    // The site's own patterns, read from its app.config.ts.
+    const config = read('container/website/app/app.config.ts');
+    const patterns = (key: string): RegExp[] =>
+      [...(new RegExp(`${key}: \\[([^\\]]*)\\]`).exec(config)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
+        (match) => new RegExp(match[1]!)
+      );
+    const mion = resolveSubsites('https://mion.io');
+    const width = (path: string): string => pageWidthClass(path, mion, patterns('widePages'), patterns('flushPages'));
+    for (const path of ['/rpc', '/runtypes', '/benchmarks', '/runtypes/introduction/quick-start', '/runtypes/guide'])
+      expect(width(path), path).toBe('rt-wide-page');
+    expect(width('/benchmarks/rpc-server')).toBe('rt-flush-page');
+    for (const path of ['/', '/rpc/routes', '/runtypes/playground', '/runtypes/guidelines']) expect(width(path), path).toBe('');
+    // another site: its root section's home is wide, a section it links to elsewhere is not
+    expect(pageWidthClass('/', resolveSubsites('https://pro.mion.io'), [], [])).toBe('rt-wide-page');
+    expect(pageWidthClass('/rpc', resolveSubsites('https://pro.mion.io'), [], [])).toBe('');
   });
 
   it('picks the longest local section for a route', () => {
@@ -239,18 +280,21 @@ describe('website-section-links', async () => {
     expect(subsiteSidebar(tree, undefined)).toEqual([]);
     const pro = byId(resolveSubsites('https://pro.mion.io'));
     expect(subsiteSidebar(tree, pro.pro)).toBe(tree);
+    // a section with no home title keeps its sections as they are
+    const {homeTitle: _dropped, ...plainRpc} = mion.rpc!;
+    expect(subsiteSidebar(tree, plainRpc)).toBe(tree[0]!.children);
   });
 });
 
 interface RepoRootModule {
   resolveInRoots(repoRoot: string, roots: string[], relPath: string): string;
-  splitByRoot(repoRoot: string, roots: string[], relPath: string): {root: string; inside: string} | undefined;
+  pathInsideRoot(repoRoot: string, roots: string[], relPath: string): string | undefined;
   resolveImportableDoc(repoRoot: string, docs: Record<string, string>, name: string): string;
   loadExampleTool(siteRoot: string): {repoRoot: string; packages: object[]; exampleDirs: string[]; readRoots: string[]};
 }
 
 describe('website-example-paths', async () => {
-  const {resolveInRoots, splitByRoot, resolveImportableDoc, loadExampleTool} = await load<RepoRootModule>(
+  const {resolveInRoots, pathInsideRoot, resolveImportableDoc, loadExampleTool} = await load<RepoRootModule>(
     'container/website/site-layers/shell/server/utils/repo-root.ts'
   );
   const repo = resolve('/repo');
@@ -275,11 +319,8 @@ describe('website-example-paths', async () => {
   });
 
   it('splits a path by the listed folder it sits in', () => {
-    expect(splitByRoot(repo, ['packages/private-examples/src'], 'packages/private-examples/src/rpc/a.ts')).toEqual({
-      root: 'packages/private-examples/src',
-      inside: 'rpc/a.ts',
-    });
-    expect(splitByRoot(repo, ['packages/private-examples/src'], 'packages/core/a.ts')).toBeUndefined();
+    expect(pathInsideRoot(repo, ['packages/private-examples/src'], 'packages/private-examples/src/rpc/a.ts')).toBe('rpc/a.ts');
+    expect(pathInsideRoot(repo, ['packages/private-examples/src'], 'packages/core/a.ts')).toBeUndefined();
   });
 
   it('inlines only a document named in the list', () => {
@@ -290,12 +331,18 @@ describe('website-example-paths', async () => {
   it('gives a site without a config file an empty tool', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mion-site-'));
     try {
-      const saved = process.env.MION_REPO_ROOT;
-      delete process.env.MION_REPO_ROOT;
-      const tool = loadExampleTool(dir);
-      if (saved !== undefined) process.env.MION_REPO_ROOT = saved;
-      expect(tool).toMatchObject({packages: [], exampleDirs: [], readRoots: []});
+      vi.stubEnv('MION_REPO_ROOT', undefined);
+      expect(loadExampleTool(dir)).toMatchObject({repoRoot: dir, packages: [], exampleDirs: [], readRoots: []});
+      // the config file the scripts mount at the site root, and the repo mount they name
+      writeFileSync(
+        join(dir, 'website.config.json'),
+        JSON.stringify({examples: {exampleDirs: ['examples'], readRoots: ['src']}})
+      );
+      expect(loadExampleTool(dir)).toMatchObject({repoRoot: dir, exampleDirs: ['examples'], readRoots: ['src'], packages: []});
+      vi.stubEnv('MION_REPO_ROOT', '/repo-context');
+      expect(loadExampleTool(dir).repoRoot).toBe(resolve('/repo-context'));
     } finally {
+      vi.unstubAllEnvs();
       rmSync(dir, {recursive: true, force: true});
     }
   });
@@ -342,7 +389,7 @@ describe('website-site-config', () => {
         externalDeps: [],
         importableDocs: {},
       });
-      // the layers stay mion's unless the config names another folder
+      // the layers are always the ones of the checkout the scripts live in
       expect(realpathSync(site.layersDir)).toBe(join(MION_SITE, 'site-layers'));
       expect(outputDir(site)).toBe(join(repo, 'docs-site/.output'));
       expect(publicRoot(site)).toBe(join(repo, 'docs-site/.output/public'));
@@ -350,6 +397,75 @@ describe('website-site-config', () => {
       const overridden = loadSite({MION_WEBSITE_CONTAINER: 'mine', MION_WEBSITE_REPO_CONTEXT: tmpdir()}, repo);
       expect(overridden.containerBase).toBe('mine');
       expect(overridden.repoContext).toBe(resolve(tmpdir()));
+    } finally {
+      rmSync(repo, {recursive: true, force: true});
+    }
+  });
+
+  it('refuses a config file it cannot read as written', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'other-repo-'));
+    try {
+      const config = join(repo, 'website.config.json');
+      writeFileSync(config, '{"site": ');
+      expect(() => loadSite({}, repo)).toThrow(/website\.config\.json: not valid JSON/);
+      writeFileSync(config, JSON.stringify({examples: {exampleDirs: 'examples'}}));
+      expect(() => loadSite({}, repo)).toThrow(/examples\.exampleDirs must be a list/);
+    } finally {
+      rmSync(repo, {recursive: true, force: true});
+    }
+  });
+
+  it('mounts only the folders the config names, outermost only', () => {
+    const examples = {
+      readRoots: ['packages', 'packages-x'],
+      exampleDirs: ['packages/examples/src'],
+      packages: [{dir: 'packages/core', name: 'core'}],
+      importableDocs: {spec: 'docs/specs/spec.md', readme: 'README.md'},
+    };
+    // a folder inside a listed one rides its mount, a sibling that only starts the same does not
+    expect(contextDirs(examples)).toEqual(['packages', 'packages-x', 'docs/specs']);
+  });
+
+  it('gives another repo site read-only layers, its own folders and no mion folder', () => {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), 'other-repo-')));
+    try {
+      for (const dir of ['docs-site/content', 'examples', 'docs', 'data/bench']) mkdirSync(join(repo, dir), {recursive: true});
+      writeFileSync(join(repo, 'docs/spec.md'), '# spec');
+      writeFileSync(join(repo, 'docs-site/content/index.md'), '  path: examples/a.ts\n  path: elsewhere/b.ts\n');
+      const config = {site: 'docs-site', examples: {exampleDirs: ['examples'], importableDocs: {spec: 'docs/spec.md'}}};
+      writeFileSync(join(repo, 'website.config.json'), JSON.stringify(config));
+      const site = loadSite({}, repo);
+      const cfg = {
+        site,
+        repoContext: repo,
+        mountOpts: '',
+        docdataDir: join(repo, '.docdata'),
+        volNuxt: 'n',
+        volData: 'd',
+        volCache: 'c',
+      };
+      const mounts = (mountArgs(cfg) as string[]).filter((arg) => arg !== '-v');
+      expect(mounts).toEqual([
+        `${join(repo, 'docs-site/content')}:/app/content`,
+        `${join(repo, 'website.config.json')}:/app/website.config.json:ro`,
+        `${site.layersDir}:/app/site-layers:ro`,
+        `${join(repo, 'examples')}:/repo-context/examples:ro`,
+        `${join(repo, 'docs')}:/repo-context/docs:ro`,
+        'n:/app/.nuxt',
+        'd:/app/.data',
+        'c:/app/node_modules/.cache',
+      ]);
+      expect(existsSync(join(repo, '.docdata')), 'no stray folder in the other repo').toBe(false);
+      // the name a site's nuxt.config.ts extends the layers through
+      expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/site-layers');
+      expect((envArgs(cfg) as string[]).join(' ')).not.toContain('MION_WEBSITE_BENCH_DATA');
+      // bench data is opt-in
+      writeFileSync(join(repo, 'website.config.json'), JSON.stringify({...config, benchData: 'data/bench'}));
+      const withBench = {...cfg, site: loadSite({}, repo)};
+      expect(mountArgs(withBench)).toContain(`${join(repo, 'data/bench')}:/bench-data:ro`);
+      expect(envArgs(withBench)).toContain('MION_WEBSITE_BENCH_DATA=/bench-data');
+      // the docs check renders only the examples from the site's own example folders
+      expect(homeTwoslashPaths(site)).toEqual(['examples/a.ts']);
     } finally {
       rmSync(repo, {recursive: true, force: true});
     }

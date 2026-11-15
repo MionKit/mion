@@ -24,15 +24,17 @@ import {dirname, join, posix, resolve} from 'node:path';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
-const SHELL = join(WEBSITE, 'site-layers/shell');
-const PARTS = join(WEBSITE, 'site-layers/parts');
-const PLAYGROUND = join(WEBSITE, 'site-layers/playground');
+const LAYERS_DIR = join(WEBSITE, 'site-layers');
+const SHELL = join(LAYERS_DIR, 'shell');
+const PARTS = join(LAYERS_DIR, 'parts');
 const SITES_DIR = join(SHELL, 'sites');
 const CONTENT_DIR = join(WEBSITE, 'content');
 const SHELL_CSS = join(SHELL, 'app/assets/css/shell.css');
 const PAGES_CSS = join(PARTS, 'app/assets/css/mion-pages.css');
 // Every app/ folder the site is built from: its own and one per layer.
-const APP_DIRS = [WEBSITE, SHELL, PARTS, PLAYGROUND].map((dir) => join(dir, 'app'));
+const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer))]
+  .map((dir) => join(dir, 'app'))
+  .filter((dir) => existsSync(dir));
 
 // Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
@@ -41,7 +43,7 @@ const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, s
 const SUBSITES_SOURCE = readFileSync(join(SHELL, 'app/utils/subsites.ts'), 'utf8');
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
-const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((m) => m[1]!);
+const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((match) => match[1]!);
 const MION_IDS = SUBSITE_IDS.filter((id) => subsiteField(id, 'url').startsWith('https://mion.io/'));
 
 // Walk a tree, yielding repo-relative posix paths of files matching `keep`.
@@ -246,7 +248,9 @@ describe('website-colour-tokens', () => {
       const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
       const lines = source.split('\n');
       const kind = rel.endsWith('.css') ? 'css' : rel.endsWith('.vue') ? 'vue' : 'ts';
-      return rawColourLines(source, kind, rel === SHELL_CSS_REL).map((n) => `${rel}:${n}: ${lines[n - 1]!.trim().slice(0, 100)}`);
+      return rawColourLines(source, kind, rel === SHELL_CSS_REL).map(
+        (lineNumber) => `${rel}:${lineNumber}: ${lines[lineNumber - 1]!.trim().slice(0, 100)}`
+      );
     });
     expect(
       offenders,
@@ -492,6 +496,9 @@ describe('website-subsites', () => {
     ).toBe(deps.dependencies.docus);
     // The deliberate changes (listed at the top of the file).
     expect(page).toContain('useHead({ titleTemplate: `%s - ${titleSuffix}` })');
+    expect(page, 'a section page ends with its section, any other with the site name').toContain(
+      'const titleSuffix = current.value?.title ?? useSiteConfig().name'
+    );
     expect(page, 'the docs page carries its subsite in its own markup').toContain(':data-site="subsite.id"');
     expect(page, 'a subsite home renders without the page header').toContain('v-if="!isSubsiteHome"');
     expect(page, 'no edit-this-page / report-an-issue footer').not.toContain('docs.edit');

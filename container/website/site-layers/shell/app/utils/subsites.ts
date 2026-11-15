@@ -31,7 +31,7 @@ export interface Subsite extends SubsiteEntry {
   external: boolean
 }
 
-export const SUBSITES: readonly SubsiteEntry[] = [
+const SUBSITES: readonly SubsiteEntry[] = [
   {
     id: 'rpc',
     label: 'RPC',
@@ -73,9 +73,11 @@ export const SUBSITES: readonly SubsiteEntry[] = [
 export function resolveSubsites(origin: string, extra: readonly SubsiteEntry[] = []): Subsite[] {
   const own = origin.replace(/\/+$/, '')
   return [...SUBSITES, ...extra].map((entry) => {
-    if (entry.url.startsWith('/')) return {...entry, path: entry.url, external: false}
-    const isOwn = own !== '' && (entry.url === own || entry.url.startsWith(`${own}/`))
-    return isOwn ? {...entry, path: entry.url.slice(own.length) || '/', external: false} : {...entry, path: entry.url, external: true}
+    // `/cloud/` and `/cloud` are one section: the route path never ends with a slash.
+    const url = entry.url.replace(/\/+$/, '') || '/'
+    if (url.startsWith('/')) return {...entry, path: url, external: false}
+    const isOwn = own !== '' && (url === own || url.startsWith(`${own}/`))
+    return isOwn ? {...entry, path: url.slice(own.length) || '/', external: false} : {...entry, path: entry.url, external: true}
   })
 }
 
@@ -85,7 +87,15 @@ const isUnder = (path: string, root: string): boolean => root === '/' || path ==
 export function subsiteForPath(path: string, subsites: readonly Subsite[]): Subsite | undefined {
   return subsites
     .filter((subsite) => !subsite.external && isUnder(path, subsite.path))
-    .sort((a, b) => b.path.length - a.path.length)[0]
+    .sort((first, second) => second.path.length - first.path.length)[0]
+}
+
+/** The `<body>` width class of a route: a local section's home page and a wide pattern run wide, a flush pattern keeps the rail. */
+export function pageWidthClass(path: string, subsites: readonly Subsite[], wide: readonly RegExp[], flush: readonly RegExp[]): string {
+  if (subsites.some((entry) => !entry.external && entry.path === path)) return 'rt-wide-page'
+  if (wide.some((pattern) => pattern.test(path))) return 'rt-wide-page'
+  if (flush.some((pattern) => pattern.test(path))) return 'rt-flush-page'
+  return ''
 }
 
 /**

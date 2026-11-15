@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { addVitePlugin } from 'nuxt/kit'
 import { processCodeImports, processMarkdownImports, exampleWatcherPlugin } from './server/utils/code-import'
 import { loadExampleTool } from './server/utils/repo-root'
+import { layerOrderProblem } from './layer-order'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -10,15 +11,13 @@ const isDev = process.env.NODE_ENV !== 'production'
 // scripts/website/site.mjs sets this env to make the watchers poll instead.
 const usePolling = process.env.CHOKIDAR_USEPOLLING === 'true'
 
-const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
-
 // The generic docs site: Docus, the shared look, the section menu and the example tool.
 // It carries NO site identity (name, address, routes, content): the consuming site sets those.
 export default defineNuxtConfig({
   $meta: { name: 'mion-shell' },
   extends: ['docus'],
   css: [
-    here('./app/assets/css/shell.css'),
+    fileURLToPath(new URL('./app/assets/css/shell.css', import.meta.url)),
     '@shikijs/twoslash/style-rich.css',
   ],
   colorMode: {
@@ -31,13 +30,8 @@ export default defineNuxtConfig({
     '@nuxt/scripts',
     '@nuxt/ui',
     (_options, nuxt) => {
-      // c12 puts a layer's own layers right after it, so this layer listed last keeps Docus last.
-      // Anywhere else Docus outranks the layers after it and its components win silently.
-      const layers = nuxt.options._layers.map((layer) => layer.config.rootDir)
-      const docus = layers.findIndex((dir) => /[\\/]docus[\\/]?$/.test(dir))
-      if (docus !== layers.length - 1) {
-        throw new Error(`mion-shell must be the LAST entry of \`extends\`, so Docus stays the lowest layer. Layers: ${layers.join(', ')}`)
-      }
+      const orderProblem = layerOrderProblem(nuxt.options._layers.map((layer) => layer.config.rootDir))
+      if (orderProblem) throw new Error(orderProblem)
 
       // Section links that start with the site's own address become local links (app/utils/subsites.ts).
       const siteUrl = (nuxt.options as { site?: { url?: string } }).site?.url

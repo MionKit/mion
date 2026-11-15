@@ -1,14 +1,12 @@
 import { fileURLToPath } from 'node:url'
 import { processFunctionCatalog } from './server/utils/function-catalog'
 
-const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
-
 // mion's own building blocks another site may load: benchmark tables and charts, code cards,
 // tiles, the diagnostics catalog, the mion logo and footer note, the mion page classes.
 // It adds no route, no content and no site identity. List it BEFORE the shell layer.
 export default defineNuxtConfig({
   $meta: { name: 'mion-parts' },
-  css: [here('./app/assets/css/mion-pages.css')],
+  css: [fileURLToPath(new URL('./app/assets/css/mion-pages.css', import.meta.url))],
   modules: [
     (_options, nuxt) => {
       nuxt.hook('content:file:beforeParse' as never, ((ctx: { file: { id: string, body: string } }) => {
