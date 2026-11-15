@@ -7,8 +7,8 @@ Deps live ONLY in the podman image, never in the monorepo lockfile.
   `benchmarks`): tree `content/NN.<id>/`, theme `site-layers/shell/sites/<id>/theme.css`, home page served at `/<id>`:
   its about page, the first page of its introduction section, with `path: /<id>` in its frontmatter.
 - Code lives in three shared Nuxt layers + mion.io's own (`mion-io`): [site-layers/AGENTS.md](site-layers/AGENTS.md).
-  Read before adding or moving ANY file under `app/`, `site-layers/` or a `nuxt.config.ts`. This folder itself keeps only
-  `nuxt.config.ts`, `content/`, `public/`. Which site the scripts run: `website.config.json` at the repo root.
+  Read before adding or moving ANY file under `site-layers/` or a `nuxt.config.ts`. This folder itself keeps
+  only `nuxt.config.ts`, `content/`, `public/`. Which site the scripts run: `website.config.json` at the repo root.
 - Prose voice + what a style pass may touch: [website-writing.md](../../.agents/docs/website-writing.md).
 - Subsite wiring + styling: [shell app](site-layers/shell/app/AGENTS.md). Read before a layer `app/` or `sites/` edit.
 - Code import, examples, twoslash, API: [shell server](site-layers/shell/server/AGENTS.md). Read before editing one.
