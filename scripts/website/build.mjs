@@ -78,7 +78,7 @@ async function mionOnlyStages(skipBench) {
   // The playground bundle is independent of the bench data (runs even under
   // --no-bench) but needs the stage-2 Go binary for its WASM.
   step('4/6  playground assets -> container/website/site-layers/playground/public/playground-app/');
-  node('container/website/scripts/build-playground.mjs');
+  node('container/website/site-layers/playground/scripts/build-playground.mjs');
 
   // Refresh the homepage's test-count tiles. Placed after stage 2 because
   // collecting the Vitest suite needs the resolver binary + dists that stage

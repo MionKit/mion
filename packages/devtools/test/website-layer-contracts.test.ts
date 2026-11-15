@@ -472,7 +472,9 @@ describe('website-site-config', () => {
       'scripts/website/check-static.mjs',
     ]) {
       const code = read(rel).replace(/\/\/.*$/gm, '');
-      expect(code, rel).not.toMatch(/['"`]container\/website(\/(?!scripts\/build-playground)[^'"`]*)?['"`]/);
+      expect(code, rel).not.toMatch(
+        /['"`]container\/website(\/(?!site-layers\/playground\/scripts\/build-playground)[^'"`]*)?['"`]/
+      );
     }
   });
 });

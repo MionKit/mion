@@ -18,11 +18,11 @@
 import {gzipSync} from 'node:zlib';
 import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../scripts/lib/env.mjs';
-import {capture, die, note, reportCliError, run, warn, which} from '../../../scripts/lib/proc.mjs';
-import {PLAYGROUND_ASSETS} from '../../../scripts/website/playground-assets.mjs';
-import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
-import {OVERLAY_INPUTS} from '../../../scripts/website/playground-overlay.mjs';
+import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../../../scripts/lib/env.mjs';
+import {capture, die, note, reportCliError, run, warn, which} from '../../../../../scripts/lib/proc.mjs';
+import {PLAYGROUND_ASSETS} from '../../../../../scripts/website/playground-assets.mjs';
+import {readWasmStamp, wasmInputsDigest} from '../../../../../scripts/website/playground-wasm-inputs.mjs';
+import {OVERLAY_INPUTS} from '../../../../../scripts/website/playground-overlay.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const CACHE_DIR = join(REPO_ROOT, '.cache/rt-wasm');

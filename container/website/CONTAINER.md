@@ -155,7 +155,7 @@ Two things are opt-in:
 
 - **Playground.** Add `${layers}/playground` before the shell and render
   `<RuntypesPlayground />` on a page of the site. It needs the assets
-  `node container/website/scripts/build-playground.mjs` writes inside the mion
+  `node container/website/site-layers/playground/scripts/build-playground.mjs` writes inside the mion
   checkout (git-ignored; needs Go and a bootstrapped mion checkout).
 - **Benchmark data.** Set `benchData` to a folder with a `bench-data` tree, from a
   benchmark run or a release asset.

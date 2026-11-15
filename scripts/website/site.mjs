@@ -161,7 +161,7 @@ function warnUnbuiltPackages(cfg) {
 // build-playground.mjs is staleness-gated and needs no Go while the wasm stamp matches, so always run it.
 function ensurePlayground(cfg) {
   if (cfg.skipPlayground) return note('MION_WEBSITE_SKIP_PLAYGROUND=1 - skipping playground assets');
-  if (run('node', [join(REPO_ROOT, 'container/website/scripts/build-playground.mjs')]) !== 0) {
+  if (run('node', [join(REPO_ROOT, 'container/website/site-layers/playground/scripts/build-playground.mjs')]) !== 0) {
     warn('playground build failed - the site will run but /playground will 404 (see output above; needs Go + bootstrapped submodule, SETUP.md).');
   }
 }

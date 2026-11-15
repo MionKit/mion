@@ -9,7 +9,7 @@
 // It ALSO injects the mion source overlay the resolver type-checks
 // snippets against (the browser fetches runtypes-sources.json; here we build the
 // same overlay from packages/run-types/src via the shared builder). Both are
-// produced by container/website/scripts/build-playground.mjs on the host; without
+// produced by container/website/site-layers/playground/scripts/build-playground.mjs on the host; without
 // a built AND current WASM the suites skip (assetsBuilt() is false).
 import {existsSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -65,7 +65,7 @@ export function assetsBuilt(): boolean {
     staleReported = true;
     console.warn(
       '[playground] skipping: .cache/rt-wasm/ does not match the current Go tree.\n' +
-        '[playground] rebuild it with: node container/website/scripts/build-playground.mjs'
+        '[playground] rebuild it with: node container/website/site-layers/playground/scripts/build-playground.mjs'
     );
   }
   return state === 'ready';

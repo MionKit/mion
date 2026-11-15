@@ -43,7 +43,7 @@ function globals(): ResolverGlobals {
 // The resolver ships gzip-compressed: Go wasm is ~37 MiB raw but ~8 MiB gzipped,
 // which keeps the deployed file under static-host per-file caps (e.g. Cloudflare
 // Pages' 25 MiB limit) and cuts the download ~4.5x. The browser inflates it (see
-// fetchWasmBytes). The site's host-side build (container/website/scripts/build-playground.mjs)
+// fetchWasmBytes). The site's host-side build (container/website/site-layers/playground/scripts/build-playground.mjs)
 // produces both the raw .wasm (used by the Node test resolver) and this .gz.
 //
 // The defaults are ABSOLUTE public URLs, never `new URL(..., import.meta.url)`:

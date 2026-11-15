@@ -305,7 +305,7 @@ async function loadRuntypesSources(): Promise<Record<string, string>> {
   if (!response.ok) {
     throw new Error(
       `Could not load the resolver source overlay (${response.status}). It is staged by ` +
-        `container/website/scripts/build-playground.mjs (needs the Go toolchain + bootstrapped submodule).`,
+        `container/website/site-layers/playground/scripts/build-playground.mjs (needs the Go toolchain + bootstrapped submodule).`,
     );
   }
   const overlay = (await response.json()) as Record<string, string>;
