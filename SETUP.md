@@ -208,7 +208,7 @@ Two inputs are **host-built** (the container is Node-only, with no Go toolchain)
 You can also build the assets directly:
 
 ```
-node container/website/scripts/build-playground.mjs
+node container/website/site-layers/playground/scripts/build-playground.mjs
 ```
 
 It compiles `ts-go-runtypes/cmd/mion-wasm` (`GOOS=js GOARCH=wasm`) and emits the mion source overlay, staging `mion.wasm.gz`, `wasm_exec.js`, and `runtypes-sources.json` into `container/website/site-layers/playground/public/playground-app/` (git-ignored, reproducible). The build is **staleness-gated**: a fast mtime pre-check plus a `go tool buildid` compare over the Go inputs means it is an instant no-op when nothing changed and only recompiles the wasm on a real input change (gzip runs only when the bytes actually change) — so editing the Vue UI never rebuilds the wasm. Because `public/` is bind-mounted into the container, the staged files ride into both the dev server and the production build. The engine tests live at [`packages/run-types/test/playground/`](packages/run-types/test/playground/) and run under `pnpm test` (project `playground`); they need the host-built assets in `.cache/rt-wasm/` and skip without them.

@@ -144,7 +144,7 @@ tmp
 packages/*/.uws-cache/
 # Host-built playground WASM cache: the raw .wasm (buildid oracle + Node test
 # resolver) + the mion source overlay, produced by
-# container/website/scripts/build-playground.sh. Large + reproducible; the browser
+# container/website/site-layers/playground/scripts/build-playground.sh. Large + reproducible; the browser
 # copies are staged into container/website/site-layers/playground/public/playground-app/ (also ignored).
 /.cache/rt-wasm/
 /.cache/release-bin/

@@ -1,11 +1,11 @@
 // Shared identity of the static files the playground fetches from /playground-app/.
 //
 // Three places have to agree on these names, and once did not: the staging loop in
-// container/website/scripts/build-playground.mjs shipped `mion.wasm.gz` while both
+// container/website/site-layers/playground/scripts/build-playground.mjs shipped `mion.wasm.gz` while both
 // browser consumers asked for `ts-runtypes.wasm.gz` (left over from the ts-runtypes
 // to mion rename), so the page rendered and then 404'd on its own engine with
 // nothing failing the build. Two consumers share this one list instead:
-//   - container/website/scripts/build-playground.mjs stages exactly these files.
+//   - container/website/site-layers/playground/scripts/build-playground.mjs stages exactly these files.
 //   - scripts/website/check-static.mjs fetches every required one out of the built
 //     artifact, so a name that drifts fails the build rather than the page.
 // The browser-side literals cannot import it (they are bundled inside the Nuxt

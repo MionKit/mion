@@ -1360,7 +1360,7 @@ describe('website-test-counts', () => {
 
   it('the release gate builds the playground wasm before the suite, so it runs the engine tests', () => {
     const gate = readFileSync(join(REPO_ROOT, '.github/workflows/release-gate.yml'), 'utf8');
-    const build = gate.indexOf('run: node container/website/scripts/build-playground.mjs');
+    const build = gate.indexOf('run: node container/website/site-layers/playground/scripts/build-playground.mjs');
     expect(build).toBeGreaterThan(-1);
     expect(build).toBeLessThan(gate.indexOf('run: pnpm test'));
   });
@@ -2147,7 +2147,10 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     };
     const staged = PLAYGROUND_ASSETS.map((asset) => asset.file);
     // The builder stages FROM the manifest rather than its own literals.
-    const builder = readFileSync(join(REPO_ROOT, 'container/website/scripts/build-playground.mjs'), 'utf8');
+    const builder = readFileSync(
+      join(REPO_ROOT, 'container/website/site-layers/playground/scripts/build-playground.mjs'),
+      'utf8'
+    );
     expect(builder).toContain('PLAYGROUND_ASSETS');
     // Both browser consumers are bundled inside the Nuxt root and cannot import the
     // manifest, so their URL literals are matched against it here instead.

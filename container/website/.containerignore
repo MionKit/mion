@@ -8,7 +8,6 @@ app/
 site-layers/
 content/
 public/
-scripts/
 tests/
 
 # First-party config — bind-mounted at run time now (no longer baked).

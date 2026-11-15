@@ -26,7 +26,7 @@ import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.
 // public mion factory, and runs the live function - the same pipeline the
 // browser playground drives. They need the host-built WASM assets in
 // .cache/rt-wasm/; run
-//   node container/website/scripts/build-playground.mjs
+//   node container/website/site-layers/playground/scripts/build-playground.mjs
 // first (pnpm miondevx website dev|build does this automatically). Without the
 // assets, they skip.
 
@@ -74,7 +74,7 @@ const ready = assetsBuilt();
 if (!ready) {
   // eslint-disable-next-line no-console
   console.warn(
-    '[playground] WASM assets not built - skipping engine tests. Run: node container/website/scripts/build-playground.mjs'
+    '[playground] WASM assets not built - skipping engine tests. Run: node container/website/site-layers/playground/scripts/build-playground.mjs'
   );
 }
 const describeIf = ready ? describe : describe.skip;
