@@ -2,7 +2,7 @@
      subsite's accent colour, that opens a popup listing every subsite with its icon
      and a one-line intro (app/utils/subsites.ts). An entry of the other site is a full link.
      On a page outside every section, the button reads "Explore" in a neutral colour.
-     `shared.menuColumns` splits the popup into labelled columns, stacked when the screen is too narrow. Each popup
+     `shared.menuColumns` splits the popup into columns, stacked on a narrow screen. Each popup
      entry carries its own `data-site`, so the [data-site] bridge in shared.css paints
      it in that subsite's colours, the same way the intro blocks on the root landing
      get theirs. Rendered by AppHeaderCenter on every page. -->
@@ -89,7 +89,7 @@ const columns = computed(() => {
   color: var(--site-accent);
 }
 
-/* columns sit side by side while the screen fits them all, else wrap into a stack (always on a phone) */
+/* columns side by side while they fit, else stacked (always on a phone) */
 .subsite-menu {
   display: flex;
   flex-wrap: wrap;

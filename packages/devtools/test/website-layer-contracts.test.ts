@@ -230,7 +230,7 @@ describe('website-section-links', async () => {
 
   it('splits the section menu into the columns a site asks for, in order, and names the ids that match none', () => {
     const all = resolveSubsites('https://pro.mion.io', [MION_HOME]);
-    // no columns set, as on mion.io: one unlabelled column of every entry
+    // no columns set, as on mion.io
     expect(menuColumns(all)).toEqual({columns: [{entries: all}], unknown: []});
     const ids = (columns: {entries: Subsite[]}[]) => columns.map((column) => column.entries.map((entry) => entry.id));
     const split = menuColumns(all, [

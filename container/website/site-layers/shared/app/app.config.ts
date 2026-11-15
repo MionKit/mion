@@ -13,7 +13,7 @@ export default defineAppConfig({
     flushPages: [] as string[],
     // The section menu button's aria-label.
     menuLabel: 'Switch section',
-    // The section menu popup's columns, each a heading and its entry ids. Empty: one column of every entry.
+    // The section menu's columns. Empty: one column of every entry.
     menuColumns: [] as MenuColumn[],
   },
   // `sub: 'aside'` makes Docus' useSubNavigation scope the sidebar to the route's top-level section.

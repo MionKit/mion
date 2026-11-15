@@ -39,7 +39,7 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
 // The section ids the shared layer's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
-// Sliced to the SUBSITES list, so MION_HOME (another site's entry) is not one of them.
+// Sliced to SUBSITES, so MION_HOME (another site's entry) is left out.
 const SUBSITES_FILE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
 const SUBSITES_SOURCE = SUBSITES_FILE.slice(SUBSITES_FILE.indexOf('const SUBSITES'), SUBSITES_FILE.indexOf('\n]\n'));
 const subsiteField = (id: string, field: string): string =>

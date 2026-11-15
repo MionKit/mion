@@ -18,7 +18,7 @@ export interface SubsiteEntry {
   icon: string
   /** Shown under the section's name in the section menu. */
   description: string
-  /** The section whose colours (`sites/<theme>/theme.css`) the entry wears. Left out: its own `id`. */
+  /** Section whose colours (`sites/<theme>/theme.css`) the entry wears; default its own `id`. */
   theme?: string
 }
 
@@ -68,8 +68,8 @@ const SUBSITES: readonly SubsiteEntry[] = [
   },
 ]
 
-/** mion.io's home page as a menu entry, in the colours mion.io's home page wears. Not in SUBSITES: on mion.io it
- *  would own every page. Another site adds it to its `shared.sections`. */
+/** mion.io's home page. Not in SUBSITES: on mion.io it would own every page. Other sites add it to
+ *  `shared.sections`; `theme` = the home page's colours. */
 export const MION_HOME: SubsiteEntry = {
   id: 'mion',
   label: 'mion',
@@ -92,13 +92,13 @@ export function resolveSubsites(origin: string, extra: readonly SubsiteEntry[] =
   })
 }
 
-/** One column of the section menu popup: a heading and the entry ids it lists, in order. */
+/** A section menu column; entries follow the order of `ids`. */
 export interface MenuColumn {
   label: string
   ids: string[]
 }
 
-/** The section menu's columns (one unlabelled column of every entry when none is set), and the ids that match none. */
+/** `unknown`: the column ids that match no entry. */
 export function menuColumns(
   subsites: readonly Subsite[],
   columns: readonly MenuColumn[] = []
