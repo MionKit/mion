@@ -49,8 +49,7 @@ for (const {id, path, word} of SUBSITES) {
     await expect(menuButton).toContainText(word);
     expect(await menuButton.evaluate((el) => getComputedStyle(el).color)).toBe(rgb(dark('--site-accent')));
     await menuButton.click();
-    // plus the Pro entry, a link to the other site
-    await expect(page.locator('.subsite-menu-item')).toHaveCount(SUBSITES.length + 1);
+    await expect(page.locator('.subsite-menu-item')).toHaveCount(SUBSITES.length);
     await expect(page.locator('.subsite-menu-item.is-active .subsite-menu-label')).toHaveText(word);
     await page.keyboard.press('Escape');
     // the hero title is painted with the accent

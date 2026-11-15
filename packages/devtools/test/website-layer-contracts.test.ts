@@ -186,14 +186,24 @@ interface Subsite {
   path: string;
   external: boolean;
   homeTitle?: string;
+  theme?: string;
+}
+interface SectionEntry {
+  id: string;
+  label: string;
+  title: string;
+  url: string;
+  icon: string;
+  description: string;
+  homeTitle?: string;
+  theme?: string;
 }
 interface SubsitesModule {
-  MION_HOME: {id: string; url: string; theme?: string};
   menuColumns(
     subsites: Subsite[],
     columns?: {label: string; ids: string[]}[]
   ): {columns: {label?: string; entries: Subsite[]}[]; unknown: string[]};
-  resolveSubsites(origin: string, extra?: object[]): Subsite[];
+  resolveSubsites(origin: string, entries: SectionEntry[]): Subsite[];
   subsiteForPath(path: string, subsites: Subsite[]): Subsite | undefined;
   pageWidthClass(path: string, subsites: Subsite[], wide: RegExp[], flush: RegExp[]): string;
   subsiteSidebar(
@@ -203,94 +213,114 @@ interface SubsitesModule {
 }
 
 describe('website-section-links', async () => {
-  const {MION_HOME, menuColumns, resolveSubsites, subsiteForPath, subsiteSidebar, pageWidthClass} = await load<SubsitesModule>(
+  const {menuColumns, resolveSubsites, subsiteForPath, subsiteSidebar, pageWidthClass} = await load<SubsitesModule>(
     'container/website/site-layers/shared/app/utils/subsites.ts'
   );
-  const byId = (list: Subsite[]): Record<string, Subsite> => Object.fromEntries(list.map((entry) => [entry.id, entry]));
+  vi.stubGlobal('defineAppConfig', (config: object) => config);
+  const mionConfig = (
+    await load<{default: {shared: {sections: SectionEntry[]; widePages: string[]; flushPages: string[]}}}>(
+      'container/website/site-layers/mion-io/app/app.config.ts'
+    )
+  ).default.shared;
+  vi.unstubAllGlobals();
+  const entry = (id: string, url: string, extra: Partial<SectionEntry> = {}): SectionEntry => ({
+    id,
+    label: id,
+    title: id,
+    url,
+    icon: 'i',
+    description: 'd',
+    ...extra,
+  });
+  // Another site lists its whole menu itself: one link to mion.io instead of mion.io's sections.
+  const PRO_SECTIONS = [
+    entry('pro', 'https://pro.mion.io'),
+    entry('mion', 'https://mion.io', {theme: 'rpc'}),
+    entry('cloud', '/cloud'),
+  ];
+  const mionList = (): Subsite[] => resolveSubsites('https://mion.io', mionConfig.sections);
+  const byId = (list: Subsite[]): Record<string, Subsite> => Object.fromEntries(list.map((item) => [item.id, item]));
 
-  it('turns the entries under the site address into local links, the rest into full links', () => {
-    const mion = byId(resolveSubsites('https://mion.io'));
-    expect(mion.rpc).toMatchObject({path: '/rpc', external: false});
-    expect(mion.benchmarks).toMatchObject({path: '/benchmarks', external: false});
-    expect(mion.pro).toMatchObject({path: 'https://pro.mion.io', external: true});
-    const pro = byId(resolveSubsites('https://pro.mion.io/'));
-    expect(pro.pro).toMatchObject({path: '/', external: false});
-    expect(pro.rpc).toMatchObject({path: 'https://mion.io/rpc', external: true});
+  it("shows mion.io's own entries only, as local links, and no link to the unpublished pro site", () => {
+    expect(mionList().map((item) => item.id)).toEqual(['rpc', 'runtypes', 'benchmarks']);
+    for (const item of mionList()) expect(item, item.id).toMatchObject({path: `/${item.id}`, external: false});
+    expect(JSON.stringify(mionConfig)).not.toContain('pro.mion.io');
   });
 
-  it("gives another site mion.io's home page as an entry, never a section of mion.io", () => {
-    // on mion.io it would resolve to '/' and own every page, so a site opts in through shared.sections
-    expect(resolveSubsites('https://mion.io').map((entry) => entry.id)).not.toContain('mion');
-    const pro = resolveSubsites('https://pro.mion.io', [MION_HOME]);
+  it('builds a site menu from its own list alone, the entries under its address local', () => {
+    const pro = resolveSubsites('https://pro.mion.io/', PRO_SECTIONS);
+    expect(pro.map((item) => item.id)).toEqual(['pro', 'mion', 'cloud']);
+    expect(byId(pro).pro).toMatchObject({path: '/', external: false});
     expect(byId(pro).mion).toMatchObject({path: 'https://mion.io', external: true, theme: 'rpc'});
-    // an external entry never becomes the current section
+    expect(byId(pro).cloud).toMatchObject({path: '/cloud', external: false});
+    // an external entry never becomes the current section, even one at mion.io's root
     expect(subsiteForPath('/', pro)).toMatchObject({id: 'pro'});
-    expect(existsSync(join(REPO_ROOT, 'container/website/site-layers/shared/sites', MION_HOME.theme!, 'theme.css'))).toBe(true);
+    expect(existsSync(join(REPO_ROOT, 'container/website/site-layers/shared/sites/rpc/theme.css'))).toBe(true);
   });
 
   it('splits the section menu into the columns a site asks for, in order, and names the ids that match none', () => {
-    const all = resolveSubsites('https://pro.mion.io', [MION_HOME]);
-    // no columns set, as on mion.io
+    const all = resolveSubsites('https://pro.mion.io', PRO_SECTIONS);
     expect(menuColumns(all)).toEqual({columns: [{entries: all}], unknown: []});
-    const ids = (columns: {entries: Subsite[]}[]) => columns.map((column) => column.entries.map((entry) => entry.id));
+    const ids = (columns: {entries: Subsite[]}[]) => columns.map((column) => column.entries.map((item) => item.id));
     const split = menuColumns(all, [
-      {label: 'mion', ids: ['mion', 'rpc', 'runtypes', 'benchmarks']},
-      {label: 'mion pro', ids: ['pro']},
+      {label: 'mion', ids: ['mion']},
+      {label: 'mion pro', ids: ['pro', 'cloud']},
     ]);
     expect(split.columns.map((column) => column.label)).toEqual(['mion', 'mion pro']);
-    expect(ids(split.columns)).toEqual([['mion', 'rpc', 'runtypes', 'benchmarks'], ['pro']]);
+    expect(ids(split.columns)).toEqual([['mion'], ['pro', 'cloud']]);
     expect(split.unknown).toEqual([]);
-    const typo = menuColumns(all, [{label: 'a', ids: ['benchmarks', 'pro', 'enrichmnt']}]);
-    expect(ids(typo.columns)).toEqual([['benchmarks', 'pro']]);
+    const typo = menuColumns(all, [{label: 'a', ids: ['cloud', 'pro', 'enrichmnt']}]);
+    expect(ids(typo.columns)).toEqual([['cloud', 'pro']]);
     expect(typo.unknown).toEqual(['enrichmnt']);
   });
 
   it('never matches a sibling address that only starts the same', () => {
     // https://mion.io must not claim https://mion.io.evil/… nor pro.mion.io
-    const entry = {id: 'x', label: 'X', title: 'X', url: 'https://mion.io.example/docs', icon: 'i', description: 'd'};
-    expect(byId(resolveSubsites('https://mion.io', [entry])).x).toMatchObject({external: true});
+    const list = byId(
+      resolveSubsites('https://mion.io', [entry('x', 'https://mion.io.example/docs'), entry('pro', 'https://pro.mion.io')])
+    );
+    expect(list.x).toMatchObject({external: true});
+    expect(list.pro).toMatchObject({external: true});
   });
 
   it('keeps every entry external when the site has no address, and a local path local', () => {
-    const local = {id: 'cloud', label: 'Cloud', title: 'Cloud', url: '/cloud', icon: 'i', description: 'd'};
-    const list = byId(resolveSubsites('', [local]));
+    const list = byId(resolveSubsites('', [entry('rpc', 'https://mion.io/rpc'), entry('cloud', '/cloud')]));
     expect(list.rpc!.external).toBe(true);
     expect(list.cloud).toMatchObject({path: '/cloud', external: false});
   });
 
   it('reads an entry with a trailing slash as the same section', () => {
-    const base = {id: 'cloud', label: 'Cloud', title: 'Cloud', icon: 'i', description: 'd'};
     for (const url of ['/cloud/', 'https://pro.mion.io/cloud/']) {
-      const pro = resolveSubsites('https://pro.mion.io', [{...base, url}]);
+      const pro = resolveSubsites('https://pro.mion.io', [entry('pro', 'https://pro.mion.io'), entry('cloud', url)]);
       expect(subsiteForPath('/cloud/setup', pro), url).toMatchObject({id: 'cloud', path: '/cloud'});
     }
   });
 
   it('gives mion.io the same page widths as before the layers', () => {
-    const config = read('container/website/site-layers/mion-io/app/app.config.ts');
-    const patterns = (key: string): RegExp[] =>
-      [...(new RegExp(`${key}: \\[([^\\]]*)\\]`).exec(config)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
-        (match) => new RegExp(match[1]!)
+    const width = (path: string): string =>
+      pageWidthClass(
+        path,
+        mionList(),
+        mionConfig.widePages.map((source) => new RegExp(source)),
+        mionConfig.flushPages.map((source) => new RegExp(source))
       );
-    const mion = resolveSubsites('https://mion.io');
-    const width = (path: string): string => pageWidthClass(path, mion, patterns('widePages'), patterns('flushPages'));
     for (const path of ['/rpc', '/runtypes', '/benchmarks', '/runtypes/introduction/quick-start', '/runtypes/guide'])
       expect(width(path), path).toBe('rt-wide-page');
     expect(width('/benchmarks/rpc-server')).toBe('rt-flush-page');
     for (const path of ['/', '/rpc/routes', '/runtypes/playground', '/runtypes/guidelines']) expect(width(path), path).toBe('');
     // another site: its root section's home is wide, a section it links to elsewhere is not
-    expect(pageWidthClass('/', resolveSubsites('https://pro.mion.io'), [], [])).toBe('rt-wide-page');
-    expect(pageWidthClass('/rpc', resolveSubsites('https://pro.mion.io'), [], [])).toBe('');
+    const pro = resolveSubsites('https://pro.mion.io', [...PRO_SECTIONS, entry('rpc', 'https://mion.io/rpc')]);
+    expect(pageWidthClass('/', pro, [], [])).toBe('rt-wide-page');
+    expect(pageWidthClass('/rpc', pro, [], [])).toBe('');
   });
 
   it('picks the longest local section for a route', () => {
-    const mion = resolveSubsites('https://mion.io');
+    const mion = mionList();
     expect(subsiteForPath('/rpc/routes', mion)?.id).toBe('rpc');
     expect(subsiteForPath('/runtypes', mion)?.id).toBe('runtypes');
     expect(subsiteForPath('/rpcx', mion), 'a prefix that is not a path segment').toBeUndefined();
     expect(subsiteForPath('/', mion), 'the root landing belongs to no section').toBeUndefined();
-    const local = {id: 'cloud', label: 'Cloud', title: 'Cloud', url: '/cloud', icon: 'i', description: 'd'};
-    const pro = resolveSubsites('https://pro.mion.io', [local]);
+    const pro = resolveSubsites('https://pro.mion.io', PRO_SECTIONS);
     expect(subsiteForPath('/anything', pro)?.id).toBe('pro');
     expect(subsiteForPath('/cloud/setup', pro)?.id).toBe('cloud');
   });
@@ -304,13 +334,13 @@ describe('website-section-links', async () => {
       },
       {title: 'RunTypes', path: '/runtypes', children: []},
     ];
-    const mion = byId(resolveSubsites('https://mion.io'));
+    const mion = byId(mionList());
     const rpc = subsiteSidebar(tree, mion.rpc);
     expect(rpc.map((item) => item.title)).toEqual(['Intro']);
     expect((rpc[0]!.children as {title: string; path: string}[])[0]).toEqual({title: mion.rpc!.homeTitle, path: '/rpc'});
     expect(subsiteSidebar(tree, mion.runtypes)).toEqual([]);
     expect(subsiteSidebar(tree, undefined)).toEqual([]);
-    const pro = byId(resolveSubsites('https://pro.mion.io'));
+    const pro = byId(resolveSubsites('https://pro.mion.io', PRO_SECTIONS));
     expect(subsiteSidebar(tree, pro.pro)).toBe(tree);
     // a section with no home title keeps its sections as they are
     const {homeTitle: _dropped, ...plainRpc} = mion.rpc!;

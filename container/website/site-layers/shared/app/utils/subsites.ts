@@ -1,7 +1,7 @@
 import type {ContentNavigationItem} from '@nuxt/content'
 
-// The ONE section list both sites show in the header menu; resolveSubsites turns the entries under
-// a site's own address into local links. Each id has a theme at sites/<id>/theme.css; a mion section
+// A site's section menu entries come from its own `shared.sections`; resolveSubsites turns the ones under the
+// site's address into local links. Each id or `theme` has a theme at sites/<id>/theme.css; a mion.io section
 // also has a content tree at content/<NN>.<id>/ and its home page at the section root (`path: /<id>`
 // in its frontmatter). packages/devtools/test/website-theme-contracts.test.ts keeps them in step.
 export interface SubsiteEntry {
@@ -30,60 +30,10 @@ export interface Subsite extends SubsiteEntry {
   external: boolean
 }
 
-const SUBSITES: readonly SubsiteEntry[] = [
-  {
-    id: 'rpc',
-    label: 'RPC',
-    title: 'RPC',
-    url: 'https://mion.io/rpc',
-    homeTitle: 'About mion RPC',
-    icon: 'icon-park-outline:lightning',
-    description: 'Full stack TypeScript APIs. A plain function is a validated route, called from a fully typed client.',
-  },
-  {
-    id: 'runtypes',
-    label: 'RunTypes',
-    title: 'RunTypes',
-    url: 'https://mion.io/runtypes',
-    homeTitle: 'About mion RunTypes',
-    icon: 'i-lucide-braces',
-    description: 'Validation, JSON round trip, mock data and reflection, generated from your TypeScript types.',
-  },
-  {
-    id: 'benchmarks',
-    label: 'Benchmarks',
-    title: 'Benchmarks',
-    url: 'https://mion.io/benchmarks',
-    homeTitle: 'mion Benchmarks',
-    icon: 'i-lucide-gauge',
-    description: 'The RPC server and RunTypes measured against other frameworks and validators, regenerated on every deploy.',
-  },
-  {
-    id: 'pro',
-    label: 'Pro',
-    title: 'Pro',
-    url: 'https://pro.mion.io',
-    icon: 'i-lucide-gem',
-    description: 'Paid extensions to mion.',
-  },
-]
-
-/** mion.io's home page. Not in SUBSITES: on mion.io it would own every page. Other sites add it to
- *  `shared.sections`; `theme` = the home page's colours. */
-export const MION_HOME: SubsiteEntry = {
-  id: 'mion',
-  label: 'mion',
-  title: 'mion',
-  url: 'https://mion.io',
-  icon: 'i-lucide-house',
-  description: 'The open-source framework: RPC, RunTypes and their benchmarks.',
-  theme: 'rpc',
-}
-
-/** The shared list plus a site's own entries, each resolved against the site's address. */
-export function resolveSubsites(origin: string, extra: readonly SubsiteEntry[] = []): Subsite[] {
+/** A site's own entries (`shared.sections`), each resolved against the site's address. */
+export function resolveSubsites(origin: string, entries: readonly SubsiteEntry[]): Subsite[] {
   const own = origin.replace(/\/+$/, '')
-  return [...SUBSITES, ...extra].map((entry) => {
+  return entries.map((entry) => {
     // `/cloud/` and `/cloud` are one section: the route path never ends with a slash.
     const url = entry.url.replace(/\/+$/, '') || '/'
     if (url.startsWith('/')) return {...entry, path: url, external: false}

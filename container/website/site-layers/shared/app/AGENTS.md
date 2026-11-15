@@ -7,9 +7,10 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
 
 ## Subsites
 
-- `app/utils/subsites.ts` = single source of truth (`SUBSITES`: id, label, title, url, homeTitle, icon, description).
+- Each site lists its section menu entries in its own `shared.sections` (`SubsiteEntry` in `app/utils/subsites.ts`:
+  id, label, title, url, homeTitle, icon, description, theme). mion.io's: `mion-io/app/app.config.ts`.
   `useSubsite()` resolves each `url` against the site's address (`path`: local `/<id>` or the full link) and derives
-  the current one from the route. `pro` is the other site: a menu entry + theme here, no page.
+  the current one from the route. `sites/pro/theme.css` is pro.mion.io's colours: no mion.io entry, no page.
 - Words exactly `RPC`, `RunTypes`, `Benchmarks` everywhere. Every link to a subsite goes to its `path`.
 - Each subsite: OWN sidebar (its sections only), own colour scheme, a home page.
 - Home = first page of its introduction section (`About mion RPC`, `About mion RunTypes`, `mion Benchmarks`).
