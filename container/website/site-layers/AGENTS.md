@@ -42,13 +42,14 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 
 - `nuxt.config.ts`: `extends`, `site: {name, url}`, own prerender routes, own `css`.
 - `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}`, and `shared`:
-  - `sections`: extra menu entries only this site shows (a `SubsiteEntry`). `MION_HOME` (in
-    `utils/subsites.ts`) is mion.io's home page as an entry; `theme` paints an entry in another section's colours.
+  - `sections`: extra menu entries only this site shows (a `SubsiteEntry`). `MION_HOME` (`utils/subsites.ts`):
+    mion.io's home page as an entry. `theme`: an entry wears another section's colours.
   - `widePages` / `flushPages`: regex sources on the route path. Wide = no prose width cap, no TOC rail.
     Flush = rail kept. A local section's home page is wide without being listed.
   - `menuLabel`: the section menu button's aria text.
-  - `menuColumns`: `{label, ids}[]`, the section menu popup's columns, side by side; the phone menu stacks them.
-    Empty: one column of every entry. An unknown id warns in dev.
+  - `menuColumns`: `{label, ids}[]`, the section menu popup's columns, side by side (stacked on a narrow screen
+    and in the phone menu).
+    Empty = one column of every entry. Unknown id → dev warning.
   - `origin`: the site's address. Leave it out: `shared` fills it from `site.url`.
 - Logo + footer note: a same-named `AppHeaderLogo.vue` / `AppFooterNote.vue` replaces mion's.
 - Own top-bar menu: a same-named `app/components/app/AppHeaderMenu.vue` (right after the section menu) and
