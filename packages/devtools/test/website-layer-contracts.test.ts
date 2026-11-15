@@ -6,7 +6,9 @@
 // `extends`, and the website scripts take the site from website.config.json and write under it.
 
 import {afterAll, describe, it, expect, vi} from 'vitest';
+import {spawnSync} from 'node:child_process';
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -483,6 +485,22 @@ describe('website-site-config', () => {
       expect(envArgs(withBench)).toContain('MION_WEBSITE_BENCH_DATA=/bench-data');
       // the docs check renders only the examples from the site's own example folders
       expect(homeTwoslashPaths(site)).toEqual(['examples/a.ts']);
+    } finally {
+      rmSync(repo, {recursive: true, force: true});
+    }
+  });
+
+  it("loads the website commands from another repo's mion submodule, which has no node_modules", () => {
+    // Another repo runs these through third_party/mion with no install: a third-party import at load time breaks it.
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), 'other-repo-')));
+    try {
+      cpSync(join(REPO_ROOT, 'scripts'), join(repo, 'third_party/mion/scripts'), {recursive: true});
+      writeFileSync(join(repo, 'website.config.json'), JSON.stringify({site: 'site'}));
+      const modules = ['site.mjs', 'build.mjs', 'check-static.mjs', 'serve.mjs'];
+      const code = modules.map((m) => `await import('./third_party/mion/scripts/website/${m}');`).join('\n');
+      const res = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: repo, encoding: 'utf8'});
+      expect(res.stderr).toBe('');
+      expect(res.status).toBe(0);
     } finally {
       rmSync(repo, {recursive: true, force: true});
     }

@@ -28,12 +28,9 @@ import {join} from 'node:path';
 import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, reportCliError, run, warn, which} from '../lib/proc.mjs';
-import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
 import {buildSite, ensureMionDists} from './site.mjs';
 import {loadSite, outputDir} from './site-config.mjs';
-import {main as testCountsMain} from './gen-test-counts.mjs';
-import {main as clientSizeMain} from './gen-client-size.mjs';
 
 const step = (msg) => console.log(`\n========== website build  ${msg} ==========`);
 
@@ -60,7 +57,11 @@ function humanSize(bytes) {
 }
 
 // Stages 2-4: what only mion's own site needs before its Nuxt build.
+// Loaded here, not at the top: they need mion's node_modules, which another repo's checkout lacks.
 async function mionOnlyStages(skipBench) {
+  const {main: benchMain} = await import('./bench-data/bench.mjs');
+  const {main: testCountsMain} = await import('./gen-test-counts.mjs');
+  const {main: clientSizeMain} = await import('./gen-client-size.mjs');
   step('2/6  Go resolver binary (+ marker/plugin dist)');
   benchMain(['prep']);
 
