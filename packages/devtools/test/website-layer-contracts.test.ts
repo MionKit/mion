@@ -437,17 +437,42 @@ describe('website-site-config', () => {
       volData: 'd',
       volCache: 'c',
     };
-    const layerMounts = (mountArgs(cfg) as string[]).filter((arg) => /:\/app\/(site|mion)-layers/.test(arg));
-    expect(layerMounts.map((arg) => arg.replace(/^.*:\/app/, '/app'))).toEqual(['/app/site-layers']);
-    expect(realpathSync(layerMounts[0].split(':')[0])).toBe(realpathSync(site.layersDir));
+    expect(site.siteLayers).toEqual([]);
+    const layerMounts = (mountArgs(cfg) as string[]).filter((arg) => arg.includes(':/app/site-layers'));
+    expect(layerMounts).toEqual([`${site.layersDir}:/app/site-layers`]);
     expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/site-layers');
   });
 
-  it("gives another repo site its own layers, mion's shared layer read-only beside them, its own folders and no mion folder", () => {
+  it("refuses another repo site layer named like one of mion's", () => {
+    for (const name of ['shared', 'mion-io']) {
+      const repo = realpathSync(mkdtempSync(join(tmpdir(), 'other-repo-')));
+      try {
+        mkdirSync(join(repo, 'docs-site/site-layers', name), {recursive: true});
+        writeFileSync(join(repo, 'website.config.json'), JSON.stringify({site: 'docs-site'}));
+        expect(() => loadSite({}, repo)).toThrow(
+          `site layer '${join(repo, 'docs-site/site-layers', name)}' uses the name of a mion layer`
+        );
+      } finally {
+        rmSync(repo, {recursive: true, force: true});
+      }
+    }
+  });
+
+  it("gives another repo site its own layers beside mion's shared one (read-only), its own folders and no mion folder", () => {
     const repo = realpathSync(mkdtempSync(join(tmpdir(), 'other-repo-')));
     try {
-      for (const dir of ['docs-site/content', 'docs-site/site-layers/pro', 'examples', 'docs', 'data/bench'])
+      for (const dir of [
+        'docs-site/content',
+        'docs-site/site-layers/pro',
+        'docs-site/site-layers/extra',
+        'examples',
+        'docs',
+        'data/bench',
+      ]) {
         mkdirSync(join(repo, dir), {recursive: true});
+      }
+      // a loose file under site-layers/ is not a layer
+      writeFileSync(join(repo, 'docs-site/site-layers/README.md'), '# layers');
       writeFileSync(join(repo, 'docs/spec.md'), '# spec');
       writeFileSync(join(repo, 'docs-site/content/index.md'), '  path: examples/a.ts\n  path: elsewhere/b.ts\n');
       const config = {site: 'docs-site', examples: {exampleDirs: ['examples'], importableDocs: {spec: 'docs/spec.md'}}};
@@ -465,9 +490,10 @@ describe('website-site-config', () => {
       const mounts = (mountArgs(cfg) as string[]).filter((arg) => arg !== '-v');
       expect(mounts).toEqual([
         `${join(repo, 'docs-site/content')}:/app/content`,
-        `${join(repo, 'docs-site/site-layers')}:/app/site-layers`,
         `${join(repo, 'website.config.json')}:/app/website.config.json:ro`,
-        `${join(site.layersDir, 'shared')}:/app/mion-layers/shared:ro`,
+        `${join(site.layersDir, 'shared')}:/app/site-layers/shared:ro`,
+        `${join(repo, 'docs-site/site-layers/extra')}:/app/site-layers/extra`,
+        `${join(repo, 'docs-site/site-layers/pro')}:/app/site-layers/pro`,
         `${join(repo, 'examples')}:/repo-context/examples:ro`,
         `${join(repo, 'docs')}:/repo-context/docs:ro`,
         'n:/app/.nuxt',
@@ -475,8 +501,8 @@ describe('website-site-config', () => {
         'c:/app/node_modules/.cache',
       ]);
       expect(existsSync(join(repo, '.docdata')), 'no stray folder in the other repo').toBe(false);
-      // the path a site's nuxt.config.ts extends mion's shared layer through, beside its own ./site-layers/
-      expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/mion-layers');
+      // the path a site's nuxt.config.ts can extend mion's shared layer through
+      expect(envArgs(cfg)).toContain('MION_WEBSITE_LAYERS=/app/site-layers');
       expect((envArgs(cfg) as string[]).join(' ')).not.toContain('MION_WEBSITE_BENCH_DATA');
       // bench data is opt-in
       writeFileSync(join(repo, 'website.config.json'), JSON.stringify({...config, benchData: 'data/bench'}));

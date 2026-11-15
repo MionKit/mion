@@ -65,6 +65,6 @@ Read before adding or moving a file under `site-layers/` or a `nuxt.config.ts`.
 - It installs no website package. Its files are mounted into the one image built from `_deps/`.
   New website dependency → mion's `_deps/` + image rebuild.
 - Its own layer lives in ITS repo at `<site>/site-layers/<name>/` (mion-pro: `container/website/site-layers/mion-pro`),
-  never in mion. That folder is mounted at `/app/site-layers`. mion's `shared` sits read-only at
-  `/app/mion-layers/shared` (`MION_WEBSITE_LAYERS`); `mion-io` is never mounted.
+  never in mion. Each one is mounted at `/app/site-layers/<name>`, beside mion's `shared` (read-only).
+  `mion-io` is never mounted. A site layer named `shared` or `mion-io` is refused.
 - Its `nuxt.config.ts` extends ``['./site-layers/<name>', `${process.env.MION_WEBSITE_LAYERS}/shared`]``, shared last.

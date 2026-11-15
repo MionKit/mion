@@ -2,7 +2,7 @@
 // scripts/website/site.sh. The image lifecycle lives in scripts/container/image.mjs
 // (imported here for `ensure`); this module only RUNS the site in that shared image.
 //
-// The site folder (app/ content/ public/ server/ site-layers/ + config) and mion's shared layer
+// The site folder (app/ content/ public/ server/ + config) and the layers (mion's, plus another site's own)
 // are bind-mounted so edits hot-reload; node_modules come from the image. You cannot run
 // the site on the host.
 //
@@ -26,13 +26,11 @@ import {capture, die, note, reportCliError, run, sleep, warn} from '../lib/proc.
 import {CONFIG_FILE, loadSite, outputDir} from './site-config.mjs';
 
 // Source directories of the SITE bind-mounted into /app (host is the source of truth).
-// site-layers/ = the site's own layers (mion.io: both of mion's), extended as `./site-layers/<name>`.
-const MOUNT_DIRS = ['app', 'sites', 'content', 'public', 'server', 'scripts', 'tests', 'site-layers'];
+const MOUNT_DIRS = ['app', 'sites', 'content', 'public', 'server', 'scripts', 'tests'];
 // Config files bind-mounted into /app (first-party, NOT baked into the image).
 const MOUNT_FILES = ['nuxt.config.ts', 'content.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
-// Where mion's layers sit in the container: under /app, so they resolve packages from /app/node_modules.
-// mion.io reaches them through its own site-layers/; another repo's site keeps that path for its own layers.
-const layersMount = (site) => (site.isMion ? '/app/site-layers' : '/app/mion-layers');
+// Where the layers sit in the container: under /app, so they resolve packages from /app/node_modules.
+const LAYERS_MOUNT = '/app/site-layers';
 const BENCH_DATA_MOUNT = '/bench-data';
 
 // Env-dependent config, read fresh (matches lib.sh + site.sh's var block).
@@ -87,8 +85,13 @@ export function mountArgs(cfg) {
   }
   // The shared layer reads the example tool's values from here.
   args.push('-v', `${site.configPath}:/app/${CONFIG_FILE}:ro${cfg.mountOpts}`);
-  // Another repo's site never sees mion-io and never writes into the mion checkout.
-  if (!site.isMion) args.push('-v', `${join(site.layersDir, 'shared')}:${layersMount(site)}/shared:ro${cfg.mountOpts}`);
+  if (site.isMion) {
+    args.push('-v', `${site.layersDir}:${LAYERS_MOUNT}${cfg.mountOpts}`);
+  } else {
+    // Another repo's site: mion's shared read-only (never mion-io), its own layers side by side with it.
+    args.push('-v', `${join(site.layersDir, 'shared')}:${LAYERS_MOUNT}/shared:ro${cfg.mountOpts}`);
+    for (const layer of site.siteLayers) args.push('-v', `${layer.dir}:${LAYERS_MOUNT}/${layer.name}${cfg.mountOpts}`);
+  }
   // READ-ONLY repo context (MION_REPO_ROOT=/repo-context): only the folders the site's config names, never the repo root.
   const context = (rel) => `/repo-context/${rel}`;
   for (const dir of contextDirs(site.examples)) {
@@ -120,7 +123,7 @@ const netArgs = (cfg) => (cfg.runNetwork ? [`--network=${cfg.runNetwork}`] : [])
 export const envArgs = (cfg) => [
   '-e', 'MION_REPO_ROOT=/repo-context',
   '-e', 'MION_DOCDATA=/app/.docdata',
-  '-e', `MION_WEBSITE_LAYERS=${layersMount(cfg.site)}`,
+  '-e', `MION_WEBSITE_LAYERS=${LAYERS_MOUNT}`,
   ...(cfg.site.benchData ? ['-e', `MION_WEBSITE_BENCH_DATA=${BENCH_DATA_MOUNT}`] : []),
 ];
 // CHOKIDAR_USEPOLLING (read by nuxt.config.ts) switches watchers to polling — the
@@ -236,7 +239,7 @@ const PREPARE = 'pnpm exec nuxt prepare';
 const BUILD_SCRIPT = `${PREPARE} && pnpm exec nuxt build`;
 const GENERATE_SCRIPT = `${PREPARE} \\
       && pnpm exec nuxt generate \\
-      && node "$MION_WEBSITE_LAYERS/shared/scripts/embed-panel-highlights.mjs" /app/.output/public`;
+      && node ${LAYERS_MOUNT}/shared/scripts/embed-panel-highlights.mjs /app/.output/public`;
 
 // Build/generate into the container's OWN /app/.output, then `podman cp` it to the
 // host - NOT a bind mount. A bind-mounted .output fails two ways: nitro rmdir's

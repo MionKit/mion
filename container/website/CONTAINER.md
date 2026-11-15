@@ -129,17 +129,17 @@ node third_party/mion/scripts/miondevx.mjs website dev
 node third_party/mion/scripts/miondevx.mjs website build
 ```
 
-The site's own layers live in `<site>/site-layers/<name>/`: that folder is mounted at
-`/app/site-layers`, like mion.io's. mion's `shared` layer is mounted read-only at
-`/app/mion-layers/shared`, the path `MION_WEBSITE_LAYERS` holds. mion.io's `mion-io`
-layer is never mounted.
+The site's own layers live in `<site>/site-layers/<name>/`. Each one is mounted at
+`/app/site-layers/<name>`, side by side with mion's `shared` layer at
+`/app/site-layers/shared` (read-only). mion.io's `mion-io` layer is never mounted, and a
+site layer named `shared` or `mion-io` is refused.
 
 Its `nuxt.config.ts` extends its own layers as `./site-layers/<name>`, then the shared
 layer through the path the container sets, LAST in the list (Docus must stay the lowest
 layer, the layer refuses to start otherwise):
 
 ```ts
-const layers = process.env.MION_WEBSITE_LAYERS // /app/mion-layers
+const layers = process.env.MION_WEBSITE_LAYERS // /app/site-layers
 export default defineNuxtConfig({
   extends: ['./site-layers/mion-pro', `${layers}/shared`],
   site: {name: 'mion pro', url: 'https://pro.mion.io'},
