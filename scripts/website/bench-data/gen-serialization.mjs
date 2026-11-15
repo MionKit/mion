@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates the SERIALIZATION benchmark dataset the docs site renders, under container/website/public/bench-data/.
+// Generates the SERIALIZATION benchmark dataset the docs site renders, under container/website/site-layers/mion-io/public/bench-data/.
 // The columns are mion's own round-trips (ROUNDTRIPS) plus a native-JSON baseline, timed in-process through Vite +
 // the runtypes plugin, NOT like container/benchmarks/ (no podman, no per-competitor isolation). Round-trip time is
 // not stored: the page derives it from encode/decode ops and bytes at the selected link speed (bytes * 8 / (Mbps * 1e6)),
@@ -39,7 +39,7 @@ const REPO_ROOT = process.env.MION_VALIDATION_BENCH_REPO_ROOT ?? path.resolve(HE
 const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
 const PACKAGE_ROOT = process.env.MION_VALIDATION_BENCH_PACKAGE_ROOT ?? path.join(REPO_ROOT, 'packages/run-types');
 const VITE_ROOT = process.env.MION_VALIDATION_BENCH_VITE_ROOT ?? REPO_ROOT;
-const OUT_BASE = process.env.MION_VALIDATION_BENCH_OUT_DIR ?? path.join(REPO_ROOT, 'container/website/public/bench-data');
+const OUT_BASE = process.env.MION_VALIDATION_BENCH_OUT_DIR ?? path.join(REPO_ROOT, 'container/website/site-layers/mion-io/public/bench-data');
 // Source extractor: a prebuilt linux binary in-container (no Go toolchain there),
 // else `go run ./cmd/extract-fn-bodies` from the repo on the host.
 const EXTRACT_BIN = process.env.MION_EXTRACT_BIN ?? '';
@@ -521,7 +521,7 @@ async function main() {
 
   process.stdout.write(
     `${SUITE}: ${benched} cases benched, ${skipped} skipped (factoryThrows / unsupported) → ` +
-      `container/website/public/bench-data/${SUITE}/ (total ${ms(t0)})\n`
+      `container/website/site-layers/mion-io/public/bench-data/${SUITE}/ (total ${ms(t0)})\n`
   );
 }
 

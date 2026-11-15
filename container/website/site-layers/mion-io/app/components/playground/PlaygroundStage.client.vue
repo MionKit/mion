@@ -1069,7 +1069,7 @@ onBeforeUnmount(() => {
   selector is nested under `.rt-playground`, which keeps the styles contained (the
   same guarantee the old web component got by prefixing every rule). Colors are
   remapped onto the site's --ui-* design tokens so the playground follows light/dark;
-  its fixed colours (--rtpg-err, --rtpg-editor-bg, ...) live in the shared layer's app/assets/css/shell.css.
+  its fixed colours (--rtpg-err, --rtpg-editor-bg, ...) live in the shared layer's app/assets/css/shared.css.
 -->
 <style>
 .rt-playground {

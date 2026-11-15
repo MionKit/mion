@@ -2,12 +2,12 @@
      subsite's accent colour, that opens a popup listing every subsite with its icon
      and a one-line intro (app/utils/subsites.ts). An entry of the other site is a full link.
      On a page outside every section, the button reads "Explore" in a neutral colour. Each popup
-     entry carries its own `data-site`, so the [data-site] bridge in shell.css paints
+     entry carries its own `data-site`, so the [data-site] bridge in shared.css paints
      it in that subsite's colours, the same way the intro blocks on the root landing
      get theirs. Rendered by AppHeaderCenter on every page. -->
 <script setup lang="ts">
 const {subsites, subsite} = useSubsite()
-const {shell} = useAppConfig()
+const {shared} = useAppConfig()
 const entries = computed(() => subsites.value.map((entry) => ({...entry, active: entry.id === subsite.value?.id})))
 </script>
 
@@ -24,7 +24,7 @@ const entries = computed(() => subsites.value.map((entry) => ({...entry, active:
       variant="soft"
       class="subsite-menu-button"
       :class="{'subsite-menu-button--site': subsite}"
-      :aria-label="shell.menuLabel"
+      :aria-label="shared.menuLabel"
     />
 
     <template #content="{close}">

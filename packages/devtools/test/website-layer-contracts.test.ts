@@ -172,7 +172,8 @@ describe('website-layers', () => {
       'container/website/site-layers/mion-io/app/pages/runtypes/playground.vue',
     ]);
     // one app folder per layer and none beside them: every source file sits under site-layers/
-    for (const shared of ['app', 'server', 'sites', 'scripts']) expect(existsSync(join(WEBSITE, shared)), shared).toBe(false);
+    for (const shared of ['app', 'server', 'sites', 'scripts', 'public'])
+      expect(existsSync(join(WEBSITE, shared)), shared).toBe(false);
     // no shared layer may pull mion.io's own layer in
     for (const layer of LAYERS) expect(layerConfig(layer), layer).not.toContain(SITE_LAYER);
   });
@@ -480,6 +481,8 @@ describe('website-site-config', () => {
       expect(code, rel).not.toMatch(
         /['"`]container\/website(\/(?!site-layers\/mion-io\/scripts\/build-playground)[^'"`]*)?['"`]/
       );
+      // mion.io's public files live in its layer, the site folder has no public/.
+      expect(code, rel).not.toMatch(/siteDir,\s*['"`]public/);
     }
   });
 });

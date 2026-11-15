@@ -7,7 +7,7 @@ To bring it back:
   1. move this file to content/03.benchmarks/03.runtypes/08.correctness.md
   2. put `cmdAudit(cfg)` back into cmdWebsiteBench in scripts/website/bench-data/bench.mjs,
      so the alignment dataset is regenerated with the rest
-  3. drop the /benchmarks/runtypes/correctness redirect from public/_redirects
+  3. drop the /benchmarks/runtypes/correctness redirect from site-layers/mion-io/public/_redirects
 
 Nothing else was removed: `pnpm miondevx bench audit` still runs the audit and
 gen-docs.mjs still builds the dataset from it.

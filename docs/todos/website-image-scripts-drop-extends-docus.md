@@ -12,7 +12,7 @@ created: 2026-11-14
 `container/website/_deps/package.json` is baked into the website image. Four of its scripts (`start`, `dev`,
 `build`, `generate`) run `nuxt … --extends docus`. Docus is now loaded by the shared layer
 (`container/website/site-layers/shared/nuxt.config.ts`), and a command-line `extends` replaces the site's own list.
-So these scripts load Docus alone: no shell, no parts, no content config. `container/website/playwright.config.ts`
+So these scripts load Docus alone: no shared layer, no content config. `container/website/playwright.config.ts`
 starts its server with `npm run dev`, the same broken script. Its `check-links` script still runs
 `node scripts/check-links.mts`; the file now lives at `site-layers/shared/scripts/check-links.mts`.
 

@@ -96,7 +96,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_SKIP_GROUPS', scope: 'internal', task: '-', desc: 'Comma-separated case GROUPS recorded as not-supported instead of run, for runtime capability gaps (the bun lane sets DATETIME: bun ships no Temporal). Set by bench.mjs; listed in each result JSON as skippedGroups'},
   {name: 'MION_VALIDATION_BENCH_CASE', scope: 'dev', task: '-', desc: 'Restrict a run to matching case names (inspection)'},
   {name: 'MION_VALIDATION_BENCH_DUMP', scope: 'dev', task: '-', desc: 'Print typecost probe sources (debug)'},
-  {name: 'MION_VALIDATION_BENCH_SERIALIZATION_OUT', scope: 'dev', task: '-', desc: 'Serialization bench output dir (default container/website/public/bench-data)'},
+  {name: 'MION_VALIDATION_BENCH_SERIALIZATION_OUT', scope: 'dev', task: '-', desc: 'Serialization bench output dir (default container/website/site-layers/mion-io/public/bench-data)'},
   {name: 'MION_COMPILETIME_N', scope: 'dev', task: '-', desc: 'Compile-time bench repeat count (default 5)'},
   {name: 'MION_COMPILETIME_COMPETITORS', scope: 'dev', task: '-', desc: 'Libraries to measure compile time for (default "mion typia")'},
   {name: 'MION_TRANSFORM_WIRE_N', scope: 'dev', task: '-', desc: 'Transform-wire bench per-cell repeat count (default 5)'},

@@ -10,10 +10,11 @@ import {dirname, join, posix, resolve} from 'node:path';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const CONTENT_DIR = join(WEBSITE, 'content');
-const PUBLIC_DIR = join(WEBSITE, 'public');
-// A layer's public/ is served beside the site's own.
 const LAYERS_DIR = join(WEBSITE, 'site-layers');
-const PUBLIC_DIRS = [PUBLIC_DIR, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer, 'public'))];
+// mion.io's own files (redirects, banners, favicon, bench data) live in its layer.
+const PUBLIC_DIR = join(LAYERS_DIR, 'mion-io/public');
+// Every layer's public/ is served.
+const PUBLIC_DIRS = readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer, 'public'));
 
 // Nuxt Content drops the numeric prefix from every path segment and maps a dir's
 // index.md onto the dir itself.
@@ -292,12 +293,11 @@ describe('website-redirects', () => {
     const sources = rules(join(PUBLIC_DIR, '_redirects')).map(({from}) => from);
     const covers = (from: string, path: string): boolean =>
       from.endsWith('/*') ? path.startsWith(from.slice(0, -1)) : path === from;
-    const assets = globSync('**/*', {cwd: PUBLIC_DIR, withFileTypes: true})
-      .filter((entry) => entry.isFile())
-      .map(
-        (entry) =>
-          `/${posix.relative(PUBLIC_DIR.split('\\').join('/'), join(entry.parentPath, entry.name).split('\\').join('/'))}`
-      );
+    const assets = PUBLIC_DIRS.filter((dir) => existsSync(dir)).flatMap((dir) =>
+      globSync('**/*', {cwd: dir, withFileTypes: true})
+        .filter((entry) => entry.isFile())
+        .map((entry) => `/${posix.relative(dir.split('\\').join('/'), join(entry.parentPath, entry.name).split('\\').join('/'))}`)
+    );
     expect(assets.length).toBeGreaterThan(10);
     const hidden = assets.flatMap((path) => sources.filter((from) => covers(from, path)).map((from) => `${path} (by ${from})`));
     expect(hidden).toEqual([]);

@@ -6,7 +6,7 @@
 //     so `ui.colors.primary` alone moved a fraction of a page. Every shared consumer
 //     now reads the subsite's tokens (sites/<id>/theme.css); a literal creeping back
 //     in would silently give one subsite another's colour.
-//   - ONE `brand` palette, filled per subsite: shell.css declares the @theme block as
+//   - ONE `brand` palette, filled per subsite: shared.css declares the @theme block as
 //     pure references and each theme.css fills the shades + tokens under its
 //     `[data-site='<id>']` selector (a missing shade falls through to Tailwind's stock
 //     palette, which is exactly the off-brand 950 the old green ramp shipped with).
@@ -14,7 +14,7 @@
 //     mion's own sections match the content tree and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
-//   - No raw colour in any app/ folder outside the token layer (custom properties in shell.css's
+//   - No raw colour in any app/ folder outside the token layer (custom properties in shared.css's
 //     :root, :root.dark, :root.light blocks), so one file shows every colour the shared tree paints.
 
 import {describe, it, expect} from 'vitest';
@@ -28,7 +28,7 @@ const LAYERS_DIR = join(WEBSITE, 'site-layers');
 const SHARED_LAYER = join(LAYERS_DIR, 'shared');
 const SITES_DIR = join(SHARED_LAYER, 'sites');
 const CONTENT_DIR = join(WEBSITE, 'content');
-const SHELL_CSS = join(SHARED_LAYER, 'app/assets/css/shell.css');
+const SHARED_CSS = join(SHARED_LAYER, 'app/assets/css/shared.css');
 const PAGES_CSS = join(SHARED_LAYER, 'app/assets/css/mion-pages.css');
 // Every app/ folder the site is built from: its own and one per layer.
 const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer))]
@@ -38,7 +38,7 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 // Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
-// The section ids the shell's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
+// The section ids the shared layer's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
 const SUBSITES_SOURCE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
@@ -180,12 +180,12 @@ describe('website-no-site-colour', () => {
     const logo = readFileSync(join(SHARED_LAYER, 'app/components/content/MionLogo.vue'), 'utf8');
     expect(logo).toContain('var(--mion-logo-accent)');
     expect(logo).not.toContain('--site-accent');
-    expect(readFileSync(SHELL_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
+    expect(readFileSync(SHARED_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
   });
 
   it('scans the shared components, the logo and the content tree', () => {
     expect(SHARED.length).toBeGreaterThan(20);
-    expect(SHARED).toContain('container/website/site-layers/shared/app/assets/css/shell.css');
+    expect(SHARED).toContain('container/website/site-layers/shared/app/assets/css/shared.css');
     expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/BenchTable.vue');
     expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/RuntypesBenchBars.vue');
     expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/MionLogo.vue');
@@ -197,7 +197,7 @@ describe('website-no-site-colour', () => {
       const lines = readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n');
       lines.forEach((line, i) => {
         // The one literal allowed: the mion logo mark's own colour, declared once in
-        // shell.css. It is the brand, the same on every subsite, so it is not a site colour.
+        // shared.css. It is the brand, the same on every subsite, so it is not a site colour.
         if (/^\s*--mion-logo-accent:\s*#79af43;\s*$/.test(line)) return;
         for (const pattern of FORBIDDEN) if (pattern.test(line)) offenders.push(`${rel}:${i + 1}: ${line.trim().slice(0, 100)}`);
       });
@@ -218,7 +218,7 @@ describe('website-no-site-colour', () => {
 });
 
 describe('website-colour-tokens', () => {
-  const SHELL_CSS_REL = 'container/website/site-layers/shared/app/assets/css/shell.css';
+  const SHARED_CSS_REL = 'container/website/site-layers/shared/app/assets/css/shared.css';
   const FILES = APP_DIRS.flatMap((dir) => walk(dir, (name) => /\.(css|vue|ts)$/.test(name), ['data', 'go-generated', '.vendor']));
   // `pnpm miondevx card export` writes these, stamped on their first line
   const generated = (rel: string): boolean =>
@@ -233,7 +233,7 @@ describe('website-colour-tokens', () => {
       'container/website/site-layers/shared/app/utils/codeCardPlayer.ts',
     ]);
     for (const rel of [
-      SHELL_CSS_REL,
+      SHARED_CSS_REL,
       'container/website/site-layers/shared/app/components/content/BenchTable.vue',
       'container/website/site-layers/shared/app/components/global/mermaid.vue',
       'container/website/site-layers/mion-io/app/components/playground/PlaygroundStage.client.vue',
@@ -242,18 +242,18 @@ describe('website-colour-tokens', () => {
       expect(SCANNED).toContain(rel);
   });
 
-  it('keeps every raw colour in the shell.css token layer', () => {
+  it('keeps every raw colour in the shared.css token layer', () => {
     const offenders = SCANNED.flatMap((rel) => {
       const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
       const lines = source.split('\n');
       const kind = rel.endsWith('.css') ? 'css' : rel.endsWith('.vue') ? 'vue' : 'ts';
-      return rawColourLines(source, kind, rel === SHELL_CSS_REL).map(
+      return rawColourLines(source, kind, rel === SHARED_CSS_REL).map(
         (lineNumber) => `${rel}:${lineNumber}: ${lines[lineNumber - 1]!.trim().slice(0, 100)}`
       );
     });
     expect(
       offenders,
-      "declare the colour as a token in shell.css's :root / :root.dark / :root.light, read it with var()"
+      "declare the colour as a token in shared.css's :root / :root.dark / :root.light, read it with var()"
     ).toEqual([]);
   });
 
@@ -321,7 +321,7 @@ describe('website-theme-tokens', () => {
       for (const shade of SHADES) expect(hex(value(main, `--site-brand-${shade}`) ?? ''), `${site} brand-${shade}`).toBe(true);
       for (const token of COLOUR_TOKENS) expect(hex(value(main, token) ?? ''), `${site} ${token}`).toBe(true);
       for (const token of HUE_TOKENS) expect(value(main, token), `${site} ${token}`).toMatch(/^\d+$/);
-      // A theme never declares the Tailwind names itself: the @theme block in shell.css
+      // A theme never declares the Tailwind names itself: the @theme block in shared.css
       // owns them, so a stray --color-brand-N here would shadow it for one subsite only.
       expect(css, `${site}: declares --color-brand-*`).not.toMatch(/--color-brand-\d+:/);
       expect(css, `${site}: has a :root or @theme block`).not.toMatch(/^\s*(:root|@theme)\b/m);
@@ -334,7 +334,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('declares the one brand palette as references in the Tailwind root, and imports every theme', () => {
-    const css = readFileSync(SHELL_CSS, 'utf8');
+    const css = readFileSync(SHARED_CSS, 'utf8');
     const themeBlocks = [...css.matchAll(/^@theme static \{([^}]*)\}/gm)];
     expect(themeBlocks.length, 'exactly one @theme block').toBe(1);
     const body = themeBlocks[0]![1]!;
@@ -346,7 +346,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('bridges the brand and Nuxt UI variables onto any element carrying data-site', () => {
-    const css = readFileSync(SHELL_CSS, 'utf8');
+    const css = readFileSync(SHARED_CSS, 'utf8');
     const bridge = block(css, '[data-site]');
     expect(bridge, 'no [data-site] bridge block').not.toBe('');
     for (const shade of SHADES) {
@@ -417,7 +417,7 @@ describe('website-subsites', () => {
         .slice(dir.length)
         .replace(/\/\d+\./g, '/')
         .replace(/\.md$/, '');
-      expect(readFileSync(join(WEBSITE, 'public/_redirects'), 'utf8'), `${id}: static redirect`).toMatch(
+      expect(readFileSync(join(LAYERS_DIR, 'mion-io/public/_redirects'), 'utf8'), `${id}: static redirect`).toMatch(
         new RegExp(`^/${id}${slug}\\s+/${id}\\s+301$`, 'm')
       );
     }
@@ -478,7 +478,7 @@ describe('website-subsites', () => {
 
   it('ships one logo and one favicon for the whole site', () => {
     expect(existsSync(join(SHARED_LAYER, 'app/components/content/MionLogo.vue'))).toBe(true);
-    expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(true);
+    expect(existsSync(join(LAYERS_DIR, 'mion-io/public/favicon.ico'))).toBe(true);
     for (const site of SITES) {
       expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
       expect(existsSync(join(SITES_DIR, site, 'public')), site).toBe(false);

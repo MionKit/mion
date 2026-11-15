@@ -1,4 +1,4 @@
-<!-- Overrides the shell's empty AppFooterNote: the project-lineage note before the footer icons. -->
+<!-- The project-lineage note before the footer icons. -->
 <template>
   <p class="rt-lineage">
     By <a

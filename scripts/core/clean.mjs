@@ -72,7 +72,7 @@ const GROUPS = [
       'bench/results',
       'container/benchmarks/results',
       'container/benchmarks/.mion',
-      'container/website/public/bench-data',
+      'container/website/site-layers/mion-io/public/bench-data',
       'container/pre-publish-e2e/package-lock.json',
       'container/pre-publish-e2e/host-smoke/.mion',
       'packages/**/.mion', // resolver genDirs written by the test suites

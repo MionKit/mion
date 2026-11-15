@@ -1,4 +1,4 @@
-/** c12 puts a layer's own layers right after it: a shell not listed last lets Docus silently outrank later layers. */
+/** c12 puts a layer's own layers right after it: this layer not listed last lets Docus silently outrank later layers. */
 export function layerOrderProblem(layerDirs: readonly string[]): string | undefined {
   const docus = layerDirs.findIndex((dir) => /[\\/]docus[\\/]?$/.test(dir))
   if (docus === -1) return `mion-shared found no Docus layer. Layers: ${layerDirs.join(', ')}`

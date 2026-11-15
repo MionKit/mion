@@ -54,7 +54,7 @@ logs
 # Produced locally by `pnpm miondevx bench --website` (Go binary + benchmark harness);
 # a run output, not something we version. A fresh clone shows the "data not
 # generated yet" fallback until you regenerate.
-/public/bench-data/
+/site-layers/mion-io/public/bench-data/
 
 # Host-vendored mion runtime source for the playground (build-playground.sh);
 # in-project so Vite dev can serve it. Reproducible, never committed.

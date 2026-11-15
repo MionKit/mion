@@ -1,5 +1,5 @@
 /* `@reference` runs this file through Tailwind's compiler without emitting its utilities again,
-   so its `color-mix()` rules get the same plain-colour fallbacks as the shell stylesheet. */
+   so its `color-mix()` rules get the same plain-colour fallbacks as shared.css. */
 @reference 'tailwindcss';
 
 /* Home Page Hero */

@@ -3,9 +3,9 @@
 export default defineNuxtPlugin(() => {
   const route = useRoute()
   const {theme, subsites} = useSubsite()
-  const {shell} = useAppConfig()
-  const wide = shell.widePages.map((source) => new RegExp(source))
-  const flush = shell.flushPages.map((source) => new RegExp(source))
+  const {shared} = useAppConfig()
+  const wide = shared.widePages.map((source) => new RegExp(source))
+  const flush = shared.flushPages.map((source) => new RegExp(source))
   const sectionClass = computed(() => pageWidthClass(route.path, subsites.value, wide, flush))
   const site = computed(() => theme.value.id)
   useHead({htmlAttrs: {'data-site': site}, bodyAttrs: {class: sectionClass}})

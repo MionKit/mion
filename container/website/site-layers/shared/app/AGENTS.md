@@ -1,4 +1,4 @@
-# Website shell app: subsites, styling
+# Website shared app: subsites, styling
 
 How the shared layer wires the subsites and how colour works. Paths are relative to `site-layers/shared/` unless they
 name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.md](../../AGENTS.md).
@@ -16,9 +16,9 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
   A DOCS page: docs layout + sidebar, minus page header and TOC (the hero is its header).
 - Home is served AT `/<id>` (frontmatter `path: /<id>` + `navigation: false`; no `app/pages/<id>/index.vue`).
   `subsiteSidebar()` puts it back first in the Introduction sidebar (desktop `DocsAsideLeftBody`, mobile
-  `AppHeaderBody`); its old long URL 301s to `/<id>` in the site's `public/_redirects`.
+  `AppHeaderBody`); its old long URL 301s to `/<id>` in `mion-io/public/_redirects`.
 - `app/plugins/site-attr.ts`: `data-site="<id>"` on `<html>` (colour scheme keys on it) + the per-section body class:
-  a local section's home is wide, the rest comes from the site's `shell.widePages` / `shell.flushPages`.
+  a local section's home is wide, the rest comes from the site's `shared.widePages` / `shared.flushPages`.
 - `app/app.config.ts` `navigation.sub: 'aside'`: the one Docus key scoping the sidebar to the current top-level
   section instead of the whole tree.
 - `DocsAsideLeftTop.vue` overridden to nothing: the header's subsite menu replaces Docus' section anchors.
@@ -37,18 +37,18 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
 - Root `/` landing (`content/index.md`): one `.home-subsite` block per subsite, carrying its `data-site`.
   Block: title, intro, buttons; beside them a code example or the live bench summary (`HomeBenchTable.vue`).
   rpc block: server + client examples side by side under the intro.
-- Shared by all subsites: components, layouts, server utils, playground (`/runtypes/playground`), the site's
-  `public/` (favicon, banners, `_redirects`, generated `bench-data/`).
+- Shared by all subsites: components, layouts, server utils, playground (`/runtypes/playground`), mion.io's
+  `mion-io/public/` (favicon, banners, `_redirects`, generated `bench-data/`).
 - `app/app.config.ts`: the shared look (`ui.prose`, `primary` alias, `navigation.sub`, Docus aside / header).
   The site's own holds SEO, socials, footer. Nuxt merges app configs with `defu` (site first, per key): layer and
   Docus defaults still apply under anything left out.
-- Favicon: the site's `public/favicon.ico` + `favicon_io/`, one for the whole site.
+- Favicon: `mion-io/public/favicon.ico` + `favicon_io/`, one for the whole site.
 
 ## Styling
 
-- `app/assets/css/shell.css` holds the site's ONE `@theme static` block: the `brand` Tailwind palette, every shade a
+- `app/assets/css/shared.css` holds the site's ONE `@theme static` block: the `brand` Tailwind palette, every shade a
   reference (`--color-brand-N: var(--site-brand-N)`), never a hex. Then it imports every `sites/<id>/theme.css`.
-- Palette + shared theme imports stay in `shell.css` (Tailwind v4 compiles ONE root; a `@theme` feeds utilities
+- Palette + shared theme imports stay in `shared.css` (Tailwind v4 compiles ONE root; a `@theme` feeds utilities
   only inside its import graph). A site's extra theme only sets `--site-*` values, so it may be its own `css` entry.
 - mion page classes (home blocks, tiles, badges) live in `mion-pages.css`. Its `@reference` line
   runs it through Tailwind too, so its `color-mix()` rules keep their plain-colour fallbacks.
@@ -57,17 +57,17 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
   shades + 6 tokens:
   - `--site-accent`: hero, playground, header word.
   - `--site-gradient-from` / `-to` / `-mix`: pastel tones of the animated section-title gradient, composed once in
-    `shell.css` as `--site-title-gradient`. Light block: deeper tones of the same hues (pastel vanishes on light).
-  - `--site-hue`: decorative `hsl()` gradients, pastel via `--mion-pastel-s` / `-l` (shell.css, per mode).
+    `shared.css` as `--site-title-gradient`. Light block: deeper tones of the same hues (pastel vanishes on light).
+  - `--site-hue`: decorative `hsl()` gradients, pastel via `--mion-pastel-s` / `-l` (shared.css, per mode).
     `--site-hue-good`: "best" end of bad→good rank ramps, green on every subsite so heatmaps still read.
 - A `[data-site='<id>'].light, .light [data-site='<id>']` block may override single-valued tokens per mode.
 - `app.config.ts` `ui.colors.primary: 'brand'` → `--ui-primary` + `--color-primary-*` follow the subsite.
   Nuxt UI flips `--ui-primary` itself: shade 500 light, 400 dark.
-- Root landing: each intro block carries its own `data-site`. The `[data-site]` bridge in `shell.css` re-derives
+- Root landing: each intro block carries its own `data-site`. The `[data-site]` bridge in `shared.css` re-derives
   brand + Nuxt UI vars on that element (the `:root` ones Tailwind declares already resolved there).
 - A layer's `app/` tree carries NO site colour. Use `var(--ui-primary)`, `var(--color-brand-N)`, `var(--site-accent)`,
   `color-mix(in srgb, var(--color-brand-500) N%, transparent)` (washes), `hsl(var(--site-hue) …)` (hues).
-- Raw colour in `app/` (hex, literal `rgb()` / `hsl()`, named) ONLY as a custom property in a `shell.css` `:root`,
+- Raw colour in `app/` (hex, literal `rgb()` / `hsl()`, named) ONLY as a custom property in a `shared.css` `:root`,
   `:root.dark` or `:root.light` block, never `var(--x, #fallback)`. Enforced by `website-theme-contracts.test.ts`.
 - New ramp: keep the mion palette's OKLCH lightness + chroma per shade, change only hue (equal light/dark contrast).
   Take the rpc ramp's `oklch(L C H)` per shade, swap the hue, convert to sRGB hex (lower C if out of gamut).
@@ -75,10 +75,10 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
   `--site-gradient-mix` = pastel partner ~120 degrees away; `--site-hue` = HSL hue of the new 500.
 - Root landing blocks: `.home-subsite` / `.home-subsite-block` / `.home-intro` / `.home-split` in `mion-pages.css`.
 - Home pages: text sits on the plain page background, no card chrome. Small tiles (stat, test, platform) and code stay.
-- Corners: one `--ui-radius` in `shell.css` (buttons, code, tabs). Inline code look: `ui.prose.code` in `app.config.ts`.
+- Corners: one `--ui-radius` in `shared.css` (buttons, code, tabs). Inline code: `ui.prose.code` in `app.config.ts`.
 - Code blocks + benchmark cards: ONE panel look, `--mion-panel-bg` + `var(--ui-border)` + `--mion-panel-radius`.
   Code label = plain text, no tab: `ui.prose.pre` / `codeGroup` in `app.config.ts`; `TwoslashCode.vue` reads that `pre`.
-  Label strip: `--mion-panel-head-bg` (`shell.css`), a shade off the body, same `var(--ui-border)` on every side.
+  Label strip: `--mion-panel-head-bg` (`shared.css`), a shade off the body, same `var(--ui-border)` on every side.
 - Alerts (`ui.prose.callout`, twoslash tag lines alike): type-colour wash, 4px left border + icon, neutral text.
 - Parallax is CSS only (scroll-driven, `animation-timeline: view()`): blocks and sections rise in.
   Off under `prefers-reduced-motion` or without browser support.

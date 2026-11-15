@@ -4,8 +4,8 @@ import type {ContentNavigationItem} from '@nuxt/content'
 // `theme` never is: such a page paints with the first local section's colours.
 export function useSubsite() {
   const route = useRoute()
-  const {shell} = useAppConfig()
-  const subsites = computed(() => resolveSubsites(shell.origin ?? '', shell.sections))
+  const {shared} = useAppConfig()
+  const subsites = computed(() => resolveSubsites(shared.origin ?? '', shared.sections))
   const subsite = computed(() => subsiteForPath(route.path, subsites.value))
   const theme = computed(() => subsite.value ?? subsites.value.find((entry) => !entry.external) ?? subsites.value[0]!)
   // A site with no local section keeps Docus' whole navigation tree.
