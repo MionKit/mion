@@ -2,8 +2,7 @@ import {defineCollection, defineContentConfig, z} from '@nuxt/content'
 import {useNuxt} from 'nuxt/kit'
 import {join} from 'node:path'
 
-// Replaces Docus' `docs` + `landing` (collections merge by name, the last layer wins), keeping
-// the names its pages, search and sitemap query literally.
+// Replaces Docus' `docs` + `landing` by name (the last layer wins): its pages, search and sitemap query those names.
 // `cwd` is the CONSUMING site's content folder: left out, it would be this layer's own.
 // ANY `<dir>/index.md` is a landing page, never a docs page.
 const cwd = join(useNuxt().options.rootDir, 'content')

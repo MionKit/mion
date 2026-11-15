@@ -1,26 +1,21 @@
 import type {SubsiteEntry} from './utils/subsites'
 
-// The shared look and the settings every site fills in. Nuxt merges app configs with `defu`
-// (the consuming site first, per key), so a site overrides any key here and Docus' own defaults
-// still apply under anything left out. Site identity (github, seo, socials, footer text) is the site's.
+// The shared look and the settings every site fills in; identity (github, seo, socials, footer text) is the site's.
+// Nuxt merges app configs with `defu`, the site first per key, so Docus' defaults still apply under anything left out.
 export default defineAppConfig({
   shell: {
-    // The site's own address: a section whose link starts with it becomes a local link.
-    // Left unset: the shell module fills it from `site.url` in the site's nuxt.config.ts.
+    // The site's own address: a section link under it becomes local. Unset: the shell module fills it from `site.url`.
     origin: undefined as string | undefined,
     // Extra menu entries only this site shows.
     sections: [] as SubsiteEntry[],
-    // Regex sources matched against the route path: a wide page drops the prose width cap and
-    // the table of contents rail, a flush page keeps the rail.
+    // Regex sources tested on the route path: wide drops the prose width cap and the contents rail, flush keeps the rail.
     widePages: [] as string[],
     flushPages: [] as string[],
     // The section menu button's aria-label.
     menuLabel: 'Switch section',
   },
-  // `sub: 'aside'` is what gives every section its OWN sidebar: Docus' useSubNavigation
-  // then scopes the sidebar to the top-level section the route is in instead of
-  // showing the whole tree. The section anchors it would add at the top of the sidebar
-  // are replaced by the header menu (DocsAsideLeftTop.vue is overridden to nothing).
+  // `sub: 'aside'` makes Docus' useSubNavigation scope the sidebar to the route's top-level section.
+  // The section anchors it would add are replaced by the header menu (DocsAsideLeftTop.vue is overridden to nothing).
   navigation: {
     sub: 'aside',
   },

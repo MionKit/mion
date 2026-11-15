@@ -40,7 +40,6 @@ export function loadExampleTool(siteRoot: string): ExampleToolContext {
   }
 }
 
-/** True when `abs` is `dir` or sits inside it. */
 function isInside(abs: string, dir: string): boolean {
   return abs === dir || abs.startsWith(dir + sep)
 }
@@ -65,8 +64,7 @@ export function pathInsideRoot(repoRoot: string, roots: readonly string[], relPa
   return undefined
 }
 
-// An explicit allowlist, never a directory: the key is what a page writes, so no path from a
-// content file reaches the filesystem.
+// An allowlist keyed by what a page writes, never a directory: no path from a content file reaches the filesystem.
 export function resolveImportableDoc(repoRoot: string, docs: Readonly<Record<string, string>>, name: string): string {
   const relative = docs[name]
   if (!relative) {

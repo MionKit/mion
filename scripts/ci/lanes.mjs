@@ -50,7 +50,7 @@ const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && 
 const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
 // js-static still checks page links and CSS imports; the release gate and prod deploy still build them.
-// website.config.json names the site folder, its layers and the packages its code examples read.
+// website.config.json names the site folder and the packages its code examples read.
 const WEBSITE_CONFIG = 'website.config.json';
 const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
 

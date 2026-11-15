@@ -1,5 +1,4 @@
-// mion.io's identity. The shared look and the section settings live in the shell layer's
-// app.config.ts (site-layers/shell/app/app.config.ts); Nuxt merges the two with `defu`, this file first.
+// mion.io's identity: Nuxt merges it with `defu` over site-layers/shell/app/app.config.ts, this file first.
 export default defineAppConfig({
   // Docus' AppHeader/AppFooterRight read this top-level `github` (not `docus.github`)
   // to render the GitHub icon in the top nav and footer. Docus normally auto-derives
@@ -20,7 +19,7 @@ export default defineAppConfig({
     image: '/banners/mion-v2-website-banner.png',
   },
   shell: {
-    // Section home pages are wide already. The RunTypes Introduction + Guide run wide too; benchmark pages keep the rail.
+    // Section home pages are wide without a pattern; flush pages keep the rail.
     widePages: ['^/runtypes/(introduction|guide)(/|$)'],
     flushPages: ['^/benchmarks/.+'],
     menuLabel: 'Switch between RPC, RunTypes, Benchmarks and Pro',

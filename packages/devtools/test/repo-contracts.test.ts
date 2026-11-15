@@ -785,8 +785,7 @@ describe('.env.sample mirrors the env REGISTRY', () => {
 
 describe('twoslash VFS mounts the packages the examples import', () => {
   const EXAMPLES_SRC = join(REPO_ROOT, 'packages/private-examples/src');
-  // The packages the endpoint mounts: website.config.json `examples.packages`, each a repo-relative
-  // `dir` and the npm `name` it is mounted under (/node_modules/<name>/ in the virtual file system).
+  // What the endpoint mounts: a repo-relative `dir` and the npm `name` it sits under in the VFS (/node_modules/<name>/).
   const SITE_CONFIG = JSON.parse(readFileSync(join(REPO_ROOT, 'website.config.json'), 'utf8')) as {
     examples: {packages: {dir: string; name: string}[]; externalDeps: string[]; exampleDirs: string[]};
   };
