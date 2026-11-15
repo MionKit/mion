@@ -38,7 +38,7 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 // Every subsite dir that carries a theme (discovered, so a new one cannot slip the check).
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
-// The section ids mion.io's own app.config.ts lists in its section menu, in order.
+// mion.io's section menu ids, in order.
 const SECTIONS_FILE = readFileSync(join(LAYERS_DIR, 'mion-io/app/app.config.ts'), 'utf8');
 const SUBSITES_SOURCE = SECTIONS_FILE.slice(
   SECTIONS_FILE.indexOf('sections: ['),
