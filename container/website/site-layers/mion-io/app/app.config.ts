@@ -1,4 +1,4 @@
-// mion.io's identity: Nuxt merges it with `defu` over site-layers/shell/app/app.config.ts, this file first.
+// mion.io's identity: Nuxt merges it with `defu` over site-layers/shared/app/app.config.ts, this file first.
 export default defineAppConfig({
   // Docus' AppHeader/AppFooterRight read this top-level `github` (not `docus.github`)
   // to render the GitHub icon in the top nav and footer. Docus normally auto-derives

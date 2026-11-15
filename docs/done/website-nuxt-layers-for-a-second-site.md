@@ -40,72 +40,58 @@ created: 2026-11-14
 
 ```
 website.config.json                 NEW, repo root: mion's site config (example tool values, container name)
-container/website/                 mion.io site (content/, public/, .output keep their paths)
-├── nuxt.config.ts                 extends parts + playground + shell; name, url, prerender routes
-├── app/app.config.ts              mion identity only
-├── app/pages/runtypes/playground.vue
-├── content/  public/  _deps/  Containerfile  parked/  tests/  scripts/
+container/website/                  mion.io site (content/, public/, .output keep their paths)
+├── nuxt.config.ts                  extends mion-io + shared; name, url, prerender routes
+├── content/  public/  _deps/  Containerfile  parked/  tests/      (no app/, no scripts/)
 └── site-layers/
-    ├── shell/        generic docs site + example tool      $meta.name 'mion-shell'
-    ├── parts/        mion things another site may load     $meta.name 'mion-parts'
-    └── playground/   opt-in                                $meta.name 'mion-playground'
+    ├── shared/     everything both sites use                $meta.name 'mion-shared'
+    └── mion-io/    mion.io only: settings, playground       $meta.name 'mion-io'
 ```
 
+- First built as three shared layers (generic docs site, mion parts, playground). The owner found the split
+  impossible to follow (two layers that looked alike, a placeholder file repeated in both), and the second site
+  needs all of it but the playground. So: ONE shared layer, and the playground sits with mion.io's own files.
 - Folder is `site-layers`, never `layers`: Nuxt auto-extends every `<rootDir>/layers/*`.
 - Every layer has an `app/` folder (Nuxt UI adds a Tailwind `@source` per layer `app/`; without one the scan misses it).
 
 ### What goes where
 
-- **shell**: `extends: ['docus']`, the module list, `colorMode` and `nitro.output` in its `nuxt.config.ts`.
-  `content.config.ts`. `app/app.config.ts` (the shared look:
-  `ui.prose.*`, `ui.colors.primary`, `navigation.sub`, docus `aside` / `main` / `header`). `app/assets/css/shell.css`
-  (generic part of `mion.css`: lines 1-163, 250-275, 668-782, 1042-1048, 1091-1095) + `sites/<id>/theme.css` for
-  `rpc`, `runtypes`, `benchmarks`, `pro`. Components `SubsiteMenu`, `app/AppHeaderBody`, `app/AppHeaderCenter`,
-  `app/AppFooterRight`, `docs/DocsAsideLeft*`, `content/{TwoslashCode,CodeSplit,DetailPanel,HoverList,Spacer,
-  StylishList,SlidedTitle}`, `global/mermaid`. All four composables. `layouts/fullscreen.vue`.
-  `pages/[[lang]]/[...slug].vue`. Both plugins. `utils/subsites.ts`. All of `server/` except `function-catalog.ts`.
-  An empty `app/AppFooterNote.vue` (a site or parts replaces it). No `public/` folder.
-- **mion-io** (`mion-io`): mion.io's own `app/app.config.ts` and `app/pages/runtypes/playground.vue`. Only mion.io
-  extends it, listed first, so the site folder itself has no `app/` and every source file sits under `site-layers/`.
-  The two host/container scripts moved too: `playground/scripts/build-playground.mjs`, `shell/scripts/check-links.mts`.
-- **parts**: `BenchBar`, `BenchColumnInfo`, `BenchTable`, `HomeBenchTable`, `RuntypesBenchBars`, `ServerBenchBars`,
-  `CodeCard`, `ClientSize`, `StatTiles`, `HomeTestTiles`, `HomeRuntypesTiles`, `PlatformTiles`, `Diagnostic*`,
-  `MionLogo`, `MionType`, `RealWorldScenario`, `TypeSafeAnimation`, `VerticalIntegration`, `go-generated/`.
-  `app/components/app/AppHeaderLogo.vue` (moved out of `components/content/`) and a new `AppFooterNote.vue` holding the
-  lineage paragraph. `app/data/`. `app/utils/{benchAggregate,benchFormat,serverBenchRows,codeCardPlayer,
-  replacedLibraries}`. `app/assets/css/{mion-pages.css,code-card.css}` (`mion-pages.css` = the mion page classes:
-  lines 164-249, 276-667, 783-1041, 1049-1090; it opens with `@reference 'tailwindcss'` so Tailwind still compiles it and
-  its `color-mix()` rules keep their fallbacks). `server/utils/function-catalog.ts`.
-  `scripts/embed-panel-highlights.mjs` (the post-build step any site with benchmark data needs). `public/{platform-logos,
-  type-safe-apis.gif,fonts/code-card}`.
-- **playground**: `content/RuntypesPlayground.vue`, `components/playground/*`, `app/playground/*` (with `.vendor/`),
-  the three `@mionjs/run-types` Vite aliases, `optimizeDeps.exclude: ['monaco-editor']`, generated
-  `public/playground-app/`.
-- **mion site**: `site: {name, url}`, `nitro.prerender.routes`, `app.buildAssetsDir`,
-  mion `app.config.ts` keys (github, seo, docus title / socials / github / footer), the playground page, `content/`,
+- **shared**: `extends: ['docus']`, the module list, `colorMode` and `nitro.output` in its `nuxt.config.ts`.
+  `content.config.ts`. `app/app.config.ts` (the shared look). `app/assets/css/shell.css` (the generic part of the old
+  `mion.css`) then `mion-pages.css` (the mion page classes; it opens with `@reference 'tailwindcss'` so Tailwind
+  still compiles it; listed after `shell.css`, the order the rules were in) + `sites/<id>/theme.css` for `rpc`,
+  `runtypes`, `benchmarks`, `pro`. Site chrome (`SubsiteMenu`, header, footer, sidebar), prose components, the docs
+  page, layouts, plugins, composables, `utils/subsites.ts`, all of `server/` (example tool, function catalog).
+  Benchmark tables + charts, `CodeCard`, tiles, diagnostics catalog, `MionLogo`, `app/components/app/AppHeaderLogo.vue`
+  and `AppFooterNote.vue` (the lineage paragraph), `app/data/`, `public/{platform-logos,type-safe-apis.gif,
+  fonts/code-card}`. `scripts/embed-panel-highlights.mjs` (the post-build step of any site) and
+  `scripts/check-links.mts`.
+- **mion-io**: mion.io's `app/app.config.ts` (github, seo, docus title / socials / github / footer), the playground
+  page, the playground itself (`content/RuntypesPlayground.vue`, `components/playground/*`, `app/playground/*` with
+  `.vendor/`, the three `@mionjs/run-types` Vite aliases, the Monaco exclude, generated `public/playground-app/`,
+  `scripts/build-playground.mjs`). Only mion.io extends it, listed first.
+- **mion site folder**: `site: {name, url}`, `nitro.prerender.routes`, `app.buildAssetsDir`, `content/`,
   `public/{_redirects,banners,favicon*,bench-data}`.
 - Deleted, unused: `public/mountains.webp`, `public/fonts/MonomaniacOne-Regular.ttf`.
 
 ### Layer rules (each one checked against upstream source)
 
-- ⚠️ Shell goes LAST in `extends`: `extends: [parts, playground, shell]`. c12 puts a layer's own nested layers right
-  after it, so shell last keeps Docus last. Otherwise Docus outranks parts and its `AppHeaderLogo` wins silently.
-  Shell module throws at startup if Docus is not the last layer.
-- Local layers are written `./site-layers/shell` or absolute. A bare `site-layers/shell` is read as an npm name.
-- No `~/` or `@/` inside a layer. Imports inside one layer are relative; across layers they use the built-in alias
-  `#layers/mion-shell/...`, `#layers/mion-parts/...`, `#layers/mion-playground/...` (points at the layer ROOT, so
-  `#layers/mion-parts/app/utils/benchFormat`). Works in Vite, Nitro, CSS `@import` and the generated tsconfig.
-  Layer `css` entries are built from `import.meta.url`.
-- `content.config.ts` in shell sets `cwd` from `useNuxt().options.rootDir + '/content'` (import from `nuxt/kit`),
-  same split as today (`**/index.md` = landing). Collections merge by name, last wins: shell replaces Docus, and a
+- ⚠️ `shared` goes LAST in `extends`: `extends: [mion-io, shared]`. c12 puts a layer's own nested layers right
+  after it, so `shared` last keeps Docus last. Otherwise Docus outranks the layers after it and its components win
+  silently. The `shared` module throws at startup if Docus is not the last layer.
+- Local layers are written `./site-layers/shared` or absolute. A bare `site-layers/shared` is read as an npm name.
+- No `~/` or `@/` inside a layer. Imports inside one layer are relative; from outside they use the built-in alias
+  `#layers/mion-shared/...` (points at the layer ROOT, so `#layers/mion-shared/app/utils/benchFormat`).
+  Layer `css` entries for own files are built from `import.meta.url`.
+- `content.config.ts` in `shared` sets `cwd` from `useNuxt().options.rootDir + '/content'` (import from `nuxt/kit`),
+  same split as before (`**/index.md` = landing). Collections merge by name, last wins: it replaces Docus', and a
   consumer with no `content.config.ts` gets only its own `content/`.
-- Never in a layer: `site.*`, `nitro.prerender.routes`, a routed page other than the docs catch-all, `_redirects`,
+- Never in `shared`: `site.*`, `nitro.prerender.routes`, a routed page other than the docs catch-all, `_redirects`,
   banners, `bench-data/`. Arrays concatenate across layers and object keys fill in as defaults, so they would leak.
-- Vite aliases + Monaco exclude only in the playground layer.
-- Shell + parts each register one inline module (`modules: [(_, nuxt) => {…}]`): runs once, `nuxt.options.rootDir` =
-  the consuming site. Shell's reads `<rootDir>/website.config.json`, sets `runtimeConfig.exampleTool`, registers
-  `content:file:beforeParse` (markdown-import, code-import) and the dev watcher plugin. Parts' registers the
-  function-catalog hook.
+- Vite aliases + Monaco exclude only in `mion-io`.
+- `shared` registers one inline module (`modules: [(_, nuxt) => {…}]`): runs once, `nuxt.options.rootDir` = the
+  consuming site. It reads `<rootDir>/website.config.json`, sets `runtimeConfig.exampleTool`, registers
+  `content:file:beforeParse` (markdown-import, code-import, function catalog) and the dev watcher plugin.
 
 ### Settings a site fills in
 
@@ -121,18 +107,18 @@ container/website/                 mion.io site (content/, public/, .output keep
 
 ### Section list
 
-- `shell/app/utils/subsites.ts`: `SUBSITES` holds full links: `https://mion.io/rpc`, `/runtypes`, `/benchmarks`,
+- `shared/app/utils/subsites.ts`: `SUBSITES` holds full links: `https://mion.io/rpc`, `/runtypes`, `/benchmarks`,
   and `https://pro.mion.io` (`id: 'pro'`, label `Pro`, text "Paid extensions to mion.", icon `i-lucide-gem`, violet
   ramp built by the ramp rule in `app/AGENTS.md`). `id` becomes `string`.
 - `useSubsite()` returns the list with each entry resolved: link starts with `shell.origin` → local path, else
   external link (`target="_blank"` not set, same tab). Site `sections` are appended.
 - `subsiteForPath` picks the longest matching local path (pro's own entry is `/`).
-- mion.io menu shows four entries. Pro's theme lives in shell because mion.io paints that entry.
+- mion.io menu shows four entries. Pro's theme lives in `shared` because mion.io paints that entry.
 
 ### Config file
 
 ONE file, `website.config.json`, at the root of the repo that owns the site. Read by `scripts/website/site.mjs`
-(where the site is, what to mount) and by the shell module (the example tool). Removes the "change both ends" pair.
+(where the site is, what to mount) and by the shared layer's module (the example tool). Removes the "change both ends" pair.
 
 - Lookup: walk up from the working directory to the first folder holding the file. None found → the mion checkout
   the script lives in. So the same command builds mion.io from mion and pro.mion.io from mion-pro, no flag, no new
@@ -164,7 +150,7 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - mion's file has this shape with all 17 packages listed. The layers are always the `site-layers/` of the mion
   checkout the script lives in, mounted at `/app/site-layers`. mion-pro's file holds `"site": "website"` and its own `examples`.
 - Existing env vars keep winning over the file: `MION_WEBSITE_CONTAINER`, `MION_WEBSITE_REPO_CONTEXT`.
-- The script mounts the file read-only at `/app/website.config.json`; the shell module reads it from the site root.
+- The script mounts the file read-only at `/app/website.config.json`; the shared layer's module reads it from the site root.
 
 ### Example tool (`examples` key)
 
@@ -212,7 +198,7 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - Every writer and reader of an old `container/website/{app,server,sites,public}/…` path points at its layer path:
   the count, client-size and diagnostics generators, the playground build, the card tool and its manifest, the
   benchmark report, the playground tests under `packages/run-types/test/playground/` and the devtools bench tests.
-- `embed-panel-highlights.mjs` moved into the parts layer (`scripts/`): the build of any site runs it.
+- `embed-panel-highlights.mjs` moved into the shared layer (`scripts/`): the build of any site runs it.
 - CI lanes are prefix-based, so only `website.config.json` was added to them.
 
 ### Checks that ran
@@ -225,7 +211,7 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 
 ## Tests
 
-- `packages/devtools/test/website-theme-contracts.test.ts`: repoint to the layer paths; walk all three layers for the
+- `packages/devtools/test/website-theme-contracts.test.ts`: repoint to the layer paths; walk every layer for the
   colour rules. Subsite list: mion's three ids still match `content/NN.<id>/` + a theme each; `pro` has a theme and no
   content dir. Docus pin on the `[...slug].vue` copy stays.
 - `website-links.test.ts`: a link may resolve to a file in any layer `public/`; CSS `@import` glob covers
@@ -236,7 +222,7 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - New contract tests (static, no container), in `website-layer-contracts.test.ts`:
   - no `~/`, `@/`, `~~/` import or `css` entry inside `site-layers/**`;
   - no layer `nuxt.config.ts` sets `site`, `nitro.prerender` or a routed page; only playground sets `vite.resolve.alias`;
-  - mion's `extends` ends with shell; every layer has `$meta.name` and an `app/` folder;
+  - mion's `extends` ends with `shared`; every layer has `$meta.name` and an `app/` folder;
   - `website.config.json` `examples.externalDeps` + `examples.packages` are the only source (no literal list left in
     server or scripts); this one sits in `repo-contracts.test.ts`;
   - `site.mjs` resolves every output path under the site folder / repo context, and finds the config by walking up from the working
@@ -250,11 +236,10 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - `container/website/AGENTS.md`, `app/AGENTS.md`, `app/components/AGENTS.md`, `server/AGENTS.md`: new paths, the layer
   rules above, split per layer where it reads better. Keep each under the size limit.
 - `container/website/CONTAINER.md`: mounts, new inputs, and a new section "Using the Layers from Another Repo":
-  what to extend + the shell-last rule, settings to fill, `#layers/…` aliases, every `website.config.json` key, opt-in steps, the one-install rule (new website package → mion `_deps/` + image rebuild), and the Vite
+  what to extend + the shared-last rule, settings to fill, `#layers/…` aliases, every `website.config.json` key, opt-in steps, the one-install rule (new website package → mion `_deps/` + image rebuild), and the Vite
   alias a live demo needs to run a consumer package in the browser.
-- Opt-in text: playground = add the layer + run `container/website/scripts/build-playground.mjs` (needs Go + a
-  bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `"benchData": "<dir>"` holding a
-  `bench-data` tree (from a benchmark run or a release asset).
+- Opt-in text: bench data = `"benchData": "<dir>"` holding a `bench-data` tree (from a benchmark run or a release
+  asset). The playground is mion.io's only.
 - Also: `docs/WEBSITE-DOCGEN.md`, `SETUP.md`, `.agents/skills/card/commands.md`.
 - No content page or example changed, so the simplify-docs pass had nothing to run on.
 
@@ -276,8 +261,8 @@ None: no parser or codec added. `resolveInRoots` gets table-driven unit tests in
 - `pnpm miondevx website build` + `pnpm miondevx website check --static` + `check --docs` pass for mion.io.
 - mion.io output: same route list as the baseline, same look, plus the `Pro` menu entry.
 - Outside proof, described in the PR: a throwaway site in a folder outside `container/website/` that
-  (a) has its own `website.config.json` and extends the layers through `MION_WEBSITE_LAYERS`,
-  (b) renders one page using a shell component, a parts component and one of its own,
+  (a) has its own `website.config.json` and extends the shared layer through `MION_WEBSITE_LAYERS`,
+  (b) renders one page using layer components (prose, tiles) and one of its own,
   (c) overrides one layer component with a same-named file,
   (d) shows a `<code-import>` example from its own folder, listed in its own `website.config.json`,
   (e) builds with no mion page and no `_redirects`, names `mion.io` only in the shared section menu and the mion

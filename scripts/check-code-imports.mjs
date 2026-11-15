@@ -12,7 +12,7 @@
  *
  * A broken block does NOT fail the website build: processCodeImports() catches the error and
  * renders a ```text block reading "// Error processing code-import: ...", so a page silently
- * ships a hole instead of an example (container/website/site-layers/shell/server/utils/code-import.ts). This
+ * ships a hole instead of an example (container/website/site-layers/shared/server/utils/code-import.ts). This
  * script is the guard that turns that into a loud failure.
  *
  * Checks, per block: the `path` attribute is present, resolves to a file on disk, and — when
@@ -37,7 +37,7 @@ const CODE_IMPORT_REGEX = /<code-import\s+([^>]*?)\s*\/>/g;
 // The other way a page shows an example.
 const TWOSLASH_PATH_REGEX = /:{2,}twoslash-code[^\n]*\n\s*---\n(?:(?!\s*---\n)[^\n]*\n)*?\s*path:\s*(\S+)/g;
 
-/** Mirrors parseAttributes() in container/website/site-layers/shell/server/utils/code-import.ts */
+/** Mirrors parseAttributes() in container/website/site-layers/shared/server/utils/code-import.ts */
 function parseAttributes(str) {
     const attrs = {};
     const attrRegex = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;

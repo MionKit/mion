@@ -9,20 +9,20 @@ refuses to ship a page whose benchmark would render empty.
 - **Pages** — [container/website/content/03.benchmarks/03.runtypes/](../container/website/content/03.benchmarks/03.runtypes/).
   Each page is frontmatter plus one `:runtypes-bench-bars{bench="<slug>" metric="…"}`
   component; the prose around it is hand-written.
-- **Components** — [RuntypesBenchBars.vue](../container/website/site-layers/parts/app/components/content/RuntypesBenchBars.vue)
+- **Components** — [RuntypesBenchBars.vue](../container/website/site-layers/shared/app/components/content/RuntypesBenchBars.vue)
   draws the pages: one chart per group (its geometric mean, one bar per competitor, best
   first), `Overall` first, each linking that group's cases on GitHub from the section's
   `source`. Named metrics are comma-separated and get one card each, so the serialization
   pages draw speed and bytes side by side.
-  [BenchTable.vue](../container/website/site-layers/parts/app/components/content/BenchTable.vue), with the shared
-  [DetailPanel.vue](../container/website/site-layers/shell/app/components/content/DetailPanel.vue)
-  + [useDetailPanel.ts](../container/website/site-layers/shell/app/composables/useDetailPanel.ts), is the
+  [BenchTable.vue](../container/website/site-layers/shared/app/components/content/BenchTable.vue), with the shared
+  [DetailPanel.vue](../container/website/site-layers/shared/app/components/content/DetailPanel.vue)
+  + [useDetailPanel.ts](../container/website/site-layers/shared/app/composables/useDetailPanel.ts), is the
   full per-case table: terminal-style, rows expand on hover/click and **lazy-fetch** their
   detail panel. **No live page renders it** as of 2026-09: the charts replaced it
   everywhere. It is kept because the parked correctness page is written against it and
   is meant to come back, so treat it as on the shelf rather than dead.
-  The two share their summary math ([benchAggregate.js](../container/website/site-layers/parts/app/utils/benchAggregate.js))
-  and their number formatting ([benchFormat.ts](../container/website/site-layers/parts/app/utils/benchFormat.ts)).
+  The two share their summary math ([benchAggregate.js](../container/website/site-layers/shared/app/utils/benchAggregate.js))
+  and their number formatting ([benchFormat.ts](../container/website/site-layers/shared/app/utils/benchFormat.ts)).
   A missing data file renders a tidy "Benchmark data not generated yet" notice, never an
   error — which is why the build gates on
   [check-static.mjs](../scripts/website/check-static.mjs) (see
@@ -32,11 +32,11 @@ refuses to ship a page whose benchmark would render empty.
   `source`, the repo-relative file that authors that group's cases, resolved by
   [sources.mjs](../scripts/website/bench-data/sources.mjs); the charts link it and the
   post-build check fails a section whose file is missing.
-- **The root landing's summary** — [HomeBenchTable.vue](../container/website/site-layers/parts/app/components/content/HomeBenchTable.vue)
+- **The root landing's summary** — [HomeBenchTable.vue](../container/website/site-layers/shared/app/components/content/HomeBenchTable.vue)
   (`:home-bench-table{servers="servers-hello-world" validation="validation"}`) reads the
   hello-world server rows and the validation index, and shows the fastest few of each
   (the validation number is the same geometric mean as the is-valid page's "Overall"
-  row, from [benchAggregate.js](../container/website/site-layers/parts/app/utils/benchAggregate.js)).
+  row, from [benchAggregate.js](../container/website/site-layers/shared/app/utils/benchAggregate.js)).
   `check-static.mjs` gates both datasets for it like it does for the pages.
 
 | Page                                | `bench=` slug           | Produced by                                    |
@@ -91,7 +91,7 @@ container/benchmarks/**  ──run in container──▶  container/benchmarks/r
    **inside** the container (Node 26, native Temporal) and writes the `serialization`
    dataset directly. `gen-docs.mjs` afterwards stamps the shared
    run-environment meta onto it so every page shows the same "measured on …" banner.
-4. **[embed-panel-highlights.mjs](../container/website/site-layers/parts/scripts/embed-panel-highlights.mjs)**
+4. **[embed-panel-highlights.mjs](../container/website/site-layers/shared/scripts/embed-panel-highlights.mjs)**
    runs at `nuxt generate` time and bakes Shiki HTML into each `<case>.json`, because a
    static deploy has no `/api/highlight` server.
 5. **[check-static.mjs](../scripts/website/check-static.mjs)** serves the finished artifact
@@ -201,13 +201,13 @@ homepage's "Tested to the highest standard" tiles used to carry hand-typed numbe
   collection still compiles the sources, it needs the resolver binary and the
   marker/plugin dists, which is why the website build runs it after the stage that
   builds them.
-- **Data** — `container/website/site-layers/parts/app/data/test-counts.json`, **committed** (unlike
+- **Data** — `container/website/site-layers/shared/app/data/test-counts.json`, **committed** (unlike
   `bench-data/`). It is imported by the component at build time rather than fetched
   at runtime, so the number is in the prerendered HTML instead of appearing after
   hydration. Committing it also means a host that cannot recount (no Go toolchain,
   a docs-only lane) ships the last known-good numbers with a warning instead of
   failing the build, and a change in the count shows up in a diff.
-- **Consumer** — [StatTiles.vue](../container/website/site-layers/parts/app/components/content/StatTiles.vue).
+- **Consumer** — [StatTiles.vue](../container/website/site-layers/shared/app/components/content/StatTiles.vue).
   A tile names a `source` (`frontEndTests`, `frontEndFiles`, `goTests`) instead of a
   literal `value`; unknown sources fall back to `value`, so a renamed count degrades
   to a literal rather than rendering `undefined`.
@@ -238,9 +238,9 @@ installs it.
   inlined. The client's own dist externalises every `@mionjs/*`, so its size alone
   describes nothing a consumer downloads. Each emitted chunk is gzipped separately
   and summed, which is what a server does.
-- **Data** — `container/website/site-layers/parts/app/data/client-size.json`, **committed**, no
+- **Data** — `container/website/site-layers/shared/app/data/client-size.json`, **committed**, no
   timestamp, same reasons as the counts.
-- **Consumer** — [ClientSize.vue](../container/website/site-layers/parts/app/components/content/ClientSize.vue),
+- **Consumer** — [ClientSize.vue](../container/website/site-layers/shared/app/components/content/ClientSize.vue),
   named inline as `:client-size` from the "Fully Typed Client" card. It renders only
   the number, so the words that qualify it (this is the package, not an app's cost)
   stay in the content tree where the docs pass can reach them.

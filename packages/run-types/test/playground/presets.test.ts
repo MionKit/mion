@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {PRESETS} from '../../../../container/website/site-layers/playground/app/playground/presets.ts';
+import {PRESETS} from '../../../../container/website/site-layers/mion-io/app/playground/presets.ts';
 
 // Tripwire for the presets data module: container/ sits outside the lint/typecheck
 // scope and no other test imports PRESETS, so without this import a syntax break

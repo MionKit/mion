@@ -1,5 +1,5 @@
 // Node loader for the resolver WASM — for the playground engine test suite.
-// The browser loader (container/website/site-layers/playground/app/playground/wasmLoader.ts) needs
+// The browser loader (container/website/site-layers/mion-io/app/playground/wasmLoader.ts) needs
 // document/fetch; this one reads the host-built assets from the git-ignored
 // .cache/rt-wasm/ dir, runs Go's wasm_exec.js as a classic script via
 // vm.runInThisContext (it defines globalThis.Go), instantiates the module, and
@@ -9,7 +9,7 @@
 // It ALSO injects the mion source overlay the resolver type-checks
 // snippets against (the browser fetches runtypes-sources.json; here we build the
 // same overlay from packages/run-types/src via the shared builder). Both are
-// produced by container/website/site-layers/playground/scripts/build-playground.mjs on the host; without
+// produced by container/website/site-layers/mion-io/scripts/build-playground.mjs on the host; without
 // a built AND current WASM the suites skip (assetsBuilt() is false).
 import {existsSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -19,7 +19,7 @@ import {readWasmStamp, wasmInputsDigest} from '../../../../scripts/website/playg
 import {
   setRuntypesPackageSources,
   type Resolver,
-} from '../../../../container/website/site-layers/playground/app/playground/index.ts';
+} from '../../../../container/website/site-layers/mion-io/app/playground/index.ts';
 
 // Host-built WASM assets live in the repo cache dir (build-playground.mjs output).
 const CACHE = fileURLToPath(new URL('../../../../.cache/rt-wasm/', import.meta.url));
@@ -65,7 +65,7 @@ export function assetsBuilt(): boolean {
     staleReported = true;
     console.warn(
       '[playground] skipping: .cache/rt-wasm/ does not match the current Go tree.\n' +
-        '[playground] rebuild it with: node container/website/site-layers/playground/scripts/build-playground.mjs'
+        '[playground] rebuild it with: node container/website/site-layers/mion-io/scripts/build-playground.mjs'
     );
   }
   return state === 'ready';

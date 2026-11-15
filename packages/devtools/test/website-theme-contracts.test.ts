@@ -10,7 +10,7 @@
 //     pure references and each theme.css fills the shades + tokens under its
 //     `[data-site='<id>']` selector (a missing shade falls through to Tailwind's stock
 //     palette, which is exactly the off-brand 950 the old green ramp shipped with).
-//   - The section list (the shell layer's app/utils/subsites.ts) matches the theme files, and
+//   - The section list (the shared layer's app/utils/subsites.ts) matches the theme files, and
 //     mion's own sections match the content tree and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
@@ -25,12 +25,11 @@ import {dirname, join, posix, resolve} from 'node:path';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const LAYERS_DIR = join(WEBSITE, 'site-layers');
-const SHELL = join(LAYERS_DIR, 'shell');
-const PARTS = join(LAYERS_DIR, 'parts');
-const SITES_DIR = join(SHELL, 'sites');
+const SHARED_LAYER = join(LAYERS_DIR, 'shared');
+const SITES_DIR = join(SHARED_LAYER, 'sites');
 const CONTENT_DIR = join(WEBSITE, 'content');
-const SHELL_CSS = join(SHELL, 'app/assets/css/shell.css');
-const PAGES_CSS = join(PARTS, 'app/assets/css/mion-pages.css');
+const SHELL_CSS = join(SHARED_LAYER, 'app/assets/css/shell.css');
+const PAGES_CSS = join(SHARED_LAYER, 'app/assets/css/mion-pages.css');
 // Every app/ folder the site is built from: its own and one per layer.
 const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS_DIR, layer))]
   .map((dir) => join(dir, 'app'))
@@ -40,7 +39,7 @@ const APP_DIRS = [WEBSITE, ...readdirSync(LAYERS_DIR).map((layer) => join(LAYERS
 const SITES = readdirSync(SITES_DIR).filter((site) => statSync(join(SITES_DIR, site)).isDirectory());
 
 // The section ids the shell's app/utils/subsites.ts declares, in order, and the ones mion.io serves itself.
-const SUBSITES_SOURCE = readFileSync(join(SHELL, 'app/utils/subsites.ts'), 'utf8');
+const SUBSITES_SOURCE = readFileSync(join(SHARED_LAYER, 'app/utils/subsites.ts'), 'utf8');
 const subsiteField = (id: string, field: string): string =>
   new RegExp(`id: '${id}',[\\s\\S]*?${field}: '([^']+)'`).exec(SUBSITES_SOURCE)?.[1] ?? '';
 const SUBSITE_IDS = [...SUBSITES_SOURCE.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((match) => match[1]!);
@@ -178,7 +177,7 @@ describe('website-no-site-colour', () => {
   ];
 
   it('paints the logo mark with its own token, never the subsite accent', () => {
-    const logo = readFileSync(join(PARTS, 'app/components/content/MionLogo.vue'), 'utf8');
+    const logo = readFileSync(join(SHARED_LAYER, 'app/components/content/MionLogo.vue'), 'utf8');
     expect(logo).toContain('var(--mion-logo-accent)');
     expect(logo).not.toContain('--site-accent');
     expect(readFileSync(SHELL_CSS, 'utf8')).toMatch(/^\s*--mion-logo-accent: #79af43;$/m);
@@ -186,10 +185,10 @@ describe('website-no-site-colour', () => {
 
   it('scans the shared components, the logo and the content tree', () => {
     expect(SHARED.length).toBeGreaterThan(20);
-    expect(SHARED).toContain('container/website/site-layers/shell/app/assets/css/shell.css');
-    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/BenchTable.vue');
-    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/RuntypesBenchBars.vue');
-    expect(SHARED).toContain('container/website/site-layers/parts/app/components/content/MionLogo.vue');
+    expect(SHARED).toContain('container/website/site-layers/shared/app/assets/css/shell.css');
+    expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/BenchTable.vue');
+    expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/RuntypesBenchBars.vue');
+    expect(SHARED).toContain('container/website/site-layers/shared/app/components/content/MionLogo.vue');
   });
 
   it('leaves no site colour literal in the shared tree', () => {
@@ -219,7 +218,7 @@ describe('website-no-site-colour', () => {
 });
 
 describe('website-colour-tokens', () => {
-  const SHELL_CSS_REL = 'container/website/site-layers/shell/app/assets/css/shell.css';
+  const SHELL_CSS_REL = 'container/website/site-layers/shared/app/assets/css/shell.css';
   const FILES = APP_DIRS.flatMap((dir) => walk(dir, (name) => /\.(css|vue|ts)$/.test(name), ['data', 'go-generated', '.vendor']));
   // `pnpm miondevx card export` writes these, stamped on their first line
   const generated = (rel: string): boolean =>
@@ -230,15 +229,15 @@ describe('website-colour-tokens', () => {
 
   it('scans every hand-written app file, skipping only the generated card exports', () => {
     expect(FILES.filter(generated).sort()).toEqual([
-      'container/website/site-layers/parts/app/assets/css/code-card.css',
-      'container/website/site-layers/parts/app/utils/codeCardPlayer.ts',
+      'container/website/site-layers/shared/app/assets/css/code-card.css',
+      'container/website/site-layers/shared/app/utils/codeCardPlayer.ts',
     ]);
     for (const rel of [
       SHELL_CSS_REL,
-      'container/website/site-layers/parts/app/components/content/BenchTable.vue',
-      'container/website/site-layers/shell/app/components/global/mermaid.vue',
-      'container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
-      'container/website/site-layers/playground/app/playground/engine.ts',
+      'container/website/site-layers/shared/app/components/content/BenchTable.vue',
+      'container/website/site-layers/shared/app/components/global/mermaid.vue',
+      'container/website/site-layers/mion-io/app/components/playground/PlaygroundStage.client.vue',
+      'container/website/site-layers/mion-io/app/playground/engine.ts',
     ])
       expect(SCANNED).toContain(rel);
   });
@@ -362,7 +361,7 @@ describe('website-theme-tokens', () => {
   });
 
   it('points the app config at the brand palette and turns the per-subsite sidebar on', () => {
-    const config = readFileSync(join(SHELL, 'app/app.config.ts'), 'utf8');
+    const config = readFileSync(join(SHARED_LAYER, 'app/app.config.ts'), 'utf8');
     expect(config).toMatch(/primary:\s*'brand'/);
     expect(config).not.toMatch(/\b(white|black):\s*\{/);
     expect(config, "navigation.sub is what scopes Docus' sidebar to the current subsite").toMatch(
@@ -435,16 +434,16 @@ describe('website-subsites', () => {
       expect(block, `${id}: icon`).toMatch(/icon: '[^']+'/);
       expect(block, `${id}: description`).toMatch(/description: '[^']{20,}'/);
     }
-    const menu = readFileSync(join(SHELL, 'app/components/SubsiteMenu.vue'), 'utf8');
+    const menu = readFileSync(join(SHARED_LAYER, 'app/components/SubsiteMenu.vue'), 'utf8');
     expect(menu).toContain('<UPopover');
     expect(menu).toContain(':data-site="entry.id"');
     expect(menu).toContain('color: var(--site-accent)');
-    const center = readFileSync(join(SHELL, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
+    const center = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderCenter.vue'), 'utf8');
     expect(center).toContain('<SubsiteMenu />');
     expect(center).not.toContain('UNavigationMenu');
     // beside the logo: nothing; the menu button is the one place that names the subsite
-    // the parts layer's logo replaces Docus' by name, so it sits where Docus keeps its own
-    const logo = readFileSync(join(PARTS, 'app/components/app/AppHeaderLogo.vue'), 'utf8');
+    // the shared layer's logo replaces Docus' by name, so it sits where Docus keeps its own
+    const logo = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderLogo.vue'), 'utf8');
     expect(logo).not.toContain('site-brand-word');
     expect(logo).not.toContain('useSubsite');
   });
@@ -469,16 +468,16 @@ describe('website-subsites', () => {
   });
 
   it('links every subsite entry to its root, and lists the home page in both sidebars', () => {
-    expect(readFileSync(join(SHELL, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
-    const mobile = readFileSync(join(SHELL, 'app/components/app/AppHeaderBody.vue'), 'utf8');
+    expect(readFileSync(join(SHARED_LAYER, 'app/components/SubsiteMenu.vue'), 'utf8')).toContain(':to="entry.path"');
+    const mobile = readFileSync(join(SHARED_LAYER, 'app/components/app/AppHeaderBody.vue'), 'utf8');
     expect(mobile).toContain('to: entry.path,');
     expect(mobile).toContain('sidebar(navigation?.value)');
-    const aside = readFileSync(join(SHELL, 'app/components/docs/DocsAsideLeftBody.vue'), 'utf8');
+    const aside = readFileSync(join(SHARED_LAYER, 'app/components/docs/DocsAsideLeftBody.vue'), 'utf8');
     expect(aside, 'the desktop sidebar lists the home page too').toContain('sidebar(navigation?.value)');
   });
 
   it('ships one logo and one favicon for the whole site', () => {
-    expect(existsSync(join(PARTS, 'app/components/content/MionLogo.vue'))).toBe(true);
+    expect(existsSync(join(SHARED_LAYER, 'app/components/content/MionLogo.vue'))).toBe(true);
     expect(existsSync(join(WEBSITE, 'public/favicon.ico'))).toBe(true);
     for (const site of SITES) {
       expect(existsSync(join(SITES_DIR, site, 'Logo.vue')), site).toBe(false);
@@ -487,13 +486,13 @@ describe('website-subsites', () => {
   });
 
   it('pins the docs page override to the installed docus version', () => {
-    const page = readFileSync(join(SHELL, 'app/pages/[[lang]]/[...slug].vue'), 'utf8');
+    const page = readFileSync(join(SHARED_LAYER, 'app/pages/[[lang]]/[...slug].vue'), 'utf8');
     const copied = page.match(/copied from docus (\d+\.\d+\.\d+)/)?.[1];
     const deps = JSON.parse(readFileSync(join(WEBSITE, '_deps/package.json'), 'utf8')) as {dependencies: Record<string, string>};
     expect(copied, 'the override names the docus version it was copied from').toBeDefined();
     expect(
       copied,
-      'docus was bumped: re-diff the shell layer copy of app/pages/[[lang]]/[...slug].vue against the new upstream file'
+      'docus was bumped: re-diff the shared layer copy of app/pages/[[lang]]/[...slug].vue against the new upstream file'
     ).toBe(deps.dependencies.docus);
     // The deliberate changes (listed at the top of the file).
     expect(page).toContain('useHead({ titleTemplate: `%s - ${titleSuffix}` })');

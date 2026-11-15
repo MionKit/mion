@@ -101,7 +101,7 @@ jobs:
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
       - name: Build the playground wasm
-        run: node container/website/site-layers/playground/scripts/build-playground.mjs
+        run: node container/website/site-layers/mion-io/scripts/build-playground.mjs
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
       # A spawned resolver that PANICS writes its full stdout+stderr here (the

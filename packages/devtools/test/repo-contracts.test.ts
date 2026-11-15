@@ -340,7 +340,7 @@ describe('every code card on the website matches its sources', () => {
 
 // CodeCard.vue renders an error box for a card never exported, and only a browser would notice.
 describe('every code card a page shows is exported', () => {
-  const CODE_CARD = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/CodeCard.vue');
+  const CODE_CARD = join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/CodeCard.vue');
 
   it('every ::code-card name has its exported HTML', () => {
     const pages = globSync('container/website/content/**/*.md', {cwd: REPO_ROOT});
@@ -798,11 +798,11 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     expect(PACKAGES.length).toBeGreaterThan(10);
     expect(SITE_CONFIG.examples.exampleDirs).toEqual(['packages/private-examples/src']);
     for (const rel of [
-      'container/website/site-layers/shell/server/api/twoslash.post.ts',
-      'container/website/site-layers/shell/server/api/read-file.post.ts',
-      'container/website/site-layers/shell/server/utils/code-import.ts',
-      'container/website/site-layers/shell/server/utils/repo-root.ts',
-      'container/website/site-layers/shell/nuxt.config.ts',
+      'container/website/site-layers/shared/server/api/twoslash.post.ts',
+      'container/website/site-layers/shared/server/api/read-file.post.ts',
+      'container/website/site-layers/shared/server/utils/code-import.ts',
+      'container/website/site-layers/shared/server/utils/repo-root.ts',
+      'container/website/site-layers/shared/nuxt.config.ts',
       'scripts/website/site.mjs',
     ]) {
       const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
@@ -1321,13 +1321,13 @@ describe('website-content-prefixes', () => {
 // Nothing else checks the seam between the generated file, the component that reads
 // it, and the content that names a count — and each end is in a different language.
 describe('website-test-counts', () => {
-  const COUNTS_FILE = join(REPO_ROOT, 'container/website/site-layers/parts/app/data/test-counts.json');
-  const STAT_TILES = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/StatTiles.vue');
+  const COUNTS_FILE = join(REPO_ROOT, 'container/website/site-layers/shared/app/data/test-counts.json');
+  const STAT_TILES = join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/StatTiles.vue');
   // The tiles live on the root landing (2026-09, moved off the runtypes home page:
   // the claim is about the whole project, not one package). Their list is authored in
   // HomeTestTiles.vue rather than in the page: on the landing collection a component's
   // frontmatter list collapses to its first key, silently.
-  const HOME = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/HomeTestTiles.vue');
+  const HOME = join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/HomeTestTiles.vue');
 
   // The client tests' globalSetup starts a server in the listing process and logs its port on stdout,
   // so a stdout parse failed and the generator silently kept a count thousands of tests stale.
@@ -1360,7 +1360,7 @@ describe('website-test-counts', () => {
 
   it('the release gate builds the playground wasm before the suite, so it runs the engine tests', () => {
     const gate = readFileSync(join(REPO_ROOT, '.github/workflows/release-gate.yml'), 'utf8');
-    const build = gate.indexOf('run: node container/website/site-layers/playground/scripts/build-playground.mjs');
+    const build = gate.indexOf('run: node container/website/site-layers/mion-io/scripts/build-playground.mjs');
     expect(build).toBeGreaterThan(-1);
     expect(build).toBeLessThan(gate.indexOf('run: pnpm test'));
   });
@@ -1413,8 +1413,8 @@ describe('website-test-counts', () => {
 // Same seam as the test counts: a generated file, a component reading it and a page naming the
 // component, each in a different language and nothing else checking they still meet.
 describe('website-client-size', () => {
-  const SIZE_FILE = join(REPO_ROOT, 'container/website/site-layers/parts/app/data/client-size.json');
-  const COMPONENT = join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ClientSize.vue');
+  const SIZE_FILE = join(REPO_ROOT, 'container/website/site-layers/shared/app/data/client-size.json');
+  const COMPONENT = join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/ClientSize.vue');
   const RPC_HOME = join(REPO_ROOT, 'container/website/content/01.rpc/01.introduction/01.about-mion-rpc.md');
 
   it('ships a committed size the component can import', () => {
@@ -1721,7 +1721,7 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('every reader of a server dataset hides the twin lanes unless asked', () => {
     // Twins share the datasets, so a reader that skips the filter puts them on every chart.
     const component = (name: string) =>
-      readFileSync(join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`), 'utf8');
+      readFileSync(join(REPO_ROOT, `container/website/site-layers/shared/app/components/content/${name}.vue`), 'utf8');
     for (const name of ['ServerBenchBars', 'HomeBenchTable'])
       expect(component(name), `${name} reads server rows without visibleRows`).toMatch(
         /import \{[^}]*visibleRows[^}]*\} from '\.\.\/\.\.\/utils\/serverBenchRows'/
@@ -1732,11 +1732,11 @@ describe('mion server benchmarks stay wired end to end', () => {
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
     // BenchTable's "Overall" row and HomeBenchTable's headline for the same dataset must agree.
-    const shared = join(REPO_ROOT, 'container/website/site-layers/parts/app/utils/benchAggregate.js');
+    const shared = join(REPO_ROOT, 'container/website/site-layers/shared/app/utils/benchAggregate.js');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {
       const component = readFileSync(
-        join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`),
+        join(REPO_ROOT, `container/website/site-layers/shared/app/components/content/${name}.vue`),
         'utf8'
       );
       expect(component, `${name} imports the shared helpers`).toContain("from '../../utils/benchAggregate'");
@@ -1750,11 +1750,11 @@ describe('mion server benchmarks stay wired end to end', () => {
     // Same reason as the geomeans: a value must not read "1.2M/s" on the chart and
     // "1200000" in the table, and the two disagreed on which metrics are
     // lower-is-better before this was shared (bytes counted as higher-is-better).
-    const shared = join(REPO_ROOT, 'container/website/site-layers/parts/app/utils/benchFormat.ts');
+    const shared = join(REPO_ROOT, 'container/website/site-layers/shared/app/utils/benchFormat.ts');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'RuntypesBenchBars']) {
       const component = readFileSync(
-        join(REPO_ROOT, `container/website/site-layers/parts/app/components/content/${name}.vue`),
+        join(REPO_ROOT, `container/website/site-layers/shared/app/components/content/${name}.vue`),
         'utf8'
       );
       expect(component, `${name} imports the shared formatters`).toContain("from '../../utils/benchFormat'");
@@ -1864,7 +1864,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     // The bars replaced a chart library and the results tables (2026-09): one HTML
     // component, no dependency, and the gate greps its root class in the prerendered HTML.
     const component = readFileSync(
-      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/ServerBenchBars.vue'),
       'utf8'
     );
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
@@ -1872,7 +1872,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(gate).toContain('class="server-bench-bars"');
     // Its runtypes twin (2026-09), which replaced the per-case tables on those pages.
     const runtypesBars = readFileSync(
-      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/RuntypesBenchBars.vue'),
+      join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/RuntypesBenchBars.vue'),
       'utf8'
     );
     expect(runtypesBars).toContain('<div class="runtypes-bench-bars">');
@@ -1880,7 +1880,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(gate, 'the gate proves each chart names a case file that exists').toContain('requireSource');
     for (const gone of ['BenchChart.vue', 'ServerBenchTable.vue', 'PerfBars.vue'])
       expect(
-        existsSync(join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content', gone)),
+        existsSync(join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content', gone)),
         `${gone} came back`
       ).toBe(false);
     const deps = JSON.parse(readFileSync(join(REPO_ROOT, 'container/website/_deps/package.json'), 'utf8')) as {
@@ -1929,7 +1929,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(generator).toContain('tolerance');
     expect(generator, 'the rows lose their per-round numbers').toContain('rounds: (result.rounds');
     const bars = readFileSync(
-      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/ServerBenchBars.vue'),
       'utf8'
     );
     expect(bars).toContain('meta.tolerance');
@@ -1991,7 +1991,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     // concurrency varies by size it would misdescribe every other one.
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
     const bars = readFileSync(
-      join(REPO_ROOT, 'container/website/site-layers/parts/app/components/content/ServerBenchBars.vue'),
+      join(REPO_ROOT, 'container/website/site-layers/shared/app/components/content/ServerBenchBars.vue'),
       'utf8'
     );
     expect(generator, 'gen-servers-docs no longer emits per-section meta').toMatch(/meta:\s*metaFrom\(results\)/);
@@ -2147,16 +2147,13 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     };
     const staged = PLAYGROUND_ASSETS.map((asset) => asset.file);
     // The builder stages FROM the manifest rather than its own literals.
-    const builder = readFileSync(
-      join(REPO_ROOT, 'container/website/site-layers/playground/scripts/build-playground.mjs'),
-      'utf8'
-    );
+    const builder = readFileSync(join(REPO_ROOT, 'container/website/site-layers/mion-io/scripts/build-playground.mjs'), 'utf8');
     expect(builder).toContain('PLAYGROUND_ASSETS');
     // Both browser consumers are bundled inside the Nuxt root and cannot import the
     // manifest, so their URL literals are matched against it here instead.
     const consumers = [
-      'container/website/site-layers/playground/app/playground/wasmLoader.ts',
-      'container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
+      'container/website/site-layers/mion-io/app/playground/wasmLoader.ts',
+      'container/website/site-layers/mion-io/app/components/playground/PlaygroundStage.client.vue',
     ];
     const sources = consumers.map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'));
     for (const [index, source] of sources.entries()) {

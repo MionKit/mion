@@ -374,7 +374,7 @@ How the numbers stay fair once the entries are:
 - **Scores.** Every average is a geometric mean over every case at least one library runs. A library that skips
   or fails a case scores it at the WORST result among the libraries that ran it (lowest ops, highest count), so
   supporting a slow case only one library runs never lowers that library's score, and skipping a case never
-  helps (`container/website/site-layers/parts/app/utils/benchAggregate.js`).
+  helps (`container/website/site-layers/shared/app/utils/benchAggregate.js`).
 
 ## Adding competitor coverage for a case
 

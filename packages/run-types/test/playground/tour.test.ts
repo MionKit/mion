@@ -16,12 +16,12 @@ import {
   tourStepsFor,
   writePref,
   type PrefStorage,
-} from '../../../../container/website/site-layers/playground/app/playground/tour.ts';
-import {operationByKey} from '../../../../container/website/site-layers/playground/app/playground/operations.ts';
+} from '../../../../container/website/site-layers/mion-io/app/playground/tour.ts';
+import {operationByKey} from '../../../../container/website/site-layers/mion-io/app/playground/operations.ts';
 
 const stage = readFileSync(
   new URL(
-    '../../../../container/website/site-layers/playground/app/components/playground/PlaygroundStage.client.vue',
+    '../../../../container/website/site-layers/mion-io/app/components/playground/PlaygroundStage.client.vue',
     import.meta.url
   ),
   'utf8'

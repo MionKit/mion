@@ -1,5 +1,5 @@
 // scripts/lib/go-inputs.mjs is the content digest behind the Go binary stamps (scripts/core/build.mjs)
-// and the playground wasm's (container/website/site-layers/playground/scripts/build-playground.mjs).
+// and the playground wasm's (container/website/site-layers/mion-io/scripts/build-playground.mjs).
 import {execFileSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -189,7 +189,7 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     );
     expect(ensure).toContain('build-playground.mjs');
     expect(ensure).not.toContain("which('go')");
-    const build = readFileSync(join(REPO_ROOT, 'container/website/site-layers/playground/scripts/build-playground.mjs'), 'utf8');
+    const build = readFileSync(join(REPO_ROOT, 'container/website/site-layers/mion-io/scripts/build-playground.mjs'), 'utf8');
     const stale = build.slice(build.indexOf('function buildWasmIfStale()'));
     expect(stale.indexOf('if (!wasmMaybeStale())')).toBeLessThan(stale.indexOf("if (!which('go'))"));
     expect(stale).toContain("run('go', ['build', '-buildvcs=false',");
