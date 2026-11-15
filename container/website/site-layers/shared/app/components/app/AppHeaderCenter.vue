@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// Local override of docus/app/components/app/AppHeaderCenter.vue (which is only the
-// search button): the subsite menu (SubsiteMenu, one button that opens the list of
-// subsites), the site's own menu slot (AppHeaderMenu, empty unless a site fills it), then the search button. Rendered in the header on every page, landing
-// pages included, so a reader can always switch subsite.
+// Overrides Docus' AppHeaderCenter.vue (only the search button) to add the subsite menu and a site's menu slot.
+// Rendered on every page, landing pages included, so a reader can always switch subsite.
 </script>
 
 <template>
