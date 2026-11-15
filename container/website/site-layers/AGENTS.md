@@ -1,7 +1,7 @@
 # Website layers
 
-The site's code is three Nuxt layers. A layer = a folder shaped like a Nuxt app that another app loads with `extends`.
-mion.io extends all three. A site in another repo (through its mion submodule) extends them too and adds its own files.
+The site's code is three shared Nuxt layers + mion.io's own. A layer = a folder shaped like a Nuxt app, loaded with
+`extends`. mion.io extends all four. A site in another repo (through its mion submodule) extends the shared three.
 Read before adding or moving a file under `app/`, `site-layers/` or a `nuxt.config.ts`.
 
 ## Where a file goes
@@ -14,18 +14,21 @@ Read before adding or moving a file under `app/`, `site-layers/` or a `nuxt.conf
   (`mion-pages.css`), generated data (`app/data/`), function-catalog hook.
 - `playground/` (`mion-playground`): the RunTypes playground component + its engine. Opt-in: it aliases
   `@mionjs/run-types` for the whole build and needs `scripts/build-playground.mjs` output.
-- `container/website/` itself: mion.io's identity ONLY. `nuxt.config.ts` (`site`, prerender routes), `app/app.config.ts`
-  (github, seo, socials, footer, `shell.*`), `app/pages/runtypes/playground.vue`, `content/`, `public/`.
-- New generic thing → shell. New mion-flavoured component or data → parts. New mion.io page or setting → the site.
+- `mion-io/` (`mion-io`): mion.io's own app files, extended by mion.io ONLY, listed first. `app/app.config.ts`
+  (github, seo, socials, footer, `shell.*`), `app/pages/runtypes/playground.vue`. Never extended by another site.
+- `container/website/` itself has no `app/`: `nuxt.config.ts` (`extends`, `site`, prerender routes), `content/`,
+  `public/`.
+- New generic thing → shell. New mion-flavoured component or data → parts. New mion.io page or setting → mion-io.
 
 ## Rules
 
 - ⚠️ No `~/`, `@/`, `~~/` inside a layer: Nuxt resolves them against the CONSUMING site. Use a relative path, or
   across layers `#layers/mion-<layer>/…` (points at the layer ROOT: `#layers/mion-shell/app/composables/useInView`).
   A layer's `css` entry for its own file is an absolute path built from `import.meta.url`.
-- ⚠️ Never in a layer: `site.*`, `nitro.prerender`, an address, `content/`, `_redirects`, banners, `bench-data/`,
+- ⚠️ Never in a shared layer: `site.*`, `nitro.prerender`, an address, `content/`, `_redirects`, banners, `bench-data/`,
   a routed page (the docs catch-all in shell is the one page). Nuxt merges all of that into every consumer.
-- ⚠️ Shell is LAST in `extends`: `['./site-layers/parts', './site-layers/playground', './site-layers/shell']`.
+- ⚠️ Shell is LAST in `extends`: `['./site-layers/mion-io', './site-layers/parts', './site-layers/playground',
+  './site-layers/shell']`.
   A layer's own layers land right after it, so shell last keeps Docus lowest. Elsewhere Docus outranks the layers
   after it and its components win silently. The shell module throws at startup when Docus is not last.
 - A local layer path starts with `./` or is absolute: a bare `site-layers/shell` is read as an npm name.

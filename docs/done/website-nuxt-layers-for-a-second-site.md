@@ -65,6 +65,9 @@ container/website/                 mion.io site (content/, public/, .output keep
   StylishList,SlidedTitle}`, `global/mermaid`. All four composables. `layouts/fullscreen.vue`.
   `pages/[[lang]]/[...slug].vue`. Both plugins. `utils/subsites.ts`. All of `server/` except `function-catalog.ts`.
   An empty `app/AppFooterNote.vue` (a site or parts replaces it). No `public/` folder.
+- **mion-io** (`mion-io`): mion.io's own `app/app.config.ts` and `app/pages/runtypes/playground.vue`. Only mion.io
+  extends it, listed first, so the site folder itself has no `app/` and every source file sits under `site-layers/`.
+  The two host/container scripts moved too: `playground/scripts/build-playground.mjs`, `shell/scripts/check-links.mts`.
 - **parts**: `BenchBar`, `BenchColumnInfo`, `BenchTable`, `HomeBenchTable`, `RuntypesBenchBars`, `ServerBenchBars`,
   `CodeCard`, `ClientSize`, `StatTiles`, `HomeTestTiles`, `HomeRuntypesTiles`, `PlatformTiles`, `Diagnostic*`,
   `MionLogo`, `MionType`, `RealWorldScenario`, `TypeSafeAnimation`, `VerticalIntegration`, `go-generated/`.

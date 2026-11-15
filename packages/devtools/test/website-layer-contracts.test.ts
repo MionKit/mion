@@ -1,5 +1,5 @@
-// Docs-website layer contracts. container/website is three Nuxt layers (site-layers/) plus mion.io's
-// identity on top, so a site in another repo can extend them without becoming mion.io. No CI here
+// Docs-website layer contracts. container/website is three shared Nuxt layers (site-layers/) plus mion.io's
+// own layer on top, so a site in another repo can extend the shared ones without becoming mion.io. No CI here
 // builds such a second site, so these read the files to pin the rules that keep it possible: a layer
 // never reaches into the consuming site (Nuxt resolves `~/`, `@/`, `~~/` against the site, not the
 // layer) and carries no site identity (Nuxt merges it into every site), the shell goes LAST in
@@ -29,7 +29,11 @@ import {contextDirs, envArgs, homeTwoslashPaths, mountArgs} from '../../../scrip
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEBSITE = join(REPO_ROOT, 'container/website');
 const LAYERS_DIR = join(WEBSITE, 'site-layers');
+// The layers any site may extend.
 const LAYERS = ['shell', 'parts', 'playground'];
+// mion.io's own files: only mion.io extends it.
+const SITE_LAYER = 'mion-io';
+const SITE_LAYER_DIR = join(LAYERS_DIR, SITE_LAYER);
 
 // Hand-written source files of a tree, as repo-relative posix paths.
 function sources(dir: string): string[] {
@@ -60,12 +64,13 @@ async function load<T>(rel: string): Promise<T> {
 }
 
 describe('website-layers', () => {
-  it('holds exactly the three layers, each named and with an app/ folder', () => {
+  it('holds exactly the three shared layers and mion.io own one, each named and with an app/ folder', () => {
     expect(
       readdirSync(LAYERS_DIR)
         .filter((name) => statSync(join(LAYERS_DIR, name)).isDirectory())
         .sort()
-    ).toEqual([...LAYERS].sort());
+    ).toEqual([...LAYERS, SITE_LAYER].sort());
+    expect(layerConfig(SITE_LAYER)).toContain(`$meta: { name: '${SITE_LAYER}' }`);
     for (const layer of LAYERS) {
       // `#layers/<name>/` is the import path other layers and sites use
       expect(layerConfig(layer), layer).toContain(`$meta: { name: 'mion-${layer}' }`);
@@ -92,7 +97,7 @@ describe('website-layers', () => {
 
   it('imports across layers through the #layers alias of a layer that exists', () => {
     const used = new Set<string>();
-    for (const rel of [...LAYERS.flatMap((layer) => sources(join(LAYERS_DIR, layer))), ...sources(join(WEBSITE, 'app'))]) {
+    for (const rel of [...LAYERS.flatMap((layer) => sources(join(LAYERS_DIR, layer))), ...sources(SITE_LAYER_DIR)]) {
       for (const [, name, path] of read(rel).matchAll(/['"]#layers\/([\w-]+)\/([^'"]+)['"]/g)) {
         used.add(name!);
         const layer = name!.replace(/^mion-/, '');
@@ -139,7 +144,7 @@ describe('website-layers', () => {
     const list = /extends:\s*\[([^\]]*)\]/.exec(site)?.[1] ?? '';
     const entries = [...list.matchAll(/'([^']+)'/g)].map((match) => match[1]);
     // `./` matters: a bare `site-layers/shell` is read as an npm package name
-    expect(entries).toEqual(['./site-layers/parts', './site-layers/playground', './site-layers/shell']);
+    expect(entries).toEqual(['./site-layers/mion-io', './site-layers/parts', './site-layers/playground', './site-layers/shell']);
     expect(layerConfig('shell')).toContain("extends: ['docus']");
     expect(layerConfig('shell'), 'the startup guard').toContain('if (orderProblem) throw new Error(orderProblem)');
     for (const layer of ['parts', 'playground']) expect(layerConfig(layer), layer).not.toContain('extends');
@@ -164,12 +169,16 @@ describe('website-layers', () => {
     expect(existsSync(join(WEBSITE, 'content.config.ts')), 'the site adds no collection of its own').toBe(false);
   });
 
-  it('leaves mion.io only its identity: one page, the content and the public files', () => {
-    expect(sources(join(WEBSITE, 'app'))).toEqual([
-      'container/website/app/app.config.ts',
-      'container/website/app/pages/runtypes/playground.vue',
+  it('leaves mion.io only its identity: its own layer, the content and the public files', () => {
+    expect(sources(SITE_LAYER_DIR)).toEqual([
+      'container/website/site-layers/mion-io/app/app.config.ts',
+      'container/website/site-layers/mion-io/app/pages/runtypes/playground.vue',
+      'container/website/site-layers/mion-io/nuxt.config.ts',
     ]);
-    for (const shared of ['server', 'sites']) expect(existsSync(join(WEBSITE, shared)), shared).toBe(false);
+    // one app folder per layer and none beside them: every source file sits under site-layers/
+    for (const shared of ['app', 'server', 'sites', 'scripts']) expect(existsSync(join(WEBSITE, shared)), shared).toBe(false);
+    // no shared layer may pull mion.io's own layer in
+    for (const layer of LAYERS) expect(layerConfig(layer), layer).not.toContain(SITE_LAYER);
   });
 });
 
@@ -227,7 +236,7 @@ describe('website-section-links', async () => {
   });
 
   it('gives mion.io the same page widths as before the layers', () => {
-    const config = read('container/website/app/app.config.ts');
+    const config = read('container/website/site-layers/mion-io/app/app.config.ts');
     const patterns = (key: string): RegExp[] =>
       [...(new RegExp(`${key}: \\[([^\\]]*)\\]`).exec(config)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
         (match) => new RegExp(match[1]!)
