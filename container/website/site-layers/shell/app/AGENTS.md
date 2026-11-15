@@ -17,8 +17,8 @@ name another layer or the site. Which layer a file goes in: [site-layers/AGENTS.
 - Home is served AT `/<id>` (frontmatter `path: /<id>` + `navigation: false`; no `app/pages/<id>/index.vue`).
   `subsiteSidebar()` puts it back first in the Introduction sidebar (desktop `DocsAsideLeftBody`, mobile
   `AppHeaderBody`); its old long URL 301s to `/<id>` in the site's `public/_redirects`.
-- `app/plugins/site-attr.ts`: `data-site="<id>"` on `<html>` (colour scheme keys on it) + the per-section body class,
-  from the site's `shell.widePages` / `shell.flushPages`.
+- `app/plugins/site-attr.ts`: `data-site="<id>"` on `<html>` (colour scheme keys on it) + the per-section body class:
+  a local section's home is wide, the rest comes from the site's `shell.widePages` / `shell.flushPages`.
 - `app/app.config.ts` `navigation.sub: 'aside'`: the one Docus key scoping the sidebar to the current top-level
   section instead of the whole tree.
 - `DocsAsideLeftTop.vue` overridden to nothing: the header's subsite menu replaces Docus' section anchors.

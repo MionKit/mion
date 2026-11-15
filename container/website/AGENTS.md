@@ -97,4 +97,4 @@ Check every added or changed section. In this order, first match wins:
 - Agents: `dev --agent` = own `tsrt-website-agent` container on :3100, stops after ~5 min idle (never hits a human's
   :3000). Browser checks: [website-browser](../../.agents/skills/website-browser/SKILL.md).
 - Hot-reload polling auto-on for macOS. `MION_WEBSITE_POLL=1` forces it anywhere. In-container scripts:
-  `pnpm run dev`, `dev:fresh`, `build`, `preview`, `check-links` (broken code-import paths).
+  `pnpm run preview`, `check-links` (broken code-import paths).

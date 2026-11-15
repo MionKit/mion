@@ -115,7 +115,6 @@ it is relative to the folder holding the file.
 | --- | --- | --- |
 | `site` | `container/website` | The site folder: `nuxt.config.ts`, `app/`, `content/`, `public/`. Mounted at `/app`; the build lands in `<site>/.output`. |
 | `container` | `<repo folder>-website` | Container + cache volume name prefix, so two sites never share a cache. |
-| `layers` | mion's `container/website/site-layers` | The layers folder, mounted at `/app/site-layers` (read-only for another repo's site). |
 | `benchData` | none | A folder holding a generated `bench-data` tree. Mounted read-only and served at `/bench-data`, which is what the benchmark components fetch. |
 | `examples.packages` | `[]` | `{dir, name}` rows: a package folder and the published name its examples import. Twoslash mounts its built `.d.ts` under that name. |
 | `examples.exampleDirs` | `[]` | Folders of example files: served to `::twoslash-code`, watched in dev. |

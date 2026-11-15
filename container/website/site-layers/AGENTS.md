@@ -22,7 +22,7 @@ Read before adding or moving a file under `app/`, `site-layers/` or a `nuxt.conf
 
 - ⚠️ No `~/`, `@/`, `~~/` inside a layer: Nuxt resolves them against the CONSUMING site. Use a relative path, or
   across layers `#layers/mion-<layer>/…` (points at the layer ROOT: `#layers/mion-shell/app/composables/useInView`).
-  A layer's `css` entry is an absolute path built from `import.meta.url`.
+  A layer's `css` entry for its own file is an absolute path built from `import.meta.url`.
 - ⚠️ Never in a layer: `site.*`, `nitro.prerender`, an address, `content/`, `_redirects`, banners, `bench-data/`,
   a routed page (the docs catch-all in shell is the one page). Nuxt merges all of that into every consumer.
 - ⚠️ Shell is LAST in `extends`: `['./site-layers/parts', './site-layers/playground', './site-layers/shell']`.
@@ -41,9 +41,9 @@ Read before adding or moving a file under `app/`, `site-layers/` or a `nuxt.conf
 
 - `nuxt.config.ts`: `extends`, `site: {name, url}`, own prerender routes, own `css`.
 - `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}`, and `shell`:
-  - `sections`: extra menu entries only this site shows (same shape as `SUBSITES`).
+  - `sections`: extra menu entries only this site shows (a `SubsiteEntry`).
   - `widePages` / `flushPages`: regex sources on the route path. Wide = no prose width cap, no TOC rail.
-    Flush = rail kept.
+    Flush = rail kept. A local section's home page is wide without being listed.
   - `menuLabel`: the section menu button's aria text.
   - `origin`: the site's address. Leave it out: the shell fills it from `site.url`.
 - Logo + footer note: a same-named `AppHeaderLogo.vue` / `AppFooterNote.vue`. Shell alone = Docus' wordmark, no note.

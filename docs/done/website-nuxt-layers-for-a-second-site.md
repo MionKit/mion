@@ -64,7 +64,7 @@ container/website/                 mion.io site (content/, public/, .output keep
   `app/AppFooterRight`, `docs/DocsAsideLeft*`, `content/{TwoslashCode,CodeSplit,DetailPanel,HoverList,Spacer,
   StylishList,SlidedTitle}`, `global/mermaid`. All four composables. `layouts/fullscreen.vue`.
   `pages/[[lang]]/[...slug].vue`. Both plugins. `utils/subsites.ts`. All of `server/` except `function-catalog.ts`.
-  `public/fonts/` minus `code-card/`.
+  An empty `app/AppFooterNote.vue` (a site or parts replaces it). No `public/` folder.
 - **parts**: `BenchBar`, `BenchColumnInfo`, `BenchTable`, `HomeBenchTable`, `RuntypesBenchBars`, `ServerBenchBars`,
   `CodeCard`, `ClientSize`, `StatTiles`, `HomeTestTiles`, `HomeRuntypesTiles`, `PlatformTiles`, `Diagnostic*`,
   `MionLogo`, `MionType`, `RealWorldScenario`, `TypeSafeAnimation`, `VerticalIntegration`, `go-generated/`.
@@ -110,7 +110,7 @@ container/website/                 mion.io site (content/, public/, .output keep
 - `app/app.config.ts`: `github`, `seo`, `docus.{title,description,image,socials,github,footer}` as today, plus a new
   `shell` key: `origin` (the site's own address, used to localise menu links; left out, the shell module fills it
   from `site.url`), `sections` (extra menu entries only this
-  site shows), `widePages` + `flushPages` (regex sources; replace the hard-coded tests in `site-attr.ts`),
+  site shows), `widePages` + `flushPages` (regex sources; a local section's home page is wide without being listed),
   `menuLabel` (the aria text).
 - Logo and footer note: override `AppHeaderLogo.vue` / `AppFooterNote.vue` with a same-named file. Shell-only site
   gets Docus' default wordmark and no note.
@@ -155,11 +155,11 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 |---|---|---|
 | `site` | `container/website` | the site folder, mounted at `/app`; `.output` is copied back into it |
 | `container` | `<repo folder name>-website` | container + cache volume names, so two sites never share them |
-| `layers` | the `site-layers/` of the mion checkout the script lives in | mounted at `/app/site-layers` |
 | `benchData` | none | opt-in folder of benchmark result files, mounted read-only at `/bench-data` |
 | `examples` | empty | the example tool, keys below |
 
-- mion's file (above) holds exactly today's values. mion-pro's holds `"site": "website"` and its own `examples`.
+- mion's file has this shape with all 17 packages listed. The layers are always the `site-layers/` of the mion
+  checkout the script lives in, mounted at `/app/site-layers`. mion-pro's file holds `"site": "website"` and its own `examples`.
 - Existing env vars keep winning over the file: `MION_WEBSITE_CONTAINER`, `MION_WEBSITE_REPO_CONTEXT`.
 - The script mounts the file read-only at `/app/website.config.json`; the shell module reads it from the site root.
 
@@ -178,23 +178,25 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 
 ### Site scripts
 
-- `scripts/website/site.mjs`: every input comes from `website.config.json` (see Config file). No new flag, no new
+- `scripts/website/site-config.mjs` finds and reads `website.config.json`; `site.mjs`, `build.mjs`, `serve.mjs` and
+  `check-static.mjs` take the site from it (see Config file). No new flag, no new
   host env var. Another repo runs `node third_party/mion/scripts/miondevx.mjs website build` from its root.
-- "Is this mion's own site" = the config file found is the mion checkout's own. Never a separate switch.
+- "Is this mion's own site" = the config's site folder is this checkout's `container/website`. Never a separate switch.
 
 - Mounts: site dirs + config files at `/app`, `website.config.json` at `/app/website.config.json`; layers at `/app/site-layers` (read-only
-  when the site is not mion's); each `readRoots` entry, each importable doc, each `externalDeps` dir under
+  when the site is not mion's); each `readRoots` entry, each importable doc's folder, each `externalDeps` dir under
   `/repo-context`; the `benchData` folder at `/bench-data` read-only.
 - Container env: `MION_WEBSITE_LAYERS=/app/site-layers`, `MION_WEBSITE_BENCH_DATA=/bench-data` when set. Parts' module
-  adds `nitro.publicAssets {dir, baseURL: '/bench-data'}` when the env is set. Register the two
-  in-container vars in `.agents/docs/env-vars.md` + the env registry.
+  adds `nitro.publicAssets {dir, baseURL: '/bench-data'}` when the env is set. Both in-container vars are in the env registry
+  (`scripts/lib/env.mjs`).
 - `.docdata`, `.output`, `.output-staging` resolve under the config file's folder / the site folder, never the mion
   checkout. `.docdata` is only created for mion's own site.
-- `ensureMionDists` + `ensurePlayground` run only for mion's own site. `homeTwoslashPaths` + `cmdVerifyDocs` read
+- `ensureMionDists` + `ensurePlayground` run only for mion's own site; another site gets a warning for each listed
+  package with no built types. `homeTwoslashPaths` + `cmdVerifyDocs` read
   `exampleDirs` instead of the `private-examples` literal.
 - Drop every `--extends docus` from `site.mjs`. The `_deps/package.json` scripts keep theirs: any edit to that file
   changes the image fingerprint and forces a local image rebuild everywhere until the image is republished.
-  Nothing runs those scripts.
+  Nothing runs those scripts, and with the flag they no longer load the layers.
 - `build.mjs`, `serve.mjs`, `check-static.mjs`: take the site dir from the same input. `build.mjs` skips the mion-only
   stages (benchmarks, playground bundle, home page counts) for another site; `check-static.mjs` runs its page checks
   for any site and the playground check only for mion's.
@@ -202,33 +204,21 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - Generated outputs that move, all git-ignored where they were: `container/website/.gitignore`,
   `.containerignore` (add `site-layers/`), `scripts/core/clean.mjs:50-51`.
 
-### Path updates (pattern: old `container/website/{app,server,sites,public}/…` → its layer path)
+### Path updates
 
-- Writers: `scripts/website/gen-client-size.mjs:16`, `gen-test-counts.mjs:27`, `build.mjs:104-116`,
-  `container/website/scripts/build-playground.mjs:35,38`, `scripts/core/gen-diagnostics-catalog.mjs:14`,
-  `scripts/miondevx.mjs:163-164`, `scripts/lib/card-manifest.mjs:7`, `tools/code-card/src/export.ts:14-16`,
-  `tools/code-card/src/render.ts:11`, `app/data/cards/manifest.json` (regenerate with the card tool).
-- Readers: `scripts/website/bench-data/pr-report.mjs:8`, `scripts/core/test-skip.mjs:55`,
-  `packages/run-types/test/playground/*` (7 files), `packages/devtools/test/{bench-aggregate,mion-bench-wire,
-  bench-fairness}.test.ts`, `tools/code-card/test/export.test.ts:48`.
-- CI: no path change needed. `scripts/ci/lanes.mjs:53` is prefix-based; confirm `ci-lane-contracts.test.ts:186-250,1141`
-  sample paths and update them.
+- Every writer and reader of an old `container/website/{app,server,sites,public}/…` path points at its layer path:
+  the count, client-size and diagnostics generators, the playground build, the card tool and its manifest, the
+  benchmark report, the playground tests under `packages/run-types/test/playground/` and the devtools bench tests.
+- `embed-panel-highlights.mjs` moved into the parts layer (`scripts/`): the build of any site runs it.
+- CI lanes are prefix-based, so only `website.config.json` was added to them.
 
-### Build order (each step ends on a check)
+### Checks that ran
 
-1. Baseline: generate the current site, save the sorted route list + HTML with hashed asset names normalised.
-2. Empty shell (`$meta`, `extends: ['docus']`, empty `app/`), mount, drop `--extends docus`. Check: generate matches
-   baseline, header shows the mion logo, and inside the container `chokidar` + `nuxt/kit` resolve from
-   `/app/site-layers/shell`. RISKIEST step: `_deps/pnpm-workspace.yaml` may hide non-direct deps from a layer folder.
-   If `chokidar` does not resolve, add it to `_deps/package.json` (image rebuild).
-3. `content.config.ts` to shell. Check: same routes.
-4. CSS split. Check: `tests/theme.spec.ts`, computed `--ui-primary` equal on `/`, `/rpc`, `/runtypes`, `/benchmarks`.
-5. Shell chrome + settings + section list. Check: HTML diff empty apart from the pro menu entry.
-6. Server + `website.config.json`. Check: `pnpm miondevx website check --docs`; editing an example reloads its page.
-7. Parts. Check: Docus is the last layer, HTML diff empty.
-8. Playground. Check: `/runtypes/playground` loads.
-9. Scripts inputs + path updates + tests. Check: `pnpm run lint`, devtools tests, card export.
-10. Outside proof (see Done when).
+- mion.io rebuilt from the layers: prerendered HTML identical to the pre-layers build once the new menu aria text and
+  scoped-style markers are ignored; built CSS identical apart from the new `pro` theme.
+- `chokidar` + `nuxt/kit` resolve from the layer folder inside the container, so the image needed no new package.
+- `pnpm miondevx website build --no-bench` (ends on the static check) and `check --docs` pass.
+- The home tile numbers (`test-counts.json`, `client-size.json`) were regenerated by that build.
 
 ## Tests
 
@@ -244,11 +234,12 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
   - no `~/`, `@/`, `~~/` import or `css` entry inside `site-layers/**`;
   - no layer `nuxt.config.ts` sets `site`, `nitro.prerender` or a routed page; only playground sets `vite.resolve.alias`;
   - mion's `extends` ends with shell; every layer has `$meta.name` and an `app/` folder;
-  - `website.config.json` `examples.externalDeps` + `examples.packages` are the only source (no literal list left in server or scripts);
+  - `website.config.json` `examples.externalDeps` + `examples.packages` are the only source (no literal list left in
+    server or scripts); this one sits in `repo-contracts.test.ts`;
   - `site.mjs` resolves every output path under the site folder / repo context, and finds the config by walking up from the working
     directory, falls back to mion's.
-- Unit test the pure helpers: `resolveInRoots` (traversal, absolute path, sibling-prefix root), section resolving
-  (own entry → local, other → full link, longest path wins).
+- Unit tests of the pure helpers: `resolveInRoots` (traversal, absolute path, sibling-prefix root), section resolving
+  (own entry → local, other → full link, longest path wins), page width class, layer order check, mount list.
 - No marker API involved.
 
 ## Docs
@@ -261,13 +252,8 @@ ONE file, `website.config.json`, at the root of the repo that owns the site. Rea
 - Opt-in text: playground = add the layer + run `container/website/scripts/build-playground.mjs` (needs Go + a
   bootstrapped mion checkout; writes git-ignored files inside the layer). Bench data = `"benchData": "<dir>"` holding a
   `bench-data` tree (from a benchmark run or a release asset).
-- Also: `docs/WEBSITE-DOCGEN.md`, `SETUP.md:211-221`, `.agents/docs/env-vars.md`, `.agents/skills/card/commands.md`,
-  `tools/code-card/README.md`, `container/benchmarks/README.md:377`, `go-generated/README.md`, `scripts/AGENTS.md` if
-  it lists website commands.
-- No content page changes.
-
-Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
-this change touched, review its report against the code, and commit it as its own commit.
+- Also: `docs/WEBSITE-DOCGEN.md`, `SETUP.md`, `.agents/skills/card/commands.md`.
+- No content page or example changed, so the simplify-docs pass had nothing to run on.
 
 ## Fuzzing
 
@@ -291,8 +277,7 @@ None: no parser or codec added. `resolveInRoots` gets table-driven unit tests in
   (b) renders one page using a shell component, a parts component and one of its own,
   (c) overrides one layer component with a same-named file,
   (d) shows a `<code-import>` example from its own folder, listed in its own `website.config.json`,
-  (e) builds with no mion page, no `_redirects` and no `mion.io` address in its output, and leaves the mion checkout
-  clean (`git status --porcelain` empty).
+  (e) builds with no mion page and no `_redirects`, names `mion.io` only in the shared section menu and the mion
+  footer note, and leaves the mion checkout clean (`git status --porcelain` empty).
 - Final report lists: layer paths, aliases, settings a consumer fills, opt-in steps, the config file keys.
-- The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each
-  committed on its own.
+- The simplify-comments pass ran on every touched source file, committed on its own.
