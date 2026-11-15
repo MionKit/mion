@@ -87,7 +87,7 @@ export function mountArgs(cfg) {
   }
   // The shared layer reads the example tool's values from here.
   args.push('-v', `${site.configPath}:/app/${CONFIG_FILE}:ro${cfg.mountOpts}`);
-  // Another repo's site gets mion's shared layer only, read-only: never mion-io, never a write into the mion checkout.
+  // Another repo's site never sees mion-io and never writes into the mion checkout.
   if (!site.isMion) args.push('-v', `${join(site.layersDir, 'shared')}:${layersMount(site)}/shared:ro${cfg.mountOpts}`);
   // READ-ONLY repo context (MION_REPO_ROOT=/repo-context): only the folders the site's config names, never the repo root.
   const context = (rel) => `/repo-context/${rel}`;
