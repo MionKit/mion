@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Overrides Docus' mobile menu, which renders the full navigation tree, so the phone gets the desktop's scoped
-// sidebar: SubsiteMenu's entries, its columns (`shared.menuColumns`) stacked as headed groups, then only the current subsite's sections.
+// sidebar: SubsiteMenu's columns as headed groups, then only the current subsite's sections.
 import type {ContentNavigationItem} from '@nuxt/content'
 
 const {subsites, subsite, sidebar} = useSubsite()
